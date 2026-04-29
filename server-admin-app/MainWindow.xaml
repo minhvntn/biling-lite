@@ -1,0 +1,588 @@
+﻿<Window x:Class="Server.Admin.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Server Manager Admin"
+        Height="900"
+        Width="1550"
+        MinHeight="720"
+        MinWidth="1240"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <SolidColorBrush x:Key="PanelBorderBrush" Color="#CFCFCF" />
+        <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#E6E6E6" />
+        <Thickness x:Key="MachineContextMenuItemPadding">12</Thickness>
+        <sys:Double x:Key="MachineContextMenuFontSize">14</sys:Double>
+
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Background" Value="{StaticResource HeaderBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
+            <Setter Property="BorderThickness" Value="0,0,1,1" />
+            <Setter Property="Padding" Value="6,5" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+
+        <Style TargetType="DataGridRow">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#E0E0E0" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Style.Triggers>
+                <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                    <Setter Property="Background" Value="#F9F9F9" />
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#1E5AA8" />
+                    <Setter Property="Foreground" Value="White" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="TabItem">
+            <Setter Property="Padding" Value="8" />
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <DockPanel>
+            <Border DockPanel.Dock="Top" Background="#1B4C86" Padding="8,6">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0"
+                               VerticalAlignment="Center"
+                               Foreground="White"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Text="Server Manager Billing [ADMIN]" />
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse x:Name="HealthIndicator" Width="12" Height="12" Fill="#9ca3af" Margin="0,0,6,0" />
+                        <TextBlock x:Name="HealthTextBlock" Foreground="White" Text="Backend: đang kiểm tra" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <TabControl x:Name="MainTabControl" Margin="8">
+                <TabItem Header="Máy trạm">
+                    <Grid Margin="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" Margin="0,0,0,8" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="130" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <Button Grid.Column="0" Margin="0,0,6,0" Padding="10,5" Click="RefreshMachinesButton_Click" Content="Làm mới" />
+                            <Button Grid.Column="1" Margin="0,0,6,0" Padding="10,5" Click="OpenMachineButton_Click" Content="Mở máy" />
+                            <Button Grid.Column="2" Margin="0,0,6,0" Padding="10,5" Click="LockMachineButton_Click" Content="Khóa máy" />
+                            <Button Grid.Column="3" Margin="0,0,6,0" Padding="10,5" Click="UnlockAllFilterButton_Click" Content="Bỏ lọc" />
+
+                            <TextBlock Grid.Column="5" VerticalAlignment="Center" Margin="0,0,6,0" Text="Trạng thái:" />
+                            <ComboBox x:Name="StatusFilterComboBox"
+                                      Grid.Column="6"
+                                      VerticalContentAlignment="Center"
+                                      SelectionChanged="StatusFilterComboBox_SelectionChanged">
+                                <ComboBoxItem Content="Tất cả" IsSelected="True" />
+                                <ComboBoxItem Content="Đang sử dụng" />
+                                <ComboBoxItem Content="Đang tắt" />
+                                <ComboBoxItem Content="Sẵn sàng" />
+                                <ComboBoxItem Content="Offline" />
+                            </ComboBox>
+
+                            <TextBlock Grid.Column="8" VerticalAlignment="Center" Margin="0,0,6,0" Text="Tìm máy:" />
+                            <TextBox x:Name="SearchTextBox" Grid.Column="9" VerticalContentAlignment="Center" TextChanged="SearchTextBox_TextChanged" />
+
+                            <TextBlock Grid.Column="11" VerticalAlignment="Center" x:Name="LastSyncTextBlock" Text="Đồng bộ: -" />
+                        </Grid>
+
+                        <Grid Grid.Row="1" Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Margin="0,0,8,0" Padding="10,6" Background="#EEF2FF" CornerRadius="8">
+                                <TextBlock x:Name="SummaryTotalTextBlock" FontWeight="SemiBold" Text="Tổng máy: 0" />
+                            </Border>
+                            <Border Grid.Column="1" Margin="0,0,8,0" Padding="10,6" Background="#ECFDF3" CornerRadius="8">
+                                <TextBlock x:Name="SummaryUsingTextBlock" FontWeight="SemiBold" Text="Đang sử dụng: 0" />
+                            </Border>
+                            <Border Grid.Column="2" Margin="0,0,8,0" Padding="10,6" Background="#FEF2F2" CornerRadius="8">
+                                <TextBlock x:Name="SummaryLockedTextBlock" FontWeight="SemiBold" Text="Đang tắt: 0" />
+                            </Border>
+                            <Border Grid.Column="3" Padding="10,6" Background="#FFF7ED" CornerRadius="8">
+                                <TextBlock x:Name="SummaryMoneyTextBlock" FontWeight="SemiBold" Text="Tiền tạm tính: 0" />
+                            </Border>
+                        </Grid>
+
+                        <DataGrid x:Name="MachinesDataGrid"
+                                  Grid.Row="2"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  CanUserAddRows="False"
+                                  SelectionMode="Single"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal"
+                                  RowHeaderWidth="0"
+                                  AlternationCount="2"
+                                  ColumnWidth="*"
+                                  SelectionChanged="MachinesDataGrid_SelectionChanged">
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                    <EventSetter Event="PreviewMouseRightButtonDown" Handler="MachinesDataGridRow_PreviewMouseRightButtonDown" />
+                                </Style>
+                            </DataGrid.RowStyle>
+                            <DataGrid.ContextMenu>
+                                <ContextMenu FontSize="{DynamicResource MachineContextMenuFontSize}">
+                                    <ContextMenu.Resources>
+                                        <Style TargetType="MenuItem">
+                                            <Setter Property="Padding" Value="{DynamicResource MachineContextMenuItemPadding}" />
+                                        </Style>
+                                    </ContextMenu.Resources>
+                                    <MenuItem Header="Mở máy" Click="ContextOpenMachineMenuItem_Click" />
+                                    <MenuItem Header="Khóa máy" Click="ContextLockMachineMenuItem_Click" />
+                                    <Separator />
+                                    <MenuItem Header="Khởi động lại máy trạm" Click="ContextRestartMachineMenuItem_Click" />
+                                    <MenuItem Header="Tắt máy trạm" Click="ContextShutdownMachineMenuItem_Click" />
+                                    <MenuItem Header="Đóng tất cả ứng dụng" Click="ContextCloseAppsMenuItem_Click" />
+                                    <Separator />
+                                    <MenuItem Header="Tạm nghỉ máy trạm" Click="ContextPauseMachineMenuItem_Click" />
+                                    <MenuItem Header="Tiếp tục sử dụng" Click="ContextResumeMachineMenuItem_Click" />
+                                    <Separator />
+                                    <MenuItem Header="Chuyển máy" Click="ContextTransferMachineMenuItem_Click" />
+                                    <Separator />
+                                    <MenuItem Header="Gửi thông báo" Click="ContextNotifyMachineMenuItem_Click" />
+                                    <Separator />
+                                    <MenuItem Header="Làm mới danh sách" Click="ContextRefreshMachinesMenuItem_Click" />
+                                    <MenuItem Header="Bỏ lọc tìm kiếm" Click="ContextClearMachineFiltersMenuItem_Click" />
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Tên" Binding="{Binding Name}" Width="1.5*" MinWidth="130">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTemplateColumn Header="Tình trạng" Width="1.1*" MinWidth="120">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding StatusText}"
+                                                       Foreground="{Binding StatusBrush}"
+                                                       FontWeight="Bold"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Người sử dụng" Binding="{Binding UserName}" Width="1.1*" MinWidth="120" />
+                                <DataGridTextColumn Header="Bắt đầu" Binding="{Binding StartedAtText}" Width="0.95*" MinWidth="100" />
+                                <DataGridTextColumn Header="Đã sử dụng" Binding="{Binding UsedText}" Width="0.95*" MinWidth="100" />
+                                <DataGridTextColumn Header="Còn lại" Binding="{Binding RemainingText}" Width="0.95*" MinWidth="100" />
+                                <DataGridTextColumn Header="Tiền" Binding="{Binding MoneyText}" Width="0.8*" MinWidth="80" />
+                                <DataGridTextColumn Header="Ngày" Binding="{Binding DateText}" Width="0.95*" MinWidth="95" />
+                                <DataGridTextColumn Header="Phiên bản" Binding="{Binding VersionText}" Width="0.85*" MinWidth="90" />
+                                <DataGridTextColumn Header="Nhóm" Binding="{Binding GroupName}" Width="1*" MinWidth="100" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock Grid.Row="3" Margin="0,8,0,0" x:Name="SelectionTextBlock" Text="Chưa chọn máy" />
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="Tài khoản">
+                    <Grid Margin="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="220" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <Button Grid.Column="0" Margin="0,0,6,0" Padding="10,5" Click="RefreshMembersButton_Click" Content="Làm mới" />
+                            <Button Grid.Column="1" Margin="0,0,6,0" Padding="10,5" Click="AddMemberButton_Click" Content="Thêm hội viên" />
+                            <Button Grid.Column="2" Margin="0,0,6,0" Padding="10,5" Click="TopupMemberButton_Click" Content="Nạp tiền" />
+                            <Button Grid.Column="3" Margin="0,0,6,0" Padding="10,5" Click="BuyHoursButton_Click" Content="Mua giờ" />
+                            <Button Grid.Column="4" Margin="0,0,6,0" Padding="10,5" Click="RefundMemberButton_Click" Content="Tiền trả lại" />
+                            <Button Grid.Column="5" Margin="0,0,6,0" Padding="10,5" Click="GiftMemberButton_Click" Content="Tặng tiền miễn phí" />
+
+                            <TextBlock Grid.Column="7" VerticalAlignment="Center" Margin="0,0,4,0" Text="Nạp:" />
+                            <TextBox x:Name="TopupAmountTextBox" Grid.Column="8" VerticalContentAlignment="Center" Text="50000" />
+
+                            <TextBlock Grid.Column="9" VerticalAlignment="Center" Margin="8,0,4,0" Text="Giờ:" />
+                            <TextBox x:Name="BuyHoursTextBox" Grid.Column="10" VerticalContentAlignment="Center" Text="2" />
+
+                            <TextBlock Grid.Column="11" VerticalAlignment="Center" Margin="8,0,4,0" Text="Giá/giờ:" />
+                            <TextBox x:Name="RatePerHourTextBox" Grid.Column="12" VerticalContentAlignment="Center" Text="15000" />
+
+                            <TextBlock Grid.Column="14" VerticalAlignment="Center" Margin="0,0,6,0" Text="Tìm:" />
+                            <TextBox x:Name="MembersSearchTextBox" Grid.Column="15" VerticalContentAlignment="Center" TextChanged="MembersSearchTextBox_TextChanged" />
+
+                            <TextBlock Grid.Column="17" VerticalAlignment="Center" x:Name="MembersLastSyncTextBlock" Text="Đồng bộ: -" />
+                        </Grid>
+
+                        <DataGrid x:Name="MembersDataGrid"
+                                  Grid.Row="1"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  CanUserAddRows="False"
+                                  SelectionMode="Single"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal"
+                                  RowHeaderWidth="0"
+                                  AlternationCount="2"
+                                  SelectionChanged="MembersDataGrid_SelectionChanged">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="130" />
+                                <DataGridTextColumn Header="Họ tên" Binding="{Binding FullName}" Width="160" />
+                                <DataGridTextColumn Header="SDT" Binding="{Binding Phone}" Width="120" />
+                                <DataGridTextColumn Header="Số dư" Binding="{Binding BalanceText}" Width="120" />
+                                <DataGridTextColumn Header="Giờ chơi" Binding="{Binding PlayHoursText}" Width="110" />
+                                <DataGridTextColumn Header="Mật khẩu" Binding="{Binding PasswordState}" Width="100" />
+                                <DataGridTextColumn Header="Trạng thái" Binding="{Binding ActiveText}" Width="100" />
+                                <DataGridTextColumn Header="Tạo lúc" Binding="{Binding CreatedAtText}" Width="160" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <DataGrid x:Name="MemberTransactionsDataGrid"
+                                  Grid.Row="2"
+                                  Margin="0,8,0,0"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  CanUserAddRows="False"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal"
+                                  RowHeaderWidth="0"
+                                  AlternationCount="2">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Thời gian" Binding="{Binding CreatedAtText}" Width="170" />
+                                <DataGridTextColumn Header="Loại" Binding="{Binding TypeText}" Width="120" />
+                                <DataGridTextColumn Header="Tiền thay đổi" Binding="{Binding AmountDeltaText}" Width="140" />
+                                <DataGridTextColumn Header="Giờ thay đổi" Binding="{Binding PlayHoursDeltaText}" Width="120" />
+                                <DataGridTextColumn Header="Người tạo" Binding="{Binding CreatedBy}" Width="120" />
+                                <DataGridTextColumn Header="Ghi chú" Binding="{Binding Note}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock Grid.Row="3" Margin="0,8,0,0" x:Name="SelectedMemberTextBlock" Text="Chưa chọn hội viên" />
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="Nhật ký hệ thống">
+                    <Grid Margin="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Padding="10,5" Click="RefreshSystemLogsButton_Click" Content="Làm mới" Margin="0,0,8,0" />
+                            <TextBlock VerticalAlignment="Center" Text="Số dòng:" Margin="0,0,6,0" />
+                            <ComboBox x:Name="SystemLogLimitComboBox" Width="110" SelectionChanged="SystemLogLimitComboBox_SelectionChanged">
+                                <ComboBoxItem Content="50" />
+                                <ComboBoxItem Content="100" IsSelected="True" />
+                                <ComboBoxItem Content="200" />
+                                <ComboBoxItem Content="500" />
+                            </ComboBox>
+                        </StackPanel>
+
+                        <DataGrid x:Name="SystemLogsDataGrid"
+                                  Grid.Row="1"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  CanUserAddRows="False"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal"
+                                  RowHeaderWidth="0"
+                                  AlternationCount="2">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Thời gian" Binding="{Binding CreatedAtText}" Width="170" />
+                                <DataGridTextColumn Header="Nguồn" Binding="{Binding Source}" Width="90" />
+                                <DataGridTextColumn Header="Sự kiện" Binding="{Binding EventType}" Width="230" />
+                                <DataGridTextColumn Header="Máy" Binding="{Binding PcText}" Width="180" />
+                                <DataGridTextColumn Header="Chi tiết" Binding="{Binding PayloadText}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock Grid.Row="2" Margin="0,8,0,0" x:Name="SystemLogInfoTextBlock" Text="Chưa tải log" />
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="Nhật ký giao dịch">
+                    <Grid Margin="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Padding="10,5" Click="RefreshTransactionLogsButton_Click" Content="Làm mới" Margin="0,0,8,0" />
+                            <TextBlock x:Name="TransactionSummaryTextBlock" VerticalAlignment="Center" Text="Tổng doanh thu: 0" />
+                        </StackPanel>
+
+                        <DataGrid x:Name="SessionLogsDataGrid"
+                                  Grid.Row="1"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  CanUserAddRows="False"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal"
+                                  RowHeaderWidth="0"
+                                  AlternationCount="2">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Máy" Binding="{Binding PcName}" Width="120" />
+                                <DataGridTextColumn Header="Agent" Binding="{Binding AgentId}" Width="130" />
+                                <DataGridTextColumn Header="Bắt đầu" Binding="{Binding StartedAtText}" Width="160" />
+                                <DataGridTextColumn Header="Kết thúc" Binding="{Binding EndedAtText}" Width="160" />
+                                <DataGridTextColumn Header="Số phút" Binding="{Binding BillableMinutesText}" Width="90" />
+                                <DataGridTextColumn Header="Tiền" Binding="{Binding AmountText}" Width="110" />
+                                <DataGridTextColumn Header="Trạng thái" Binding="{Binding Status}" Width="90" />
+                                <DataGridTextColumn Header="Lý do" Binding="{Binding ClosedReason}" Width="120" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock Grid.Row="2" Margin="0,8,0,0" x:Name="TransactionsInfoTextBlock" Text="Chưa tải giao dịch" />
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="Nhóm máy">
+                    <Grid Margin="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="220" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button Padding="10,5" Click="RefreshGroupsButton_Click" Content="Làm mới" Margin="0,0,8,0" />
+                            <TextBlock Text="Tổng hợp nhóm máy theo trạng thái hiện tại" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <DataGrid x:Name="GroupSummaryDataGrid"
+                                  Grid.Row="1"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  CanUserAddRows="False"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal"
+                                  RowHeaderWidth="0"
+                                  AlternationCount="2">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Nhóm" Binding="{Binding GroupName}" Width="140" />
+                                <DataGridTextColumn Header="Tổng" Binding="{Binding Total}" Width="80" />
+                                <DataGridTextColumn Header="Đang dùng" Binding="{Binding InUse}" Width="90" />
+                                <DataGridTextColumn Header="Đang tắt" Binding="{Binding Locked}" Width="90" />
+                                <DataGridTextColumn Header="Sẵn sàng" Binding="{Binding Online}" Width="90" />
+                                <DataGridTextColumn Header="Ngoại tuyến" Binding="{Binding Offline}" Width="90" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <DataGrid x:Name="GroupMachinesDataGrid"
+                                  Grid.Row="2"
+                                  Margin="0,8,0,0"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  CanUserAddRows="False"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="Horizontal"
+                                  RowHeaderWidth="0"
+                                  AlternationCount="2">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Nhóm" Binding="{Binding GroupName}" Width="140" />
+                                <DataGridTextColumn Header="Tên máy" Binding="{Binding MachineName}" Width="150" />
+                                <DataGridTextColumn Header="Agent" Binding="{Binding AgentId}" Width="130" />
+                                <DataGridTextColumn Header="Trạng thái" Binding="{Binding StatusText}" Width="120" />
+                                <DataGridTextColumn Header="IP" Binding="{Binding IpAddress}" Width="120" />
+                                <DataGridTextColumn Header="Lần cuối" Binding="{Binding LastSeenAtText}" Width="170" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock Grid.Row="3" Margin="0,8,0,0" x:Name="GroupInfoTextBlock" Text="Nhóm mặc định đã được khởi tạo" />
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="Dịch vụ">
+                    <Grid Margin="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <WrapPanel Grid.Row="0" Margin="0,0,0,8">
+                            <Button Margin="0,0,8,8" Padding="10,5" Click="OpenPcsWebButton_Click" Content="Mở web Máy trạm" />
+                            <Button Margin="0,0,8,8" Padding="10,5" Click="OpenMembersWebButton_Click" Content="Mở web Hội viên" />
+                            <Button Margin="0,0,8,8" Padding="10,5" Click="CheckBackendNowButton_Click" Content="Kiểm tra backend" />
+                            <Button Margin="0,0,8,8" Padding="10,5" Click="RefreshAllDataButton_Click" Content="Tải lại toàn bộ dữ liệu" />
+                        </WrapPanel>
+
+                        <TextBox x:Name="ServiceOutputTextBox"
+                                 Grid.Row="1"
+                                 IsReadOnly="True"
+                                 VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Auto"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="True"
+                                 FontFamily="Consolas"
+                                 FontSize="13" />
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="Cài đặt">
+                    <Grid Margin="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" FontSize="18" FontWeight="SemiBold" Text="Cài đặt giao diện" />
+                        <TextBlock Grid.Row="1" Margin="0,8,0,0" Text="Cỡ chữ (toàn bộ app server admin):" />
+
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0" VerticalAlignment="Center">
+                            <Slider x:Name="FontSizeSlider"
+                                    Width="260"
+                                    Minimum="10"
+                                    Maximum="22"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    ValueChanged="FontSizeSlider_ValueChanged" />
+                            <TextBlock x:Name="FontSizeValueTextBlock" Margin="10,0,0,0" VerticalAlignment="Center" Text="13" />
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="3" Margin="0,12,0,0" Text="Cỡ chữ bảng Máy trạm (riêng khu vực bảng):" />
+
+                        <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,8,0,0" VerticalAlignment="Center">
+                            <Slider x:Name="MachineTableFontSizeSlider"
+                                    Width="260"
+                                    Minimum="11"
+                                    Maximum="30"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    ValueChanged="MachineTableFontSizeSlider_ValueChanged" />
+                            <TextBlock x:Name="MachineTableFontSizeValueTextBlock" Margin="10,0,0,0" VerticalAlignment="Center" Text="14" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,12,0,0">
+                            <TextBlock VerticalAlignment="Center" Text="Padding menu chuột phải bảng Máy trạm:" Margin="0,0,8,0" />
+                            <Slider x:Name="MachineContextMenuPaddingSlider"
+                                    Width="180"
+                                    Minimum="6"
+                                    Maximum="24"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    ValueChanged="MachineContextMenuPaddingSlider_ValueChanged" />
+                            <TextBlock x:Name="MachineContextMenuPaddingValueTextBlock" Margin="10,0,0,0" VerticalAlignment="Center" Text="12" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,12,0,0">
+                            <TextBlock VerticalAlignment="Center" Text="Cỡ chữ menu chuột phải bảng Máy trạm:" Margin="0,0,8,0" />
+                            <Slider x:Name="MachineContextMenuFontSizeSlider"
+                                    Width="180"
+                                    Minimum="10"
+                                    Maximum="30"
+                                    TickFrequency="1"
+                                    IsSnapToTickEnabled="True"
+                                    ValueChanged="MachineContextMenuFontSizeSlider_ValueChanged" />
+                            <TextBlock x:Name="MachineContextMenuFontSizeValueTextBlock" Margin="10,0,0,0" VerticalAlignment="Center" Text="14" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="7" Orientation="Horizontal" Margin="0,12,0,0">
+                            <Button Padding="12,6" Margin="0,0,8,0" Click="SaveFontSizeButton_Click" Content="Lưu cài đặt" />
+                            <Button Padding="12,6" Click="ResetFontSizeButton_Click" Content="Đặt lại mặc định" />
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="8" Margin="0,12,0,0" Foreground="#555" Text="Thông tin: Cỡ chữ được xem trước ngay khi kéo thanh trượt." />
+                    </Grid>
+                </TabItem>
+            </TabControl>
+        </DockPanel>
+
+        <Grid x:Name="MemberModalOverlay" Background="#80000000" Visibility="Collapsed" Panel.ZIndex="100">
+            <Border Width="420" Height="280" Background="White" BorderBrush="#CFCFCF" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="16">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Thêm hội viên" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,12" />
+
+                    <TextBlock Grid.Row="1" Text="Tên đăng nhập" Margin="0,0,0,4" />
+                    <TextBox x:Name="MemberUsernameTextBox" Grid.Row="2" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,10" />
+
+                    <TextBlock Grid.Row="3" Text="Mật khẩu" Margin="0,0,0,4" />
+                    <PasswordBox x:Name="MemberPasswordBox" Grid.Row="4" Height="32" VerticalContentAlignment="Center" />
+
+                    <TextBlock x:Name="MemberModalErrorTextBlock" Grid.Row="4" VerticalAlignment="Bottom" Foreground="#B42318" Margin="0,38,0,0" TextWrapping="Wrap" />
+
+                    <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                        <Button Padding="10,5" Margin="0,0,8,0" Click="CreateMemberConfirmButton_Click" Content="Tạo" />
+                        <Button Padding="10,5" Click="CancelMemberModalButton_Click" Content="Hủy" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
+

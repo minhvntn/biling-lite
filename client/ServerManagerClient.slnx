@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Client.Agent.Wpf/Client.Agent.Wpf.csproj" />
+    <Project Path="src/Client.Watchdog.Service/Client.Watchdog.Service.csproj" />
+  </Folder>
+</Solution>
