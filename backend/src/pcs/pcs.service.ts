@@ -14,6 +14,9 @@ export type PcListItem = {
   id: string;
   agentId: string;
   name: string;
+  groupId: string | null;
+  groupName: string;
+  hourlyRate: number;
   hostname: string | null;
   ipAddress: string | null;
   status: PcStatus;
@@ -25,6 +28,15 @@ export type PcListItem = {
     billableMinutes: number;
     estimatedAmount: number;
   } | null;
+  activeMember: {
+    memberId: string;
+    username: string;
+    fullName: string;
+  } | null;
+  activeGuest: {
+    displayName: string;
+    prepaidAmount: number;
+  } | null;
 };
 
 @Injectable()
@@ -32,15 +44,12 @@ export class PcsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getPcList(): Promise<PcListItem[]> {
-    const activePricing = await this.prisma.pricingConfig.findFirst({
-      where: { isActive: true },
-      orderBy: { updatedAt: 'desc' },
-    });
-    const pricePerMinute = Number(activePricing?.pricePerMinute ?? 0);
+    const defaultGroup = await this.ensureDefaultGroup();
 
     const pcs = await this.prisma.pc.findMany({
       orderBy: [{ name: 'asc' }],
       include: {
+        group: true,
         sessions: {
           where: { status: 'ACTIVE' },
           orderBy: { startedAt: 'desc' },
@@ -49,19 +58,31 @@ export class PcsService {
       },
     });
 
+    const activeUsersByPc = await this.resolveActiveUsersByPcId(
+      pcs.map((pc) => pc.id),
+    );
+
     const now = Date.now();
     return pcs.map((pc) => {
+      const effectiveGroup = pc.group ?? defaultGroup;
       const activeSession = pc.sessions[0] ?? null;
+      const activeUser = pc.status === PcStatus.IN_USE ? activeUsersByPc.get(pc.id) : null;
+      const activeMember = activeUser?.kind === 'MEMBER' ? activeUser.member : null;
+      const activeGuest = activeUser?.kind === 'GUEST' ? activeUser.guest : null;
       const elapsedSeconds = activeSession
         ? Math.max(0, Math.floor((now - activeSession.startedAt.getTime()) / 1000))
         : 0;
       const billableMinutes = activeSession ? Math.max(1, Math.ceil(elapsedSeconds / 60)) : 0;
-      const estimatedAmount = billableMinutes * pricePerMinute;
+      const estimatedAmount =
+        billableMinutes * Number(activeSession?.pricePerMinute ?? 0);
 
       return {
         id: pc.id,
         agentId: pc.agentId,
         name: pc.name,
+        groupId: effectiveGroup.id,
+        groupName: effectiveGroup.name,
+        hourlyRate: Number(effectiveGroup.hourlyRate),
         hostname: pc.hostname,
         ipAddress: pc.ipAddress,
         status: pc.status,
@@ -75,6 +96,8 @@ export class PcsService {
               estimatedAmount,
             }
           : null,
+        activeMember,
+        activeGuest,
       };
     });
   }
@@ -83,6 +106,7 @@ export class PcsService {
     payload: PresencePayload,
     fallbackIp?: string,
   ): Promise<PresenceTransition> {
+    const defaultGroup = await this.ensureDefaultGroup();
     const agentId = payload.agentId?.trim();
     if (!agentId) {
       throw new Error('agentId is required');
@@ -98,6 +122,7 @@ export class PcsService {
         data: {
           agentId,
           name: hostname ?? agentId,
+          groupId: defaultGroup.id,
           hostname,
           ipAddress,
           status: PcStatus.ONLINE,
@@ -118,6 +143,7 @@ export class PcsService {
     const updatedPc = await this.prisma.pc.update({
       where: { id: existing.id },
       data: {
+        groupId: existing.groupId ?? defaultGroup.id,
         hostname: hostname ?? existing.hostname,
         ipAddress: ipAddress ?? existing.ipAddress,
         status: nextStatus,
@@ -188,6 +214,135 @@ export class PcsService {
     return transitions;
   }
 
+  private async resolveActiveUsersByPcId(
+    pcIds: string[],
+  ): Promise<
+    Map<
+      string,
+      | { kind: 'MEMBER'; member: { memberId: string; username: string; fullName: string } }
+      | { kind: 'GUEST'; guest: { displayName: string; prepaidAmount: number } }
+    >
+  > {
+    const result = new Map<
+      string,
+      | { kind: 'MEMBER'; member: { memberId: string; username: string; fullName: string } }
+      | { kind: 'GUEST'; guest: { displayName: string; prepaidAmount: number } }
+    >();
+    if (pcIds.length === 0) {
+      return result;
+    }
+
+    await Promise.all(
+      pcIds.map(async (pcId) => {
+        const latestPresence = await this.prisma.eventLog.findFirst({
+          where: {
+            pcId,
+            eventType: {
+              in: ['member.pc.presence', 'guest.pc.presence'],
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        });
+
+        if (latestPresence?.eventType === 'member.pc.presence') {
+          const member = this.parseMemberPresencePayload(latestPresence.payload);
+          if (member) {
+            result.set(pcId, {
+              kind: 'MEMBER',
+              member,
+            });
+          }
+          return;
+        }
+
+        if (latestPresence?.eventType === 'guest.pc.presence') {
+          const guest = this.parseGuestPresencePayload(latestPresence.payload);
+          if (guest) {
+            result.set(pcId, {
+              kind: 'GUEST',
+              guest,
+            });
+          }
+        }
+      }),
+    );
+
+    return result;
+  }
+
+  private parseMemberPresencePayload(
+    payload?: Prisma.JsonValue | null,
+  ): { memberId: string; username: string; fullName: string } | null {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return null;
+    }
+
+    const value = payload as Record<string, unknown>;
+    if (value.isActive !== true) {
+      return null;
+    }
+
+    const memberId = this.readString(value.memberId);
+    const username = this.readString(value.username);
+    const fullName = this.readString(value.fullName) || username;
+
+    if (!memberId || !username) {
+      return null;
+    }
+
+    return {
+      memberId,
+      username,
+      fullName,
+    };
+  }
+
+  private parseGuestPresencePayload(
+    payload?: Prisma.JsonValue | null,
+  ): { displayName: string; prepaidAmount: number } | null {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return null;
+    }
+
+    const value = payload as Record<string, unknown>;
+    if (value.isActive !== true) {
+      return null;
+    }
+
+    const displayName = this.readString(value.displayName) || 'Khách vãng lai';
+    const prepaidAmount = this.readNumber(value.prepaidAmount);
+
+    return {
+      displayName,
+      prepaidAmount,
+    };
+  }
+
+  private readString(value: unknown): string {
+    if (typeof value !== 'string') {
+      return '';
+    }
+
+    return value.trim();
+  }
+
+  private readNumber(value: unknown): number {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+
+    return 0;
+  }
+
   private parseSeenAt(at?: string): Date {
     if (!at) {
       return new Date();
@@ -204,6 +359,41 @@ export class PcsService {
   private parseOptional(value?: string): string | null {
     const trimmed = value?.trim();
     return trimmed ? trimmed : null;
+  }
+
+  private async ensureDefaultGroup() {
+    const existingDefault = await this.prisma.pcGroup.findFirst({
+      where: { isDefault: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+    if (existingDefault) {
+      return existingDefault;
+    }
+
+    const fallbackGroup = await this.prisma.pcGroup.findFirst({
+      where: { name: 'Mặc định' },
+    });
+    if (fallbackGroup) {
+      return this.prisma.$transaction(async (tx) => {
+        await tx.pcGroup.updateMany({
+          where: { isDefault: true },
+          data: { isDefault: false },
+        });
+
+        return tx.pcGroup.update({
+          where: { id: fallbackGroup.id },
+          data: { isDefault: true },
+        });
+      });
+    }
+
+    return this.prisma.pcGroup.create({
+      data: {
+        name: 'Mặc định',
+        hourlyRate: 5000,
+        isDefault: true,
+      },
+    });
   }
 
   private async logEvent(

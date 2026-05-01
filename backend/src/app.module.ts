@@ -12,6 +12,9 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { ReportsModule } from './reports/reports.module';
 import { MembersModule } from './members/members.module';
+import { ServicesModule } from './services/services.module';
+import { WebFilterModule } from './web-filter/web-filter.module';
+import { WebsiteLogsModule } from './website-logs/website-logs.module';
 
 @Module({
   imports: [
@@ -26,6 +29,9 @@ import { MembersModule } from './members/members.module';
     RealtimeModule,
     ReportsModule,
     MembersModule,
+    ServicesModule,
+    WebFilterModule,
+    WebsiteLogsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

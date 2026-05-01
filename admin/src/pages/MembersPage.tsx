@@ -39,7 +39,9 @@ export function MembersPage() {
 
   const [newUsername, setNewUsername] = useState('');
   const [newFullName, setNewFullName] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [newPhone, setNewPhone] = useState('');
+  const [newIdentityNumber, setNewIdentityNumber] = useState('');
 
   const [topupAmount, setTopupAmount] = useState('50000');
   const [buyHoursValue, setBuyHoursValue] = useState('2');
@@ -99,13 +101,17 @@ export function MembersPage() {
       await createMember({
         username: newUsername,
         fullName: newFullName,
+        password: newPassword,
         phone: newPhone.trim() || undefined,
+        identityNumber: newIdentityNumber.trim() || undefined,
       });
 
       setMessage('Tao hoi vien thanh cong');
       setNewUsername('');
       setNewFullName('');
+      setNewPassword('');
       setNewPhone('');
+      setNewIdentityNumber('');
       await loadMembers(search);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : 'Tao hoi vien that bai');
@@ -212,9 +218,21 @@ export function MembersPage() {
             required
           />
           <input
+            value={newPassword}
+            onChange={(event) => setNewPassword(event.target.value)}
+            placeholder="Mat khau"
+            required
+            minLength={1}
+          />
+          <input
             value={newPhone}
             onChange={(event) => setNewPhone(event.target.value)}
             placeholder="So dien thoai"
+          />
+          <input
+            value={newIdentityNumber}
+            onChange={(event) => setNewIdentityNumber(event.target.value)}
+            placeholder="CCCD/CMND"
           />
           <button type="submit">Tao hoi vien</button>
         </form>
@@ -227,6 +245,7 @@ export function MembersPage() {
               <th>Username</th>
               <th>Ho ten</th>
               <th>SDT</th>
+              <th>CCCD/CMND</th>
               <th>So du</th>
               <th>Gio choi</th>
               <th>Trang thai</th>
@@ -239,6 +258,7 @@ export function MembersPage() {
                 <td>{member.username}</td>
                 <td>{member.fullName}</td>
                 <td>{member.phone ?? '-'}</td>
+                <td>{member.identityNumber ?? '-'}</td>
                 <td>{formatMoney(member.balance)}</td>
                 <td>{member.playHours.toFixed(2)}</td>
                 <td>{member.isActive ? 'Hoat dong' : 'Tam khoa'}</td>
@@ -256,7 +276,7 @@ export function MembersPage() {
             ))}
             {!loading && members.length === 0 && (
               <tr>
-                <td colSpan={7}>Chua co hoi vien</td>
+                <td colSpan={8}>Chua co hoi vien</td>
               </tr>
             )}
           </tbody>

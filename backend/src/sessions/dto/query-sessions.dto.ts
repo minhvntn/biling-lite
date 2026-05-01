@@ -14,6 +14,14 @@ export class QuerySessionsDto {
   to?: string;
 
   @IsOptional()
+  @IsDateString()
+  endedFrom?: string;
+
+  @IsOptional()
+  @IsDateString()
+  endedTo?: string;
+
+  @IsOptional()
   @IsIn(['ACTIVE', 'CLOSED'])
   status?: 'ACTIVE' | 'CLOSED';
 }

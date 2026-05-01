@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { CommandsService } from './commands.service';
 import { RequestCommandDto } from './dto/request-command.dto';
 import { NotifyPcDto } from './dto/notify-pc.dto';
+import { GuestOpenDto } from './dto/guest-open.dto';
 
 @Controller()
 export class CommandsController {
@@ -10,6 +11,15 @@ export class CommandsController {
   @Post('pcs/:pcId/open')
   async openPc(@Param('pcId') pcId: string, @Body() body: RequestCommandDto) {
     return this.commandsService.createOpenCommand(pcId, body.requestedBy);
+  }
+
+  @Post('pcs/:pcId/guest-open')
+  async openGuestPc(@Param('pcId') pcId: string, @Body() body: GuestOpenDto) {
+    return this.commandsService.createGuestOpenCommand(
+      pcId,
+      body.amount,
+      body.requestedBy,
+    );
   }
 
   @Post('pcs/:pcId/lock')

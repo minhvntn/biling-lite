@@ -3,6 +3,7 @@ export type MemberItem = {
   username: string;
   fullName: string;
   phone: string | null;
+  identityNumber: string | null;
   balance: number;
   playSeconds: number;
   playHours: number;
@@ -38,7 +39,9 @@ export type MemberTransactionsResponse = {
 export type CreateMemberPayload = {
   username: string;
   fullName: string;
+  password: string;
   phone?: string;
+  identityNumber?: string;
 };
 
 export type TopupPayload = {

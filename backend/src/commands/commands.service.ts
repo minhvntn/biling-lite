@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CommandStatus, CommandType, EventSource, PcStatus, Prisma } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
@@ -18,6 +18,33 @@ export class CommandsService {
 
   async createOpenCommand(pcId: string, requestedBy?: CommandRequestedBy) {
     return this.createAndDispatch(pcId, CommandType.OPEN, requestedBy);
+  }
+
+  async createGuestOpenCommand(
+    pcId: string,
+    amount: number,
+    requestedBy?: CommandRequestedBy,
+  ) {
+    const normalizedAmount = this.roundMoney(amount);
+    const command = await this.createAndDispatch(pcId, CommandType.OPEN, requestedBy);
+
+    if (
+      command.status !== CommandStatus.PENDING &&
+      command.status !== CommandStatus.SENT &&
+      command.status !== CommandStatus.ACK_SUCCESS
+    ) {
+      return command;
+    }
+
+    await this.logEvent(EventSource.ADMIN, 'guest.pc.presence', pcId, {
+      isActive: true,
+      displayName: 'Khách vãng lai',
+      prepaidAmount: normalizedAmount,
+      requestedBy: requestedBy?.trim() || 'admin.desktop',
+      at: new Date().toISOString(),
+    });
+
+    return command;
   }
 
   async createLockCommand(pcId: string, requestedBy?: CommandRequestedBy) {
@@ -143,6 +170,7 @@ export class CommandsService {
             sessionId: string;
             amount?: number;
             billableMinutes?: number;
+            hourlyRate?: number;
           }
         | null = null;
 
@@ -182,11 +210,8 @@ export class CommandsService {
           });
 
           if (!activeSession) {
-            const activePricing = await tx.pricingConfig.findFirst({
-              where: { isActive: true },
-              orderBy: { updatedAt: 'desc' },
-            });
-            const pricePerMinute = activePricing?.pricePerMinute ?? 0;
+            const hourlyRate = await this.resolveHourlyRateForPcTx(tx, command.pcId);
+            const pricePerMinute = this.toPricePerMinute(hourlyRate);
 
             const createdSession = await tx.session.create({
               data: {
@@ -199,6 +224,7 @@ export class CommandsService {
             sessionEvent = {
               type: 'session.opened',
               sessionId: createdSession.id,
+              hourlyRate,
             };
           }
         }
@@ -270,6 +296,13 @@ export class CommandsService {
         sessionId: result.sessionEvent.sessionId,
         amount: result.sessionEvent.amount ?? null,
         billableMinutes: result.sessionEvent.billableMinutes ?? null,
+      });
+    }
+
+    if (payload.result === 'SUCCESS' && command.type === CommandType.LOCK) {
+      await this.logEvent(EventSource.SERVER, 'guest.pc.presence', command.pcId, {
+        isActive: false,
+        at: new Date().toISOString(),
       });
     }
 
@@ -399,6 +432,10 @@ export class CommandsService {
       await this.logEvent(EventSource.SERVER, 'command.noop.lock_without_session', pcId, {
         commandId: noOp.id,
       });
+      await this.logEvent(EventSource.SERVER, 'guest.pc.presence', pcId, {
+        isActive: false,
+        at: new Date().toISOString(),
+      });
       return noOp;
     }
 
@@ -449,6 +486,11 @@ export class CommandsService {
       commandId: sentCommand.id,
       type: sentCommand.type,
       issuedAt: new Date().toISOString(),
+      hourlyRate:
+        sentCommand.type === CommandType.OPEN ||
+        sentCommand.type === CommandType.RESUME
+          ? await this.resolveHourlyRateForPc(pc.id)
+          : undefined,
     });
     this.broadcastCommandUpdated(sentCommand);
     await this.logEvent(EventSource.SERVER, 'command.dispatched', pcId, {
@@ -486,6 +528,91 @@ export class CommandsService {
     }
 
     return raw;
+  }
+
+  private toPricePerMinute(hourlyRate: number): number {
+    return Math.round((hourlyRate / 60) * 100) / 100;
+  }
+
+  private roundMoney(value: number): number {
+    if (!Number.isFinite(value) || value < 1000) {
+      throw new BadRequestException('So tien khach vang lai khong hop le');
+    }
+
+    return Math.round(value * 100) / 100;
+  }
+
+  private async resolveHourlyRateForPc(pcId: string): Promise<number> {
+    const pc = await this.prisma.pc.findUnique({
+      where: { id: pcId },
+      include: { group: true },
+    });
+
+    if (!pc) {
+      throw new NotFoundException('PC not found');
+    }
+
+    if (pc.group) {
+      return Number(pc.group.hourlyRate);
+    }
+
+    const defaultGroup = await this.ensureDefaultGroup(this.prisma);
+    return Number(defaultGroup.hourlyRate);
+  }
+
+  private async resolveHourlyRateForPcTx(
+    tx: Prisma.TransactionClient,
+    pcId: string,
+  ): Promise<number> {
+    const pc = await tx.pc.findUnique({
+      where: { id: pcId },
+      include: { group: true },
+    });
+
+    if (!pc) {
+      throw new NotFoundException('PC not found');
+    }
+
+    if (pc.group) {
+      return Number(pc.group.hourlyRate);
+    }
+
+    const defaultGroup = await this.ensureDefaultGroup(tx);
+    return Number(defaultGroup.hourlyRate);
+  }
+
+  private async ensureDefaultGroup(client: PrismaService | Prisma.TransactionClient) {
+    const existingDefault = await client.pcGroup.findFirst({
+      where: { isDefault: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+    if (existingDefault) {
+      return existingDefault;
+    }
+
+    const fallbackGroup = await client.pcGroup.findFirst({
+      where: { name: 'Mặc định' },
+    });
+
+    if (fallbackGroup) {
+      await client.pcGroup.updateMany({
+        where: { isDefault: true },
+        data: { isDefault: false },
+      });
+
+      return client.pcGroup.update({
+        where: { id: fallbackGroup.id },
+        data: { isDefault: true },
+      });
+    }
+
+    return client.pcGroup.create({
+      data: {
+        name: 'Mặc định',
+        hourlyRate: 5000,
+        isDefault: true,
+      },
+    });
   }
 
   private async logEvent(

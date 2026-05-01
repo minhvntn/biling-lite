@@ -18,7 +18,7 @@ export class CreateMemberDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(6)
+  @MinLength(1)
   @MaxLength(100)
   password?: string;
 
@@ -27,4 +27,10 @@ export class CreateMemberDto {
   @MaxLength(30)
   @Transform(({ value }: { value?: string }) => value?.trim() || undefined)
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  @Transform(({ value }: { value?: string }) => value?.trim() || undefined)
+  identityNumber?: string;
 }

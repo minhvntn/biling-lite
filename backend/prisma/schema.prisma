@@ -66,6 +66,7 @@ model Pc {
   id         String    @id @default(uuid()) @db.Uuid
   agentId    String    @unique @map("agent_id") @db.VarChar(100)
   name       String    @db.VarChar(100)
+  groupId    String?   @map("group_id") @db.Uuid
   hostname   String?   @db.VarChar(120)
   ipAddress  String?   @map("ip_address") @db.VarChar(45)
   status     PcStatus  @default(OFFLINE)
@@ -73,12 +74,28 @@ model Pc {
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  group     PcGroup?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
   sessions  Session[]
   commands  Command[]
   eventsLog EventLog[]
+  serviceOrders PcServiceOrder[]
 
   @@index([status], map: "idx_pcs_status")
+  @@index([groupId], map: "idx_pcs_group_id")
   @@map("pcs")
+}
+
+model PcGroup {
+  id         String    @id @default(uuid()) @db.Uuid
+  name       String    @unique @db.VarChar(80)
+  hourlyRate Decimal   @map("hourly_rate") @db.Decimal(12, 2)
+  isDefault  Boolean   @default(false) @map("is_default")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  pcs        Pc[]
+
+  @@index([isDefault], map: "idx_pc_groups_is_default")
+  @@map("pc_groups")
 }
 
 model PricingConfig {
@@ -107,6 +124,7 @@ model Session {
   updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   pc Pc @relation(fields: [pcId], references: [id], onDelete: Cascade)
+  serviceOrders PcServiceOrder[]
 
   @@index([pcId], map: "idx_sessions_pc_id")
   @@index([startedAt], map: "idx_sessions_started_at")
@@ -152,6 +170,7 @@ model Member {
   fullName         String   @map("full_name") @db.VarChar(120)
   passwordHash     String?  @map("password_hash") @db.VarChar(255)
   phone            String?  @db.VarChar(30)
+  identityNumber   String?  @map("identity_number") @db.VarChar(30)
   balance          Decimal  @default(0) @db.Decimal(12, 2)
   playSeconds      Int      @default(0) @map("play_seconds")
   isActive         Boolean  @default(true) @map("is_active")
@@ -178,4 +197,42 @@ model MemberTransaction {
   @@index([memberId], map: "idx_member_transactions_member_id")
   @@index([createdAt], map: "idx_member_transactions_created_at")
   @@map("member_transactions")
+}
+
+model ServiceItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique @db.VarChar(120)
+  category  String?  @db.VarChar(80)
+  unitPrice Decimal  @map("unit_price") @db.Decimal(12, 2)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  pcOrders PcServiceOrder[]
+
+  @@index([isActive], map: "idx_service_items_is_active")
+  @@map("service_items")
+}
+
+model PcServiceOrder {
+  id            String   @id @default(uuid()) @db.Uuid
+  pcId          String   @map("pc_id") @db.Uuid
+  sessionId     String?  @map("session_id") @db.Uuid
+  serviceItemId String   @map("service_item_id") @db.Uuid
+  quantity      Int      @default(1)
+  unitPrice     Decimal  @map("unit_price") @db.Decimal(12, 2)
+  lineTotal     Decimal  @map("line_total") @db.Decimal(12, 2)
+  note          String?  @db.VarChar(255)
+  createdBy     String   @map("created_by") @db.VarChar(100)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  pc          Pc          @relation(fields: [pcId], references: [id], onDelete: Cascade)
+  session     Session?    @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  serviceItem ServiceItem @relation(fields: [serviceItemId], references: [id], onDelete: Restrict)
+
+  @@index([pcId], map: "idx_pc_service_orders_pc_id")
+  @@index([sessionId], map: "idx_pc_service_orders_session_id")
+  @@index([serviceItemId], map: "idx_pc_service_orders_item_id")
+  @@index([createdAt], map: "idx_pc_service_orders_created_at")
+  @@map("pc_service_orders")
 }

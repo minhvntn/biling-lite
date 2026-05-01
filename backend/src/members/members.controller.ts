@@ -1,8 +1,15 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { BuyPlaytimeDto } from './dto/buy-playtime.dto';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { TopupMemberDto } from './dto/topup-member.dto';
 import { AdjustBalanceDto } from './dto/adjust-balance.dto';
+import { MemberLoginDto } from './dto/member-login.dto';
+import { UpdateMemberDto } from './dto/update-member.dto';
+import { TransferBalanceDto } from './dto/transfer-balance.dto';
+import { UpdateLoyaltySettingsDto } from './dto/update-loyalty-settings.dto';
+import { RecordMemberUsageDto } from './dto/record-member-usage.dto';
+import { RedeemLoyaltyPointsDto } from './dto/redeem-loyalty-points.dto';
+import { SetMemberPresenceDto } from './dto/set-member-presence.dto';
 import { MembersService } from './members.service';
 
 @Controller('members')
@@ -17,6 +24,47 @@ export class MembersController {
   @Post()
   async createMember(@Body() payload: CreateMemberDto) {
     return this.membersService.createMember(payload);
+  }
+
+  @Post('login')
+  async login(@Body() payload: MemberLoginDto) {
+    return this.membersService.login(payload);
+  }
+
+  @Post('presence')
+  async setMemberPresence(@Body() payload: SetMemberPresenceDto) {
+    return this.membersService.setMemberPresence(payload);
+  }
+
+  @Get('loyalty/settings')
+  async getLoyaltySettings() {
+    return this.membersService.getLoyaltySettings();
+  }
+
+  @Patch('loyalty/settings')
+  async updateLoyaltySettings(@Body() payload: UpdateLoyaltySettingsDto) {
+    return this.membersService.updateLoyaltySettings(payload);
+  }
+
+  @Get(':memberId/loyalty')
+  async getMemberLoyalty(@Param('memberId') memberId: string) {
+    return this.membersService.getMemberLoyalty(memberId);
+  }
+
+  @Post(':memberId/usage')
+  async recordMemberUsage(
+    @Param('memberId') memberId: string,
+    @Body() payload: RecordMemberUsageDto,
+  ) {
+    return this.membersService.recordMemberUsage(memberId, payload);
+  }
+
+  @Post(':memberId/loyalty/redeem')
+  async redeemLoyaltyPoints(
+    @Param('memberId') memberId: string,
+    @Body() payload: RedeemLoyaltyPointsDto,
+  ) {
+    return this.membersService.redeemLoyaltyPoints(memberId, payload);
   }
 
   @Get(':memberId/transactions')
@@ -46,5 +94,21 @@ export class MembersController {
     @Body() payload: AdjustBalanceDto,
   ) {
     return this.membersService.adjustBalance(memberId, payload);
+  }
+
+  @Patch(':memberId')
+  async updateMember(
+    @Param('memberId') memberId: string,
+    @Body() payload: UpdateMemberDto,
+  ) {
+    return this.membersService.updateMember(memberId, payload);
+  }
+
+  @Post(':memberId/transfer')
+  async transferBalance(
+    @Param('memberId') memberId: string,
+    @Body() payload: TransferBalanceDto,
+  ) {
+    return this.membersService.transferBalance(memberId, payload);
   }
 }

@@ -30,6 +30,13 @@ export class SessionsService {
       };
     }
 
+    if (query.endedFrom || query.endedTo) {
+      where.endedAt = {
+        gte: query.endedFrom ? new Date(query.endedFrom) : undefined,
+        lt: query.endedTo ? new Date(query.endedTo) : undefined,
+      };
+    }
+
     const sessions = await this.prisma.session.findMany({
       where,
       include: {
