@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -339,7 +339,7 @@ public partial class MainWindow : Window
         {
             case "ONLINE":
             case "AVAILABLE":
-                await OpenGuestMachineAsync(selected);
+                await SendCommandAsync("open");
                 return;
 
             case "IN_USE":

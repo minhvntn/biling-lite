@@ -1,10 +1,11 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -42,7 +43,7 @@ public partial class MainWindow : Window
 
     private static JsonSerializerOptions JsonOptions() => new()
     {
-        PropertyNameCaseInsensitive = true,
+        PropertyNameCaseInsensitive = true, NumberHandling = JsonNumberHandling.AllowReadingFromString
     };
 
     private string BuildApiUrl(string path)
@@ -393,7 +394,7 @@ public partial class MainWindow : Window
         }
 
         LoyaltySettingsStatusTextBlock.Text =
-            "Đã thay đổi trạng thái tích lũy điểm. Bấm \"Lưu cài đặt\" để áp dụng lên backend.";
+            "ÄÃ£ thay Ä‘á»•i tráº¡ng thÃ¡i tÃ­ch lÅ©y Ä‘iá»ƒm. Báº¥m \"LÆ°u cÃ i Ä‘áº·t\" Ä‘á»ƒ Ã¡p dá»¥ng lÃªn backend.";
         LoyaltySettingsStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
     }
 
@@ -405,7 +406,7 @@ public partial class MainWindow : Window
         }
 
         LoyaltySettingsStatusTextBlock.Text =
-            "Đã thay đổi trạng thái tích lũy điểm. Bấm \"Lưu cài đặt\" để áp dụng lên backend.";
+            "ÄÃ£ thay Ä‘á»•i tráº¡ng thÃ¡i tÃ­ch lÅ©y Ä‘iá»ƒm. Báº¥m \"LÆ°u cÃ i Ä‘áº·t\" Ä‘á»ƒ Ã¡p dá»¥ng lÃªn backend.";
         LoyaltySettingsStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
     }
 

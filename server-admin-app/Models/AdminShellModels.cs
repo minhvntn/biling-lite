@@ -1,4 +1,4 @@
-﻿using System.Windows.Media;
+using System.Windows.Media;
 
 namespace Server.Admin.App;
 
@@ -110,6 +110,8 @@ public sealed class MemberItem
     public bool IsActive { get; set; }
     public decimal Balance { get; set; }
     public double PlayHours { get; set; }
+    public string Rank { get; set; } = string.Empty;
+    public decimal TotalTopup { get; set; }
     public string CreatedAt { get; set; } = string.Empty;
 }
 
@@ -164,6 +166,9 @@ public sealed class MemberRow
     public double PlayHoursRaw { get; set; }
     public string BalanceText { get; set; } = "0";
     public string PlayHoursText { get; set; } = "0";
+    public string Rank { get; set; } = "S\u1eaft";
+    public decimal TotalTopupRaw { get; set; }
+    public string TotalTopupText { get; set; } = "0";
     public string PasswordState { get; set; } = "Ch\u01b0a \u0111\u1eb7t";
     public string ActiveText { get; set; } = "Ho\u1ea1t \u0111\u1ed9ng";
     public string CreatedAtText { get; set; } = "-";
@@ -426,4 +431,23 @@ public sealed class PcScreenshotItem
     public int? Height { get; set; }
     public string? CapturedAt { get; set; }
     public string CreatedAt { get; set; } = string.Empty;
+}
+
+public sealed class LoyaltyRankItem
+{
+    public string Id { get; set; } = string.Empty;
+    public string RankName { get; set; } = string.Empty;
+    public decimal MinTopup { get; set; }
+    public decimal BonusPercent { get; set; }
+    public string CreatedAt { get; set; } = string.Empty;
+    public string UpdatedAt { get; set; } = string.Empty;
+}
+
+public sealed class LoyaltyRankRow
+{
+    public string Id { get; set; } = string.Empty;
+    public string RankName { get; set; } = string.Empty;
+    public decimal MinTopup { get; set; }
+    public decimal BonusPercent { get; set; }
+    public string MinTopupText { get; set; } = "0";
 }

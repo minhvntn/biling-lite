@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -103,6 +103,9 @@ public partial class MainWindow : Window
             PlayHoursRaw = item.PlayHours,
             BalanceText = item.Balance.ToString("N0", CultureInfo.InvariantCulture),
             PlayHoursText = item.PlayHours.ToString("0.##", CultureInfo.InvariantCulture),
+            Rank = string.IsNullOrWhiteSpace(item.Rank) ? "S\u1eaft" : item.Rank,
+            TotalTopupRaw = item.TotalTopup,
+            TotalTopupText = item.TotalTopup.ToString("N0", CultureInfo.InvariantCulture),
             PasswordState = item.HasPassword ? "\u0110\u00e3 \u0111\u1eb7t" : "Ch\u01b0a \u0111\u1eb7t",
             ActiveText = item.IsActive ? "Ho\u1ea1t \u0111\u1ed9ng" : "T\u1ea1m kh\u00f3a",
             CreatedAtText = FormatDateTime(item.CreatedAt),
@@ -697,7 +700,7 @@ public partial class MainWindow : Window
 
     private async Task OpenEditMemberDialogAsync(MemberRow member)
     {
-        var lifetimeTopup = await GetMemberLifetimeTopupAsync(member.Id);
+        var lifetimeTopup = member.TotalTopupRaw;
 
         var dialog = new Window
         {
@@ -786,9 +789,8 @@ public partial class MainWindow : Window
         {
             Margin = new Thickness(0, 6, 0, 0),
             Foreground = Brushes.DimGray,
-            Text = lifetimeTopup.HasValue
-                ? $"Tổng đã nạp trước tới nay: {lifetimeTopup.Value:N0} VND"
-                : "Tổng đã nạp trước tới nay: -",
+            Text = $"B\u1eadc VIP: {member.Rank} (T\u1ed5ng n\u1ea1p: {lifetimeTopup:N0} VND)",
+            FontWeight = FontWeights.SemiBold,
         };
         var balancePanel = new StackPanel();
         balancePanel.Children.Add(balanceBox);
@@ -943,30 +945,6 @@ public partial class MainWindow : Window
         await RefreshMembersAsync();
     }
 
-    private async Task<decimal?> GetMemberLifetimeTopupAsync(string memberId)
-    {
-        try
-        {
-            var response = await _httpClient.GetFromJsonAsync<MemberTransactionsResponse>(
-                BuildApiUrl($"/members/{memberId}/transactions"),
-                JsonOptions());
-
-            if (response?.Items is null)
-            {
-                return null;
-            }
-
-            return response.Items
-                .Where(x =>
-                    string.Equals(x.Type, "TOPUP", StringComparison.OrdinalIgnoreCase) &&
-                    x.AmountDelta > 0)
-                .Sum(x => x.AmountDelta);
-        }
-        catch
-        {
-            return null;
-        }
-    }
 
     private async Task TransferMemberBalanceAsync()
     {

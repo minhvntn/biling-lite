@@ -1,4 +1,4 @@
-﻿-- CreateTable
+-- CreateTable
 CREATE TABLE IF NOT EXISTS "public"."pc_groups" (
     "id" UUID NOT NULL,
     "name" VARCHAR(80) NOT NULL,
@@ -51,4 +51,3 @@ SET "group_id" = (
   LIMIT 1
 )
 WHERE "group_id" IS NULL;
-

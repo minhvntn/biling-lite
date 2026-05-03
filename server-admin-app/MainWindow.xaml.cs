@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -114,6 +114,7 @@ public partial class MainWindow : Window
         _machineContextMenuPaddingInitialized = true;
         _machineContextMenuFontSizeInitialized = true;
         _transactionReportInitialized = true;
+        InitializeLoyaltyRanksTab();
 
         _healthTimer.Interval = TimeSpan.FromSeconds(5);
         _healthTimer.Tick += HealthTimer_Tick;
@@ -162,6 +163,7 @@ public partial class MainWindow : Window
         await RefreshWebFilterSettingsAsync();
         await LoadWebsiteLogSettingsAsync();
         await RefreshWebsiteLogsAsync();
+        await RefreshLoyaltyRanksAsync();
     }
 }
 

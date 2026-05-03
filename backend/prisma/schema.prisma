@@ -173,6 +173,7 @@ model Member {
   identityNumber   String?  @map("identity_number") @db.VarChar(30)
   balance          Decimal  @default(0) @db.Decimal(12, 2)
   playSeconds      Int      @default(0) @map("play_seconds")
+  totalTopup       Decimal  @default(0) @map("total_topup") @db.Decimal(12, 2)
   isActive         Boolean  @default(true) @map("is_active")
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -180,6 +181,17 @@ model Member {
 
   @@index([fullName], map: "idx_members_full_name")
   @@map("members")
+}
+
+model LoyaltyRankConfig {
+  id           String   @id @default(uuid()) @db.Uuid
+  rankName     String   @unique @map("rank_name") @db.VarChar(50)
+  minTopup     Decimal  @map("min_topup") @db.Decimal(12, 2)
+  bonusPercent Decimal  @default(0) @map("bonus_percent") @db.Decimal(5, 2)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("loyalty_rank_configs")
 }
 
 model MemberTransaction {

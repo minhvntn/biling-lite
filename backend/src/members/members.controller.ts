@@ -10,6 +10,7 @@ import { UpdateLoyaltySettingsDto } from './dto/update-loyalty-settings.dto';
 import { RecordMemberUsageDto } from './dto/record-member-usage.dto';
 import { RedeemLoyaltyPointsDto } from './dto/redeem-loyalty-points.dto';
 import { SetMemberPresenceDto } from './dto/set-member-presence.dto';
+import { UpdateLoyaltyRankDto } from './dto/update-loyalty-rank.dto';
 import { MembersService } from './members.service';
 
 @Controller('members')
@@ -44,6 +45,19 @@ export class MembersController {
   @Patch('loyalty/settings')
   async updateLoyaltySettings(@Body() payload: UpdateLoyaltySettingsDto) {
     return this.membersService.updateLoyaltySettings(payload);
+  }
+
+  @Get('loyalty/ranks')
+  async getLoyaltyRanks() {
+    return this.membersService.getLoyaltyRanks();
+  }
+
+  @Patch('loyalty/ranks/:rankId')
+  async updateLoyaltyRank(
+    @Param('rankId') rankId: string,
+    @Body() payload: UpdateLoyaltyRankDto,
+  ) {
+    return this.membersService.updateLoyaltyRank(rankId, payload);
   }
 
   @Get(':memberId/loyalty')

@@ -26,6 +26,7 @@ import { UpdateLoyaltySettingsDto } from './dto/update-loyalty-settings.dto';
 import { RecordMemberUsageDto } from './dto/record-member-usage.dto';
 import { RedeemLoyaltyPointsDto } from './dto/redeem-loyalty-points.dto';
 import { SetMemberPresenceDto } from './dto/set-member-presence.dto';
+import { UpdateLoyaltyRankDto } from './dto/update-loyalty-rank.dto';
 
 const LOYALTY_CONFIG_KEY = '__LOYALTY_MEMBER_POINTS__';
 const LOYALTY_MINUTES_PER_POINT = 15;
@@ -45,23 +46,33 @@ export class MembersService {
   async getMembers(search?: string) {
     const keyword = search?.trim();
 
-    const members = await this.prisma.member.findMany({
-      where: keyword
-        ? {
-            OR: [
-              { username: { contains: keyword, mode: 'insensitive' } },
-              { fullName: { contains: keyword, mode: 'insensitive' } },
-              { phone: { contains: keyword, mode: 'insensitive' } },
-              { identityNumber: { contains: keyword, mode: 'insensitive' } },
-            ],
-          }
-        : undefined,
-      orderBy: [{ createdAt: 'desc' }],
-      take: 200,
-    });
+    const [members, rankConfigs] = await Promise.all([
+      this.prisma.member.findMany({
+        where: keyword
+          ? {
+              OR: [
+                { username: { contains: keyword, mode: 'insensitive' } },
+                { fullName: { contains: keyword, mode: 'insensitive' } },
+                { phone: { contains: keyword, mode: 'insensitive' } },
+                { identityNumber: { contains: keyword, mode: 'insensitive' } },
+              ],
+            }
+          : undefined,
+        orderBy: [{ createdAt: 'desc' }],
+        take: 200,
+      }),
+      this.prisma.loyaltyRankConfig.findMany({
+        orderBy: { minTopup: 'desc' },
+      }),
+    ]);
 
     return {
-      items: members.map((member) => this.toMemberItem(member)),
+      items: members.map((member) =>
+        this.toMemberItem(
+          member,
+          this.calculateRankName(Number(member.totalTopup), rankConfigs),
+        ),
+      ),
       total: members.length,
       serverTime: new Date().toISOString(),
     };
@@ -69,19 +80,27 @@ export class MembersService {
 
   async createMember(payload: CreateMemberDto) {
     try {
-      const member = await this.prisma.member.create({
-        data: {
-          username: payload.username,
-          fullName: payload.fullName ?? payload.username,
-          passwordHash: payload.password
-            ? this.hashPassword(payload.password)
-            : null,
-          phone: payload.phone,
-          identityNumber: payload.identityNumber,
-        },
-      });
+      const [member, rankConfigs] = await Promise.all([
+        this.prisma.member.create({
+          data: {
+            username: payload.username,
+            fullName: payload.fullName ?? payload.username,
+            passwordHash: payload.password
+              ? this.hashPassword(payload.password)
+              : null,
+            phone: payload.phone,
+            identityNumber: payload.identityNumber,
+          },
+        }),
+        this.prisma.loyaltyRankConfig.findMany({
+          orderBy: { minTopup: 'desc' },
+        }),
+      ]);
 
-      return this.toMemberItem(member);
+      return this.toMemberItem(
+        member,
+        this.calculateRankName(Number(member.totalTopup), rankConfigs),
+      );
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         throw new ConflictException('Username da ton tai');
@@ -116,13 +135,17 @@ export class MembersService {
       throw new UnauthorizedException('Tài khoản hội viên chưa cài mật khẩu');
     }
 
-    const passwordHash = this.hashPassword(password);
-    if (passwordHash !== member.passwordHash) {
-      throw new UnauthorizedException('Sai tài khoản hoặc mật khẩu');
-    }
+    const [rankConfigs] = await Promise.all([
+      this.prisma.loyaltyRankConfig.findMany({
+        orderBy: { minTopup: 'desc' },
+      }),
+    ]);
 
     return {
-      member: this.toMemberItem(member),
+      member: this.toMemberItem(
+        member,
+        this.calculateRankName(Number(member.totalTopup), rankConfigs),
+      ),
       authenticatedAt: new Date().toISOString(),
     };
   }
@@ -340,7 +363,7 @@ export class MembersService {
     const amount = this.roundMoney(payload.amount);
     const createdBy = payload.createdBy?.trim() || 'admin.web';
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const [result, rankConfigs] = await this.prisma.$transaction(async (tx) => {
       const member = await tx.member.findUnique({ where: { id: memberId } });
       if (!member) {
         throw new NotFoundException('Khong tim thay hoi vien');
@@ -350,6 +373,9 @@ export class MembersService {
         where: { id: member.id },
         data: {
           balance: {
+            increment: amount,
+          },
+          totalTopup: {
             increment: amount,
           },
         },
@@ -366,11 +392,18 @@ export class MembersService {
         },
       });
 
-      return { updatedMember, transaction };
+      const configs = await tx.loyaltyRankConfig.findMany({
+        orderBy: { minTopup: 'desc' },
+      });
+
+      return [{ updatedMember, transaction }, configs] as const;
     });
 
     return {
-      member: this.toMemberItem(result.updatedMember),
+      member: this.toMemberItem(
+        result.updatedMember,
+        this.calculateRankName(Number(result.updatedMember.totalTopup), rankConfigs),
+      ),
       transaction: this.toTransactionItem(result.transaction),
     };
   }
@@ -384,7 +417,7 @@ export class MembersService {
     const playSecondsDelta = Math.max(1, Math.round(hours * 3600));
     const cost = this.roundMoney(ratePerHour * hours);
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const [result, rankConfigs] = await this.prisma.$transaction(async (tx) => {
       const member = await tx.member.findUnique({ where: { id: memberId } });
       if (!member) {
         throw new NotFoundException('Khong tim thay hoi vien');
@@ -422,11 +455,18 @@ export class MembersService {
         },
       });
 
-      return { updatedMember, transaction, cost, hours, ratePerHour };
+      const configs = await tx.loyaltyRankConfig.findMany({
+        orderBy: { minTopup: 'desc' },
+      });
+
+      return [{ updatedMember, transaction, cost, hours, ratePerHour }, configs] as const;
     });
 
     return {
-      member: this.toMemberItem(result.updatedMember),
+      member: this.toMemberItem(
+        result.updatedMember,
+        this.calculateRankName(Number(result.updatedMember.totalTopup), rankConfigs),
+      ),
       transaction: this.toTransactionItem(result.transaction),
       purchase: {
         hours: result.hours,
@@ -460,7 +500,7 @@ export class MembersService {
     const amountDelta = this.roundMoneyAllowNegative(payload.amountDelta);
     const createdBy = payload.createdBy?.trim() || 'admin.desktop';
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const [result, rankConfigs] = await this.prisma.$transaction(async (tx) => {
       const member = await tx.member.findUnique({ where: { id: memberId } });
       if (!member) {
         throw new NotFoundException('Khong tim thay hoi vien');
@@ -492,11 +532,18 @@ export class MembersService {
         },
       });
 
-      return { updatedMember, transaction };
+      const configs = await tx.loyaltyRankConfig.findMany({
+        orderBy: { minTopup: 'desc' },
+      });
+
+      return [{ updatedMember, transaction }, configs] as const;
     });
 
     return {
-      member: this.toMemberItem(result.updatedMember),
+      member: this.toMemberItem(
+        result.updatedMember,
+        this.calculateRankName(Number(result.updatedMember.totalTopup), rankConfigs),
+      ),
       transaction: this.toTransactionItem(result.transaction),
     };
   }
@@ -575,8 +622,15 @@ export class MembersService {
         });
       }
 
+      const configs = await tx.loyaltyRankConfig.findMany({
+        orderBy: { minTopup: 'desc' },
+      });
+
       return {
-        member: this.toMemberItem(updated),
+        member: this.toMemberItem(
+          updated,
+          this.calculateRankName(Number(updated.totalTopup), configs),
+        ),
       };
     });
   }
@@ -585,7 +639,7 @@ export class MembersService {
     const amount = this.roundMoney(payload.amount);
     const createdBy = payload.createdBy?.trim() || 'admin.desktop';
     const targetUsername = payload.targetUsername.trim();
-    const result = await this.prisma.$transaction(async (tx) => {
+    const [result, rankConfigs] = await this.prisma.$transaction(async (tx) => {
       const source = await tx.member.findUnique({ where: { id: memberId } });
       if (!source) {
         throw new NotFoundException('Khong tim thay hoi vien chuyen tien');
@@ -662,19 +716,26 @@ export class MembersService {
         ],
       });
 
-      return {
-        sourceMember: this.toMemberItem(updatedSource),
-        targetMember: this.toMemberItem(updatedTarget),
-        amount,
-        transferredAt: new Date().toISOString(),
-      };
+      const configs = await tx.loyaltyRankConfig.findMany({
+        orderBy: { minTopup: 'desc' },
+      });
+
+      return [
+        {
+          sourceMember: this.toMemberItem(updatedSource, this.calculateRankName(Number(updatedSource.totalTopup), configs)),
+          targetMember: this.toMemberItem(updatedTarget, this.calculateRankName(Number(updatedTarget.totalTopup), configs)),
+          amount,
+          transferredAt: new Date().toISOString(),
+        },
+        configs,
+      ] as const;
     });
 
     await this.logMemberTransferEvent(result, payload, createdBy);
     return result;
   }
 
-  private toMemberItem(member: Member) {
+  private toMemberItem(member: Member, rankName?: string) {
     return {
       id: member.id,
       username: member.username,
@@ -685,10 +746,40 @@ export class MembersService {
       balance: Number(member.balance),
       playSeconds: member.playSeconds,
       playHours: Number((member.playSeconds / 3600).toFixed(2)),
+      totalTopup: Number(member.totalTopup),
+      rank: rankName || 'N/A',
       isActive: member.isActive,
       createdAt: member.createdAt.toISOString(),
       updatedAt: member.updatedAt.toISOString(),
     };
+  }
+
+  private calculateRankName(
+    totalTopup: number,
+    configs: { rankName: string; minTopup: Prisma.Decimal }[],
+  ): string {
+    if (configs.length === 0) return 'S\u1eaft';
+    const matched = configs.find((c) => totalTopup >= Number(c.minTopup));
+    return matched?.rankName || 'S\u1eaft';
+  }
+
+  async getLoyaltyRanks() {
+    return this.prisma.loyaltyRankConfig.findMany({
+      orderBy: { minTopup: 'asc' },
+    });
+  }
+
+  async updateLoyaltyRank(rankId: string, payload: UpdateLoyaltyRankDto) {
+    const updated = await this.prisma.loyaltyRankConfig.update({
+      where: { id: rankId },
+      data: {
+        rankName: payload.rankName,
+        minTopup: payload.minTopup,
+        bonusPercent: payload.bonusPercent,
+      },
+    });
+
+    return updated;
   }
 
   private toLoyaltySettingsItem(enabled: boolean, updatedAt?: Date) {
