@@ -49,4 +49,8 @@ public static class I18n
     public const string GroupCreated = "Nh\u00f3m m\u1eb7c \u0111\u1ecbnh \u0111\u00e3 \u0111\u01b0\u1ee3c kh\u1edfi t\u1ea1o";
     public const string GroupCountPrefix = "T\u1ed5ng nh\u00f3m";
     public const string TotalMachinePrefix = "T\u1ed5ng m\u00e1y";
+
+    public const string MemberTransferPopupTitle = "Thông báo chuyển tiền hội viên";
+    public const string MemberTransferUnknownUser = "không rõ";
+    public const string MemberTransferUnknownMachine = "không rõ máy";
 }

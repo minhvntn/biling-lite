@@ -11,6 +11,7 @@ public sealed class AgentSocketService : IAsyncDisposable
     private readonly Func<CommandExecutePayload, Task<(bool Success, string? Message)>> _commandHandler;
     private readonly Action<string> _connectionStatusChanged;
     private readonly Action<string, string?>? _notificationHandler;
+    private readonly Func<AdminCaptureScreenshotPayload, Task>? _captureScreenshotHandler;
 
     private global::SocketIOClient.SocketIO? _socket;
     private CancellationTokenSource? _heartbeatCts;
@@ -20,13 +21,15 @@ public sealed class AgentSocketService : IAsyncDisposable
         FileLogger logger,
         Func<CommandExecutePayload, Task<(bool Success, string? Message)>> commandHandler,
         Action<string> connectionStatusChanged,
-        Action<string, string?>? notificationHandler = null)
+        Action<string, string?>? notificationHandler = null,
+        Func<AdminCaptureScreenshotPayload, Task>? captureScreenshotHandler = null)
     {
         _settings = settings;
         _logger = logger;
         _commandHandler = commandHandler;
         _connectionStatusChanged = connectionStatusChanged;
         _notificationHandler = notificationHandler;
+        _captureScreenshotHandler = captureScreenshotHandler;
     }
 
     public async Task StartAsync()
@@ -77,6 +80,17 @@ public sealed class AgentSocketService : IAsyncDisposable
             var payload = response.GetValue<AdminNotifyPayload>();
             await _logger.InfoAsync($"Received admin.notify: {payload.Message}");
             _notificationHandler?.Invoke(payload.Message, payload.RequestedBy);
+        });
+
+        _socket.On("admin.capture_screenshot", async response =>
+        {
+            var payload = response.GetValue<AdminCaptureScreenshotPayload>();
+            await _logger.InfoAsync(
+                $"Received admin.capture_screenshot requestId={payload.RequestId} pcId={payload.PcId}");
+            if (_captureScreenshotHandler is not null)
+            {
+                await _captureScreenshotHandler(payload);
+            }
         });
 
         await _socket.ConnectAsync();
@@ -200,4 +214,13 @@ public sealed class AdminNotifyPayload
     public string Message { get; set; } = string.Empty;
     public string? RequestedBy { get; set; }
     public string? SentAt { get; set; }
+}
+
+public sealed class AdminCaptureScreenshotPayload
+{
+    public string PcId { get; set; } = string.Empty;
+    public string AgentId { get; set; } = string.Empty;
+    public string RequestId { get; set; } = string.Empty;
+    public string? RequestedBy { get; set; }
+    public string? RequestedAt { get; set; }
 }

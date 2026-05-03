@@ -17,6 +17,12 @@ public partial class MainWindow : Window
 {
     private async Task RefreshSystemLogsAsync()
     {
+        if (_isRefreshingSystemLogs)
+        {
+            return;
+        }
+
+        _isRefreshingSystemLogs = true;
         try
         {
             var limit = GetSelectedSystemLogLimit();
@@ -29,6 +35,8 @@ public partial class MainWindow : Window
                 return;
             }
 
+            ProcessMemberTransferNotifications(response.Items);
+
             _systemLogRows.Clear();
             foreach (var item in response.Items.Select(ToSystemLogRow))
             {
@@ -40,6 +48,10 @@ public partial class MainWindow : Window
         catch
         {
             // Ignore temporary errors.
+        }
+        finally
+        {
+            _isRefreshingSystemLogs = false;
         }
     }
 
@@ -66,6 +78,136 @@ public partial class MainWindow : Window
             PcText = pcText,
             PayloadText = payloadText,
         };
+    }
+
+    private void ProcessMemberTransferNotifications(IReadOnlyList<SystemEventItem> items)
+    {
+        var transferEvents = items
+            .Where(item =>
+                string.Equals(item.EventType, "member.balance.transferred", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(item.Source, "CLIENT", StringComparison.OrdinalIgnoreCase))
+            .Where(item => !string.IsNullOrWhiteSpace(item.Id))
+            .OrderBy(item => ParseDateLocal(item.CreatedAt) ?? DateTime.MinValue)
+            .ToList();
+
+        if (!_memberTransferNotificationsInitialized)
+        {
+            foreach (var item in transferEvents)
+            {
+                _memberTransferNotifiedEventIds.Add(item.Id);
+            }
+
+            _memberTransferNotificationsInitialized = true;
+            return;
+        }
+
+        foreach (var item in transferEvents)
+        {
+            if (!_memberTransferNotifiedEventIds.Add(item.Id))
+            {
+                continue;
+            }
+
+            ShowMemberTransferPopup(item);
+        }
+    }
+
+    private void ShowMemberTransferPopup(SystemEventItem item)
+    {
+        var sourceUsername = ReadPayloadString(item.Payload, "sourceUsername");
+        var targetUsername = ReadPayloadString(item.Payload, "targetUsername");
+        var amount = ReadPayloadMoney(item.Payload, "amount");
+
+        if (string.IsNullOrWhiteSpace(sourceUsername))
+        {
+            sourceUsername = I18n.MemberTransferUnknownUser;
+        }
+
+        if (string.IsNullOrWhiteSpace(targetUsername))
+        {
+            targetUsername = I18n.MemberTransferUnknownUser;
+        }
+
+        var pcText = BuildMachineText(item);
+        var atText = FormatDateTime(item.CreatedAt);
+        var content =
+            $"Hội viên {sourceUsername} vừa chuyển {amount:N0} VND cho {targetUsername}.\n" +
+            $"Máy trạm: {pcText}\n" +
+            $"Thời gian: {atText}";
+
+        MessageBox.Show(
+            this,
+            content,
+            I18n.MemberTransferPopupTitle,
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+
+        AppendServiceLog(
+            $"[{DateTime.Now:HH:mm:ss}] Thông báo chuyển tiền: {sourceUsername} -> {targetUsername} ({amount:N0} VND) tại {pcText}");
+    }
+
+    private static string BuildMachineText(SystemEventItem item)
+    {
+        var hasPcName = !string.IsNullOrWhiteSpace(item.PcName);
+        var hasAgentId = !string.IsNullOrWhiteSpace(item.AgentId);
+
+        if (hasPcName && hasAgentId)
+        {
+            return $"{item.PcName} ({item.AgentId})";
+        }
+
+        if (hasPcName)
+        {
+            return item.PcName!;
+        }
+
+        if (hasAgentId)
+        {
+            return item.AgentId!;
+        }
+
+        return I18n.MemberTransferUnknownMachine;
+    }
+
+    private static string ReadPayloadString(object? payload, string key)
+    {
+        if (payload is not JsonElement json || json.ValueKind != JsonValueKind.Object)
+        {
+            return string.Empty;
+        }
+
+        if (!json.TryGetProperty(key, out var value) || value.ValueKind != JsonValueKind.String)
+        {
+            return string.Empty;
+        }
+
+        return value.GetString()?.Trim() ?? string.Empty;
+    }
+
+    private static decimal ReadPayloadMoney(object? payload, string key)
+    {
+        if (payload is not JsonElement json || json.ValueKind != JsonValueKind.Object)
+        {
+            return 0m;
+        }
+
+        if (!json.TryGetProperty(key, out var value))
+        {
+            return 0m;
+        }
+
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out var amount))
+        {
+            return amount;
+        }
+
+        if (value.ValueKind == JsonValueKind.String &&
+            decimal.TryParse(value.GetString(), NumberStyles.Number, CultureInfo.InvariantCulture, out var parsed))
+        {
+            return parsed;
+        }
+
+        return 0m;
     }
 
     private async Task RefreshTransactionLogsAsync()
@@ -145,6 +287,8 @@ public partial class MainWindow : Window
     }
 
     private async void RefreshSystemLogsButton_Click(object sender, RoutedEventArgs e) => await RefreshSystemLogsAsync();
+
+    private async void SystemLogsTimer_Tick(object? sender, EventArgs e) => await RefreshSystemLogsAsync();
 
     private async void SystemLogLimitComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {

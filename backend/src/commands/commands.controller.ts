@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { CommandsService } from './commands.service';
 import { RequestCommandDto } from './dto/request-command.dto';
 import { NotifyPcDto } from './dto/notify-pc.dto';
 import { GuestOpenDto } from './dto/guest-open.dto';
+import { UploadPcScreenshotDto } from './dto/upload-pc-screenshot.dto';
 
 @Controller()
 export class CommandsController {
@@ -55,6 +56,30 @@ export class CommandsController {
   @Post('pcs/:pcId/notify')
   async notifyPc(@Param('pcId') pcId: string, @Body() body: NotifyPcDto) {
     return this.commandsService.notifyPc(pcId, body.message, body.requestedBy);
+  }
+
+  @Post('pcs/:pcId/capture-screenshot')
+  async requestCaptureScreenshot(
+    @Param('pcId') pcId: string,
+    @Body() body: RequestCommandDto,
+  ) {
+    return this.commandsService.requestPcScreenshot(pcId, body.requestedBy);
+  }
+
+  @Post('pcs/:pcId/screenshot-upload')
+  async uploadPcScreenshot(
+    @Param('pcId') pcId: string,
+    @Body() body: UploadPcScreenshotDto,
+  ) {
+    return this.commandsService.uploadPcScreenshot(pcId, body);
+  }
+
+  @Get('pcs/:pcId/latest-screenshot')
+  async getLatestScreenshot(
+    @Param('pcId') pcId: string,
+    @Query('requestId') requestId?: string,
+  ) {
+    return this.commandsService.getLatestPcScreenshot(pcId, requestId);
   }
 
   @Get('commands/:commandId')

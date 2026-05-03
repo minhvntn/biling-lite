@@ -187,6 +187,7 @@ public sealed class SystemEventsResponse
 
 public sealed class SystemEventItem
 {
+    public string Id { get; set; } = string.Empty;
     public string Source { get; set; } = string.Empty;
     public string EventType { get; set; } = string.Empty;
     public string? PcName { get; set; }
@@ -232,6 +233,22 @@ public sealed class SessionLogRow
     public string AmountText { get; set; } = "0";
     public string Status { get; set; } = "-";
     public string ClosedReason { get; set; } = "-";
+}
+
+public sealed class MachineBillingSummaryRow
+{
+    public string MachineName { get; set; } = "-";
+    public string StatusText { get; set; } = "-";
+    public string PlayDurationText { get; set; } = "0 phút";
+    public string HourlyRateText { get; set; } = "0";
+    public decimal PlayAmount { get; set; }
+    public decimal ServiceAmount { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string PlayAmountText { get; set; } = "0";
+    public string ServiceAmountText { get; set; } = "0";
+    public string TotalAmountText { get; set; } = "0";
+    public bool HasServiceLoadError { get; set; }
+    public string NoteText { get; set; } = "-";
 }
 
 public sealed class WebsiteLogSettingsResponse
@@ -381,4 +398,32 @@ public sealed class PcServiceOrderDto
     public string CreatedBy { get; set; } = string.Empty;
     public string CreatedAt { get; set; } = string.Empty;
     public ServiceItemDto ServiceItem { get; set; } = new();
+}
+
+public sealed class CaptureScreenshotRequestResponse
+{
+    public bool Ok { get; set; }
+    public string? Reason { get; set; }
+    public string? RequestId { get; set; }
+    public string? SentAt { get; set; }
+}
+
+public sealed class LatestPcScreenshotResponse
+{
+    public bool Ok { get; set; }
+    public string? Reason { get; set; }
+    public PcScreenshotItem? Screenshot { get; set; }
+    public string ServerTime { get; set; } = string.Empty;
+}
+
+public sealed class PcScreenshotItem
+{
+    public string EventId { get; set; } = string.Empty;
+    public string? RequestId { get; set; }
+    public string ImageBase64 { get; set; } = string.Empty;
+    public string MimeType { get; set; } = "image/jpeg";
+    public int? Width { get; set; }
+    public int? Height { get; set; }
+    public string? CapturedAt { get; set; }
+    public string CreatedAt { get; set; } = string.Empty;
 }

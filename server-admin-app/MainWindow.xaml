@@ -149,7 +149,8 @@
                                   AutoGenerateColumns="False"
                                   IsReadOnly="True"
                                   CanUserAddRows="False"
-                                  SelectionMode="Single"
+                                  SelectionMode="Extended"
+                                  SelectionUnit="FullRow"
                                   HeadersVisibility="Column"
                                   GridLinesVisibility="Horizontal"
                                   RowHeaderWidth="0"
@@ -176,8 +177,25 @@
                                     <MenuItem x:Name="ContextTopupMachineMemberMenuItem" Header="Nạp tiền hội viên đang dùng máy..." Click="ContextTopupMachineMemberMenuItem_Click" />
                                     <Separator />
                                     <MenuItem x:Name="ContextRestartMachineMenuItem" Header="Khởi động lại máy trạm" Click="ContextRestartMachineMenuItem_Click" />
-                                    <MenuItem x:Name="ContextShutdownMachineMenuItem" Header="Tắt máy trạm" Click="ContextShutdownMachineMenuItem_Click" />
-                                    <MenuItem x:Name="ContextCloseAppsMenuItem" Header="Đóng tất cả ứng dụng" Click="ContextCloseAppsMenuItem_Click" />
+                                    <MenuItem x:Name="ContextShutdownMachineMenuItem" Header="Tắt máy trạm">
+                                        <MenuItem x:Name="ContextShutdownSelectedMachineMenuItem"
+                                                  Header="Tắt máy đã chọn"
+                                                  Click="ContextShutdownSelectedMachineMenuItem_Click" />
+                                        <MenuItem x:Name="ContextShutdownReadyMachinesMenuItem"
+                                                  Header="Tắt các máy sẵn sàng"
+                                                  Click="ContextShutdownReadyMachinesMenuItem_Click" />
+                                    </MenuItem>
+                                    <MenuItem x:Name="ContextControlMachineMenuItem" Header="Điều khiển máy trạm">
+                                        <MenuItem x:Name="ContextControlCloseAppsMenuItem"
+                                                  Header="Đóng tất cả ứng dụng"
+                                                  Click="ContextCloseAppsMenuItem_Click" />
+                                        <MenuItem x:Name="ContextControlRemoteMenuItem"
+                                                  Header="Điều khiển từ xa (RDP)"
+                                                  Click="ContextRemoteControlMachineMenuItem_Click" />
+                                        <MenuItem x:Name="ContextControlScreenshotMenuItem"
+                                                  Header="Chụp màn hình máy trạm"
+                                                  Click="ContextCaptureScreenshotMachineMenuItem_Click" />
+                                    </MenuItem>
                                     <Separator />
                                     <MenuItem x:Name="ContextPauseMachineMenuItem" Header="Tạm nghỉ máy trạm" Click="ContextPauseMachineMenuItem_Click" />
                                     <MenuItem x:Name="ContextResumeMachineMenuItem" Header="Tiếp tục sử dụng" Click="ContextResumeMachineMenuItem_Click" />

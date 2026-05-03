@@ -986,11 +986,55 @@ public partial class MainWindow : Window
             return;
         }
 
+        var transferPayload = ShowTransferMemberModal(sourceMember, targets);
+        if (transferPayload is null)
+        {
+            return;
+        }
+
+        TopupAmountTextBox.Text = transferPayload.Value.Amount.ToString("0", CultureInfo.InvariantCulture);
+
+        using var response = await _httpClient.PostAsJsonAsync(
+            BuildApiUrl($"/members/{sourceMember.Id}/transfer"),
+            new
+            {
+                targetUsername = transferPayload.Value.TargetMember.Username,
+                amount = Convert.ToDouble(transferPayload.Value.Amount),
+                note = transferPayload.Value.Note,
+                createdBy = "admin.desktop",
+            });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var err = await response.Content.ReadAsStringAsync();
+            MessageBox.Show(
+                string.IsNullOrWhiteSpace(err)
+                    ? $"Chuyển tiền thất bại ({(int)response.StatusCode})"
+                    : err,
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        AppendServiceLog(
+            $"[{DateTime.Now:HH:mm:ss}] Đã chuyển {transferPayload.Value.Amount:N0} từ {sourceMember.Username} sang {transferPayload.Value.TargetMember.Username}");
+        await RefreshMembersAsync();
+    }
+
+    private (MemberRow TargetMember, decimal Amount, string? Note)? ShowTransferMemberModal(
+        MemberRow sourceMember,
+        List<MemberRow> targets)
+    {
+        var amount = 0m;
+        var history = new Stack<decimal>();
+        (MemberRow TargetMember, decimal Amount, string? Note)? result = null;
+
         var dialog = new Window
         {
             Title = $"Chuyển tiền - {sourceMember.Username}",
-            Width = 480,
-            Height = 310,
+            Width = 560,
+            Height = 760,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             ResizeMode = ResizeMode.NoResize,
             WindowStyle = WindowStyle.SingleBorderWindow,
@@ -998,96 +1042,327 @@ public partial class MainWindow : Window
             Owner = this,
         };
 
-        var root = new Grid { Margin = new Thickness(16) };
-        for (var i = 0; i < 7; i++)
-        {
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        }
+        var root = new Grid { Margin = new Thickness(14) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        var fromText = new TextBlock
+        var header = new TextBlock
         {
-            Text = $"Từ hội viên: {sourceMember.Username} (Số dư: {sourceMember.BalanceRaw:N0} VND)",
+            Text = $"Hội viên nguồn: {sourceMember.Username} (Số dư: {sourceMember.BalanceRaw:N0} VND)",
             FontWeight = FontWeights.SemiBold,
             Margin = new Thickness(0, 0, 0, 8),
         };
-        Grid.SetRow(fromText, 0);
-        root.Children.Add(fromText);
+        Grid.SetRow(header, 0);
+        root.Children.Add(header);
 
-        var targetLabel = new TextBlock { Text = "Đến hội viên", Margin = new Thickness(0, 6, 0, 4) };
+        var targetLabel = new TextBlock
+        {
+            Text = "Hội viên nhận tiền:",
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 4),
+        };
         Grid.SetRow(targetLabel, 1);
         root.Children.Add(targetLabel);
 
         var targetComboBox = new ComboBox
         {
-            Height = 32,
+            Height = 34,
             DisplayMemberPath = nameof(MemberRow.Username),
             ItemsSource = targets,
             SelectedIndex = 0,
+            Margin = new Thickness(0, 0, 0, 10),
         };
         Grid.SetRow(targetComboBox, 2);
         root.Children.Add(targetComboBox);
 
-        var amountLabel = new TextBlock { Text = "Số tiền (VND)", Margin = new Thickness(0, 10, 0, 4) };
-        Grid.SetRow(amountLabel, 3);
-        root.Children.Add(amountLabel);
+        var amountBorder = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(231, 243, 255)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(151, 184, 226)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(10),
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        var amountText = new TextBlock
+        {
+            Text = "0 VND",
+            FontSize = 38,
+            FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(9, 36, 140)),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+        };
+        amountBorder.Child = amountText;
+        Grid.SetRow(amountBorder, 3);
+        root.Children.Add(amountBorder);
 
-        var amountBox = new TextBox
+        var hint = new TextBlock
+        {
+            Text = "Bấm nhiều lần để cộng dồn số tiền chuyển.",
+            Foreground = Brushes.DimGray,
+            Margin = new Thickness(0, 0, 0, 10),
+            TextWrapping = TextWrapping.Wrap,
+        };
+        Grid.SetRow(hint, 4);
+        root.Children.Add(hint);
+
+        var customGrid = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+        customGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        customGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(200) });
+        customGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        customGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var customLabel = new TextBlock
+        {
+            Text = "Nhập số tiền:",
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0),
+        };
+        Grid.SetColumn(customLabel, 0);
+        customGrid.Children.Add(customLabel);
+
+        var customBox = new TextBox
         {
             Height = 32,
             VerticalContentAlignment = VerticalAlignment.Center,
-            Text = TopupAmountTextBox.Text.Trim(),
+            Margin = new Thickness(0, 0, 8, 0),
         };
-        Grid.SetRow(amountBox, 4);
-        root.Children.Add(amountBox);
+        Grid.SetColumn(customBox, 1);
+        customGrid.Children.Add(customBox);
 
-        var noteLabel = new TextBlock { Text = "Ghi chú (không bắt buộc)", Margin = new Thickness(0, 10, 0, 4) };
-        Grid.SetRow(noteLabel, 5);
+        var applyCustomButton = new Button
+        {
+            Content = "Áp dụng",
+            Width = 90,
+            Height = 32,
+        };
+        Grid.SetColumn(applyCustomButton, 2);
+        customGrid.Children.Add(applyCustomButton);
+
+        Grid.SetRow(customGrid, 5);
+        root.Children.Add(customGrid);
+
+        var quickGreenGrid = new UniformGrid
+        {
+            Columns = 3,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        foreach (var v in new[] { 1000m, 2000m, 3000m, 4000m, 5000m, 6000m, 7000m, 8000m, 9000m })
+        {
+            var button = new Button
+            {
+                Content = v.ToString("N0", CultureInfo.InvariantCulture),
+                Tag = v,
+                Height = 44,
+                Margin = new Thickness(3),
+                FontWeight = FontWeights.Bold,
+                FontSize = 16,
+                Background = new SolidColorBrush(Color.FromRgb(131, 217, 92)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
+            };
+            quickGreenGrid.Children.Add(button);
+        }
+        Grid.SetRow(quickGreenGrid, 6);
+        root.Children.Add(quickGreenGrid);
+
+        var quickRedGrid = new UniformGrid
+        {
+            Columns = 3,
+            Margin = new Thickness(0, 0, 0, 10),
+        };
+        foreach (var v in new[] { 10000m, 20000m, 30000m, 40000m, 50000m, 60000m, 70000m, 80000m, 90000m })
+        {
+            var button = new Button
+            {
+                Content = v.ToString("N0", CultureInfo.InvariantCulture),
+                Tag = v,
+                Height = 44,
+                Margin = new Thickness(3),
+                FontWeight = FontWeights.Bold,
+                FontSize = 16,
+                Foreground = new SolidColorBrush(Color.FromRgb(255, 238, 0)),
+                Background = new SolidColorBrush(Color.FromRgb(208, 34, 23)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(40, 40, 40)),
+            };
+            quickRedGrid.Children.Add(button);
+        }
+        Grid.SetRow(quickRedGrid, 7);
+        root.Children.Add(quickRedGrid);
+
+        var noteLabel = new TextBlock { Text = "Ghi chú (không bắt buộc)", Margin = new Thickness(0, 0, 0, 4) };
+        Grid.SetRow(noteLabel, 8);
         root.Children.Add(noteLabel);
 
         var noteBox = new TextBox
         {
             Height = 32,
             VerticalContentAlignment = VerticalAlignment.Center,
+            Text = "Chuyển tiền hội viên",
+            Margin = new Thickness(0, 0, 0, 8),
         };
-        Grid.SetRow(noteBox, 6);
+        Grid.SetRow(noteBox, 9);
         root.Children.Add(noteBox);
 
         var errorText = new TextBlock
         {
-            Foreground = Brushes.Firebrick,
-            Margin = new Thickness(0, 8, 0, 0),
+            Foreground = new SolidColorBrush(Color.FromRgb(180, 35, 24)),
             TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 8),
         };
-        Grid.SetRow(errorText, 7);
+        Grid.SetRow(errorText, 10);
         root.Children.Add(errorText);
 
         var actionPanel = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 16, 0, 0),
         };
-        var transferButton = new Button
+        var undoButton = new Button
         {
-            Content = "Chuyển tiền",
-            Width = 100,
+            Content = "-",
+            Width = 68,
+            Height = 36,
             Margin = new Thickness(0, 0, 8, 0),
-            IsDefault = true,
+            FontWeight = FontWeights.Bold,
+        };
+        var clearButton = new Button
+        {
+            Content = "Xóa",
+            Width = 90,
+            Height = 36,
+            Margin = new Thickness(0, 0, 8, 0),
+            FontWeight = FontWeights.SemiBold,
         };
         var cancelButton = new Button
         {
             Content = "Hủy",
             Width = 90,
+            Height = 36,
+            Margin = new Thickness(0, 0, 8, 0),
             IsCancel = true,
         };
-        actionPanel.Children.Add(transferButton);
+        var submitButton = new Button
+        {
+            Content = "Chuyển",
+            Width = 100,
+            Height = 36,
+            FontWeight = FontWeights.SemiBold,
+            Background = new SolidColorBrush(Color.FromRgb(121, 201, 89)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(63, 138, 46)),
+        };
+        actionPanel.Children.Add(undoButton);
+        actionPanel.Children.Add(clearButton);
         actionPanel.Children.Add(cancelButton);
-        Grid.SetRow(actionPanel, 8);
+        actionPanel.Children.Add(submitButton);
+        Grid.SetRow(actionPanel, 11);
         root.Children.Add(actionPanel);
 
-        transferButton.Click += async (_, _) =>
+        void UpdateUi()
+        {
+            amountText.Text = $"{amount:N0} VND";
+            undoButton.IsEnabled = history.Count > 0;
+            clearButton.IsEnabled = amount > 0;
+            submitButton.IsEnabled = amount >= 1000m;
+        }
+
+        void AddAmount(decimal value)
+        {
+            if (value <= 0)
+            {
+                return;
+            }
+
+            amount += value;
+            history.Push(value);
+            errorText.Text = string.Empty;
+            UpdateUi();
+        }
+
+        foreach (var button in quickGreenGrid.Children.OfType<Button>())
+        {
+            button.Click += (_, _) =>
+            {
+                if (button.Tag is decimal v)
+                {
+                    AddAmount(v);
+                }
+            };
+        }
+
+        foreach (var button in quickRedGrid.Children.OfType<Button>())
+        {
+            button.Click += (_, _) =>
+            {
+                if (button.Tag is decimal v)
+                {
+                    AddAmount(v);
+                }
+            };
+        }
+
+        applyCustomButton.Click += (_, _) =>
+        {
+            var raw = customBox.Text.Trim();
+            if (!TryParsePositiveMoney(raw, out var customAmount))
+            {
+                errorText.Text = "Số tiền nhập không hợp lệ.";
+                return;
+            }
+
+            amount = customAmount;
+            history.Clear();
+            errorText.Text = string.Empty;
+            UpdateUi();
+        };
+
+        customBox.KeyDown += (_, args) =>
+        {
+            if (args.Key != Key.Enter)
+            {
+                return;
+            }
+
+            applyCustomButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            args.Handled = true;
+        };
+
+        undoButton.Click += (_, _) =>
+        {
+            if (history.Count == 0)
+            {
+                return;
+            }
+
+            amount -= history.Pop();
+            if (amount < 0)
+            {
+                amount = 0;
+            }
+
+            errorText.Text = string.Empty;
+            UpdateUi();
+        };
+
+        clearButton.Click += (_, _) =>
+        {
+            amount = 0;
+            history.Clear();
+            errorText.Text = string.Empty;
+            UpdateUi();
+        };
+
+        submitButton.Click += (_, _) =>
         {
             errorText.Text = string.Empty;
 
@@ -1097,50 +1372,24 @@ public partial class MainWindow : Window
                 return;
             }
 
-            if (!TryParsePositiveMoney(amountBox.Text.Trim(), out var amount))
+            if (amount < 1000m)
             {
-                errorText.Text = "Số tiền chuyển không hợp lệ.";
+                errorText.Text = "Số tiền chuyển tối thiểu là 1.000 VND.";
                 return;
             }
 
-            try
-            {
-                using var response = await _httpClient.PostAsJsonAsync(
-                    BuildApiUrl($"/members/{sourceMember.Id}/transfer"),
-                    new
-                    {
-                        targetUsername = targetMember.Username,
-                        amount = Convert.ToDouble(amount),
-                        note = string.IsNullOrWhiteSpace(noteBox.Text) ? null : noteBox.Text.Trim(),
-                        createdBy = "admin.desktop",
-                    });
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var err = await response.Content.ReadAsStringAsync();
-                    errorText.Text = string.IsNullOrWhiteSpace(err)
-                        ? $"Chuyển tiền thất bại ({(int)response.StatusCode})"
-                        : err;
-                    return;
-                }
-
-                dialog.DialogResult = true;
-                dialog.Close();
-            }
-            catch (Exception ex)
-            {
-                errorText.Text = ex.Message;
-            }
+            result = (
+                targetMember,
+                amount,
+                string.IsNullOrWhiteSpace(noteBox.Text) ? null : noteBox.Text.Trim());
+            dialog.DialogResult = true;
+            dialog.Close();
         };
 
+        UpdateUi();
         dialog.Content = root;
-        if (dialog.ShowDialog() != true)
-        {
-            return;
-        }
-
-        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã chuyển tiền từ {sourceMember.Username}");
-        await RefreshMembersAsync();
+        var submitted = dialog.ShowDialog() == true;
+        return submitted ? result : null;
     }
 
     private static bool TryParseNonNegativeDouble(string value, out double parsed)

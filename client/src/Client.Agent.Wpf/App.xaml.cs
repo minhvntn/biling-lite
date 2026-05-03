@@ -9,11 +9,15 @@ using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Client.Agent.Wpf.Models;
 using Client.Agent.Wpf.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
+using Drawing = System.Drawing;
+using DrawingDrawing2D = System.Drawing.Drawing2D;
+using DrawingImaging = System.Drawing.Imaging;
 
 namespace Client.Agent.Wpf;
 
@@ -125,7 +129,8 @@ public partial class App : Application
             _logger,
             HandleCommandAsync,
             OnConnectionStatusChanged,
-            OnAdminNotificationReceived);
+            OnAdminNotificationReceived,
+            HandleCaptureScreenshotRequestedAsync);
 
         _ = Task.Run(async () =>
         {
@@ -668,6 +673,7 @@ public partial class App : Application
                         amount = Convert.ToDouble(amount, CultureInfo.InvariantCulture),
                         note = string.IsNullOrWhiteSpace(noteBox.Text) ? null : noteBox.Text.Trim(),
                         createdBy = "client.member.transfer",
+                        agentId = _settings.AgentId,
                     });
 
                 if (!response.IsSuccessStatusCode)
@@ -2305,6 +2311,128 @@ LIMIT $limit;";
         });
     }
 
+    private async Task HandleCaptureScreenshotRequestedAsync(
+        AdminCaptureScreenshotPayload payload)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(payload.PcId) ||
+                string.IsNullOrWhiteSpace(payload.RequestId))
+            {
+                return;
+            }
+
+            var captured = CapturePrimaryScreenJpeg();
+            if (captured is null)
+            {
+                await _logger!.ErrorAsync("Capture screenshot failed: empty image");
+                return;
+            }
+
+            using var response = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl($"/pcs/{payload.PcId}/screenshot-upload"),
+                new
+                {
+                    agentId = _settings.AgentId,
+                    requestId = payload.RequestId,
+                    imageBase64 = captured.Base64,
+                    mimeType = "image/jpeg",
+                    width = captured.Width,
+                    height = captured.Height,
+                    capturedAt = DateTime.UtcNow.ToString("o"),
+                });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await ReadErrorMessageAsync(response);
+                await _logger!.ErrorAsync(
+                    $"Upload screenshot failed ({(int)response.StatusCode}): {error}");
+                return;
+            }
+
+            await _logger!.InfoAsync(
+                $"Screenshot captured and uploaded (requestId={payload.RequestId}, {captured.Width}x{captured.Height})");
+        }
+        catch (Exception ex)
+        {
+            if (_logger is not null)
+            {
+                await _logger.ErrorAsync("Handle capture screenshot failed", ex);
+            }
+        }
+    }
+
+    private static CapturedScreenshot? CapturePrimaryScreenJpeg()
+    {
+        try
+        {
+            var width = Math.Max(1, (int)Math.Round(SystemParameters.PrimaryScreenWidth));
+            var height = Math.Max(1, (int)Math.Round(SystemParameters.PrimaryScreenHeight));
+
+            using var original = new Drawing.Bitmap(width, height);
+            using (var graphics = Drawing.Graphics.FromImage(original))
+            {
+                graphics.CopyFromScreen(0, 0, 0, 0, new Drawing.Size(width, height));
+            }
+
+            var maxWidth = 1366;
+            var output = original;
+            Drawing.Bitmap? resized = null;
+            if (width > maxWidth)
+            {
+                var ratio = maxWidth / (double)width;
+                var resizedHeight = Math.Max(1, (int)Math.Round(height * ratio));
+                resized = new Drawing.Bitmap(maxWidth, resizedHeight);
+                using var g = Drawing.Graphics.FromImage(resized);
+                g.InterpolationMode = DrawingDrawing2D.InterpolationMode.HighQualityBicubic;
+                g.SmoothingMode = DrawingDrawing2D.SmoothingMode.HighQuality;
+                g.PixelOffsetMode = DrawingDrawing2D.PixelOffsetMode.HighQuality;
+                g.DrawImage(original, 0, 0, maxWidth, resizedHeight);
+                output = resized;
+                width = maxWidth;
+                height = resizedHeight;
+            }
+
+            try
+            {
+                using var memory = new MemoryStream();
+                var jpegCodec = GetJpegCodec();
+                if (jpegCodec is null)
+                {
+                    output.Save(memory, DrawingImaging.ImageFormat.Jpeg);
+                }
+                else
+                {
+                    var encoder = DrawingImaging.Encoder.Quality;
+                    using var encoderParams = new DrawingImaging.EncoderParameters(1);
+                    encoderParams.Param[0] = new DrawingImaging.EncoderParameter(encoder, 65L);
+                    output.Save(memory, jpegCodec, encoderParams);
+                }
+
+                return new CapturedScreenshot
+                {
+                    Base64 = Convert.ToBase64String(memory.ToArray()),
+                    Width = width,
+                    Height = height,
+                };
+            }
+            finally
+            {
+                resized?.Dispose();
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static DrawingImaging.ImageCodecInfo? GetJpegCodec()
+    {
+        return DrawingImaging.ImageCodecInfo.GetImageEncoders()
+            .FirstOrDefault(codec => codec.FormatID == DrawingImaging.ImageFormat.Jpeg.Guid);
+    }
+
     private string BuildApiUrl(string path)
     {
         var serverBase = _settings.ServerUrl.TrimEnd('/');
@@ -2364,6 +2492,15 @@ public sealed class BrowserVisitEntry
     public string Browser { get; set; } = "unknown";
 
     public DateTime VisitedAtUtc { get; set; }
+}
+
+public sealed class CapturedScreenshot
+{
+    public string Base64 { get; set; } = string.Empty;
+
+    public int Width { get; set; }
+
+    public int Height { get; set; }
 }
 
 public sealed class LoginAttemptResult

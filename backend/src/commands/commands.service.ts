@@ -2,9 +2,11 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { CommandStatus, CommandType, EventSource, PcStatus, Prisma } from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { CommandAckPayload } from './types/command-ack.type';
+import { UploadPcScreenshotDto } from './dto/upload-pc-screenshot.dto';
 
 type CommandRequestedBy = string | undefined;
 
@@ -96,6 +98,156 @@ export class CommandsService {
     this.realtime.emitToAgent(pc.agentId, 'admin.notify', payload);
     await this.logEvent(EventSource.ADMIN, 'admin.notify.sent', pc.id, payload);
     return { ok: true };
+  }
+
+  async requestPcScreenshot(pcId: string, requestedBy?: CommandRequestedBy) {
+    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    if (!pc) {
+      throw new NotFoundException('PC not found');
+    }
+
+    const sockets = this.realtime.countAgentSockets(pc.agentId);
+    if (sockets <= 0) {
+      return { ok: false, reason: 'AGENT_OFFLINE' as const };
+    }
+
+    const requestId = randomUUID();
+    const payload = {
+      pcId: pc.id,
+      agentId: pc.agentId,
+      requestId,
+      requestedBy: requestedBy?.trim() || 'admin.desktop',
+      requestedAt: new Date().toISOString(),
+    };
+
+    this.realtime.emitToAgent(pc.agentId, 'admin.capture_screenshot', payload);
+    await this.logEvent(EventSource.ADMIN, 'pc.screenshot.requested', pc.id, payload);
+
+    return {
+      ok: true,
+      requestId,
+      sentAt: new Date().toISOString(),
+    };
+  }
+
+  async uploadPcScreenshot(pcId: string, body: UploadPcScreenshotDto) {
+    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    if (!pc) {
+      throw new NotFoundException('PC not found');
+    }
+
+    const normalizedAgentId = body.agentId.trim();
+    if (!normalizedAgentId) {
+      throw new BadRequestException('agentId is required');
+    }
+
+    if (!pc.agentId) {
+      throw new BadRequestException('AGENT_MISMATCH');
+    }
+    if (
+      normalizedAgentId.localeCompare(pc.agentId, undefined, {
+        sensitivity: 'accent',
+      }) !== 0
+    ) {
+      throw new BadRequestException('AGENT_MISMATCH');
+    }
+
+    const imageBase64 = this.normalizeBase64(body.imageBase64);
+    if (!imageBase64) {
+      throw new BadRequestException('Invalid imageBase64');
+    }
+
+    if (imageBase64.length > 6_000_000) {
+      throw new BadRequestException('Screenshot too large');
+    }
+
+    const payload = {
+      requestId: body.requestId?.trim() || null,
+      imageBase64,
+      mimeType: body.mimeType?.trim() || 'image/jpeg',
+      width: body.width ?? null,
+      height: body.height ?? null,
+      capturedAt: body.capturedAt ?? new Date().toISOString(),
+      uploadedAt: new Date().toISOString(),
+    };
+
+    const created = await this.prisma.eventLog.create({
+      data: {
+        source: EventSource.CLIENT,
+        eventType: 'pc.screenshot.captured',
+        pcId: pc.id,
+        payload,
+      },
+    });
+
+    return {
+      ok: true,
+      screenshotEventId: created.id,
+      capturedAt: payload.capturedAt,
+      serverTime: new Date().toISOString(),
+    };
+  }
+
+  async getLatestPcScreenshot(pcId: string, requestId?: string) {
+    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    if (!pc) {
+      throw new NotFoundException('PC not found');
+    }
+
+    const events = await this.prisma.eventLog.findMany({
+      where: {
+        pcId: pc.id,
+        eventType: 'pc.screenshot.captured',
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    const normalizedRequestId = requestId?.trim();
+    const picked = events.find((item) => {
+      if (!normalizedRequestId) {
+        return true;
+      }
+
+      const payload = this.parseScreenshotPayload(item.payload);
+      if (!payload) {
+        return false;
+      }
+
+      return payload.requestId === normalizedRequestId;
+    });
+
+    if (!picked) {
+      return {
+        ok: false,
+        reason: 'NOT_FOUND' as const,
+        serverTime: new Date().toISOString(),
+      };
+    }
+
+    const payload = this.parseScreenshotPayload(picked.payload);
+    if (!payload) {
+      return {
+        ok: false,
+        reason: 'INVALID_PAYLOAD' as const,
+        serverTime: new Date().toISOString(),
+      };
+    }
+
+    return {
+      ok: true,
+      screenshot: {
+        eventId: picked.id,
+        requestId: payload.requestId,
+        imageBase64: payload.imageBase64,
+        mimeType: payload.mimeType ?? 'image/jpeg',
+        width: payload.width,
+        height: payload.height,
+        capturedAt: payload.capturedAt ?? picked.createdAt.toISOString(),
+        createdAt: picked.createdAt.toISOString(),
+      },
+      serverTime: new Date().toISOString(),
+    };
   }
 
   async getCommandById(commandId: string) {
@@ -540,6 +692,77 @@ export class CommandsService {
     }
 
     return Math.round(value * 100) / 100;
+  }
+
+  private normalizeBase64(raw: string): string | null {
+    const trimmed = raw?.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const markerIndex = trimmed.indexOf('base64,');
+    const content =
+      markerIndex >= 0 ? trimmed.slice(markerIndex + 'base64,'.length) : trimmed;
+    const compact = content.replace(/\s+/g, '');
+    if (!compact) {
+      return null;
+    }
+
+    return compact;
+  }
+
+  private parseScreenshotPayload(
+    payload: Prisma.JsonValue | null,
+  ):
+    | {
+        requestId: string | null;
+        imageBase64: string;
+        mimeType: string | null;
+        width: number | null;
+        height: number | null;
+        capturedAt: string | null;
+      }
+    | null {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return null;
+    }
+
+    const value = payload as Record<string, unknown>;
+    const imageBase64 =
+      typeof value.imageBase64 === 'string' ? value.imageBase64.trim() : '';
+    if (!imageBase64) {
+      return null;
+    }
+
+    const requestId =
+      typeof value.requestId === 'string' && value.requestId.trim()
+        ? value.requestId.trim()
+        : null;
+    const mimeType =
+      typeof value.mimeType === 'string' && value.mimeType.trim()
+        ? value.mimeType.trim()
+        : null;
+    const width =
+      typeof value.width === 'number' && Number.isFinite(value.width)
+        ? Math.round(value.width)
+        : null;
+    const height =
+      typeof value.height === 'number' && Number.isFinite(value.height)
+        ? Math.round(value.height)
+        : null;
+    const capturedAt =
+      typeof value.capturedAt === 'string' && value.capturedAt.trim()
+        ? value.capturedAt.trim()
+        : null;
+
+    return {
+      requestId,
+      imageBase64,
+      mimeType,
+      width,
+      height,
+      capturedAt,
+    };
   }
 
   private async resolveHourlyRateForPc(pcId: string): Promise<number> {

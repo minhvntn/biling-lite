@@ -10,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace Server.Admin.App;
@@ -20,7 +21,7 @@ public partial class MainWindow : Window
         try
         {
             _isRefreshingMachines = true;
-            var selectedPcId = _selectedMachineId ?? (MachinesDataGrid.SelectedItem as MachineRow)?.Id;
+            var selectedPcIds = GetSelectedMachineIdsSnapshot();
             var response = await _httpClient.GetFromJsonAsync<PcListResponse>(BuildApiUrl("/pcs"), JsonOptions());
             if (response is null)
             {
@@ -49,16 +50,7 @@ public partial class MainWindow : Window
                 _machineRows.Add(row);
             }
 
-            if (!string.IsNullOrWhiteSpace(selectedPcId))
-            {
-                var selectedRow = _machineRows.FirstOrDefault(x => x.Id == selectedPcId);
-                if (selectedRow is not null)
-                {
-                    MachinesDataGrid.SelectedItem = selectedRow;
-                    MachinesDataGrid.ScrollIntoView(selectedRow);
-                    _selectedMachineId = selectedRow.Id;
-                }
-            }
+            RestoreMachineSelections(selectedPcIds);
 
             UpdateMachineSummary(filteredRows);
             await RefreshGroupsAsync();
@@ -227,10 +219,24 @@ public partial class MainWindow : Window
 
     private void MachinesDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (MachinesDataGrid.SelectedItem is MachineRow selected)
+        var selectedRows = MachinesDataGrid.SelectedItems.OfType<MachineRow>().ToList();
+        if (selectedRows.Count > 0)
         {
+            _selectedMachineIds.Clear();
+            foreach (var row in selectedRows)
+            {
+                _selectedMachineIds.Add(row.Id);
+            }
+
+            var preferred = selectedRows.FirstOrDefault(x =>
+                !string.IsNullOrWhiteSpace(_selectedMachineId) &&
+                string.Equals(x.Id, _selectedMachineId, StringComparison.OrdinalIgnoreCase));
+            var selected = preferred ?? selectedRows[0];
             _selectedMachineId = selected.Id;
-            SelectionTextBlock.Text = $"{I18n.SelectedPcPrefix}: {selected.Name} ({selected.StatusText})";
+
+            SelectionTextBlock.Text = selectedRows.Count == 1
+                ? $"{I18n.SelectedPcPrefix}: {selected.Name} ({selected.StatusText})"
+                : $"{I18n.SelectedPcPrefix}: {selectedRows.Count} máy";
             return;
         }
 
@@ -239,8 +245,86 @@ public partial class MainWindow : Window
             return;
         }
 
+        _selectedMachineIds.Clear();
         _selectedMachineId = null;
         SelectionTextBlock.Text = I18n.NotSelectedPc;
+    }
+
+    private List<string> GetSelectedMachineIdsSnapshot()
+    {
+        var ids = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var row in MachinesDataGrid.SelectedItems.OfType<MachineRow>())
+        {
+            if (string.IsNullOrWhiteSpace(row.Id))
+            {
+                continue;
+            }
+
+            if (seen.Add(row.Id))
+            {
+                ids.Add(row.Id);
+            }
+        }
+
+        if (ids.Count == 0)
+        {
+            foreach (var id in _selectedMachineIds)
+            {
+                if (seen.Add(id))
+                {
+                    ids.Add(id);
+                }
+            }
+        }
+
+        if (ids.Count == 0 &&
+            !string.IsNullOrWhiteSpace(_selectedMachineId) &&
+            seen.Add(_selectedMachineId))
+        {
+            ids.Add(_selectedMachineId);
+        }
+
+        return ids;
+    }
+
+    private void RestoreMachineSelections(IReadOnlyCollection<string> selectedPcIds)
+    {
+        _selectedMachineIds.Clear();
+        MachinesDataGrid.SelectedItems.Clear();
+
+        if (selectedPcIds.Count == 0)
+        {
+            return;
+        }
+
+        MachineRow? firstSelected = null;
+        foreach (var row in _machineRows)
+        {
+            if (!selectedPcIds.Contains(row.Id, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            MachinesDataGrid.SelectedItems.Add(row);
+            _selectedMachineIds.Add(row.Id);
+            firstSelected ??= row;
+        }
+
+        if (firstSelected is null)
+        {
+            _selectedMachineId = null;
+            SelectionTextBlock.Text = I18n.NotSelectedPc;
+            return;
+        }
+
+        _selectedMachineId = firstSelected.Id;
+        MachinesDataGrid.SelectedItem = firstSelected;
+        MachinesDataGrid.ScrollIntoView(firstSelected);
+        SelectionTextBlock.Text = _selectedMachineIds.Count == 1
+            ? $"{I18n.SelectedPcPrefix}: {firstSelected.Name} ({firstSelected.StatusText})"
+            : $"{I18n.SelectedPcPrefix}: {_selectedMachineIds.Count} máy";
     }
 
     private async void MachinesDataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -397,6 +481,7 @@ public partial class MainWindow : Window
         var hasActiveMember =
             !string.IsNullOrWhiteSpace(selectedMachine.ActiveMemberId) ||
             !string.IsNullOrWhiteSpace(selectedMachine.ActiveMemberUsername);
+        var hasReadyMachines = _allMachineRows.Any(IsReadyMachineStatus);
 
         if (isOffline)
         {
@@ -406,8 +491,11 @@ public partial class MainWindow : Window
                 lockMachine: false,
                 topupMember: false,
                 restart: true,
-                shutdown: false,
+                shutdownSelected: false,
+                shutdownReady: hasReadyMachines,
                 closeApps: false,
+                remoteControl: false,
+                captureScreenshot: false,
                 pause: false,
                 resume: false,
                 transfer: false,
@@ -424,13 +512,16 @@ public partial class MainWindow : Window
             lockMachine: !isLocked,
             topupMember: isInUse && hasActiveMember,
             restart: true,
-            shutdown: true,
+            shutdownSelected: true,
+            shutdownReady: hasReadyMachines,
             closeApps: true,
+            remoteControl: true,
+            captureScreenshot: true,
             pause: isInUse,
             resume: isPaused,
             transfer: isInUse,
             assignGroup: true,
-            viewBilling: isInUse,
+            viewBilling: isInUse && !hasActiveMember,
             selectService: true,
             notify: true);
     }
@@ -441,8 +532,11 @@ public partial class MainWindow : Window
         bool lockMachine,
         bool topupMember,
         bool restart,
-        bool shutdown,
+        bool shutdownSelected,
+        bool shutdownReady,
         bool closeApps,
+        bool remoteControl,
+        bool captureScreenshot,
         bool pause,
         bool resume,
         bool transfer,
@@ -478,12 +572,37 @@ public partial class MainWindow : Window
 
         if (ContextShutdownMachineMenuItem is not null)
         {
-            ContextShutdownMachineMenuItem.IsEnabled = shutdown;
+            ContextShutdownMachineMenuItem.IsEnabled = shutdownSelected || shutdownReady;
         }
 
-        if (ContextCloseAppsMenuItem is not null)
+        if (ContextShutdownSelectedMachineMenuItem is not null)
         {
-            ContextCloseAppsMenuItem.IsEnabled = closeApps;
+            ContextShutdownSelectedMachineMenuItem.IsEnabled = shutdownSelected;
+        }
+
+        if (ContextShutdownReadyMachinesMenuItem is not null)
+        {
+            ContextShutdownReadyMachinesMenuItem.IsEnabled = shutdownReady;
+        }
+
+        if (ContextControlCloseAppsMenuItem is not null)
+        {
+            ContextControlCloseAppsMenuItem.IsEnabled = closeApps;
+        }
+
+        if (ContextControlRemoteMenuItem is not null)
+        {
+            ContextControlRemoteMenuItem.IsEnabled = remoteControl;
+        }
+
+        if (ContextControlScreenshotMenuItem is not null)
+        {
+            ContextControlScreenshotMenuItem.IsEnabled = captureScreenshot;
+        }
+
+        if (ContextControlMachineMenuItem is not null)
+        {
+            ContextControlMachineMenuItem.IsEnabled = closeApps || remoteControl || captureScreenshot;
         }
 
         if (ContextPauseMachineMenuItem is not null)
@@ -546,6 +665,7 @@ public partial class MainWindow : Window
         }
 
         MachinesDataGrid.UnselectAll();
+        _selectedMachineIds.Clear();
         _selectedMachineId = null;
     }
 
@@ -574,9 +694,13 @@ public partial class MainWindow : Window
 
     private async void ContextRestartMachineMenuItem_Click(object sender, RoutedEventArgs e) => await SendCommandAsync("restart");
 
-    private async void ContextShutdownMachineMenuItem_Click(object sender, RoutedEventArgs e) => await SendCommandAsync("shutdown");
+    private async void ContextShutdownSelectedMachineMenuItem_Click(object sender, RoutedEventArgs e) => await ShutdownSelectedMachineAsync();
+
+    private async void ContextShutdownReadyMachinesMenuItem_Click(object sender, RoutedEventArgs e) => await ShutdownReadyMachinesAsync();
 
     private async void ContextCloseAppsMenuItem_Click(object sender, RoutedEventArgs e) => await SendCommandAsync("close-apps");
+    private async void ContextRemoteControlMachineMenuItem_Click(object sender, RoutedEventArgs e) => await OpenRemoteControlForSelectedMachineAsync();
+    private async void ContextCaptureScreenshotMachineMenuItem_Click(object sender, RoutedEventArgs e) => await CaptureScreenshotForSelectedMachineAsync();
     private async void ContextPauseMachineMenuItem_Click(object sender, RoutedEventArgs e) => await SendCommandAsync("pause");
     private async void ContextResumeMachineMenuItem_Click(object sender, RoutedEventArgs e) => await SendCommandAsync("resume");
     private async void ContextTransferMachineMenuItem_Click(object sender, RoutedEventArgs e) => await TransferMachineAsync();
@@ -586,7 +710,8 @@ public partial class MainWindow : Window
     private async void ContextRefreshMachinesMenuItem_Click(object sender, RoutedEventArgs e) => await RefreshMachinesAsync();
 
     private void ContextClearMachineFiltersMenuItem_Click(object sender, RoutedEventArgs e) => UnlockAllFilterButton_Click(sender, e);
-    private async void ContextViewMachineBillingMenuItem_Click(object sender, RoutedEventArgs e)
+
+    private async Task ShutdownSelectedMachineAsync()
     {
         if (MachinesDataGrid.SelectedItem is not MachineRow selected)
         {
@@ -594,7 +719,610 @@ public partial class MainWindow : Window
             return;
         }
 
-        await ShowMachineBillingDetailsAsync(selected);
+        await SendCommandAsync("shutdown");
+    }
+
+    private async Task ShutdownReadyMachinesAsync()
+    {
+        var readyMachines = _allMachineRows
+            .Where(IsReadyMachineStatus)
+            .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (readyMachines.Count == 0)
+        {
+            MessageBox.Show(
+                "Không có máy nào ở trạng thái Sẵn sàng để tắt.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            $"Bạn có chắc muốn tắt {readyMachines.Count} máy đang Sẵn sàng?",
+            "Xác nhận tắt máy hàng loạt",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (confirm != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var successCount = 0;
+        var failedMachines = new List<string>();
+
+        foreach (var machine in readyMachines)
+        {
+            var ok = await SendCommandToMachineAsync(machine, "shutdown");
+            if (ok)
+            {
+                successCount++;
+            }
+            else
+            {
+                failedMachines.Add(machine.Name);
+            }
+        }
+
+        await RefreshMachinesAsync();
+
+        if (failedMachines.Count == 0)
+        {
+            MessageBox.Show(
+                $"Đã gửi lệnh tắt thành công {successCount}/{readyMachines.Count} máy Sẵn sàng.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        MessageBox.Show(
+            $"Đã gửi thành công {successCount}/{readyMachines.Count} máy.\n" +
+            $"Thất bại: {string.Join(", ", failedMachines)}",
+            "Server Admin",
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
+    }
+
+    private async Task<bool> SendCommandToMachineAsync(MachineRow machine, string action)
+    {
+        try
+        {
+            using var response = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl($"/pcs/{machine.Id}/{action}"),
+                new { requestedBy = "admin.desktop" });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                AppendServiceLog(
+                    $"[{DateTime.Now:HH:mm:ss}] Gửi lệnh {action.ToUpperInvariant()} thất bại cho {machine.Name} ({(int)response.StatusCode})");
+                return false;
+            }
+
+            AppendServiceLog(
+                $"[{DateTime.Now:HH:mm:ss}] Đã gửi lệnh {action.ToUpperInvariant()} cho {machine.Name}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppendServiceLog(
+                $"[{DateTime.Now:HH:mm:ss}] Lỗi gửi lệnh {action.ToUpperInvariant()} cho {machine.Name}: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static bool IsReadyMachineStatus(MachineRow row)
+    {
+        var status = row.StatusCode?.Trim().ToUpperInvariant() ?? string.Empty;
+        return status is "ONLINE" or "AVAILABLE";
+    }
+
+    private async Task OpenRemoteControlForSelectedMachineAsync()
+    {
+        if (MachinesDataGrid.SelectedItem is not MachineRow selected)
+        {
+            MessageBox.Show(I18n.PleaseSelectPc, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var host = ResolveRemoteControlHost(selected);
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            MessageBox.Show(
+                "Không tìm thấy IP/host của máy trạm để điều khiển từ xa.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "mstsc.exe",
+                Arguments = $"/v:{host}",
+                UseShellExecute = true,
+            });
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Mở điều khiển từ xa tới {selected.Name} ({host})");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Không thể mở Remote Desktop: {ex.Message}",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private static string? ResolveRemoteControlHost(MachineRow machine)
+    {
+        var ip = machine.IpAddress?.Trim();
+        if (!string.IsNullOrWhiteSpace(ip) && ip != "-")
+        {
+            if (ip.StartsWith("::ffff:", StringComparison.OrdinalIgnoreCase))
+            {
+                ip = ip[7..];
+            }
+
+            return ip;
+        }
+
+        var name = machine.Name?.Trim();
+        return string.IsNullOrWhiteSpace(name) ? null : name;
+    }
+
+    private async Task CaptureScreenshotForSelectedMachineAsync()
+    {
+        if (MachinesDataGrid.SelectedItem is not MachineRow selected)
+        {
+            MessageBox.Show(I18n.PleaseSelectPc, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            using var requestResponse = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl($"/pcs/{selected.Id}/capture-screenshot"),
+                new { requestedBy = "admin.desktop" });
+
+            if (!requestResponse.IsSuccessStatusCode)
+            {
+                MessageBox.Show(
+                    $"Yêu cầu chụp màn hình thất bại ({(int)requestResponse.StatusCode}).",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            var requestPayload = await requestResponse.Content.ReadFromJsonAsync<CaptureScreenshotRequestResponse>(JsonOptions());
+            if (requestPayload is null || !requestPayload.Ok || string.IsNullOrWhiteSpace(requestPayload.RequestId))
+            {
+                var reasonText = requestPayload?.Reason == "AGENT_OFFLINE"
+                    ? "Máy trạm đang offline."
+                    : "Không thể gửi yêu cầu chụp màn hình.";
+                MessageBox.Show(
+                    reasonText,
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã yêu cầu chụp màn hình {selected.Name}");
+
+            var screenshot = await WaitForScreenshotAsync(
+                selected.Id,
+                requestPayload.RequestId,
+                timeoutSeconds: 15);
+            if (screenshot is null)
+            {
+                MessageBox.Show(
+                    "Không nhận được ảnh chụp màn hình từ máy trạm. Vui lòng thử lại.",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            var imageSource = DecodeBase64Image(screenshot.ImageBase64);
+            if (imageSource is null)
+            {
+                MessageBox.Show(
+                    "Ảnh chụp màn hình bị lỗi dữ liệu.",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            ShowScreenshotDialog(selected, screenshot, imageSource);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Lỗi chụp màn hình: {ex.Message}",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private async Task<PcScreenshotItem?> WaitForScreenshotAsync(
+        string pcId,
+        string requestId,
+        int timeoutSeconds)
+    {
+        var attempts = Math.Max(3, timeoutSeconds);
+        for (var i = 0; i < attempts; i++)
+        {
+            try
+            {
+                var url = BuildApiUrl(
+                    $"/pcs/{pcId}/latest-screenshot?requestId={Uri.EscapeDataString(requestId)}");
+                var response = await _httpClient.GetFromJsonAsync<LatestPcScreenshotResponse>(
+                    url,
+                    JsonOptions());
+                if (response?.Ok == true && response.Screenshot is not null)
+                {
+                    return response.Screenshot;
+                }
+            }
+            catch
+            {
+                // Ignore polling errors and continue waiting.
+            }
+
+            await Task.Delay(1000);
+        }
+
+        return null;
+    }
+
+    private static BitmapImage? DecodeBase64Image(string base64)
+    {
+        if (string.IsNullOrWhiteSpace(base64))
+        {
+            return null;
+        }
+
+        try
+        {
+            var markerIndex = base64.IndexOf("base64,", StringComparison.OrdinalIgnoreCase);
+            var compact = markerIndex >= 0 ? base64[(markerIndex + 7)..] : base64;
+            var bytes = Convert.FromBase64String(compact);
+
+            using var stream = new MemoryStream(bytes);
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.StreamSource = stream;
+            image.EndInit();
+            image.Freeze();
+            return image;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private void ShowScreenshotDialog(
+        MachineRow machine,
+        PcScreenshotItem screenshot,
+        BitmapImage imageSource)
+    {
+        var dialog = new Window
+        {
+            Title = $"Ảnh chụp màn hình - {machine.Name}",
+            Width = 1100,
+            Height = 760,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = this,
+            ResizeMode = ResizeMode.CanResize,
+            ShowInTaskbar = false,
+        };
+
+        var root = new Grid { Margin = new Thickness(12) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var capturedAtText = string.IsNullOrWhiteSpace(screenshot.CapturedAt)
+            ? FormatDateTime(screenshot.CreatedAt)
+            : FormatDateTime(screenshot.CapturedAt);
+        var infoText = new TextBlock
+        {
+            Text =
+                $"Máy: {machine.Name} ({machine.AgentId}) - Thời gian chụp: {capturedAtText}",
+            Margin = new Thickness(0, 0, 0, 8),
+            FontWeight = FontWeights.SemiBold,
+        };
+        Grid.SetRow(infoText, 0);
+        root.Children.Add(infoText);
+
+        var border = new Border
+        {
+            BorderBrush = Brushes.LightGray,
+            BorderThickness = new Thickness(1),
+            Background = Brushes.Black,
+            Child = new ScrollViewer
+            {
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Content = new Image
+                {
+                    Source = imageSource,
+                    Stretch = Stretch.None,
+                },
+            },
+        };
+        Grid.SetRow(border, 1);
+        root.Children.Add(border);
+
+        var closeButton = new Button
+        {
+            Content = "Đóng",
+            Width = 100,
+            Height = 34,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 10, 0, 0),
+            IsDefault = true,
+        };
+        closeButton.Click += (_, _) => dialog.Close();
+        Grid.SetRow(closeButton, 2);
+        root.Children.Add(closeButton);
+
+        dialog.Content = root;
+        _ = dialog.ShowDialog();
+    }
+
+    private async void ContextViewMachineBillingMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var selectedMachines = GetSelectedMachinesForBilling();
+        if (selectedMachines.Count == 0)
+        {
+            MessageBox.Show(I18n.PleaseSelectPc, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var eligibleMachines = selectedMachines
+            .Where(IsGuestBillingEligibleMachine)
+            .ToList();
+        var skippedCount = selectedMachines.Count - eligibleMachines.Count;
+
+        if (eligibleMachines.Count == 0)
+        {
+            MessageBox.Show(
+                "Chỉ tính tiền cho máy đang Đang sử dụng bởi khách vãng lai (không phải hội viên).",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        if (skippedCount > 0)
+        {
+            MessageBox.Show(
+                $"Đã bỏ qua {skippedCount} máy hội viên hoặc chưa ở trạng thái Đang sử dụng.\n" +
+                $"Sẽ tính tiền cho {eligibleMachines.Count} máy khách vãng lai.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+
+        if (eligibleMachines.Count == 1)
+        {
+            await ShowMachineBillingDetailsAsync(eligibleMachines[0]);
+            return;
+        }
+
+        await ShowMultipleMachinesBillingDetailsAsync(eligibleMachines);
+    }
+
+    private List<MachineRow> GetSelectedMachinesForBilling()
+    {
+        var rows = MachinesDataGrid.SelectedItems.OfType<MachineRow>().ToList();
+        if (rows.Count > 0)
+        {
+            return rows;
+        }
+
+        if (MachinesDataGrid.SelectedItem is MachineRow selected)
+        {
+            return new List<MachineRow> { selected };
+        }
+
+        return new List<MachineRow>();
+    }
+
+    private static bool IsGuestBillingEligibleMachine(MachineRow machine)
+    {
+        var status = machine.StatusCode?.Trim().ToUpperInvariant();
+        if (status != "IN_USE")
+        {
+            return false;
+        }
+
+        var hasActiveMember =
+            !string.IsNullOrWhiteSpace(machine.ActiveMemberId) ||
+            !string.IsNullOrWhiteSpace(machine.ActiveMemberUsername);
+        return !hasActiveMember;
+    }
+
+    private async Task ShowMultipleMachinesBillingDetailsAsync(IReadOnlyList<MachineRow> machines)
+    {
+        var summaryRows = await BuildMultiMachineBillingRowsAsync(machines);
+        if (summaryRows.Count == 0)
+        {
+            MessageBox.Show(
+                "Không có máy nào để tính tiền.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var totalPlayAmount = summaryRows.Sum(x => x.PlayAmount);
+        var totalServiceAmount = summaryRows.Sum(x => x.ServiceAmount);
+        var totalAmount = summaryRows.Sum(x => x.TotalAmount);
+        var hasServiceLoadError = summaryRows.Any(x => x.HasServiceLoadError);
+
+        var dialog = new Window
+        {
+            Title = $"Tổng hợp thanh toán - {summaryRows.Count} máy",
+            Width = 1020,
+            Height = 660,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ResizeMode = ResizeMode.CanResize,
+            MinWidth = 860,
+            MinHeight = 520,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+            ShowInTaskbar = false,
+            Owner = this,
+        };
+
+        var root = new Grid { Margin = new Thickness(16) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var title = new TextBlock
+        {
+            Text = $"Tính tiền nhiều máy ({summaryRows.Count} máy đã chọn)",
+            FontSize = 18,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 12),
+        };
+        Grid.SetRow(title, 0);
+        root.Children.Add(title);
+
+        var grid = new DataGrid
+        {
+            AutoGenerateColumns = false,
+            CanUserAddRows = false,
+            CanUserDeleteRows = false,
+            IsReadOnly = true,
+            HeadersVisibility = DataGridHeadersVisibility.Column,
+            GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+            RowHeaderWidth = 0,
+            AlternationCount = 2,
+            SelectionMode = DataGridSelectionMode.Single,
+            ItemsSource = summaryRows,
+        };
+        grid.Columns.Add(new DataGridTextColumn { Header = "Máy trạm", Binding = new System.Windows.Data.Binding("MachineName"), Width = new DataGridLength(1.25, DataGridLengthUnitType.Star), MinWidth = 140 });
+        grid.Columns.Add(new DataGridTextColumn { Header = "Trạng thái", Binding = new System.Windows.Data.Binding("StatusText"), Width = new DataGridLength(0.95, DataGridLengthUnitType.Star), MinWidth = 110 });
+        grid.Columns.Add(new DataGridTextColumn { Header = "Đã sử dụng", Binding = new System.Windows.Data.Binding("PlayDurationText"), Width = new DataGridLength(1.0, DataGridLengthUnitType.Star), MinWidth = 110 });
+        grid.Columns.Add(new DataGridTextColumn { Header = "Giá/giờ (VND)", Binding = new System.Windows.Data.Binding("HourlyRateText"), Width = new DataGridLength(1.0, DataGridLengthUnitType.Star), MinWidth = 110 });
+        grid.Columns.Add(new DataGridTextColumn { Header = "Tiền giờ", Binding = new System.Windows.Data.Binding("PlayAmountText"), Width = new DataGridLength(1.0, DataGridLengthUnitType.Star), MinWidth = 110 });
+        grid.Columns.Add(new DataGridTextColumn { Header = "Tiền dịch vụ", Binding = new System.Windows.Data.Binding("ServiceAmountText"), Width = new DataGridLength(1.0, DataGridLengthUnitType.Star), MinWidth = 120 });
+        grid.Columns.Add(new DataGridTextColumn { Header = "Tổng", Binding = new System.Windows.Data.Binding("TotalAmountText"), Width = new DataGridLength(1.0, DataGridLengthUnitType.Star), MinWidth = 120 });
+        grid.Columns.Add(new DataGridTextColumn { Header = "Ghi chú", Binding = new System.Windows.Data.Binding("NoteText"), Width = new DataGridLength(1.35, DataGridLengthUnitType.Star), MinWidth = 160 });
+        Grid.SetRow(grid, 1);
+        root.Children.Add(grid);
+
+        var totalBorder = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(238, 242, 255)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(147, 197, 253)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(12, 10, 12, 10),
+            Margin = new Thickness(0, 12, 0, 0),
+            Child = new TextBlock
+            {
+                Text =
+                    $"Tổng cộng {summaryRows.Count} máy: {totalAmount:N0} VND  " +
+                    $"(Giờ chơi: {totalPlayAmount:N0} + Dịch vụ: {totalServiceAmount:N0})",
+                FontSize = 17,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(30, 64, 175)),
+                TextWrapping = TextWrapping.Wrap,
+            },
+        };
+        Grid.SetRow(totalBorder, 2);
+        root.Children.Add(totalBorder);
+
+        var noteText = new TextBlock
+        {
+            Margin = new Thickness(0, 10, 0, 0),
+            Foreground = hasServiceLoadError ? Brushes.DarkGoldenrod : Brushes.DimGray,
+            TextWrapping = TextWrapping.Wrap,
+            Text = hasServiceLoadError
+                ? "Một vài máy chưa tải được tiền dịch vụ nên tạm tính phần dịch vụ = 0. Bạn có thể mở lại popup để đồng bộ lần nữa."
+                : "Tổng tiền đã bao gồm tiền giờ chơi tạm tính và tiền dịch vụ trong phiên hiện tại của từng máy.",
+        };
+        Grid.SetRow(noteText, 3);
+        root.Children.Add(noteText);
+
+        var closeButton = new Button
+        {
+            Content = "Đóng",
+            Width = 100,
+            Height = 34,
+            IsDefault = true,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 16, 0, 0),
+        };
+        closeButton.Click += (_, _) => dialog.Close();
+        Grid.SetRow(closeButton, 4);
+        root.Children.Add(closeButton);
+
+        dialog.Content = root;
+        _ = dialog.ShowDialog();
+    }
+
+    private async Task<List<MachineBillingSummaryRow>> BuildMultiMachineBillingRowsAsync(
+        IReadOnlyList<MachineRow> machines)
+    {
+        var tasks = machines.Select(async machine =>
+        {
+            decimal serviceAmount = 0;
+            var hasServiceLoadError = false;
+            try
+            {
+                serviceAmount = await GetServiceAmountForMachineAsync(machine);
+            }
+            catch
+            {
+                hasServiceLoadError = true;
+            }
+
+            var playAmount = machine.ActiveSessionEstimatedAmount;
+            var totalAmount = playAmount + serviceAmount;
+            var hasActiveSession = !string.IsNullOrWhiteSpace(machine.ActiveSessionId);
+            var playDurationText = hasActiveSession
+                ? FormatUsed(machine.ActiveSessionElapsedSeconds)
+                : "0 phút";
+
+            return new MachineBillingSummaryRow
+            {
+                MachineName = machine.Name,
+                StatusText = machine.StatusText,
+                PlayDurationText = playDurationText,
+                HourlyRateText = $"{machine.HourlyRate:N0}",
+                PlayAmount = playAmount,
+                ServiceAmount = serviceAmount,
+                TotalAmount = totalAmount,
+                PlayAmountText = $"{playAmount:N0}",
+                ServiceAmountText = $"{serviceAmount:N0}",
+                TotalAmountText = $"{totalAmount:N0}",
+                HasServiceLoadError = hasServiceLoadError,
+                NoteText = hasServiceLoadError
+                    ? "Lỗi tải tiền dịch vụ"
+                    : "-",
+            };
+        });
+
+        var rows = await Task.WhenAll(tasks);
+        return rows
+            .OrderBy(x => x.MachineName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private async Task ShowMachineBillingDetailsAsync(MachineRow machine)

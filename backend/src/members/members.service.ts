@@ -585,8 +585,7 @@ export class MembersService {
     const amount = this.roundMoney(payload.amount);
     const createdBy = payload.createdBy?.trim() || 'admin.desktop';
     const targetUsername = payload.targetUsername.trim();
-
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const source = await tx.member.findUnique({ where: { id: memberId } });
       if (!source) {
         throw new NotFoundException('Khong tim thay hoi vien chuyen tien');
@@ -670,6 +669,9 @@ export class MembersService {
         transferredAt: new Date().toISOString(),
       };
     });
+
+    await this.logMemberTransferEvent(result, payload, createdBy);
+    return result;
   }
 
   private toMemberItem(member: Member) {
@@ -825,5 +827,61 @@ export class MembersService {
       'servermanagerbilling-default-salt';
 
     return createHash('sha256').update(`${salt}:${rawPassword}`).digest('hex');
+  }
+
+  private async logMemberTransferEvent(
+    result: {
+      sourceMember: ReturnType<MembersService['toMemberItem']>;
+      targetMember: ReturnType<MembersService['toMemberItem']>;
+      amount: number;
+      transferredAt: string;
+    },
+    payload: TransferBalanceDto,
+    createdBy: string,
+  ): Promise<void> {
+    const normalizedAgentId = payload.agentId?.trim() || null;
+    const eventSource = createdBy.startsWith('client.')
+      ? EventSource.CLIENT
+      : EventSource.ADMIN;
+
+    let pcId: string | undefined;
+    if (normalizedAgentId) {
+      const pc = await this.prisma.pc.findFirst({
+        where: {
+          agentId: {
+            equals: normalizedAgentId,
+            mode: 'insensitive',
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      pcId = pc?.id;
+    }
+
+    try {
+      await this.prisma.eventLog.create({
+        data: {
+          source: eventSource,
+          eventType: 'member.balance.transferred',
+          pcId,
+          payload: {
+            sourceMemberId: result.sourceMember.id,
+            sourceUsername: result.sourceMember.username,
+            targetMemberId: result.targetMember.id,
+            targetUsername: result.targetMember.username,
+            amount: result.amount,
+            note: payload.note?.trim() || null,
+            createdBy,
+            agentId: normalizedAgentId,
+            transferredAt: result.transferredAt,
+          },
+        },
+      });
+    } catch {
+      // Transfer already completed, skip logging failure.
+    }
   }
 }

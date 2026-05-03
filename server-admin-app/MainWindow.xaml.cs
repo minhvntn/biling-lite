@@ -18,6 +18,7 @@ public partial class MainWindow : Window
     private readonly HttpClient _httpClient = new();
     private readonly DispatcherTimer _healthTimer = new();
     private readonly DispatcherTimer _machinesTimer = new();
+    private readonly DispatcherTimer _systemLogsTimer = new();
 
     private readonly ObservableCollection<MachineRow> _machineRows = new();
     private readonly ObservableCollection<MemberRow> _memberRows = new();
@@ -37,12 +38,14 @@ public partial class MainWindow : Window
     private string _searchKeyword = string.Empty;
     private string _statusFilter = I18n.StatusAll;
     private string? _selectedMachineId;
+    private readonly HashSet<string> _selectedMachineIds = new(StringComparer.OrdinalIgnoreCase);
     private string _memberSearchKeyword = string.Empty;
     private string? _selectedMemberId;
     private string? _selectedGroupSummaryId;
     private string? _selectedGroupMachinePcId;
     private string? _selectedServiceItemId;
     private bool _isRefreshingMachines;
+    private bool _isRefreshingSystemLogs;
     private bool _fontSizeInitialized;
     private bool _machineTableFontSizeInitialized;
     private bool _machineContextMenuPaddingInitialized;
@@ -66,6 +69,8 @@ public partial class MainWindow : Window
     private bool _topupModalAllowDeduct = true;
     private Point _groupMachineDragStartPoint;
     private GroupMachineRow? _draggingGroupMachine;
+    private readonly HashSet<string> _memberTransferNotifiedEventIds = new(StringComparer.OrdinalIgnoreCase);
+    private bool _memberTransferNotificationsInitialized;
 
     public MainWindow()
     {
@@ -118,6 +123,10 @@ public partial class MainWindow : Window
         _machinesTimer.Tick += MachinesTimer_Tick;
         _machinesTimer.Start();
 
+        _systemLogsTimer.Interval = TimeSpan.FromSeconds(Math.Max(3, _settings.MachineRefreshSeconds));
+        _systemLogsTimer.Tick += SystemLogsTimer_Tick;
+        _systemLogsTimer.Start();
+
         await CheckBackendHealthAsync();
         await RefreshAllDataAsync();
         _loyaltySettingsInitialized = true;
@@ -131,6 +140,7 @@ public partial class MainWindow : Window
     {
         _healthTimer.Stop();
         _machinesTimer.Stop();
+        _systemLogsTimer.Stop();
         _httpClient.Dispose();
     }
 

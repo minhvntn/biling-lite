@@ -24,5 +24,10 @@ export class TransferBalanceDto {
   @MaxLength(100)
   @Transform(({ value }: { value?: string }) => value?.trim() || undefined)
   createdBy?: string;
-}
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  @Transform(({ value }: { value?: string }) => value?.trim() || undefined)
+  agentId?: string;
+}
