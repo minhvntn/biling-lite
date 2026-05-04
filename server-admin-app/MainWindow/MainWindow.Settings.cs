@@ -578,73 +578,204 @@ public partial class MainWindow : Window
         AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 \u0111\u1eb7t l\u1ea1i c\u1ee1 ch\u1eef m\u1eb7c \u0111\u1ecbnh");
     }
 
-    private async void SaveAdminCredentialsButton_Click(object sender, RoutedEventArgs e)
+    private async void OpenAdminCredentialPopupButton_Click(object sender, RoutedEventArgs e)
     {
-        var currentPwd = AdminCurrentPasswordBox.Password;
-        var newUsername = AdminNewUsernameTextBox.Text.Trim();
-        var newPwd = AdminNewPasswordBox.Password;
-        var confirmPwd = AdminConfirmPasswordBox.Password;
+        await ShowChangeAdminCredentialPopupAsync();
+    }
 
-        if (string.IsNullOrWhiteSpace(currentPwd))
-        {
-            AdminCredentialStatusTextBlock.Text = "Vui lòng nhập mật khẩu hiện tại.";
-            AdminCredentialStatusTextBlock.Foreground = Brushes.Firebrick;
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(newUsername))
-        {
-            AdminCredentialStatusTextBlock.Text = "Vui lòng nhập tên đăng nhập mới.";
-            AdminCredentialStatusTextBlock.Foreground = Brushes.Firebrick;
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(newPwd))
-        {
-            AdminCredentialStatusTextBlock.Text = "Vui lòng nhập mật khẩu mới.";
-            AdminCredentialStatusTextBlock.Foreground = Brushes.Firebrick;
-            return;
-        }
-
-        if (newPwd != confirmPwd)
-        {
-            AdminCredentialStatusTextBlock.Text = "Mật khẩu mới và xác nhận không khớp.";
-            AdminCredentialStatusTextBlock.Foreground = Brushes.Firebrick;
-            return;
-        }
-
+    private async Task ShowChangeAdminCredentialPopupAsync()
+    {
+        var currentUsername = "admin";
         try
         {
-            using var resp = await _httpClient.PostAsJsonAsync(
-                BuildApiUrl("/settings/agent-admin/change-password"),
-                new
-                {
-                    currentPassword = currentPwd,
-                    newUsername,
-                    newPassword = newPwd,
-                });
-
-            if (resp.IsSuccessStatusCode)
+            var settings = await _httpClient.GetFromJsonAsync<Dictionary<string, string>>(
+                BuildApiUrl("/settings"),
+                JsonOptions());
+            if (settings is not null &&
+                settings.TryGetValue("AGENT_ADMIN_USERNAME", out var username) &&
+                !string.IsNullOrWhiteSpace(username))
             {
-                AdminCredentialStatusTextBlock.Text =
-                    $"Đã đổi thành công. Tài khoản mới: {newUsername}";
-                AdminCredentialStatusTextBlock.Foreground = Brushes.DarkGreen;
-                AdminCurrentPasswordBox.Clear();
-                AdminNewPasswordBox.Clear();
-                AdminConfirmPasswordBox.Clear();
-                AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã đổi thông tin đăng nhập admin máy trạm → {newUsername}");
-            }
-            else
-            {
-                var body = await resp.Content.ReadAsStringAsync();
-                AdminCredentialStatusTextBlock.Text = $"Lỗi: {body}";
-                AdminCredentialStatusTextBlock.Foreground = Brushes.Firebrick;
+                currentUsername = username.Trim();
             }
         }
-        catch (Exception ex)
+        catch
         {
-            AdminCredentialStatusTextBlock.Text = $"Không kết nối được server: {ex.Message}";
-            AdminCredentialStatusTextBlock.Foreground = Brushes.Firebrick;
+            // Keep default value if loading current username fails.
         }
+
+        var dialog = new Window
+        {
+            Title = "Doi tai khoan Admin may tram",
+            Width = 470,
+            Height = 280,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+            ShowInTaskbar = false,
+            Owner = this,
+        };
+
+        var root = new Grid { Margin = new Thickness(16) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var titleText = new TextBlock
+        {
+            Text = "Cap nhat tai khoan dang nhap Admin may tram",
+            FontSize = 18,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 10),
+        };
+        Grid.SetRow(titleText, 0);
+        root.Children.Add(titleText);
+
+        var usernameLabel = new TextBlock
+        {
+            Text = "Username:",
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+        Grid.SetRow(usernameLabel, 1);
+        root.Children.Add(usernameLabel);
+
+        var usernameBox = new TextBox
+        {
+            Height = 32,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Text = currentUsername,
+            Margin = new Thickness(0, 0, 0, 10),
+        };
+        Grid.SetRow(usernameBox, 2);
+        root.Children.Add(usernameBox);
+
+        var passwordLabel = new TextBlock
+        {
+            Text = "Password moi:",
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+        Grid.SetRow(passwordLabel, 3);
+        root.Children.Add(passwordLabel);
+
+        var passwordBox = new PasswordBox
+        {
+            Height = 32,
+            Padding = new Thickness(6, 4, 6, 4),
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        Grid.SetRow(passwordBox, 4);
+        root.Children.Add(passwordBox);
+
+        var hintText = new TextBlock
+        {
+            Text = "Mat khau toi thieu 4 ky tu.",
+            Foreground = Brushes.DimGray,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        Grid.SetRow(hintText, 5);
+        root.Children.Add(hintText);
+
+        var errorText = new TextBlock
+        {
+            Foreground = Brushes.Firebrick,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        Grid.SetRow(errorText, 6);
+        root.Children.Add(errorText);
+
+        var actions = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        var saveButton = new Button
+        {
+            Content = "Luu",
+            Width = 92,
+            Margin = new Thickness(0, 0, 8, 0),
+            IsDefault = true,
+        };
+        var cancelButton = new Button
+        {
+            Content = "Huy",
+            Width = 92,
+            IsCancel = true,
+        };
+        actions.Children.Add(saveButton);
+        actions.Children.Add(cancelButton);
+        Grid.SetRow(actions, 7);
+        root.Children.Add(actions);
+
+        saveButton.Click += async (_, _) =>
+        {
+            var newUsername = usernameBox.Text.Trim();
+            var newPassword = passwordBox.Password;
+
+            if (string.IsNullOrWhiteSpace(newUsername))
+            {
+                errorText.Text = "Vui long nhap username.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(newPassword))
+            {
+                errorText.Text = "Vui long nhap password.";
+                return;
+            }
+
+            if (newPassword.Length < 4)
+            {
+                errorText.Text = "Mat khau moi phai co it nhat 4 ky tu.";
+                return;
+            }
+
+            try
+            {
+                saveButton.IsEnabled = false;
+                cancelButton.IsEnabled = false;
+                errorText.Text = string.Empty;
+
+                using var resp = await _httpClient.PostAsJsonAsync(
+                    BuildApiUrl("/settings/agent-admin/update-credentials"),
+                    new
+                    {
+                        username = newUsername,
+                        password = newPassword,
+                    });
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                    var body = await resp.Content.ReadAsStringAsync();
+                    errorText.Text = string.IsNullOrWhiteSpace(body)
+                        ? $"Cap nhat that bai ({(int)resp.StatusCode})."
+                        : body;
+                    saveButton.IsEnabled = true;
+                    cancelButton.IsEnabled = true;
+                    return;
+                }
+
+                AdminCredentialStatusTextBlock.Text = $"Da cap nhat tai khoan admin: {newUsername}";
+                AdminCredentialStatusTextBlock.Foreground = Brushes.DarkGreen;
+                AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Da doi tai khoan admin may tram -> {newUsername}");
+                dialog.DialogResult = true;
+                dialog.Close();
+            }
+            catch (Exception ex)
+            {
+                errorText.Text = $"Khong ket noi duoc server: {ex.Message}";
+                saveButton.IsEnabled = true;
+                cancelButton.IsEnabled = true;
+            }
+        };
+
+        dialog.Content = root;
+        dialog.ShowDialog();
     }
 }
+
+

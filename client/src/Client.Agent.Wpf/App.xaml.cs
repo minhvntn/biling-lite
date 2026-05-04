@@ -76,6 +76,12 @@ public partial class App : Application
         }
 
         _settings = LoadSettings();
+        if (!EnsureServerEndpointConfigured())
+        {
+            Shutdown();
+            return;
+        }
+
         _currentHourlyRate = _settings.HourlyRate > 0 ? _settings.HourlyRate : 12000;
         _logger = new FileLogger(Path.Combine(GetLogDirectory(), "client-agent.log"));
         _ = _logger.InfoAsync("Client agent starting");
@@ -199,9 +205,11 @@ public partial class App : Application
 
     private AgentSettings LoadSettings()
     {
+        var writableSettingsPath = GetWritableSettingsPath();
         var configuration = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+            .AddJsonFile(writableSettingsPath, optional: true, reloadOnChange: true)
             .Build();
 
         var settings = new AgentSettings();

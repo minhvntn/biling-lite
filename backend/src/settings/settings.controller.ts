@@ -154,4 +154,45 @@ export class SettingsController {
 
     return { ok: true, username: newUsername };
   }
+
+  /**
+   * Admin desktop quick flow: update agent-admin credentials directly
+   * by providing only username + password.
+   */
+  @Post('agent-admin/update-credentials')
+  async updateAgentAdminCredentials(
+    @Body()
+    body: {
+      username: string;
+      password: string;
+    },
+  ) {
+    const username = body.username?.trim();
+    const password = body.password;
+
+    if (!username || !password) {
+      throw new BadRequestException('username and password are required');
+    }
+
+    if (password.length < 4) {
+      throw new BadRequestException('Mat khau moi phai co it nhat 4 ky tu');
+    }
+
+    const newHash = await bcrypt.hash(password, 10);
+
+    await Promise.all([
+      this.prisma.appSetting.upsert({
+        where: { key: AGENT_ADMIN_USERNAME_KEY },
+        update: { value: username },
+        create: { key: AGENT_ADMIN_USERNAME_KEY, value: username },
+      }),
+      this.prisma.appSetting.upsert({
+        where: { key: AGENT_ADMIN_PASSWORD_HASH_KEY },
+        update: { value: newHash },
+        create: { key: AGENT_ADMIN_PASSWORD_HASH_KEY, value: newHash },
+      }),
+    ]);
+
+    return { ok: true, username };
+  }
 }
