@@ -16,6 +16,11 @@ export class UpdateLoyaltyRankDto {
   bonusPercent?: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(1)
+  minutesPerPoint?: number;
+
+  @IsOptional()
   @IsString()
   updatedBy?: string;
 }

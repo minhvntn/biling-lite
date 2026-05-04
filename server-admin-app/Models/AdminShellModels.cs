@@ -75,6 +75,8 @@ public sealed class MachineRow
     public string StatusCode { get; set; } = string.Empty;
     public string StatusText { get; set; } = string.Empty;
     public Brush StatusBrush { get; set; } = Brushes.Gray;
+    public Brush StatusIconBrush { get; set; } = Brushes.Gray;
+    public string StatusIconToolTip { get; set; } = string.Empty;
     public string UserName { get; set; } = "-";
     public string StartedAtText { get; set; } = "-";
     public string UsedText { get; set; } = "-";
@@ -112,6 +114,7 @@ public sealed class MemberItem
     public double PlayHours { get; set; }
     public string Rank { get; set; } = string.Empty;
     public decimal TotalTopup { get; set; }
+    public int AvailablePoints { get; set; }
     public string CreatedAt { get; set; } = string.Empty;
 }
 
@@ -168,6 +171,7 @@ public sealed class MemberRow
     public string PlayHoursText { get; set; } = "0";
     public string Rank { get; set; } = "S\u1eaft";
     public decimal TotalTopupRaw { get; set; }
+    public int AvailablePoints { get; set; }
     public string TotalTopupText { get; set; } = "0";
     public string PasswordState { get; set; } = "Ch\u01b0a \u0111\u1eb7t";
     public string ActiveText { get; set; } = "Ho\u1ea1t \u0111\u1ed9ng";
@@ -439,6 +443,7 @@ public sealed class LoyaltyRankItem
     public string RankName { get; set; } = string.Empty;
     public decimal MinTopup { get; set; }
     public decimal BonusPercent { get; set; }
+    public int MinutesPerPoint { get; set; }
     public string CreatedAt { get; set; } = string.Empty;
     public string UpdatedAt { get; set; } = string.Empty;
 }
@@ -450,4 +455,5 @@ public sealed class LoyaltyRankRow
     public decimal MinTopup { get; set; }
     public decimal BonusPercent { get; set; }
     public string MinTopupText { get; set; } = "0";
+    public int MinutesPerPoint { get; set; }
 }

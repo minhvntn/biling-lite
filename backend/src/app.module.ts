@@ -15,23 +15,25 @@ import { MembersModule } from './members/members.module';
 import { ServicesModule } from './services/services.module';
 import { WebFilterModule } from './web-filter/web-filter.module';
 import { WebsiteLogsModule } from './website-logs/website-logs.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
-    PcsModule,
-    SessionsModule,
-    PricingModule,
-    CommandsModule,
-    AuthAdminModule,
     PrismaModule,
-    RealtimeModule,
-    ReportsModule,
+    AuthAdminModule,
+    PcsModule,
     MembersModule,
+    SessionsModule,
+    RealtimeModule,
+    CommandsModule,
+    ReportsModule,
+    PricingModule,
     ServicesModule,
     WebFilterModule,
     WebsiteLogsModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -37,6 +37,11 @@ export class MembersController {
     return this.membersService.setMemberPresence(payload);
   }
 
+  @Post('guest-presence')
+  async setGuestPresence(@Body() payload: any) {
+    return this.membersService.setGuestPresence(payload);
+  }
+
   @Get('loyalty/settings')
   async getLoyaltySettings() {
     return this.membersService.getLoyaltySettings();
@@ -79,6 +84,14 @@ export class MembersController {
     @Body() payload: RedeemLoyaltyPointsDto,
   ) {
     return this.membersService.redeemLoyaltyPoints(memberId, payload);
+  }
+  
+  @Post(':memberId/loyalty/spin')
+  async spinLoyaltyPoints(
+    @Param('memberId') memberId: string,
+    @Body() payload: { createdBy?: string; note?: string },
+  ) {
+    return this.membersService.spinLoyaltyPoints(memberId, payload);
   }
 
   @Get(':memberId/transactions')
@@ -124,5 +137,10 @@ export class MembersController {
     @Body() payload: TransferBalanceDto,
   ) {
     return this.membersService.transferBalance(memberId, payload);
+  }
+
+  @Post('loyalty/ranks/rebuild')
+  async rebuildRanks(@Body() payload: { maxThreshold: number }) {
+    return this.membersService.rebuildRanks(payload.maxThreshold);
   }
 }

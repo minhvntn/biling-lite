@@ -61,6 +61,8 @@ public partial class MainWindow : Window
     private bool _isLoadingWebsiteLogSettings;
     private bool _websiteLogFiltersInitialized;
     private bool _isUpdatingWebsiteLogMachineFilters;
+    private bool _guestLoginSettingsInitialized;
+    private bool _isLoadingGuestLoginSettings;
     private bool _transactionReportInitialized;
     private TaskCompletionSource<decimal?>? _topupModalTcs;
     private readonly Stack<decimal> _topupModalHistory = new();
@@ -150,6 +152,37 @@ public partial class MainWindow : Window
         await RefreshMachinesAsync();
     }
 
+    private async void MainTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.Source is not TabControl tabControl || !IsLoaded)
+        {
+            return;
+        }
+
+        if (tabControl.SelectedItem is TabItem tabItem)
+        {
+            var header = tabItem.Header?.ToString();
+            switch (header)
+            {
+                case "Máy trạm":
+                    await RefreshMachinesAsync();
+                    break;
+                case "Tài khoản":
+                    await RefreshMembersAsync();
+                    break;
+                case "Nhật ký hệ thống":
+                    await RefreshSystemLogsAsync();
+                    break;
+                case "Nhóm máy":
+                    await RefreshGroupsAsync();
+                    break;
+                case "Dịch vụ":
+                    await RefreshServiceItemsAsync();
+                    break;
+            }
+        }
+    }
+
     private async Task RefreshAllDataAsync()
     {
         await RefreshMachinesAsync();
@@ -160,6 +193,7 @@ public partial class MainWindow : Window
         await RefreshServiceItemsAsync();
         await LoadLoyaltySettingsAsync();
         await LoadClientRuntimeSettingsAsync();
+        await LoadGuestLoginSettingsAsync();
         await RefreshWebFilterSettingsAsync();
         await LoadWebsiteLogSettingsAsync();
         await RefreshWebsiteLogsAsync();

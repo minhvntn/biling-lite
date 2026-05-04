@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -109,6 +109,9 @@ public partial class MainWindow : Window
             }
 
             ShowMemberTransferPopup(item);
+            
+            // Refresh members list so the balance update is reflected in the UI immediately
+            _ = RefreshMembersAsync();
         }
     }
 

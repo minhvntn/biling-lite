@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
@@ -29,6 +29,44 @@ public partial class MainWindow : Window
         _usageTimer.Start();
 
         UpdateUsageUi();
+
+        Loaded += MainWindow_Loaded;
+        LocationChanged += MainWindow_LocationChanged;
+    }
+
+    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        SnapToTopRight();
+    }
+
+    private void MainWindow_LocationChanged(object? sender, EventArgs e)
+    {
+        SnapToTopRight();
+    }
+
+    private void SnapToTopRight()
+    {
+        // If window is minimized, do not snap it
+        if (WindowState == WindowState.Minimized)
+        {
+            return;
+        }
+
+        var workArea = SystemParameters.WorkArea;
+        var targetLeft = workArea.Right - Width;
+        var targetTop = workArea.Top;
+
+        // Prevent infinite event loop
+        if (Math.Abs(Left - targetLeft) > 1 || Math.Abs(Top - targetTop) > 1)
+        {
+            Left = targetLeft;
+            Top = targetTop;
+        }
+    }
+
+    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
     }
 
     public void ConfigureBilling(int totalSessionMinutes, decimal hourlyRate, bool resetUsage = false)
@@ -41,6 +79,12 @@ public partial class MainWindow : Window
         }
 
         _totalSessionMinutes = Math.Max(1, totalSessionMinutes);
+        _hourlyRate = hourlyRate < 0 ? 0 : hourlyRate;
+        UpdateUsageUi();
+    }
+
+    public void UpdateHourlyRate(decimal hourlyRate)
+    {
         _hourlyRate = hourlyRate < 0 ? 0 : hourlyRate;
         UpdateUsageUi();
     }
@@ -63,19 +107,19 @@ public partial class MainWindow : Window
         if (normalized.StartsWith("Connected", StringComparison.OrdinalIgnoreCase))
         {
             ConnectionStatusTextBlock.Text = "Đã kết nối";
-            ConnectionIndicator.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#22C55E"));
+            ConnectionIndicator.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#22C55E"));
             return;
         }
 
         if (normalized.StartsWith("Reconnecting", StringComparison.OrdinalIgnoreCase))
         {
             ConnectionStatusTextBlock.Text = normalized;
-            ConnectionIndicator.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"));
+            ConnectionIndicator.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"));
             return;
         }
 
         ConnectionStatusTextBlock.Text = "Mất kết nối";
-        ConnectionIndicator.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
+        ConnectionIndicator.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
     }
 
     public void SetMachineState(string state)
@@ -128,6 +172,81 @@ public partial class MainWindow : Window
     {
         var value = string.IsNullOrWhiteSpace(command) ? "-" : command;
         LastCommandTextBlock.Text = $"Lệnh gần nhất: {value}";
+    }
+
+    public void SetMemberInfo(string? username, string? rank)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            UserInfoPanel.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            UserInfoPanel.Visibility = Visibility.Visible;
+            MemberUsernameTextBlock.Text = username;
+            
+            var rankStr = string.IsNullOrWhiteSpace(rank) ? "Sắt" : rank;
+            var rankUpper = rankStr.ToUpperInvariant();
+            MemberRankTextBlock.Text = rankUpper;
+            
+            string bgColor = "#374151"; // Default Sắt
+            string fgColor = "#9CA3AF"; 
+
+            if (rankUpper.Contains("ĐỒNG") || rankUpper.Contains("BRONZE"))
+            {
+                bgColor = "#78350F";
+                fgColor = "#FCD34D";
+            }
+            else if (rankUpper.Contains("BẠC") || rankUpper.Contains("SILVER"))
+            {
+                bgColor = "#4B5563";
+                fgColor = "#E5E7EB";
+            }
+            else if (rankUpper.Contains("VÀNG") || rankUpper.Contains("GOLD"))
+            {
+                bgColor = "#854D0E";
+                fgColor = "#FDE047";
+            }
+            else if (rankUpper.Contains("BẠCH KIM") || rankUpper.Contains("PLATINUM"))
+            {
+                bgColor = "#164E63";
+                fgColor = "#22D3EE";
+            }
+            else if (rankUpper.Contains("LỤC BẢO") || rankUpper.Contains("EMERALD"))
+            {
+                bgColor = "#064E3B"; // Emerald 900
+                fgColor = "#34D399"; // Emerald 400
+            }
+            else if (rankUpper.Contains("KIM CƯƠNG") || rankUpper.Contains("DIAMOND"))
+            {
+                bgColor = "#312E81";
+                fgColor = "#C7D2FE";
+            }
+            else if (rankUpper.Contains("ĐẠI CAO THỦ") || rankUpper.Contains("GRANDMASTER"))
+            {
+                bgColor = "#7F1D1D"; // Red 900
+                fgColor = "#FCA5A5"; // Red 300
+            }
+            else if (rankUpper.Contains("CAO THỦ") || rankUpper.Contains("MASTER"))
+            {
+                bgColor = "#701A75"; // Fuchsia 900
+                fgColor = "#F0ABFC"; // Fuchsia 300
+            }
+            else if (rankUpper.Contains("THÁCH ĐẤU") || rankUpper.Contains("CHALLENGER"))
+            {
+                bgColor = "#1E3A8A"; // Blue 900
+                fgColor = "#FDE047"; // Yellow 300
+            }
+            else if (rankUpper.Contains("VIP"))
+            {
+                bgColor = "#831843";
+                fgColor = "#F9A8D4";
+            }
+
+            var bc = new BrushConverter();
+            MemberRankBorder.Background = (Brush)bc.ConvertFromString(bgColor)!;
+            MemberRankTextBlock.Foreground = (Brush)bc.ConvertFromString(fgColor)!;
+        }
     }
 
     public void AllowShutdown()
@@ -205,31 +324,31 @@ public partial class MainWindow : Window
     {
         var total = TimeSpan.FromMinutes(Math.Max(1, _totalSessionMinutes));
         var used = GetCurrentUsedDuration();
-        var remaining = total - used;
-        if (remaining < TimeSpan.Zero)
-        {
-            remaining = TimeSpan.Zero;
-        }
+        
+        // Display consistency: ensure Used + Remaining = Total
+        var totalMins = (int)total.TotalMinutes;
+        var usedMins = (int)used.TotalMinutes;
+        var remainingMins = Math.Max(0, totalMins - usedMins);
 
-        var gameCost = Math.Round((decimal)used.TotalHours * _hourlyRate, 0, MidpointRounding.AwayFromZero);
+        // Match backend logic: use billable minutes (rounded up)
+        var billableMins = (int)Math.Max(1, Math.Ceiling(used.TotalMinutes));
+        var gameCost = Math.Round(billableMins * (_hourlyRate / 60m), 0, MidpointRounding.AwayFromZero);
 
-        TotalTimeValueTextBlock.Text = FormatDuration(total);
-        UsedTimeValueTextBlock.Text = FormatDuration(used);
-        RemainingTimeValueTextBlock.Text = FormatDuration(remaining);
+        TotalTimeValueTextBlock.Text = FormatMinutes(totalMins);
+        UsedTimeValueTextBlock.Text = FormatMinutes(usedMins);
+        RemainingTimeValueTextBlock.Text = FormatMinutes(remainingMins);
+        
         GameCostValueTextBlock.Text = gameCost.ToString("N0", CultureInfo.InvariantCulture);
         ServiceCostValueTextBlock.Text = _serviceCost.ToString("N0", CultureInfo.InvariantCulture);
     }
 
-    private static string FormatDuration(TimeSpan value)
+    private static string FormatMinutes(int totalMinutes)
     {
-        if (value < TimeSpan.Zero)
-        {
-            value = TimeSpan.Zero;
-        }
-
-        var totalHours = (int)value.TotalHours;
-        return $"{totalHours:00}:{value.Minutes:00}";
+        var hours = totalMinutes / 60;
+        var mins = totalMinutes % 60;
+        return $"{hours:00}:{mins:00}";
     }
+
 
     private void MessagesButton_Click(object sender, RoutedEventArgs e)
     {
@@ -292,8 +411,14 @@ public partial class MainWindow : Window
 
     private void PasswordButton_Click(object sender, RoutedEventArgs e)
     {
+        if (Application.Current is App app)
+        {
+            app.OpenChangePasswordPanelFromClientUi();
+            return;
+        }
+
         MessageBox.Show(
-            "Tính năng đổi mật khẩu hội viên sẽ bổ sung ở phase hội viên nâng cao.",
+            "Ứng dụng chưa sẵn sàng để đổi mật khẩu.",
             "Mật khẩu",
             MessageBoxButton.OK,
             MessageBoxImage.Information);

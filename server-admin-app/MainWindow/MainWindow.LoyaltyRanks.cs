@@ -46,6 +46,7 @@ public partial class MainWindow
                     RankName = item.RankName,
                     MinTopup = item.MinTopup,
                     BonusPercent = item.BonusPercent,
+                    MinutesPerPoint = item.MinutesPerPoint,
                     MinTopupText = item.MinTopup.ToString("N0", CultureInfo.InvariantCulture)
                 });
             }
@@ -94,7 +95,8 @@ public partial class MainWindow
             {
                 rankName = row.RankName,
                 minTopup = row.MinTopup,
-                bonusPercent = row.BonusPercent
+                bonusPercent = row.BonusPercent,
+                minutesPerPoint = row.MinutesPerPoint
             };
 
             var response = await _httpClient.PatchAsJsonAsync(
@@ -117,6 +119,48 @@ public partial class MainWindow
         {
             MessageBox.Show($"L\u1ed7i khi c\u1eadp nh\u1eadt: {ex.Message}");
             await RefreshLoyaltyRanksAsync(); // Revert
+        }
+    }
+
+    private async void RebuildLoyaltyRanksButton_Click(object sender, RoutedEventArgs e)
+    {
+        var input = RebuildMaxThresholdTextBox.Text.Replace(",", "").Trim();
+        if (!decimal.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out var maxThreshold) || maxThreshold <= 0)
+        {
+            MessageBox.Show("Vui lòng nhập ngưỡng tối đa hợp lệ (ví dụ: 100,000,000).", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            $"Hành động này sẽ XÓA TOÀN BỘ và TẠO MỚI lại 100 cấp bậc VIP dựa trên ngưỡng {maxThreshold:N0} VNĐ.\n\nBạn có chắc chắn muốn tiếp tục?",
+            "Xác nhận thiết lập nhanh",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
+        try
+        {
+            LoyaltyRanksInfoTextBlock.Text = "Đang chia lại cấp bậc, vui lòng đợi...";
+            LoyaltyRanksInfoTextBlock.Foreground = System.Windows.Media.Brushes.OrangeRed;
+
+            var response = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl("/members/loyalty/ranks/rebuild"),
+                new { maxThreshold });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                MessageBox.Show($"Thiết lập thất bại: {err}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            MessageBox.Show("Đã chia lại 100 cấp bậc VIP thành công!", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+            await RefreshLoyaltyRanksAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Lỗi kết nối: {ex.Message}");
         }
     }
 }

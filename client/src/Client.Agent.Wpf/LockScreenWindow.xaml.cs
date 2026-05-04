@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 
@@ -14,13 +14,20 @@ public partial class LockScreenWindow : Window
         InitializeComponent();
     }
 
+    public void SetGuestLoginEnabled(bool isEnabled)
+    {
+        GuestLoginButton.Visibility = isEnabled ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     public void PrepareForLock()
     {
         _isAuthenticating = false;
         UsernameTextBox.IsEnabled = true;
         PasswordBox.IsEnabled = true;
         LoginButton.IsEnabled = true;
+        GuestLoginButton.IsEnabled = true;
         LoginButton.Content = "Đăng nhập";
+        GuestLoginButton.Content = "Sử dụng Khách vãng lai";
 
         PasswordBox.Password = string.Empty;
         ErrorTextBlock.Text = string.Empty;
@@ -51,6 +58,45 @@ public partial class LockScreenWindow : Window
     private async void LoginButton_Click(object sender, RoutedEventArgs e)
     {
         await SubmitLoginAsync();
+    }
+
+    private async void GuestLoginButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isAuthenticating)
+        {
+            return;
+        }
+
+        if (Application.Current is not App app)
+        {
+            ErrorTextBlock.Text = "Ứng dụng chưa sẵn sàng.";
+            return;
+        }
+
+        try
+        {
+            SetBusy(true, true);
+            ErrorTextBlock.Text = string.Empty;
+
+            var result = await app.TryUnlockAsGuestAsync();
+            if (result.Success)
+            {
+                UsernameTextBox.Text = string.Empty;
+                PasswordBox.Password = string.Empty;
+                ErrorTextBlock.Text = string.Empty;
+                return;
+            }
+
+            ErrorTextBlock.Text = result.Message ?? "Không thể đăng nhập khách vãng lai.";
+        }
+        catch (Exception ex)
+        {
+            ErrorTextBlock.Text = $"Lỗi hệ thống: {ex.Message}";
+        }
+        finally
+        {
+            SetBusy(false);
+        }
     }
 
     private async void Input_KeyDown(object sender, KeyEventArgs e)
@@ -100,11 +146,11 @@ public partial class LockScreenWindow : Window
                 return;
             }
 
-            ErrorTextBlock.Text = result.Message;
+            ErrorTextBlock.Text = result.Message ?? "Tên đăng nhập hoặc mật khẩu không đúng.";
         }
         catch (Exception ex)
         {
-            ErrorTextBlock.Text = $"Đăng nhập lỗi: {ex.Message}";
+            ErrorTextBlock.Text = $"Lỗi kết nối: {ex.Message}";
         }
         finally
         {
@@ -112,12 +158,29 @@ public partial class LockScreenWindow : Window
         }
     }
 
-    private void SetBusy(bool busy)
+    private void SetBusy(bool isBusy, bool isGuest = false)
     {
-        _isAuthenticating = busy;
-        UsernameTextBox.IsEnabled = !busy;
-        PasswordBox.IsEnabled = !busy;
-        LoginButton.IsEnabled = !busy;
-        LoginButton.Content = busy ? "Đang kiểm tra..." : "Đăng nhập";
+        _isAuthenticating = isBusy;
+        UsernameTextBox.IsEnabled = !isBusy;
+        PasswordBox.IsEnabled = !isBusy;
+        LoginButton.IsEnabled = !isBusy;
+        GuestLoginButton.IsEnabled = !isBusy;
+
+        if (isBusy)
+        {
+            if (isGuest)
+            {
+                GuestLoginButton.Content = "Đang xử lý...";
+            }
+            else
+            {
+                LoginButton.Content = "Đang kiểm tra...";
+            }
+        }
+        else
+        {
+            LoginButton.Content = "Đăng nhập";
+            GuestLoginButton.Content = "Sử dụng Khách vãng lai";
+        }
     }
 }

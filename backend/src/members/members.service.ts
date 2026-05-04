@@ -66,13 +66,16 @@ export class MembersService {
       }),
     ]);
 
+    const items = await Promise.all(
+      members.map(async (member) => {
+        const rank = this.calculateRankName(Number(member.totalTopup), rankConfigs);
+        const loyalty = await this.buildLoyaltySnapshot(member.id, this.prisma);
+        return this.toMemberItem(member, rank, loyalty.availablePoints);
+      }),
+    );
+    
     return {
-      items: members.map((member) =>
-        this.toMemberItem(
-          member,
-          this.calculateRankName(Number(member.totalTopup), rankConfigs),
-        ),
-      ),
+      items,
       total: members.length,
       serverTime: new Date().toISOString(),
     };
@@ -141,12 +144,35 @@ export class MembersService {
       }),
     ]);
 
+    let hourlyRate = 12000;
+    if (payload.agentId) {
+      const pc = await this.prisma.pc.findUnique({
+        where: { agentId: payload.agentId },
+        include: { group: true },
+      });
+      if (pc) {
+        const defaultGroup = await this.prisma.pcGroup.findFirst({
+          where: { isDefault: true },
+        });
+        const baseRate = Number(
+          pc.group?.hourlyRate ?? defaultGroup?.hourlyRate ?? 12000,
+        );
+        // We need to call PcsService or duplicate the logic.
+        // For simplicity, I'll duplicate the logic or inject PcsService if possible.
+        // Actually, let's inject PcsService or move the logic to a shared utility.
+        // But PcsService is already available in the app.
+        // Since I cannot easily refactor everything now, I'll use a private method or duplicate.
+        hourlyRate = await this.getEffectiveHourlyRate(baseRate);
+      }
+    }
+
     return {
       member: this.toMemberItem(
         member,
         this.calculateRankName(Number(member.totalTopup), rankConfigs),
       ),
       authenticatedAt: new Date().toISOString(),
+      hourlyRate,
     };
   }
 
@@ -201,12 +227,79 @@ export class MembersService {
     };
   }
 
+  async setGuestPresence(payload: {
+    agentId: string;
+    isActive: boolean;
+    displayName?: string;
+    prepaidAmount?: number;
+  }) {
+    const agentId = payload.agentId.trim();
+    const pc = await this.prisma.pc.findUnique({
+      where: { agentId },
+    });
+
+    if (!pc) {
+      throw new NotFoundException('Khong tim thay may tram');
+    }
+
+    await this.prisma.eventLog.create({
+      data: {
+        source: EventSource.CLIENT,
+        eventType: 'guest.pc.presence',
+        pcId: pc.id,
+        payload: {
+          isActive: payload.isActive,
+          displayName: payload.displayName || 'Khách vãng lai',
+          prepaidAmount: payload.prepaidAmount || 0,
+          at: new Date().toISOString(),
+        },
+      },
+    });
+
+    return { ok: true };
+  }
+
   async getLoyaltySettings() {
     const config = await this.prisma.pricingConfig.findUnique({
       where: { name: LOYALTY_CONFIG_KEY },
     });
 
-    return this.toLoyaltySettingsItem(config?.isActive ?? false, config?.updatedAt);
+    return {
+      enabled: config?.isActive ?? true,
+      minutesPerPoint: LOYALTY_MINUTES_PER_POINT,
+    };
+  }
+
+  async getEffectiveHourlyRate(baseRate: number): Promise<number> {
+    const now = new Date();
+    const day = now.getDay();
+    const currentTime =
+      now.getHours().toString().padStart(2, '0') +
+      ':' +
+      now.getMinutes().toString().padStart(2, '0');
+
+    const promotions = await this.prisma.timeBasedPromotion.findMany({
+      where: { isActive: true },
+    });
+
+    let bestDiscount = 0;
+    for (const promo of promotions) {
+      if (promo.daysOfWeek.includes(day)) {
+        if (currentTime >= promo.startTime && currentTime <= promo.endTime) {
+          const discount = Number(promo.discountPercent);
+          if (discount > bestDiscount) {
+            bestDiscount = discount;
+          }
+        }
+      }
+    }
+
+    if (bestDiscount > 0) {
+      const discounted = baseRate * (1 - bestDiscount / 100);
+      return Math.round(discounted);
+    }
+
+    return baseRate;
   }
 
   async updateLoyaltySettings(payload: UpdateLoyaltySettingsDto) {
@@ -355,6 +448,100 @@ export class MembersService {
         grantedMinutes: requestedPoints,
         loyalty: after,
         redeemedAt: new Date().toISOString(),
+      };
+    });
+  }
+
+  async spinLoyaltyPoints(memberId: string, payload: { createdBy?: string; note?: string }) {
+    const costPoints = 5;
+    const costSeconds = costPoints * LOYALTY_REDEEM_SECONDS_PER_POINT; // 300 seconds
+    const createdBy = payload.createdBy?.trim() || 'client.loyalty.spin';
+    const spinNotePrefix = 'LOYALTY_SPIN';
+
+    return this.prisma.$transaction(async (tx) => {
+      const member = await tx.member.findUnique({ where: { id: memberId } });
+      if (!member) {
+        throw new NotFoundException('Khong tim thay hoi vien');
+      }
+
+      const enabled = await this.getLoyaltyFeatureEnabled(tx);
+      if (!enabled) {
+        throw new BadRequestException('Tinh nang diem tich luy dang tat');
+      }
+
+      const before = await this.buildLoyaltySnapshot(member.id, tx);
+      if (before.availablePoints < costPoints) {
+        throw new BadRequestException(
+          `Khong du diem. Can ${costPoints} diem, ban hien co ${before.availablePoints} diem`,
+        );
+      }
+
+      // Roll for prize
+      const roll = Math.random() * 100;
+      let wonMinutes = 0;
+      let prizeLabel = 'Hen gap lai lan sau';
+
+      if (roll < 5) {
+        wonMinutes = 30;
+        prizeLabel = "GIẢI ĐẶC BIỆT 30p";
+      } else if (roll < 15) {
+        wonMinutes = 20;
+        prizeLabel = "GIẢI NHẤT 20p";
+      } else if (roll < 30) {
+        wonMinutes = 10;
+        prizeLabel = "GIẢI NHÌ 10p";
+      } else if (roll < 50) {
+        wonMinutes = 5;
+        prizeLabel = "GIẢI BA 5p";
+      } else if (roll < 75) {
+        wonMinutes = 2;
+        prizeLabel = "KHUYẾN KHÍCH 2p";
+      }
+
+      // 1. Spend points by creating a "Redeem" transaction (cost 5 pts)
+      // This will be counted in redeemedPoints because it uses LOYALTY_REDEEM_CREATED_BY
+      await tx.memberTransaction.create({
+        data: {
+          memberId: member.id,
+          type: MemberTransactionType.ADJUSTMENT,
+          amountDelta: 0,
+          playSecondsDelta: costSeconds,
+          note: `${LOYALTY_REDEEM_NOTE_PREFIX}_SPIN: Cost ${costPoints} points`,
+          createdBy: LOYALTY_REDEEM_CREATED_BY,
+        },
+      });
+
+      // 2. Adjust playtime based on win (subtracting the cost already added)
+      const adjustmentSeconds = (wonMinutes * 60) - costSeconds;
+      const updatedMember = await tx.member.update({
+        where: { id: member.id },
+        data: {
+          playSeconds: {
+            increment: (wonMinutes * 60), // Net gain is wonMinutes
+          },
+        },
+      });
+
+      await tx.memberTransaction.create({
+        data: {
+          memberId: member.id,
+          type: MemberTransactionType.ADJUSTMENT,
+          amountDelta: 0,
+          playSecondsDelta: adjustmentSeconds,
+          note: `${spinNotePrefix}: Won ${wonMinutes} mins (${prizeLabel})`,
+          createdBy,
+        },
+      });
+
+      const after = await this.buildLoyaltySnapshot(member.id, tx);
+
+      return {
+        member: this.toMemberItem(updatedMember),
+        wonMinutes,
+        prizeLabel,
+        costPoints,
+        loyalty: after,
+        spunAt: new Date().toISOString(),
       };
     });
   }
@@ -626,10 +813,52 @@ export class MembersService {
         orderBy: { minTopup: 'desc' },
       });
 
+      // Handle availablePoints adjustment
+      if (payload.availablePoints !== undefined) {
+        const loyalty = await this.buildLoyaltySnapshot(memberId, tx);
+        const pointsDiff = payload.availablePoints - loyalty.availablePoints;
+        if (pointsDiff !== 0) {
+          if (pointsDiff > 0) {
+            // Add points by adding a "pseudo-usage" transaction (earning)
+            // 1 point = LOYALTY_SECONDS_PER_POINT
+            const secondsToAdd = pointsDiff * LOYALTY_SECONDS_PER_POINT;
+            await tx.memberTransaction.create({
+              data: {
+                memberId,
+                type: MemberTransactionType.ADJUSTMENT,
+                amountDelta: 0,
+                playSecondsDelta: -secondsToAdd,
+                note: `Admin điều chỉnh tăng ${pointsDiff} điểm`,
+                createdBy: LOYALTY_USAGE_CREATED_BY,
+              },
+            });
+          } else {
+            // Subtract points by adding a "pseudo-redemption" transaction
+            const pointsToSubtract = Math.abs(pointsDiff);
+            const secondsToRedeem = pointsToSubtract * LOYALTY_REDEEM_SECONDS_PER_POINT;
+            await tx.memberTransaction.create({
+              data: {
+                memberId,
+                type: MemberTransactionType.ADJUSTMENT,
+                amountDelta: 0,
+                playSecondsDelta: secondsToRedeem,
+                note: `${LOYALTY_REDEEM_NOTE_PREFIX}: Admin điều chỉnh giảm ${pointsToSubtract} điểm`,
+                createdBy: LOYALTY_REDEEM_CREATED_BY,
+              },
+            });
+          }
+        }
+      }
+
+      // Re-fetch member if points were adjusted or profile changed
+      const finalMember = await tx.member.findUnique({ where: { id: memberId } });
+      const finalLoyalty = await this.buildLoyaltySnapshot(memberId, tx);
+
       return {
         member: this.toMemberItem(
-          updated,
-          this.calculateRankName(Number(updated.totalTopup), configs),
+          finalMember!,
+          this.calculateRankName(Number(finalMember!.totalTopup), configs),
+          finalLoyalty.availablePoints,
         ),
       };
     });
@@ -735,7 +964,7 @@ export class MembersService {
     return result;
   }
 
-  private toMemberItem(member: Member, rankName?: string) {
+  private toMemberItem(member: Member, rankName?: string, availablePoints?: number) {
     return {
       id: member.id,
       username: member.username,
@@ -748,6 +977,7 @@ export class MembersService {
       playHours: Number((member.playSeconds / 3600).toFixed(2)),
       totalTopup: Number(member.totalTopup),
       rank: rankName || 'N/A',
+      availablePoints: availablePoints ?? 0,
       isActive: member.isActive,
       createdAt: member.createdAt.toISOString(),
       updatedAt: member.updatedAt.toISOString(),
@@ -776,10 +1006,55 @@ export class MembersService {
         rankName: payload.rankName,
         minTopup: payload.minTopup,
         bonusPercent: payload.bonusPercent,
+        minutesPerPoint: payload.minutesPerPoint,
       },
     });
 
     return updated;
+  }
+
+  async rebuildRanks(maxThreshold: number) {
+    if (!Number.isFinite(maxThreshold) || maxThreshold <= 0) {
+      throw new BadRequestException('Ngưỡng tối đa không hợp lệ');
+    }
+
+    const categories = [
+      'Sắt', 'Đồng', 'Bạc', 'Vàng', 'Bạch Kim', 
+      'Lục Bảo', 'Kim Cương', 'Cao Thủ', 'Đại Cao Thủ', 'Thách Đấu'
+    ];
+    const tiersPerCategory = 10;
+    const totalRanks = categories.length * tiersPerCategory;
+
+    const startMinutes = 150;
+    const endMinutes = 15;
+    const startBonus = 0;
+    const endBonus = 100;
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.loyaltyRankConfig.deleteMany({});
+
+      for (let i = 0; i < totalRanks; i++) {
+        const catIndex = Math.floor(i / tiersPerCategory);
+        const tier = (i % tiersPerCategory) + 1;
+        const rankName = `${categories[catIndex]} ${tier}`;
+        const factor = i / (totalRanks - 1);
+
+        const minTopup = Math.round(maxThreshold * factor);
+        const minutesPerPoint = Math.round(startMinutes - (startMinutes - endMinutes) * factor);
+        const bonusPercent = Math.round(startBonus + (endBonus - startBonus) * factor);
+
+        await tx.loyaltyRankConfig.create({
+          data: {
+            rankName,
+            minTopup,
+            bonusPercent,
+            minutesPerPoint
+          }
+        });
+      }
+
+      return { success: true, count: totalRanks, maxThreshold };
+    });
   }
 
   private toLoyaltySettingsItem(enabled: boolean, updatedAt?: Date) {
@@ -835,14 +1110,24 @@ export class MembersService {
       },
     });
 
+    const member = await tx.member.findUnique({ where: { id: memberId } });
+    const rankConfigs = await tx.loyaltyRankConfig.findMany({
+      orderBy: { minTopup: 'desc' },
+    });
+
+    const memberRank =
+      rankConfigs.find((c) => Number(member!.totalTopup) >= Number(c.minTopup)) ||
+      rankConfigs[rankConfigs.length - 1];
+
+    const currentMinutesPerPoint = memberRank?.minutesPerPoint ?? LOYALTY_MINUTES_PER_POINT;
+    const currentSecondsPerPoint = currentMinutesPerPoint * 60;
+
     const consumedSeconds = Math.abs(usageAggregate._sum.playSecondsDelta ?? 0);
     const redeemedSeconds = Math.max(0, redeemAggregate._sum.playSecondsDelta ?? 0);
-    const earnedPoints = Math.floor(consumedSeconds / LOYALTY_SECONDS_PER_POINT);
-    const redeemedPoints = Math.floor(
-      redeemedSeconds / LOYALTY_REDEEM_SECONDS_PER_POINT,
-    );
+    const earnedPoints = Math.floor(consumedSeconds / currentSecondsPerPoint);
+    const redeemedPoints = Math.floor(redeemedSeconds / LOYALTY_REDEEM_SECONDS_PER_POINT);
     const availablePoints = Math.max(0, earnedPoints - redeemedPoints);
-    const progressSeconds = consumedSeconds % LOYALTY_SECONDS_PER_POINT;
+    const progressSeconds = consumedSeconds % currentSecondsPerPoint;
 
     return {
       availablePoints,
@@ -851,10 +1136,15 @@ export class MembersService {
       consumedSeconds,
       progressSeconds,
       progressMinutes: Number((progressSeconds / 60).toFixed(2)),
+      minutesPerPoint: currentMinutesPerPoint, // Include current rate in snapshot
       nextPointInSeconds:
-        progressSeconds === 0 ? LOYALTY_SECONDS_PER_POINT : LOYALTY_SECONDS_PER_POINT - progressSeconds,
+        progressSeconds === 0
+          ? currentSecondsPerPoint
+          : currentSecondsPerPoint - progressSeconds,
       nextPointInMinutes:
-        progressSeconds === 0 ? LOYALTY_MINUTES_PER_POINT : Number(((LOYALTY_SECONDS_PER_POINT - progressSeconds) / 60).toFixed(2)),
+        progressSeconds === 0
+          ? currentMinutesPerPoint
+          : Number(((currentSecondsPerPoint - progressSeconds) / 60).toFixed(2)),
     };
   }
 

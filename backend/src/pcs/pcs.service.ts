@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { EventSource, Pc, PcStatus, Prisma } from '@prisma/client';
+import { EventSource, Pc, PcGroup, PcStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AgentHeartbeatPayload, AgentHelloPayload } from './types/agent-events.type';
 
 type PresencePayload = AgentHelloPayload | AgentHeartbeatPayload;
 
 export type PresenceTransition = {
-  pc: Pc;
+  pc: Pc & { group?: PcGroup | null };
   previousStatus: PcStatus | null;
 };
 
@@ -63,42 +63,169 @@ export class PcsService {
     );
 
     const now = Date.now();
-    return pcs.map((pc) => {
-      const effectiveGroup = pc.group ?? defaultGroup;
-      const activeSession = pc.sessions[0] ?? null;
-      const activeUser = pc.status === PcStatus.IN_USE ? activeUsersByPc.get(pc.id) : null;
-      const activeMember = activeUser?.kind === 'MEMBER' ? activeUser.member : null;
-      const activeGuest = activeUser?.kind === 'GUEST' ? activeUser.guest : null;
-      const elapsedSeconds = activeSession
-        ? Math.max(0, Math.floor((now - activeSession.startedAt.getTime()) / 1000))
-        : 0;
-      const billableMinutes = activeSession ? Math.max(1, Math.ceil(elapsedSeconds / 60)) : 0;
-      const estimatedAmount =
-        billableMinutes * Number(activeSession?.pricePerMinute ?? 0);
+    const items = await Promise.all(
+      pcs.map(async (pc) => {
+        const effectiveGroup = pc.group ?? defaultGroup;
+        const baseHourlyRate = Number(effectiveGroup.hourlyRate);
+        const hourlyRate = await this.getEffectiveHourlyRate(baseHourlyRate);
 
-      return {
-        id: pc.id,
-        agentId: pc.agentId,
-        name: pc.name,
-        groupId: effectiveGroup.id,
-        groupName: effectiveGroup.name,
-        hourlyRate: Number(effectiveGroup.hourlyRate),
-        hostname: pc.hostname,
-        ipAddress: pc.ipAddress,
-        status: pc.status,
-        lastSeenAt: pc.lastSeenAt?.toISOString() ?? null,
-        activeSession: activeSession
-          ? {
-              id: activeSession.id,
-              startedAt: activeSession.startedAt.toISOString(),
-              elapsedSeconds,
-              billableMinutes,
-              estimatedAmount,
-            }
-          : null,
-        activeMember,
-        activeGuest,
-      };
+        const activeSession = pc.sessions[0] ?? null;
+        const activeUser =
+          pc.status === PcStatus.IN_USE ? activeUsersByPc.get(pc.id) : null;
+        const activeMember =
+          activeUser?.kind === 'MEMBER' ? activeUser.member : null;
+        const activeGuest =
+          activeUser?.kind === 'GUEST' ? activeUser.guest : null;
+        const elapsedSeconds = activeSession
+          ? Math.max(
+              0,
+              Math.floor((now - activeSession.startedAt.getTime()) / 1000),
+            )
+          : 0;
+        const billableMinutes = activeSession
+          ? Math.max(1, Math.ceil(elapsedSeconds / 60))
+          : 0;
+        const estimatedAmount =
+          billableMinutes * Number(activeSession?.pricePerMinute ?? 0);
+
+        return {
+          id: pc.id,
+          agentId: pc.agentId,
+          name: pc.name,
+          groupId: effectiveGroup.id,
+          groupName: effectiveGroup.name,
+          hourlyRate,
+          hostname: pc.hostname,
+          ipAddress: pc.ipAddress,
+          status: pc.status,
+          lastSeenAt: pc.lastSeenAt?.toISOString() ?? null,
+          activeSession: activeSession
+            ? {
+                id: activeSession.id,
+                startedAt: activeSession.startedAt.toISOString(),
+                elapsedSeconds,
+                billableMinutes,
+                estimatedAmount,
+              }
+            : null,
+          activeMember,
+          activeGuest,
+        };
+      }),
+    );
+
+    return items;
+  }
+
+  async getEffectiveHourlyRate(baseRate: number): Promise<number> {
+    const now = new Date();
+    const day = now.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+    const currentTime =
+      now.getHours().toString().padStart(2, '0') +
+      ':' +
+      now.getMinutes().toString().padStart(2, '0');
+
+    const promotions = await this.prisma.timeBasedPromotion.findMany({
+      where: { isActive: true },
+    });
+
+    let bestDiscount = 0;
+    for (const promo of promotions) {
+      if (promo.daysOfWeek.includes(day)) {
+        // Simple string comparison for HH:mm
+        if (currentTime >= promo.startTime && currentTime <= promo.endTime) {
+          const discount = Number(promo.discountPercent);
+          if (discount > bestDiscount) {
+            bestDiscount = discount;
+          }
+        }
+      }
+    }
+
+    if (bestDiscount > 0) {
+      const discounted = baseRate * (1 - bestDiscount / 100);
+      return Math.round(discounted);
+    }
+
+    return baseRate;
+  }
+
+  async getGuestLoginEnabled(): Promise<boolean> {
+    const setting = await this.prisma.appSetting.findUnique({
+      where: { key: 'GUEST_LOGIN_ENABLED' },
+    });
+    if (!setting) {
+      return true; // Default to true if not set
+    }
+    return setting.value === 'true';
+  }
+
+  async startGuestSession(agentId: string) {
+    const pc = await this.prisma.pc.findFirst({
+      where: { agentId },
+      include: { group: true },
+    });
+    if (!pc) {
+      throw new Error('Machine not found');
+    }
+
+    if (pc.status === PcStatus.IN_USE) {
+      throw new Error('Machine is already in use');
+    }
+
+    const defaultGroup = await this.ensureDefaultGroup();
+    const effectiveGroup = pc.group ?? defaultGroup;
+    const baseHourlyRate = Number(effectiveGroup.hourlyRate);
+    const hourlyRate = await this.getEffectiveHourlyRate(baseHourlyRate);
+    const pricePerMinute = hourlyRate / 60;
+
+    return this.prisma.$transaction(async (tx) => {
+      // Create guest session
+      const session = await tx.session.create({
+        data: {
+          pcId: pc.id,
+          status: 'ACTIVE',
+          startedAt: new Date(),
+          pricePerMinute,
+        },
+      });
+
+      // Update PC status
+      const updatedPc = await tx.pc.update({
+        where: { id: pc.id },
+        data: { status: PcStatus.IN_USE },
+        include: { group: true },
+      });
+
+      // Log guest presence event so it shows up in the admin list immediately
+      await tx.eventLog.create({
+        data: {
+          source: EventSource.SERVER,
+          eventType: 'guest.pc.presence',
+          pcId: pc.id,
+          payload: {
+            isActive: true,
+            displayName: 'Khách vãng lai',
+            prepaidAmount: 0,
+            at: new Date().toISOString(),
+          },
+        },
+      });
+
+      await tx.eventLog.create({
+        data: {
+          source: EventSource.SERVER,
+          eventType: 'pc.status.changed',
+          pcId: pc.id,
+          payload: {
+            previousStatus: pc.status,
+            status: PcStatus.IN_USE,
+            sourceEvent: 'guest_login_request',
+          },
+        },
+      });
+
+      return { session, pc: updatedPc };
     });
   }
 
@@ -115,7 +242,10 @@ export class PcsService {
     const seenAt = this.parseSeenAt(payload.at);
     const ipAddress = this.resolveIp(payload.ip, fallbackIp);
     const hostname = this.parseOptional(payload.hostname);
-    const existing = await this.prisma.pc.findUnique({ where: { agentId } });
+    const existing = await this.prisma.pc.findUnique({
+      where: { agentId },
+      include: { group: true },
+    });
 
     if (!existing) {
       const createdPc = await this.prisma.pc.create({
@@ -128,6 +258,7 @@ export class PcsService {
           status: PcStatus.ONLINE,
           lastSeenAt: seenAt,
         },
+        include: { group: true },
       });
 
       await this.logEvent('pc.registered', createdPc.id, {
@@ -149,6 +280,7 @@ export class PcsService {
         status: nextStatus,
         lastSeenAt: seenAt,
       },
+      include: { group: true },
     });
 
     if (existing.status !== updatedPc.status) {

@@ -12,6 +12,8 @@ public sealed class AgentSocketService : IAsyncDisposable
     private readonly Action<string> _connectionStatusChanged;
     private readonly Action<string, string?>? _notificationHandler;
     private readonly Func<AdminCaptureScreenshotPayload, Task>? _captureScreenshotHandler;
+    private readonly Action<decimal>? _hourlyRateHandler;
+    private readonly Action<bool>? _guestLoginEnabledHandler;
 
     private global::SocketIOClient.SocketIO? _socket;
     private CancellationTokenSource? _heartbeatCts;
@@ -22,7 +24,9 @@ public sealed class AgentSocketService : IAsyncDisposable
         Func<CommandExecutePayload, Task<(bool Success, string? Message)>> commandHandler,
         Action<string> connectionStatusChanged,
         Action<string, string?>? notificationHandler = null,
-        Func<AdminCaptureScreenshotPayload, Task>? captureScreenshotHandler = null)
+        Func<AdminCaptureScreenshotPayload, Task>? captureScreenshotHandler = null,
+        Action<decimal>? hourlyRateHandler = null,
+        Action<bool>? guestLoginEnabledHandler = null)
     {
         _settings = settings;
         _logger = logger;
@@ -30,6 +34,8 @@ public sealed class AgentSocketService : IAsyncDisposable
         _connectionStatusChanged = connectionStatusChanged;
         _notificationHandler = notificationHandler;
         _captureScreenshotHandler = captureScreenshotHandler;
+        _hourlyRateHandler = hourlyRateHandler;
+        _guestLoginEnabledHandler = guestLoginEnabledHandler;
     }
 
     public async Task StartAsync()
@@ -90,6 +96,30 @@ public sealed class AgentSocketService : IAsyncDisposable
             if (_captureScreenshotHandler is not null)
             {
                 await _captureScreenshotHandler(payload);
+            }
+        });
+
+        _socket.On("agent.hello.ack", response =>
+        {
+            var element = response.GetValue<System.Text.Json.JsonElement>();
+            var rate = element.GetProperty("hourlyRate").GetDecimal();
+            _hourlyRateHandler?.Invoke(rate);
+
+            if (element.TryGetProperty("isGuestLoginEnabled", out var guestEnabled))
+            {
+                _guestLoginEnabledHandler?.Invoke(guestEnabled.GetBoolean());
+            }
+        });
+
+        _socket.On("agent.heartbeat.ack", response =>
+        {
+            var element = response.GetValue<System.Text.Json.JsonElement>();
+            var rate = element.GetProperty("hourlyRate").GetDecimal();
+            _hourlyRateHandler?.Invoke(rate);
+
+            if (element.TryGetProperty("isGuestLoginEnabled", out var guestEnabled))
+            {
+                _guestLoginEnabledHandler?.Invoke(guestEnabled.GetBoolean());
             }
         });
 

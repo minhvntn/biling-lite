@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Param, Post } from '@nestjs/common';
 import { PcsService } from './pcs.service';
 
 @Controller('pcs')
@@ -13,5 +13,10 @@ export class PcsController {
       total: items.length,
       serverTime: new Date().toISOString(),
     };
+  }
+
+  @Post(':agentId/guest-login')
+  async guestLogin(@Param('agentId') agentId: string) {
+    return this.pcsService.startGuestSession(agentId);
   }
 }

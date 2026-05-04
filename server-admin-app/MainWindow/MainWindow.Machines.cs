@@ -89,6 +89,33 @@ public partial class MainWindow : Window
         var usedText = item.ActiveSession is null ? "-" : FormatUsed(item.ActiveSession.ElapsedSeconds);
         var activeMember = item.ActiveMember;
         var activeGuest = item.ActiveGuest;
+
+        var statusIconBrush = Brushes.Gray;
+        var statusIconToolTip = "Ngoại tuyến";
+
+        if (item.Status == "ONLINE")
+        {
+            statusIconBrush = Brushes.LimeGreen;
+            statusIconToolTip = "Sẵn sàng";
+        }
+        else if (item.Status == "IN_USE")
+        {
+            if (activeMember != null)
+            {
+                statusIconBrush = Brushes.DodgerBlue;
+                statusIconToolTip = "Hội viên đang sử dụng";
+            }
+            else
+            {
+                statusIconBrush = Brushes.Orange;
+                statusIconToolTip = "Khách đang sử dụng";
+            }
+        }
+        else if (item.Status == "LOCKED")
+        {
+            statusIconBrush = Brushes.Crimson;
+            statusIconToolTip = "Đang bị khóa";
+        }
         var guestDisplayName = string.IsNullOrWhiteSpace(activeGuest?.DisplayName)
             ? "Khách vãng lai"
             : activeGuest!.DisplayName;
@@ -110,6 +137,8 @@ public partial class MainWindow : Window
             LastSeenAtText = FormatDateTime(item.LastSeenAt),
             StatusText = statusText,
             StatusBrush = statusBrush,
+            StatusIconBrush = statusIconBrush,
+            StatusIconToolTip = statusIconToolTip,
             UserName = userName,
             StartedAtText = startedAt?.ToString("HH:mm:ss") ?? "-",
             UsedText = usedText,

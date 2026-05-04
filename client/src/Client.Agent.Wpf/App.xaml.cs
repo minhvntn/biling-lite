@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Globalization;
 using System.Net;
@@ -11,6 +11,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Windows.Media.Animation;
 using Client.Agent.Wpf.Models;
 using Client.Agent.Wpf.Services;
 using Microsoft.Data.Sqlite;
@@ -130,7 +131,16 @@ public partial class App : Application
             HandleCommandAsync,
             OnConnectionStatusChanged,
             OnAdminNotificationReceived,
-            HandleCaptureScreenshotRequestedAsync);
+            HandleCaptureScreenshotRequestedAsync,
+            rate =>
+            {
+                _currentHourlyRate = rate;
+                Dispatcher.Invoke(() => _mainWindow?.UpdateHourlyRate(_currentHourlyRate));
+            },
+            isEnabled =>
+            {
+                Dispatcher.Invoke(() => _lockScreenWindow?.SetGuestLoginEnabled(isEnabled));
+            });
 
         _ = Task.Run(async () =>
         {
@@ -294,8 +304,23 @@ public partial class App : Application
             return new LoginAttemptResult(false, "Vui lòng nhập tên đăng nhập và mật khẩu.");
         }
 
-        if (normalizedUsername.Equals("admin", StringComparison.OrdinalIgnoreCase) &&
-            password == "admin")
+        // Check if this is an agent-admin login (verified by server)
+        bool isAgentAdmin = false;
+        try
+        {
+            using var adminCheckResp = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl("/settings/agent-admin/login"),
+                new { username = normalizedUsername, password });
+            isAgentAdmin = adminCheckResp.IsSuccessStatusCode;
+        }
+        catch
+        {
+            // If server unreachable, fall back to local default
+            isAgentAdmin = normalizedUsername.Equals("admin", StringComparison.OrdinalIgnoreCase)
+                && password == "admin";
+        }
+
+        if (isAgentAdmin)
         {
             _activeMemberSession = null;
             _lastSyncedMemberUsedSeconds = 0;
@@ -320,6 +345,7 @@ public partial class App : Application
                 {
                     username = normalizedUsername,
                     password,
+                    agentId = _settings.AgentId,
                 });
 
             if (!response.IsSuccessStatusCode)
@@ -332,27 +358,38 @@ public partial class App : Application
                         : errorText);
             }
 
-            var payload = await response.Content.ReadFromJsonAsync<MemberLoginResponse>(
-                new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true,
-                });
+            var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
+            
+            if (payload.TryGetProperty("hourlyRate", out var rateElement))
+            {
+                _currentHourlyRate = rateElement.GetDecimal();
+            }
 
-            if (payload?.Member is null)
+            if (!payload.TryGetProperty("member", out var memberElement))
             {
                 return new LoginAttemptResult(false, "Không đọc được thông tin hội viên.");
             }
 
-            if (string.IsNullOrWhiteSpace(payload.Member.Id))
+            var member = JsonSerializer.Deserialize<MemberLoginItem>(
+                memberElement.GetRawText(),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (member is null)
+            {
+                return new LoginAttemptResult(false, "Không giải mã được thông tin hội viên.");
+            }
+
+            if (string.IsNullOrWhiteSpace(member.Id))
             {
                 return new LoginAttemptResult(false, "Thiếu mã hội viên từ máy chủ.");
             }
 
             _activeMemberSession = new ActiveMemberSession
             {
-                MemberId = payload.Member.Id,
-                Username = payload.Member.Username,
-                FullName = payload.Member.FullName,
+                MemberId = member.Id,
+                Username = member.Username,
+                FullName = member.FullName,
+                Rank = member.Rank,
             };
             _lastSyncedMemberUsedSeconds = 0;
 
@@ -360,22 +397,80 @@ public partial class App : Application
 
             Dispatcher.Invoke(() =>
             {
-                var totalMinutes = Math.Max(1, payload.Member.PlaySeconds / 60);
+                var totalMinutes = Math.Max(1, member.PlaySeconds / 60);
                 _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true);
+                _mainWindow?.SetMemberInfo(member.Username, member.Rank);
                 UnlockMachine();
                 _mainWindow?.SetLastCommand(
-                    $"MEMBER LOGIN {payload.Member.Username} @ {DateTime.Now:HH:mm:ss}");
+                    $"MEMBER LOGIN {member.Username} @ {DateTime.Now:HH:mm:ss}");
             });
 
             return new LoginAttemptResult(
                 true,
-                $"Đăng nhập thành công: {payload.Member.Username}");
+                $"Đăng nhập thành công: {member.Username}");
         }
         catch (Exception ex)
         {
             if (_logger is not null)
             {
                 await _logger.ErrorAsync("Lock screen member login failed", ex);
+            }
+
+            return new LoginAttemptResult(false, $"Không thể kết nối server: {ex.Message}");
+        }
+    }
+
+    public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
+    {
+        try
+        {
+            using var response = await _httpClient.PostAsync(
+                BuildApiUrl($"/pcs/{_settings.AgentId}/guest-login"),
+                null);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorText = await ReadErrorMessageAsync(response);
+                return new LoginAttemptResult(
+                    false,
+                    string.IsNullOrWhiteSpace(errorText)
+                        ? "Không thể đăng nhập khách vãng lai."
+                        : errorText);
+            }
+
+            _activeMemberSession = null;
+            _lastSyncedMemberUsedSeconds = 0;
+
+            var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
+            if (payload.TryGetProperty("pc", out var pcElement) &&
+                pcElement.TryGetProperty("group", out var groupElement) &&
+                groupElement.TryGetProperty("hourlyRate", out var rateElement))
+            {
+                _currentHourlyRate = rateElement.GetDecimal();
+            }
+
+            Dispatcher.Invoke(() =>
+            {
+                _mainWindow?.ConfigureBilling(
+                    _settings.TotalSessionMinutes,
+                    _currentHourlyRate,
+                    true);
+                
+                _mainWindow?.SetMemberInfo(null, null);
+                
+                UnlockMachine();
+                _mainWindow?.SetLastCommand($"GUEST LOGIN @ {DateTime.Now:HH:mm:ss}");
+            });
+
+            _ = ReportGuestPresenceAsync(true);
+
+            return new LoginAttemptResult(true, "Đăng nhập khách vãng lai thành công.");
+        }
+        catch (Exception ex)
+        {
+            if (_logger is not null)
+            {
+                await _logger.ErrorAsync("Lock screen guest login failed", ex);
             }
 
             return new LoginAttemptResult(false, $"Không thể kết nối server: {ex.Message}");
@@ -392,6 +487,11 @@ public partial class App : Application
                 "Điểm tích lũy",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
+            return;
+        }
+
+        if (!await PromptForPasswordAsync(activeSession.Username))
+        {
             return;
         }
 
@@ -456,6 +556,11 @@ public partial class App : Application
             return;
         }
 
+        if (!await PromptForPasswordAsync(activeSession.Username))
+        {
+            return;
+        }
+
         try
         {
             var loyalty = await GetMemberLoyaltyAsync(activeSession.MemberId);
@@ -478,6 +583,259 @@ public partial class App : Application
         }
     }
 
+    public async void OpenChangePasswordPanelFromClientUi()
+    {
+        var activeSession = _activeMemberSession;
+        if (activeSession is null)
+        {
+            MessageBox.Show(
+                "Vui lòng đăng nhập để đổi mật khẩu.",
+                "Đổi mật khẩu",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        ShowChangePasswordDialog(activeSession);
+    }
+
+    private void ShowChangePasswordDialog(ActiveMemberSession activeSession)
+    {
+        var dialog = new Window
+        {
+            Title = "Đổi mật khẩu hội viên",
+            Width = 400,
+            Height = 350,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = _mainWindow,
+            ShowInTaskbar = false,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+        };
+
+        var root = new Grid { Margin = new Thickness(24) };
+        for (int i = 0; i < 7; i++) root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var title = new TextBlock
+        {
+            Text = "ĐỔI MẬT KHẨU",
+            FontSize = 20,
+            FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(30, 90, 168)),
+            Margin = new Thickness(0, 0, 0, 20),
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        Grid.SetRow(title, 0);
+        root.Children.Add(title);
+
+        // Current Password
+        var curLabel = new TextBlock { Text = "Mật khẩu hiện tại:", Margin = new Thickness(0, 0, 0, 4), VerticalAlignment = VerticalAlignment.Bottom };
+        Grid.SetRow(curLabel, 1);
+        root.Children.Add(curLabel);
+
+        var currentPwdBox = new PasswordBox { Height = 32, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 12) };
+        Grid.SetRow(currentPwdBox, 2);
+        root.Children.Add(currentPwdBox);
+
+        // New Password
+        var newLabel = new TextBlock { Text = "Mật khẩu mới:", Margin = new Thickness(0, 0, 0, 4) };
+        Grid.SetRow(newLabel, 3);
+        root.Children.Add(newLabel);
+
+        var newPwdBox = new PasswordBox { Height = 32, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 12) };
+        Grid.SetRow(newPwdBox, 4);
+        root.Children.Add(newPwdBox);
+
+        // Confirm New Password
+        var confirmLabel = new TextBlock { Text = "Xác nhận mật khẩu mới:", Margin = new Thickness(0, 0, 0, 4) };
+        Grid.SetRow(confirmLabel, 5);
+        root.Children.Add(confirmLabel);
+
+        var confirmPwdBox = new PasswordBox { Height = 32, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 12) };
+        Grid.SetRow(confirmPwdBox, 6);
+        root.Children.Add(confirmPwdBox);
+
+        var errorText = new TextBlock { Text = "", Foreground = Brushes.Red, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) };
+        Grid.SetRow(errorText, 7);
+        root.Children.Add(errorText);
+
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        var cancelBtn = new Button { Content = "Hủy", Width = 80, Margin = new Thickness(0, 0, 10, 0) };
+        var saveBtn = new Button { Content = "Cập nhật", Width = 100, IsDefault = true, Background = new SolidColorBrush(Color.FromRgb(30, 90, 168)), Foreground = Brushes.White };
+        buttons.Children.Add(cancelBtn);
+        buttons.Children.Add(saveBtn);
+        Grid.SetRow(buttons, 8);
+        root.Children.Add(buttons);
+
+        cancelBtn.Click += (_, _) => dialog.Close();
+        saveBtn.Click += async (_, _) =>
+        {
+            errorText.Text = "";
+            var currentPwd = currentPwdBox.Password;
+            var newPwd = newPwdBox.Password;
+            var confirmPwd = confirmPwdBox.Password;
+
+            if (string.IsNullOrEmpty(currentPwd)) { errorText.Text = "Vui lòng nhập mật khẩu hiện tại."; return; }
+            if (string.IsNullOrEmpty(newPwd)) { errorText.Text = "Vui lòng nhập mật khẩu mới."; return; }
+            if (newPwd.Length < 4) { errorText.Text = "Mật khẩu mới phải từ 4 ký tự trở lên."; return; }
+            if (newPwd != confirmPwd) { errorText.Text = "Mật khẩu xác nhận không khớp."; return; }
+
+            saveBtn.IsEnabled = false;
+            errorText.Text = "Đang kiểm tra mật khẩu hiện tại...";
+            errorText.Foreground = Brushes.DimGray;
+
+            try
+            {
+                // 1. Verify current password via login
+                using var loginResp = await _httpClient.PostAsJsonAsync(BuildApiUrl("/members/login"), new { username = activeSession.Username, password = currentPwd });
+                if (!loginResp.IsSuccessStatusCode)
+                {
+                    errorText.Text = "Mật khẩu hiện tại không chính xác.";
+                    errorText.Foreground = Brushes.Red;
+                    saveBtn.IsEnabled = true;
+                    return;
+                }
+
+                // 2. Update to new password
+                errorText.Text = "Đang cập nhật mật khẩu mới...";
+                using var updateResp = await _httpClient.PatchAsJsonAsync(BuildApiUrl($"/members/{activeSession.MemberId}"), new { password = newPwd, updatedBy = "client.password.change" });
+                
+                if (updateResp.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Đổi mật khẩu thành công!", "Mật khẩu", MessageBoxButton.OK, MessageBoxImage.Information);
+                    _mainWindow?.SetLastCommand($"CHANGE_PWD @ {DateTime.Now:HH:mm:ss}");
+                    dialog.Close();
+                }
+                else
+                {
+                    var msg = await ReadErrorMessageAsync(updateResp);
+                    errorText.Text = string.IsNullOrWhiteSpace(msg) ? "Lỗi khi cập nhật mật khẩu." : msg;
+                    errorText.Foreground = Brushes.Red;
+                    saveBtn.IsEnabled = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                errorText.Text = "Lỗi kết nối: " + ex.Message;
+                errorText.Foreground = Brushes.Red;
+                saveBtn.IsEnabled = true;
+            }
+        };
+
+        dialog.Content = root;
+        dialog.Loaded += (_, _) => currentPwdBox.Focus();
+        dialog.ShowDialog();
+    }
+
+    private Task<bool> PromptForPasswordAsync(string username)
+    {
+        var tcs = new TaskCompletionSource<bool>();
+
+        var dialog = new Window
+        {
+            Title = "Xác nhận mật khẩu",
+            Width = 350,
+            Height = 180,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = _mainWindow,
+            ShowInTaskbar = false,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+        };
+
+        var root = new Grid { Margin = new Thickness(20) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var label = new TextBlock
+        {
+            Text = $"Nhập mật khẩu tài khoản '{username}' để tiếp tục:",
+            Margin = new Thickness(0, 0, 0, 10),
+            TextWrapping = TextWrapping.Wrap
+        };
+        Grid.SetRow(label, 0);
+        root.Children.Add(label);
+
+        var passwordBox = new PasswordBox
+        {
+            Height = 32,
+            VerticalContentAlignment = VerticalAlignment.Center
+        };
+        Grid.SetRow(passwordBox, 1);
+        root.Children.Add(passwordBox);
+
+        var errorLabel = new TextBlock
+        {
+            Text = "",
+            Foreground = Brushes.Red,
+            FontSize = 11,
+            Margin = new Thickness(0, 5, 0, 0)
+        };
+        Grid.SetRow(errorLabel, 2);
+        root.Children.Add(errorLabel);
+
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        var cancelBtn = new Button { Content = "Hủy", Width = 70, Margin = new Thickness(0, 0, 10, 0) };
+        var okBtn = new Button { Content = "Xác nhận", Width = 80, IsDefault = true, Background = new SolidColorBrush(Color.FromRgb(121, 201, 89)), Foreground = Brushes.White };
+        
+        buttons.Children.Add(cancelBtn);
+        buttons.Children.Add(okBtn);
+        Grid.SetRow(buttons, 3);
+        root.Children.Add(buttons);
+
+        cancelBtn.Click += (s, e) => { dialog.Close(); };
+        okBtn.Click += async (s, e) =>
+        {
+            var pwd = passwordBox.Password;
+            if (string.IsNullOrEmpty(pwd))
+            {
+                errorLabel.Text = "Vui lòng nhập mật khẩu.";
+                return;
+            }
+
+            okBtn.IsEnabled = false;
+            errorLabel.Text = "Đang xác thực...";
+            errorLabel.Foreground = Brushes.Gray;
+
+            try
+            {
+                using var response = await _httpClient.PostAsJsonAsync(
+                    BuildApiUrl("/members/login"),
+                    new { username, password = pwd });
+
+                if (response.IsSuccessStatusCode)
+                {
+                    tcs.SetResult(true);
+                    dialog.Close();
+                }
+                else
+                {
+                    errorLabel.Text = "Mật khẩu không chính xác.";
+                    errorLabel.Foreground = Brushes.Red;
+                    okBtn.IsEnabled = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                errorLabel.Text = "Lỗi kết nối: " + ex.Message;
+                errorLabel.Foreground = Brushes.Red;
+                okBtn.IsEnabled = true;
+            }
+        };
+
+        dialog.Content = root;
+        dialog.Closed += (s, e) => { if (!tcs.Task.IsCompleted) tcs.SetResult(false); };
+        
+        dialog.Show();
+        passwordBox.Focus();
+
+        return tcs.Task;
+    }
+
     private void ShowTransferBalanceDialog(
         ActiveMemberSession activeSession,
         MemberLoginItem sourceMember)
@@ -486,7 +844,7 @@ public partial class App : Application
         {
             Title = $"Chuyển tiền - {activeSession.Username}",
             Width = 460,
-            Height = 390,
+            Height = 480,
             ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Owner = _mainWindow,
@@ -505,6 +863,10 @@ public partial class App : Application
                 Height = GridLength.Auto,
             });
         }
+        root.RowDefinitions.Add(new RowDefinition
+        {
+            Height = GridLength.Auto,
+        });
         root.RowDefinitions.Add(new RowDefinition
         {
             Height = new GridLength(1, GridUnitType.Star),
@@ -1791,6 +2153,11 @@ LIMIT $limit;";
         _activeMemberSession = null;
         _lastSyncedMemberUsedSeconds = 0;
         TrackMachineState(_currentMachineState);
+        
+        Dispatcher.Invoke(() =>
+        {
+            _mainWindow?.SetMemberInfo(null, null);
+        });
     }
 
     private async Task ReportMemberPresenceAsync(ActiveMemberSession activeSession, bool isActive)
@@ -1820,6 +2187,35 @@ LIMIT $limit;";
             if (_logger is not null)
             {
                 await _logger.ErrorAsync("Report member presence failed", ex);
+            }
+        }
+    }
+
+    private async Task ReportGuestPresenceAsync(bool isActive)
+    {
+        try
+        {
+            using var response = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl("/members/guest-presence"),
+                new
+                {
+                    agentId = _settings.AgentId,
+                    isActive,
+                    displayName = "Khách vãng lai",
+                });
+
+            if (!response.IsSuccessStatusCode && _logger is not null)
+            {
+                var err = await ReadErrorMessageAsync(response);
+                await _logger.ErrorAsync(
+                    $"Report guest presence failed ({(isActive ? "ACTIVE" : "INACTIVE")}): {(int)response.StatusCode} {err}");
+            }
+        }
+        catch (Exception ex)
+        {
+            if (_logger is not null)
+            {
+                await _logger.ErrorAsync("Report guest presence failed", ex);
             }
         }
     }
@@ -1947,7 +2343,7 @@ LIMIT $limit;";
         {
             Title = $"Điểm tích lũy - {activeSession.Username}",
             Width = 430,
-            Height = 360,
+            Height = 420,
             ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Owner = _mainWindow,
@@ -2093,6 +2489,19 @@ LIMIT $limit;";
         };
         cancelButton.Click += (_, _) => dialog.Close();
 
+        var spinButton = new Button
+        {
+            Content = "Vòng quay",
+            Width = 92,
+            Margin = new Thickness(0, 0, 8, 0),
+            Background = new SolidColorBrush(Color.FromRgb(255, 204, 0)),
+        };
+        spinButton.Click += (_, _) =>
+        {
+            dialog.Close();
+            ShowLuckySpinDialog(activeSession, settings, loyaltyResponse);
+        };
+
         var redeemButton = new Button
         {
             Content = "Đổi điểm",
@@ -2170,11 +2579,354 @@ LIMIT $limit;";
             }
         };
 
+        actionPanel.Children.Add(spinButton);
+        actionPanel.Children.Add(redeemButton);
         actionPanel.Children.Add(redeemAllButton);
         actionPanel.Children.Add(cancelButton);
-        actionPanel.Children.Add(redeemButton);
         Grid.SetRow(actionPanel, 9);
         root.Children.Add(actionPanel);
+
+        dialog.Content = root;
+        dialog.ShowDialog();
+    }
+
+    private void ShowLuckySpinDialog(
+        ActiveMemberSession activeSession,
+        LoyaltySettingsResponse settings,
+        MemberLoyaltyResponse loyaltyResponse)
+    {
+        var loyalty = loyaltyResponse.Loyalty;
+        var dialog = new Window
+        {
+            Title = "Vòng quay may mắn",
+            Width = 420,
+            Height = 580,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = _mainWindow,
+            ShowInTaskbar = false,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+        };
+
+        var root = new Grid { Margin = new Thickness(20) };
+        for (int i = 0; i < 7; i++) root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var title = new TextBlock
+        {
+            Text = "THỬ VẬN MAY",
+            FontSize = 26,
+            FontWeight = FontWeights.Bold,
+            Foreground = Brushes.Crimson,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 10)
+        };
+        Grid.SetRow(title, 0);
+        root.Children.Add(title);
+
+        var pointsLabel = new TextBlock
+        {
+            Text = $"Bạn đang có: {loyalty.AvailablePoints} điểm",
+            FontSize = 16,
+            FontWeight = FontWeights.SemiBold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 20)
+        };
+        Grid.SetRow(pointsLabel, 1);
+        root.Children.Add(pointsLabel);
+
+        // Wheel Structure
+        var wheelSize = 260;
+        var wheelContainer = new Grid
+        {
+            Width = wheelSize,
+            Height = wheelSize,
+            Margin = new Thickness(0, 0, 0, 20),
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        
+        var wheelRotation = new RotateTransform(0);
+        wheelContainer.RenderTransform = wheelRotation;
+        wheelContainer.RenderTransformOrigin = new Point(0.5, 0.5);
+
+        var wheelItems = new[]
+        {
+            new { Label = "ĐẶC BIỆT\n30p", Minutes = 30, Color = new SolidColorBrush(Color.FromRgb(220, 38, 38)) }, // Red
+            new { Label = "0p", Minutes = 0, Color = new SolidColorBrush(Color.FromRgb(107, 114, 128)) },      // Gray
+            new { Label = "NHẤT\n20p", Minutes = 20, Color = new SolidColorBrush(Color.FromRgb(37, 99, 235)) },   // Blue
+            new { Label = "2p", Minutes = 2, Color = new SolidColorBrush(Color.FromRgb(249, 115, 22)) },      // Orange
+            new { Label = "NHÌ\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },  // Green
+            new { Label = "5p", Minutes = 5, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) },       // Yellow
+            new { Label = "0p", Minutes = 0, Color = new SolidColorBrush(Color.FromRgb(107, 114, 128)) },      // Gray
+            new { Label = "2p", Minutes = 2, Color = new SolidColorBrush(Color.FromRgb(249, 115, 22)) },      // Orange
+            new { Label = "NHÌ\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },  // Green
+            new { Label = "5p", Minutes = 5, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) }        // Yellow
+        };
+
+        double radius = wheelSize / 2.0;
+        double angleStep = 360.0 / wheelItems.Length;
+
+        // Outer Rim
+        var outerRim = new System.Windows.Shapes.Ellipse
+        {
+            Width = wheelSize + 10, Height = wheelSize + 10,
+            Stroke = new LinearGradientBrush(Colors.Gold, Colors.DarkGoldenrod, 45),
+            StrokeThickness = 6,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        
+        for (int i = 0; i < wheelItems.Length; i++)
+        {
+            var item = wheelItems[i];
+            double startAngle = i * angleStep;
+            double endAngle = (i + 1) * angleStep;
+            
+            // Draw Slice
+            double radStart = (startAngle - 90) * Math.PI / 180.0;
+            double radEnd = (endAngle - 90) * Math.PI / 180.0;
+
+            Point p1 = new Point(radius, radius);
+            Point p2 = new Point(radius + radius * Math.Cos(radStart), radius + radius * Math.Sin(radStart));
+            Point p3 = new Point(radius + radius * Math.Cos(radEnd), radius + radius * Math.Sin(radEnd));
+
+            var path = new System.Windows.Shapes.Path
+            {
+                Fill = item.Color,
+                Stroke = Brushes.White,
+                StrokeThickness = 1.2,
+                Data = new PathGeometry(new[] { 
+                    new PathFigure(p1, new PathSegment[] {
+                        new LineSegment(p2, true),
+                        new ArcSegment(p3, new Size(radius, radius), 0, false, SweepDirection.Clockwise, true),
+                        new LineSegment(p1, true)
+                    }, true) 
+                })
+            };
+            wheelContainer.Children.Add(path);
+
+            // Add Label
+            var label = new TextBlock
+            {
+                Text = item.Label,
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.Bold,
+                FontSize = 11,
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                RenderTransformOrigin = new Point(0.5, 0.5)
+            };
+            
+            var labelGroup = new TransformGroup();
+            labelGroup.Children.Add(new TranslateTransform(0, -radius * 0.72));
+            labelGroup.Children.Add(new RotateTransform(startAngle + angleStep / 2.0));
+            label.RenderTransform = labelGroup;
+            
+            wheelContainer.Children.Add(label);
+        }
+
+        // Center hub
+        var hub = new System.Windows.Shapes.Ellipse
+        {
+            Width = 46, Height = 46,
+            Fill = Brushes.White,
+            Stroke = Brushes.Gold,
+            StrokeThickness = 4,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        wheelContainer.Children.Add(hub);
+
+        var hubText = new TextBlock
+        {
+            Text = "QUAY",
+            FontSize = 11,
+            FontWeight = FontWeights.Bold,
+            Foreground = Brushes.Black,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        wheelContainer.Children.Add(hubText);
+
+        var wheelAndPointer = new Grid { HorizontalAlignment = HorizontalAlignment.Center };
+        wheelAndPointer.Children.Add(outerRim);
+        wheelAndPointer.Children.Add(wheelContainer);
+
+        // Pointer (Needle) - More distinct arrow
+        var pointer = new System.Windows.Shapes.Path
+        {
+            Fill = Brushes.Crimson,
+            Stroke = Brushes.White,
+            StrokeThickness = 2,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, -15, 0, 0),
+            Data = Geometry.Parse("M 0,0 L 12,24 L -12,24 Z"),
+            Width = 24, Height = 24,
+            Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 4, ShadowDepth = 2, Opacity = 0.5 }
+        };
+        wheelAndPointer.Children.Add(pointer);
+
+        Grid.SetRow(wheelAndPointer, 2);
+        root.Children.Add(wheelAndPointer);
+
+        var costText = new TextBlock
+        {
+            Text = "Chi phí: 5 điểm / lượt quay",
+            Foreground = Brushes.DimGray,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 15)
+        };
+        Grid.SetRow(costText, 3);
+        root.Children.Add(costText);
+
+        var resultText = new TextBlock
+        {
+            Text = "",
+            FontSize = 18,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Brushes.DarkGreen,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            MinHeight = 50
+        };
+        Grid.SetRow(resultText, 4);
+        root.Children.Add(resultText);
+
+        var spinButton = new Button
+        {
+            Content = "QUAY NGAY!",
+            FontSize = 18,
+            FontWeight = FontWeights.Bold,
+            Width = 180,
+            Height = 50,
+            Background = Brushes.Crimson,
+            Foreground = Brushes.White,
+            IsEnabled = loyalty.AvailablePoints >= 5
+        };
+
+        var closeButton = new Button
+        {
+            Content = "Đóng",
+            Width = 100,
+            Height = 35,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        closeButton.Click += (_, _) => dialog.Close();
+
+        spinButton.Click += async (_, _) =>
+        {
+            spinButton.IsEnabled = false;
+            closeButton.IsEnabled = false;
+            resultText.Text = "Đang quay...";
+            resultText.Foreground = Brushes.DimGray;
+
+            // Start fake fast spin while waiting for API
+            var fastSpinAnimation = new DoubleAnimation
+            {
+                From = wheelRotation.Angle,
+                To = wheelRotation.Angle + 3600, // 10 rotations
+                Duration = TimeSpan.FromSeconds(10),
+                RepeatBehavior = RepeatBehavior.Forever
+            };
+            wheelRotation.BeginAnimation(RotateTransform.AngleProperty, fastSpinAnimation);
+
+            try
+            {
+                var startTime = DateTime.Now;
+                using var response = await _httpClient.PostAsJsonAsync(
+                    BuildApiUrl($"/members/{activeSession.MemberId}/loyalty/spin"),
+                    new { createdBy = "client.loyalty.spin" });
+
+                // Ensure at least 1.5s spin for effect
+                var elapsed = DateTime.Now - startTime;
+                if (elapsed < TimeSpan.FromSeconds(1.5)) await Task.Delay(TimeSpan.FromSeconds(1.5) - elapsed);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    wheelRotation.BeginAnimation(RotateTransform.AngleProperty, null);
+                    var error = await ReadErrorMessageAsync(response);
+                    resultText.Text = string.IsNullOrWhiteSpace(error) ? "Lỗi kết nối!" : error;
+                    resultText.Foreground = Brushes.Red;
+                    return;
+                }
+
+                var payload = await response.Content.ReadFromJsonAsync<MemberLoyaltySpinResponse>(
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (payload is not null)
+                {
+                    // Find target slice index (there could be multiple for 10p, 5p, 2p, 0p)
+                    var possibleIndices = wheelItems
+                        .Select((item, index) => new { item, index })
+                        .Where(x => x.item.Minutes == payload.WonMinutes)
+                        .Select(x => x.index)
+                        .ToList();
+                        
+                    int targetIndex = possibleIndices.Count > 0 
+                        ? possibleIndices[new Random().Next(possibleIndices.Count)] 
+                        : 1; // Default to 0p if not found
+
+                    // Calculate target angle to point exactly to the middle of the slice
+                    double targetAngleOffset = -( (targetIndex + 0.5) * angleStep );
+                    double currentAngle = wheelRotation.Angle % 360;
+                    double finalAngle = wheelRotation.Angle + (360 * 4) - currentAngle + targetAngleOffset;
+
+                    var stopAnimation = new DoubleAnimation
+                    {
+                        From = wheelRotation.Angle,
+                        To = finalAngle,
+                        Duration = TimeSpan.FromSeconds(3.5),
+                        EasingFunction = new CircleEase { EasingMode = EasingMode.EaseOut }
+                    };
+                    
+                    var tcs = new TaskCompletionSource<bool>();
+                    stopAnimation.Completed += (s, e) => tcs.SetResult(true);
+                    wheelRotation.BeginAnimation(RotateTransform.AngleProperty, stopAnimation);
+                    
+                    await tcs.Task;
+
+                    pointsLabel.Text = $"Bạn đang có: {payload.Loyalty.AvailablePoints} điểm";
+                    resultText.Text = payload.WonMinutes > 0
+                        ? $"CHÚC MỪNG!\nBạn trúng {payload.WonMinutes} phút chơi!"
+                        : "Chúc bạn may mắn lần sau!";
+                    resultText.Foreground = payload.WonMinutes > 0 ? Brushes.DarkGreen : Brushes.OrangeRed;
+
+                    Dispatcher.Invoke(() =>
+                    {
+                        var usedSecondsNow = _mainWindow?.GetUsedSeconds() ?? 0;
+                        var totalSeconds = payload.Member.PlaySeconds + usedSecondsNow;
+                        var totalMinutes = Math.Max(1, (int)Math.Ceiling(totalSeconds / 60.0));
+                        _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false);
+                        _mainWindow?.SetLastCommand($"QUAY THƯỞNG: +{payload.WonMinutes}m @ {DateTime.Now:HH:mm:ss}");
+                        _lastSyncedMemberUsedSeconds = usedSecondsNow;
+                    });
+
+                    spinButton.IsEnabled = payload.Loyalty.AvailablePoints >= 5;
+                }
+            }
+            catch (Exception ex)
+            {
+                wheelRotation.BeginAnimation(RotateTransform.AngleProperty, null);
+                resultText.Text = "Lỗi: " + ex.Message;
+                resultText.Foreground = Brushes.Red;
+            }
+            finally
+            {
+                closeButton.IsEnabled = true;
+            }
+        };
+
+        Grid.SetRow(spinButton, 8);
+        root.Children.Add(spinButton);
+
+        var bottomPanel = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+        bottomPanel.Children.Add(closeButton);
+        Grid.SetRow(bottomPanel, 9);
+        root.Children.Add(bottomPanel);
 
         dialog.Content = root;
         dialog.ShowDialog();
@@ -2534,6 +3286,8 @@ public sealed class MemberLoginItem
     public int PlaySeconds { get; set; }
 
     public double PlayHours { get; set; }
+
+    public string? Rank { get; set; }
 }
 
 public sealed class LoyaltySettingsResponse
@@ -2590,6 +3344,21 @@ public sealed class MemberLoyaltyRedeemResponse
     public int GrantedMinutes { get; set; }
 }
 
+public sealed class MemberLoyaltySpinResponse
+{
+    public MemberLoginItem Member { get; set; } = new();
+
+    public MemberLoyaltyItem Loyalty { get; set; } = new();
+
+    public int WonMinutes { get; set; }
+
+    public string PrizeLabel { get; set; } = string.Empty;
+
+    public int CostPoints { get; set; }
+
+    public string? SpunAt { get; set; }
+}
+
 public sealed class MemberTransferBalanceResponse
 {
     public MemberLoginItem? SourceMember { get; set; }
@@ -2621,4 +3390,6 @@ public sealed class ActiveMemberSession
     public string Username { get; set; } = string.Empty;
 
     public string FullName { get; set; } = string.Empty;
+
+    public string? Rank { get; set; }
 }

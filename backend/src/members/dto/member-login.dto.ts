@@ -10,4 +10,7 @@ export class MemberLoginDto {
   @MinLength(1)
   @MaxLength(100)
   password!: string;
+
+  @IsString()
+  agentId?: string;
 }

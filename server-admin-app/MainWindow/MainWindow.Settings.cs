@@ -394,7 +394,7 @@ public partial class MainWindow : Window
         }
 
         LoyaltySettingsStatusTextBlock.Text =
-            "ÄÃ£ thay Ä‘á»•i tráº¡ng thÃ¡i tÃ­ch lÅ©y Ä‘iá»ƒm. Báº¥m \"LÆ°u cÃ i Ä‘áº·t\" Ä‘á»ƒ Ã¡p dá»¥ng lÃªn backend.";
+            "Đã thay đổi trạng thái tích lũy điểm. Bấm \"Lưu cài đặt\" để áp dụng lên backend.";
         LoyaltySettingsStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
     }
 
@@ -406,10 +406,63 @@ public partial class MainWindow : Window
         }
 
         LoyaltySettingsStatusTextBlock.Text =
-            "ÄÃ£ thay Ä‘á»•i tráº¡ng thÃ¡i tÃ­ch lÅ©y Ä‘iá»ƒm. Báº¥m \"LÆ°u cÃ i Ä‘áº·t\" Ä‘á»ƒ Ã¡p dá»¥ng lÃªn backend.";
+            "Ä Ã£ thay Ä‘á»•i tráº¡ng thÃ¡i tÃ­ch lÅ©y Ä‘iá»ƒm. Báº¥m \"LÆ°u cÃ i Ä‘áº·t\" Ä‘á»ƒ Ã¡p dá»¥ng lÃªn backend.";
         LoyaltySettingsStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
     }
 
+
+    private async Task LoadGuestLoginSettingsAsync()
+    {
+        try
+        {
+            _isLoadingGuestLoginSettings = true;
+            var settings = await _httpClient.GetFromJsonAsync<Dictionary<string, string>>(
+                BuildApiUrl("/settings"),
+                JsonOptions());
+
+            if (settings != null && settings.TryGetValue("GUEST_LOGIN_ENABLED", out var val))
+            {
+                GuestLoginEnabledCheckBox.IsChecked = val == "true";
+            }
+            else
+            {
+                GuestLoginEnabledCheckBox.IsChecked = true; // Default to enabled
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Failed to load guest login settings: {ex.Message}");
+        }
+        finally
+        {
+            _isLoadingGuestLoginSettings = false;
+            _guestLoginSettingsInitialized = true;
+        }
+    }
+
+    private async Task SaveGuestLoginSettingsAsync()
+    {
+        try
+        {
+            var isEnabled = GuestLoginEnabledCheckBox.IsChecked == true;
+            await _httpClient.PostAsJsonAsync(BuildApiUrl("/settings"), new
+            {
+                key = "GUEST_LOGIN_ENABLED",
+                value = isEnabled ? "true" : "false"
+            });
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 l\u01b0u c\u00e0i \u0111\u1eb7t Kh\u00e1ch v\u00e3ng lai: {(isEnabled ? "B\u1eacT" : "T\u1eaeT")}");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"L\u1ed7i khi l\u01b0u c\u00e0i \u0111\u1eb7t kh\u00e1ch: {ex.Message}");
+        }
+    }
+
+    private void GuestLoginEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_guestLoginSettingsInitialized || _isLoadingGuestLoginSettings) return;
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Tr\u1ea1ng th\u00e1i Kh\u00e1ch v\u00e3ng lai thay \u0111\u1edbi. B\u1ea5m \"L\u01b0u c\u00e0i \u0111\u1eb7t\" \u0111\u1ec3 \u00e1p d\u1ee5ng.");
+    }
 
     private void AppendServiceLog(string message)
     {
@@ -495,6 +548,7 @@ public partial class MainWindow : Window
         SaveSettings();
         await SaveClientRuntimeSettingsAsync();
         await SaveLoyaltySettingsAsync();
+        await SaveGuestLoginSettingsAsync();
         AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 l\u01b0u: c\u1ee1 ch\u1eef app = {_settings.UiFontSize:0}, b\u1ea3ng m\u00e1y = {_settings.MachineTableFontSize:0}, padding menu = {_settings.MachineContextMenuItemPadding:0}, ch\u1eef menu = {_settings.MachineContextMenuFontSize:0}, t\u1ef1 t\u1eaft = {_readyAutoShutdownMinutes} ph\u00fat");
     }
 
@@ -522,5 +576,75 @@ public partial class MainWindow : Window
 
         SaveSettings();
         AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 \u0111\u1eb7t l\u1ea1i c\u1ee1 ch\u1eef m\u1eb7c \u0111\u1ecbnh");
+    }
+
+    private async void SaveAdminCredentialsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var currentPwd = AdminCurrentPasswordBox.Password;
+        var newUsername = AdminNewUsernameTextBox.Text.Trim();
+        var newPwd = AdminNewPasswordBox.Password;
+        var confirmPwd = AdminConfirmPasswordBox.Password;
+
+        if (string.IsNullOrWhiteSpace(currentPwd))
+        {
+            AdminCredentialStatusTextBlock.Text = "Vui lòng nhập mật khẩu hiện tại.";
+            AdminCredentialStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(newUsername))
+        {
+            AdminCredentialStatusTextBlock.Text = "Vui lòng nhập tên đăng nhập mới.";
+            AdminCredentialStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(newPwd))
+        {
+            AdminCredentialStatusTextBlock.Text = "Vui lòng nhập mật khẩu mới.";
+            AdminCredentialStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        if (newPwd != confirmPwd)
+        {
+            AdminCredentialStatusTextBlock.Text = "Mật khẩu mới và xác nhận không khớp.";
+            AdminCredentialStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        try
+        {
+            using var resp = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl("/settings/agent-admin/change-password"),
+                new
+                {
+                    currentPassword = currentPwd,
+                    newUsername,
+                    newPassword = newPwd,
+                });
+
+            if (resp.IsSuccessStatusCode)
+            {
+                AdminCredentialStatusTextBlock.Text =
+                    $"Đã đổi thành công. Tài khoản mới: {newUsername}";
+                AdminCredentialStatusTextBlock.Foreground = Brushes.DarkGreen;
+                AdminCurrentPasswordBox.Clear();
+                AdminNewPasswordBox.Clear();
+                AdminConfirmPasswordBox.Clear();
+                AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã đổi thông tin đăng nhập admin máy trạm → {newUsername}");
+            }
+            else
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                AdminCredentialStatusTextBlock.Text = $"Lỗi: {body}";
+                AdminCredentialStatusTextBlock.Foreground = Brushes.Firebrick;
+            }
+        }
+        catch (Exception ex)
+        {
+            AdminCredentialStatusTextBlock.Text = $"Không kết nối được server: {ex.Message}";
+            AdminCredentialStatusTextBlock.Foreground = Brushes.Firebrick;
+        }
     }
 }

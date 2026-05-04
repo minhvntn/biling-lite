@@ -105,6 +105,7 @@ public partial class MainWindow : Window
             PlayHoursText = item.PlayHours.ToString("0.##", CultureInfo.InvariantCulture),
             Rank = string.IsNullOrWhiteSpace(item.Rank) ? "S\u1eaft" : item.Rank,
             TotalTopupRaw = item.TotalTopup,
+            AvailablePoints = item.AvailablePoints,
             TotalTopupText = item.TotalTopup.ToString("N0", CultureInfo.InvariantCulture),
             PasswordState = item.HasPassword ? "\u0110\u00e3 \u0111\u1eb7t" : "Ch\u01b0a \u0111\u1eb7t",
             ActiveText = item.IsActive ? "Ho\u1ea1t \u0111\u1ed9ng" : "T\u1ea1m kh\u00f3a",
@@ -132,7 +133,7 @@ public partial class MainWindow : Window
             }
 
             SelectedMemberTextBlock.Text =
-                $"{I18n.MemberSelectedPrefix}: {response.Member.Username} - {I18n.MemberBalancePrefix} {response.Member.Balance:N0} - {I18n.MemberPlayHoursPrefix} {response.Member.PlayHours:0.##}";
+                $"{I18n.MemberSelectedPrefix}: {response.Member.Username} - {I18n.MemberBalancePrefix} {response.Member.Balance:N0} - {I18n.MemberPlayHoursPrefix} {response.Member.PlayHours:0.##} - Điểm: {response.Member.AvailablePoints}";
         }
         catch
         {
@@ -322,7 +323,7 @@ public partial class MainWindow : Window
                 ? currentBalanceText
                 : member is null
                     ? "Số dư hiện tại: - VND"
-                    : $"Số dư hiện tại: {member.BalanceRaw:N0} VND";
+                    : $"Số dư hiện tại: {member.BalanceRaw:N0} VND - Điểm: {member.AvailablePoints}";
         TopupCustomAmountTextBox.Text = string.Empty;
         TopupModalErrorTextBlock.Text = string.Empty;
         TopupModalOverlay.Visibility = Visibility.Visible;
@@ -706,7 +707,7 @@ public partial class MainWindow : Window
         {
             Title = $"Thông tin hội viên - {member.Username}",
             Width = 520,
-            Height = 560,
+            Height = 680,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             ResizeMode = ResizeMode.NoResize,
             WindowStyle = WindowStyle.SingleBorderWindow,
@@ -715,7 +716,7 @@ public partial class MainWindow : Window
         };
 
         var root = new Grid { Margin = new Thickness(16) };
-        for (var i = 0; i < 14; i++)
+        for (var i = 0; i < 18; i++)
         {
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         }
@@ -811,13 +812,26 @@ public partial class MainWindow : Window
         Grid.SetRow(playHoursBox, 11);
         root.Children.Add(playHoursBox);
 
+        var pointsLabel = new TextBlock { Text = "Điểm tích lũy", Margin = new Thickness(0, 10, 0, 4) };
+        Grid.SetRow(pointsLabel, 12);
+        root.Children.Add(pointsLabel);
+
+        var pointsBox = new TextBox
+        {
+            Text = member.AvailablePoints.ToString(),
+            Height = 32,
+            VerticalContentAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetRow(pointsBox, 13);
+        root.Children.Add(pointsBox);
+
         var statusCheckBox = new CheckBox
         {
             Content = "Tài khoản đang hoạt động",
             IsChecked = member.IsActive,
             Margin = new Thickness(0, 12, 0, 0),
         };
-        Grid.SetRow(statusCheckBox, 12);
+        Grid.SetRow(statusCheckBox, 14);
         root.Children.Add(statusCheckBox);
 
         var passwordLabel = new TextBlock
@@ -825,7 +839,7 @@ public partial class MainWindow : Window
             Text = "Đổi mật khẩu (để trống nếu không đổi)",
             Margin = new Thickness(0, 10, 0, 4),
         };
-        Grid.SetRow(passwordLabel, 13);
+        Grid.SetRow(passwordLabel, 15);
         root.Children.Add(passwordLabel);
 
         var passwordBox = new PasswordBox
@@ -833,7 +847,7 @@ public partial class MainWindow : Window
             Height = 32,
             VerticalContentAlignment = VerticalAlignment.Center,
         };
-        Grid.SetRow(passwordBox, 14);
+        Grid.SetRow(passwordBox, 16);
         root.Children.Add(passwordBox);
 
         var errorTextBlock = new TextBlock
@@ -842,7 +856,7 @@ public partial class MainWindow : Window
             Margin = new Thickness(0, 8, 0, 0),
             TextWrapping = TextWrapping.Wrap,
         };
-        Grid.SetRow(errorTextBlock, 15);
+        Grid.SetRow(errorTextBlock, 17);
         root.Children.Add(errorTextBlock);
 
         var actionsPanel = new StackPanel
@@ -866,7 +880,7 @@ public partial class MainWindow : Window
         };
         actionsPanel.Children.Add(saveButton);
         actionsPanel.Children.Add(cancelButton);
-        Grid.SetRow(actionsPanel, 16);
+        Grid.SetRow(actionsPanel, 19);
         root.Children.Add(actionsPanel);
 
         saveButton.Click += async (_, _) =>
@@ -885,6 +899,12 @@ public partial class MainWindow : Window
                 return;
             }
 
+            if (!int.TryParse(pointsBox.Text.Trim(), out var points) || points < 0)
+            {
+                errorTextBlock.Text = "Điểm tích lũy không hợp lệ.";
+                return;
+            }
+
             var fullName = fullNameBox.Text.Trim();
             if (string.IsNullOrWhiteSpace(fullName))
             {
@@ -900,6 +920,7 @@ public partial class MainWindow : Window
                 ["isActive"] = statusCheckBox.IsChecked == true,
                 ["balance"] = Convert.ToDouble(balance),
                 ["playHours"] = playHours,
+                ["availablePoints"] = points,
                 ["updatedBy"] = "admin.desktop",
                 ["note"] = "Cap nhat tu app server admin",
             };

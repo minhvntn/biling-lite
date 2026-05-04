@@ -65,5 +65,12 @@ export class UpdateMemberDto {
   @MaxLength(100)
   @Transform(({ value }: { value?: string }) => value?.trim() || undefined)
   updatedBy?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(1000000)
+  availablePoints?: number;
 }
 

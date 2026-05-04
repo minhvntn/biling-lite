@@ -73,7 +73,7 @@
                 </Grid>
             </Border>
 
-            <TabControl x:Name="MainTabControl" Margin="8">
+            <TabControl x:Name="MainTabControl" Margin="8" SelectionChanged="MainTabControl_SelectionChanged">
                 <TabItem Header="Máy trạm">
                     <Grid Margin="8">
                         <Grid.RowDefinitions>
@@ -216,13 +216,21 @@
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Tên" Binding="{Binding Name}" Width="1.5*" MinWidth="130">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                <DataGridTemplateColumn Header="Tên" Width="1.5*" MinWidth="130">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Ellipse Width="10" Height="10" 
+                                                         Fill="{Binding StatusIconBrush}" 
+                                                         Margin="4,0,8,0" 
+                                                         ToolTip="{Binding StatusIconToolTip}" />
+                                                <TextBlock Text="{Binding Name}" 
+                                                           VerticalAlignment="Center" 
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTemplateColumn Header="Tình trạng" Width="1.1*" MinWidth="120">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
@@ -260,15 +268,17 @@
                         <Grid Grid.Row="0" Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="180" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <Button Grid.Column="0" Margin="0,0,8,0" Padding="10,5" Click="AddMemberButton_Click" Content="Thêm hội viên" />
+                            <Button Grid.Column="0" Margin="0,0,8,0" Padding="10,5" Click="RefreshMembersButton_Click" Content="Làm mới" />
+                            <Button Grid.Column="1" Margin="0,0,8,0" Padding="10,5" Click="AddMemberButton_Click" Content="Thêm hội viên" />
 
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Visibility="Collapsed">
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Visibility="Collapsed">
                                 <TextBox x:Name="TopupAmountTextBox" Width="100" VerticalContentAlignment="Center" Text="0" />
                                 <TextBox x:Name="BuyHoursTextBox" Width="80" Margin="6,0,0,0" VerticalContentAlignment="Center" Text="2" />
                                 <TextBox x:Name="RatePerHourTextBox" Width="100" Margin="6,0,0,0" VerticalContentAlignment="Center" Text="15000" />
@@ -315,6 +325,7 @@
                                 <DataGridTextColumn Header="Họ tên" Binding="{Binding FullName}" Width="160" />
                                 <DataGridTextColumn Header="Bậc VIP" Binding="{Binding Rank}" Width="100" />
                                 <DataGridTextColumn Header="Tổng nạp" Binding="{Binding TotalTopupText}" Width="110" />
+                                <DataGridTextColumn Header="Điểm" Binding="{Binding AvailablePoints}" Width="80" />
                                 <DataGridTextColumn Header="SDT" Binding="{Binding Phone}" Width="120" />
                                 <DataGridTextColumn Header="CCCD/CMND" Binding="{Binding IdentityNumber}" Width="140" />
                                 <DataGridTextColumn Header="Số dư" Binding="{Binding BalanceText}" Width="120" />
@@ -868,7 +879,11 @@
 
                         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
                             <Button Padding="10,5" Click="RefreshLoyaltyRanksButton_Click" Content="Làm mới danh sách" />
-                            <TextBlock VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#555" Text="Thay đổi ngưỡng 'Tổng nạp' để tự động thăng hạng cho hội viên." />
+                            <Separator Width="1" Margin="12,4" Background="#DDD" />
+                            <TextBlock VerticalAlignment="Center" Margin="0,0,6,0" Text="Thiết lập nhanh 100 cấp:" FontWeight="SemiBold" />
+                            <TextBox x:Name="RebuildMaxThresholdTextBox" Width="120" Height="28" VerticalContentAlignment="Center" Text="100,000,000" />
+                            <Button Margin="6,0,0,0" Padding="12,0" Height="28" Click="RebuildLoyaltyRanksButton_Click" Content="Tự động chia cấp" Background="#1D4ED8" Foreground="White" BorderThickness="0" />
+                            <TextBlock VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#666" Text="(Ngưỡng cao nhất)" FontSize="11" />
                         </StackPanel>
 
                         <DataGrid x:Name="LoyaltyRanksDataGrid"
@@ -885,6 +900,7 @@
                                 <DataGridTextColumn Header="Tên bậc hạng" Binding="{Binding RankName}" Width="180" IsReadOnly="False" />
                                 <DataGridTextColumn Header="Ngưỡng tổng nạp (VNĐ)" Binding="{Binding MinTopupText}" Width="200" IsReadOnly="False" />
                                 <DataGridTextColumn Header="Khuyến mãi (%)" Binding="{Binding BonusPercent}" Width="140" IsReadOnly="False" />
+                                <DataGridTextColumn Header="Số phút / 1 điểm" Binding="{Binding MinutesPerPoint}" Width="140" IsReadOnly="False" />
                                 <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="100" IsReadOnly="True" Visibility="Collapsed" />
                             </DataGrid.Columns>
                         </DataGrid>
@@ -979,12 +995,17 @@
                                    Foreground="#555"
                                    Text="Đang tải cài đặt tự tắt máy trạm..." />
 
-                        <StackPanel Grid.Row="9" Orientation="Horizontal" Margin="0,12,0,0">
+                        <StackPanel Grid.Row="9" Orientation="Vertical" Margin="0,12,0,0">
                             <CheckBox x:Name="LoyaltyPointsEnabledCheckBox"
                                       Content="Bật tính năng điểm tích lũy hội viên (15 phút = 1 điểm, 1 điểm = 1 phút chơi)"
                                       VerticalAlignment="Center"
                                       Checked="LoyaltyPointsEnabledCheckBox_Checked"
                                       Unchecked="LoyaltyPointsEnabledCheckBox_Unchecked" />
+                            
+                            <StackPanel Margin="0,20,0,0">
+                                <TextBlock FontSize="18" FontWeight="SemiBold" Text="Cài đặt máy trạm" />
+                                <CheckBox x:Name="GuestLoginEnabledCheckBox" Content="Cho phép đăng nhập Khách vãng lai" Margin="0,10,0,0" Checked="GuestLoginEnabledCheckBox_Changed" Unchecked="GuestLoginEnabledCheckBox_Changed" />
+                            </StackPanel>
                         </StackPanel>
 
                         <TextBlock x:Name="LoyaltySettingsStatusTextBlock"
@@ -999,6 +1020,47 @@
                         </StackPanel>
 
                         <TextBlock Grid.Row="12" Margin="0,12,0,0" Foreground="#555" Text="Thông tin: Cỡ chữ được xem trước ngay khi kéo thanh trượt." />
+
+                        <!-- Admin Credential Section -->
+                        <StackPanel Grid.Row="13" Margin="0,20,0,0">
+                            <TextBlock FontSize="18" FontWeight="SemiBold" Text="Tài khoản đăng nhập Admin máy trạm" />
+                            <TextBlock Margin="0,4,0,0" Foreground="#666" FontSize="12"
+                                       Text="Tài khoản này dùng để đăng nhập quản trị trực tiếp trên màn hình khóa máy trạm. Mặc định: admin / admin" />
+
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="Mật khẩu hiện tại:" />
+                                <PasswordBox x:Name="AdminCurrentPasswordBox" Grid.Row="0" Grid.Column="1" Height="30" Padding="6,4" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,8,0,0" Text="Tên đăng nhập mới:" />
+                                <TextBox x:Name="AdminNewUsernameTextBox" Grid.Row="1" Grid.Column="1" Height="30" Padding="6,4" Margin="0,8,0,0" />
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="0,8,0,0" Text="Mật khẩu mới:" />
+                                <PasswordBox x:Name="AdminNewPasswordBox" Grid.Row="2" Grid.Column="1" Height="30" Padding="6,4" Margin="0,8,0,0" />
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Margin="0,8,0,0" Text="Xác nhận mật khẩu:" />
+                                <PasswordBox x:Name="AdminConfirmPasswordBox" Grid.Row="3" Grid.Column="1" Height="30" Padding="6,4" Margin="0,8,0,0" />
+
+                                <Button Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left"
+                                        Margin="0,12,0,0" Padding="14,6"
+                                        Content="Đổi thông tin đăng nhập"
+                                        Click="SaveAdminCredentialsButton_Click" />
+                            </Grid>
+
+                            <TextBlock x:Name="AdminCredentialStatusTextBlock"
+                                       Margin="0,8,0,0" FontSize="12" TextWrapping="Wrap" />
+                        </StackPanel>
                     </Grid>
                 </TabItem>
             </TabControl>
