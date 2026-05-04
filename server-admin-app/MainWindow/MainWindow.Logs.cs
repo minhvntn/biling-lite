@@ -291,7 +291,15 @@ public partial class MainWindow : Window
 
     private async void RefreshSystemLogsButton_Click(object sender, RoutedEventArgs e) => await RefreshSystemLogsAsync();
 
-    private async void SystemLogsTimer_Tick(object? sender, EventArgs e) => await RefreshSystemLogsAsync();
+    private async void SystemLogsTimer_Tick(object? sender, EventArgs e)
+    {
+        if (!IsSystemLogsTabActive() || WindowState == WindowState.Minimized)
+        {
+            return;
+        }
+
+        await RefreshSystemLogsAsync();
+    }
 
     private async void SystemLogLimitComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {

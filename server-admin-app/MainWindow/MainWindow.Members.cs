@@ -616,7 +616,19 @@ public partial class MainWindow : Window
     private void MembersSearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         _memberSearchKeyword = MembersSearchTextBox.Text.Trim();
-        _ = RefreshMembersAsync();
+        _memberSearchDebounceTimer.Stop();
+        _memberSearchDebounceTimer.Start();
+    }
+
+    private async void MemberSearchDebounceTimer_Tick(object? sender, EventArgs e)
+    {
+        _memberSearchDebounceTimer.Stop();
+        if (!IsMembersTabActive())
+        {
+            return;
+        }
+
+        await RefreshMembersAsync();
     }
 
     private async void MembersDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)

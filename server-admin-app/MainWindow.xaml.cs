@@ -19,6 +19,8 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _healthTimer = new();
     private readonly DispatcherTimer _machinesTimer = new();
     private readonly DispatcherTimer _systemLogsTimer = new();
+    private readonly DispatcherTimer _machineSearchDebounceTimer = new();
+    private readonly DispatcherTimer _memberSearchDebounceTimer = new();
 
     private readonly ObservableCollection<MachineRow> _machineRows = new();
     private readonly ObservableCollection<MemberRow> _memberRows = new();
@@ -73,6 +75,9 @@ public partial class MainWindow : Window
     private GroupMachineRow? _draggingGroupMachine;
     private readonly HashSet<string> _memberTransferNotifiedEventIds = new(StringComparer.OrdinalIgnoreCase);
     private bool _memberTransferNotificationsInitialized;
+    private const int MachinesTabIndex = 0;
+    private const int MembersTabIndex = 1;
+    private const int SystemLogsTabIndex = 2;
 
     public MainWindow()
     {
@@ -122,6 +127,12 @@ public partial class MainWindow : Window
         _healthTimer.Tick += HealthTimer_Tick;
         _healthTimer.Start();
 
+        _machineSearchDebounceTimer.Interval = TimeSpan.FromMilliseconds(250);
+        _machineSearchDebounceTimer.Tick += MachineSearchDebounceTimer_Tick;
+
+        _memberSearchDebounceTimer.Interval = TimeSpan.FromMilliseconds(300);
+        _memberSearchDebounceTimer.Tick += MemberSearchDebounceTimer_Tick;
+
         _machinesTimer.Interval = TimeSpan.FromSeconds(Math.Max(2, _settings.MachineRefreshSeconds));
         _machinesTimer.Tick += MachinesTimer_Tick;
         _machinesTimer.Start();
@@ -144,11 +155,18 @@ public partial class MainWindow : Window
         _healthTimer.Stop();
         _machinesTimer.Stop();
         _systemLogsTimer.Stop();
+        _machineSearchDebounceTimer.Stop();
+        _memberSearchDebounceTimer.Stop();
         _httpClient.Dispose();
     }
 
     private async void MachinesTimer_Tick(object? sender, EventArgs e)
     {
+        if (!IsLoaded || MainTabControl.SelectedIndex != MachinesTabIndex || WindowState == WindowState.Minimized)
+        {
+            return;
+        }
+
         await RefreshMachinesAsync();
     }
 
@@ -198,6 +216,16 @@ public partial class MainWindow : Window
         await LoadWebsiteLogSettingsAsync();
         await RefreshWebsiteLogsAsync();
         await RefreshLoyaltyRanksAsync();
+    }
+
+    private bool IsMembersTabActive()
+    {
+        return IsLoaded && MainTabControl.SelectedIndex == MembersTabIndex;
+    }
+
+    private bool IsSystemLogsTabActive()
+    {
+        return IsLoaded && MainTabControl.SelectedIndex == SystemLogsTabIndex;
     }
 }
 

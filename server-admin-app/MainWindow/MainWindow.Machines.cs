@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -32,27 +32,7 @@ public partial class MainWindow : Window
             _allMachineRows.Clear();
             _allMachineRows.AddRange(allRows);
             RefreshWebsiteLogMachineFilterOptions();
-
-            var filteredRows = allRows;
-            if (!string.IsNullOrWhiteSpace(_searchKeyword))
-            {
-                filteredRows = filteredRows
-                    .Where(r => r.Name.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase) ||
-                                r.AgentId.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-            }
-
-            filteredRows = ApplyStatusFilter(filteredRows);
-
-            _machineRows.Clear();
-            foreach (var row in filteredRows)
-            {
-                _machineRows.Add(row);
-            }
-
-            RestoreMachineSelections(selectedPcIds);
-
-            UpdateMachineSummary(filteredRows);
+            ApplyMachineFiltersToGrid(selectedPcIds);
             await RefreshGroupsAsync();
             LastSyncTextBlock.Text = $"{I18n.SyncPrefix}: {DateTime.Now:HH:mm:ss}";
         }
@@ -66,6 +46,29 @@ public partial class MainWindow : Window
         }
     }
 
+
+    private void ApplyMachineFiltersToGrid(IReadOnlyCollection<string>? selectedPcIds = null)
+    {
+        var filteredRows = _allMachineRows.ToList();
+        if (!string.IsNullOrWhiteSpace(_searchKeyword))
+        {
+            filteredRows = filteredRows
+                .Where(r => r.Name.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase) ||
+                            r.AgentId.Contains(_searchKeyword, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        filteredRows = ApplyStatusFilter(filteredRows);
+
+        _machineRows.Clear();
+        foreach (var row in filteredRows)
+        {
+            _machineRows.Add(row);
+        }
+
+        RestoreMachineSelections(selectedPcIds ?? GetSelectedMachineIdsSnapshot());
+        UpdateMachineSummary(filteredRows);
+    }
     private static MachineRow ToMachineRow(PcListItem item)
     {
         var now = DateTime.Now;
@@ -225,7 +228,8 @@ public partial class MainWindow : Window
     private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         _searchKeyword = SearchTextBox.Text.Trim();
-        _ = RefreshMachinesAsync();
+        _machineSearchDebounceTimer.Stop();
+        _machineSearchDebounceTimer.Start();
     }
 
     private void StatusFilterComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -233,7 +237,7 @@ public partial class MainWindow : Window
         if (StatusFilterComboBox.SelectedItem is ComboBoxItem item)
         {
             _statusFilter = item.Content?.ToString() ?? I18n.StatusAll;
-            _ = RefreshMachinesAsync();
+            ApplyMachineFiltersToGrid(GetSelectedMachineIdsSnapshot());
         }
     }
 
@@ -243,7 +247,14 @@ public partial class MainWindow : Window
         _searchKeyword = string.Empty;
         _statusFilter = I18n.StatusAll;
         StatusFilterComboBox.SelectedIndex = 0;
-        _ = RefreshMachinesAsync();
+        ApplyMachineFiltersToGrid(GetSelectedMachineIdsSnapshot());
+    }
+
+    
+    private void MachineSearchDebounceTimer_Tick(object? sender, EventArgs e)
+    {
+        _machineSearchDebounceTimer.Stop();
+        ApplyMachineFiltersToGrid(GetSelectedMachineIdsSnapshot());
     }
 
     private void MachinesDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1842,4 +1853,6 @@ public partial class MainWindow : Window
         return result;
     }
 }
+
+
 
