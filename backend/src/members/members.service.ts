@@ -138,6 +138,10 @@ export class MembersService {
       throw new UnauthorizedException('Tài khoản hội viên chưa cài mật khẩu');
     }
 
+    if (this.hashPassword(password) !== member.passwordHash) {
+      throw new UnauthorizedException('Sai tài khoản hoặc mật khẩu');
+    }
+
     const [rankConfigs] = await Promise.all([
       this.prisma.loyaltyRankConfig.findMany({
         orderBy: { minTopup: 'desc' },
@@ -215,6 +219,94 @@ export class MembersService {
         },
       },
     });
+
+    if (isActive) {
+      await this.prisma.session.updateMany({
+        where: { pcId: pc.id, status: 'ACTIVE' },
+        data: {
+          endedAt: new Date(),
+          status: 'CLOSED',
+          closedReason: 'SYSTEM',
+        },
+      });
+
+      // Upfront 1 minute playSeconds deduction (60 seconds) for member login
+      const currentPlaySeconds = Math.max(0, member.playSeconds);
+      const consumedSeconds = Math.min(60, currentPlaySeconds);
+
+      if (consumedSeconds > 0) {
+        await this.prisma.member.update({
+          where: { id: member.id },
+          data: {
+            playSeconds: {
+              decrement: consumedSeconds,
+            },
+          },
+        });
+
+        await this.prisma.memberTransaction.create({
+          data: {
+            memberId: member.id,
+            type: 'ADJUSTMENT',
+            amountDelta: 0,
+            playSecondsDelta: -consumedSeconds,
+            note: 'UPFRONT_LOGIN_CHARGE',
+            createdBy: 'client.session',
+          },
+        });
+      }
+
+      const defaultGroup = await this.prisma.pcGroup.findFirst({
+        where: { isDefault: true },
+      });
+      const baseRate = Number(
+        pc.groupId
+          ? (await this.prisma.pcGroup.findUnique({ where: { id: pc.groupId } }))?.hourlyRate ?? defaultGroup?.hourlyRate ?? 12000
+          : defaultGroup?.hourlyRate ?? 12000,
+      );
+      const hourlyRate = await this.getEffectiveHourlyRate(baseRate);
+      const pricePerMinute = Number(hourlyRate) / 60;
+
+      await this.prisma.session.create({
+        data: {
+          pcId: pc.id,
+          status: 'ACTIVE',
+          startedAt: new Date(),
+          pricePerMinute,
+        },
+      });
+    } else {
+      const activeSession = await this.prisma.session.findFirst({
+        where: {
+          pcId: pc.id,
+          status: 'ACTIVE',
+        },
+        orderBy: { startedAt: 'desc' },
+      });
+
+      if (activeSession) {
+        const endedAt = new Date();
+        const durationSeconds = Math.max(
+          0,
+          Math.floor((endedAt.getTime() - activeSession.startedAt.getTime()) / 1000),
+        );
+        const billableMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
+        const pricePerMinute = Number(activeSession.pricePerMinute ?? 0);
+        const amount = billableMinutes * pricePerMinute;
+
+        await this.prisma.session.update({
+          where: { id: activeSession.id },
+          data: {
+            endedAt,
+            durationSeconds,
+            billableMinutes,
+            amount,
+            status: 'CLOSED',
+            closedReason: 'ADMIN_LOCK',
+          },
+        });
+      }
+    }
 
     return {
       ok: true,

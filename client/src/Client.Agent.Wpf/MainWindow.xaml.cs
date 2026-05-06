@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.Text;
 using Client.Agent.Wpf.Localization;
@@ -12,6 +12,8 @@ namespace Client.Agent.Wpf;
 
 public partial class MainWindow : Window
 {
+    public static decimal PricingStep { get; set; } = 1000m;
+    public static decimal MinimumCharge { get; set; } = 1000m;
     private const int DefaultTotalSessionMinutes = 60_000; // 1000 giờ
     private const decimal DefaultHourlyRate = 12_000m;
 
@@ -127,6 +129,26 @@ public partial class MainWindow : Window
 
         _totalSessionMinutes = Math.Max(1, totalSessionMinutes);
         _hourlyRate = hourlyRate < 0 ? 0 : hourlyRate;
+        UpdateUsageUi();
+    }
+
+    public void SynchronizeUsedDuration(int elapsedSeconds)
+    {
+        if (elapsedSeconds >= 0)
+        {
+            _usedDuration = TimeSpan.FromSeconds(elapsedSeconds);
+            if (_runningStartedAtUtc is not null)
+            {
+                _runningStartedAtUtc = DateTime.UtcNow;
+            }
+            UpdateUsageUi();
+        }
+    }
+
+    public void SetUpfrontUsedDuration()
+    {
+        _usedDuration = TimeSpan.FromSeconds(60);
+        _runningStartedAtUtc = DateTime.UtcNow;
         UpdateUsageUi();
     }
 
@@ -448,9 +470,12 @@ public partial class MainWindow : Window
         var usedMins = (int)used.TotalMinutes;
         var remainingMins = Math.Max(0, totalMins - usedMins);
 
-        // Match backend logic: use billable minutes (rounded up)
+        // Match backend logic: use billable minutes (rounded up) and apply pricing step and minimum charge
         var billableMins = (int)Math.Max(1, Math.Ceiling(used.TotalMinutes));
-        var gameCost = Math.Round(billableMins * (_hourlyRate / 60m), 0, MidpointRounding.AwayFromZero);
+        var rawCost = billableMins * (_hourlyRate / 60m);
+        var step = PricingStep > 0 ? PricingStep : 1000m;
+        var roundedCost = Math.Ceiling(rawCost / step) * step;
+        var gameCost = Math.Max(MinimumCharge > 0 ? MinimumCharge : 1000m, roundedCost);
 
         TotalTimeValueTextBlock.Text = FormatMinutes(totalMins);
         UsedTimeValueTextBlock.Text = FormatMinutes(usedMins);

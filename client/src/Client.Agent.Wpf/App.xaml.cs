@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Globalization;
 using System.Net;
@@ -58,6 +58,7 @@ public partial class App : Application
     private DateTime _lastWebFilterFetchUtc = DateTime.MinValue;
     private string _lastWebFilterSignature = string.Empty;
     private readonly DispatcherTimer _websiteLogSyncTimer = new();
+    private readonly DispatcherTimer _memberUsageSyncTimer = new();
     private bool _isWebsiteLogSyncRunning;
     private bool _websiteLogEnabled;
     private DateTime _lastWebsiteLogSettingsFetchUtc = DateTime.MinValue;
@@ -145,6 +146,7 @@ public partial class App : Application
         _readyAutoShutdownTimer.Stop();
         _webFilterSyncTimer.Stop();
         _websiteLogSyncTimer.Stop();
+        _memberUsageSyncTimer.Stop();
 
         try
         {
@@ -179,6 +181,10 @@ public partial class App : Application
         _websiteLogSyncTimer.Tick += WebsiteLogSyncTimer_Tick;
         _websiteLogSyncTimer.Start();
         _ = SyncWebsiteLogsAsync(true);
+
+        _memberUsageSyncTimer.Interval = TimeSpan.FromSeconds(10);
+        _memberUsageSyncTimer.Tick += MemberUsageSyncTimer_Tick;
+        _memberUsageSyncTimer.Start();
     }
 
     private void StartSocketService()
@@ -203,6 +209,10 @@ public partial class App : Application
             isEnabled =>
             {
                 Dispatcher.Invoke(() => _lockScreenWindow?.SetGuestLoginEnabled(isEnabled));
+            },
+            elapsed =>
+            {
+                Dispatcher.Invoke(() => _mainWindow?.SynchronizeUsedDuration(elapsed));
             });
 
         _ = Task.Run(async () =>
@@ -497,7 +507,7 @@ public partial class App : Application
                 Rank = member.Rank,
             };
             _isPostpaidGuestSession = false;
-            _lastSyncedMemberUsedSeconds = 0;
+            _lastSyncedMemberUsedSeconds = 60;
 
             await ReportMemberPresenceAsync(_activeMemberSession, true);
 
@@ -510,6 +520,7 @@ public partial class App : Application
                 }
 
                 _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true);
+                _mainWindow?.SetUpfrontUsedDuration();
                 _mainWindow?.SetMemberInfo(member.Username, member.Rank);
                 UnlockMachine();
                 _mainWindow?.SetLastCommand(
@@ -1313,6 +1324,11 @@ public async void OpenLoyaltyPanelFromClientUi()
         }
     }
 
+    private async void MemberUsageSyncTimer_Tick(object? sender, EventArgs e)
+    {
+        await SyncActiveMemberUsageAsync("PERIODIC", false);
+    }
+
     private async Task RefreshClientRuntimeSettingsIfDueAsync()
     {
         var now = DateTime.UtcNow;
@@ -1349,6 +1365,8 @@ public async void OpenLoyaltyPanelFromClientUi()
             _readyAutoShutdownMinutes = Math.Clamp(payload.ReadyAutoShutdownMinutes, 1, 240);
             _lockScreenBackgroundMode = NormalizeLockScreenBackgroundMode(payload.LockScreenBackgroundMode);
             _lockScreenBackgroundUrl = (payload.LockScreenBackgroundUrl ?? string.Empty).Trim();
+            Client.Agent.Wpf.MainWindow.PricingStep = payload.PricingStep;
+            Client.Agent.Wpf.MainWindow.MinimumCharge = payload.MinimumCharge;
             Dispatcher.Invoke(() =>
             {
                 _lockScreenWindow?.ApplyBackgroundConfiguration(
@@ -3520,6 +3538,8 @@ public sealed class ClientRuntimeSettingsResponse
     public int ReadyAutoShutdownMinutes { get; set; }
     public string LockScreenBackgroundMode { get; set; } = "none";
     public string LockScreenBackgroundUrl { get; set; } = string.Empty;
+    public decimal PricingStep { get; set; } = 1000m;
+    public decimal MinimumCharge { get; set; } = 1000m;
 
     public string ServerTime { get; set; } = string.Empty;
 }

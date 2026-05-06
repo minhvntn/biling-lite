@@ -88,6 +88,15 @@ export class PcsService {
       activeMembers.map((member) => [member.id, Number(member.balance)]),
     );
 
+    const pricingStepSetting = await this.prisma.appSetting.findUnique({
+      where: { key: 'PRICING_STEP' },
+    });
+    const minimumChargeSetting = await this.prisma.appSetting.findUnique({
+      where: { key: 'MINIMUM_CHARGE' },
+    });
+    const pricingStep = pricingStepSetting ? Number(pricingStepSetting.value) : 1000;
+    const minimumCharge = minimumChargeSetting ? Number(minimumChargeSetting.value) : 1000;
+
     const now = Date.now();
     const items = await Promise.all(
       pcs.map(async (pc) => {
@@ -117,8 +126,17 @@ export class PcsService {
         const billableMinutes = activeSession
           ? Math.max(1, Math.ceil(elapsedSeconds / 60))
           : 0;
-        const estimatedAmount =
+        let estimatedAmount =
           billableMinutes * Number(activeSession?.pricePerMinute ?? 0);
+
+        if (activeSession) {
+          if (pricingStep > 0) {
+            estimatedAmount = Math.ceil(estimatedAmount / pricingStep) * pricingStep;
+          }
+          if (estimatedAmount < minimumCharge) {
+            estimatedAmount = minimumCharge;
+          }
+        }
 
         return {
           id: pc.id,
@@ -564,6 +582,16 @@ export class PcsService {
         hourlyRate: 5000,
         isDefault: true,
       },
+    });
+  }
+
+  async getActiveSessionForPc(pcId: string) {
+    return this.prisma.session.findFirst({
+      where: {
+        pcId,
+        status: 'ACTIVE',
+      },
+      orderBy: { startedAt: 'desc' },
     });
   }
 

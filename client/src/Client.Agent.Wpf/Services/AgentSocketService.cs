@@ -14,6 +14,7 @@ public sealed class AgentSocketService : IAsyncDisposable
     private readonly Func<AdminCaptureScreenshotPayload, Task>? _captureScreenshotHandler;
     private readonly Action<decimal>? _hourlyRateHandler;
     private readonly Action<bool>? _guestLoginEnabledHandler;
+    private readonly Action<int>? _elapsedSecondsHandler;
 
     private global::SocketIOClient.SocketIO? _socket;
     private CancellationTokenSource? _heartbeatCts;
@@ -26,7 +27,8 @@ public sealed class AgentSocketService : IAsyncDisposable
         Action<string, string?>? notificationHandler = null,
         Func<AdminCaptureScreenshotPayload, Task>? captureScreenshotHandler = null,
         Action<decimal>? hourlyRateHandler = null,
-        Action<bool>? guestLoginEnabledHandler = null)
+        Action<bool>? guestLoginEnabledHandler = null,
+        Action<int>? elapsedSecondsHandler = null)
     {
         _settings = settings;
         _logger = logger;
@@ -36,6 +38,7 @@ public sealed class AgentSocketService : IAsyncDisposable
         _captureScreenshotHandler = captureScreenshotHandler;
         _hourlyRateHandler = hourlyRateHandler;
         _guestLoginEnabledHandler = guestLoginEnabledHandler;
+        _elapsedSecondsHandler = elapsedSecondsHandler;
     }
 
     public async Task StartAsync()
@@ -109,6 +112,11 @@ public sealed class AgentSocketService : IAsyncDisposable
             {
                 _guestLoginEnabledHandler?.Invoke(guestEnabled.GetBoolean());
             }
+
+            if (element.TryGetProperty("elapsedSeconds", out var elapsed))
+            {
+                _elapsedSecondsHandler?.Invoke(elapsed.GetInt32());
+            }
         });
 
         _socket.On("agent.heartbeat.ack", response =>
@@ -120,6 +128,11 @@ public sealed class AgentSocketService : IAsyncDisposable
             if (element.TryGetProperty("isGuestLoginEnabled", out var guestEnabled))
             {
                 _guestLoginEnabledHandler?.Invoke(guestEnabled.GetBoolean());
+            }
+
+            if (element.TryGetProperty("elapsedSeconds", out var elapsed))
+            {
+                _elapsedSecondsHandler?.Invoke(elapsed.GetInt32());
             }
         });
 

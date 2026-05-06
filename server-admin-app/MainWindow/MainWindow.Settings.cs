@@ -746,13 +746,34 @@ public partial class MainWindow : Window
                 BuildApiUrl("/settings"),
                 JsonOptions());
 
-            if (settings != null && settings.TryGetValue("GUEST_LOGIN_ENABLED", out var val))
+            if (settings != null)
             {
-                GuestLoginEnabledCheckBox.IsChecked = val == "true";
-            }
-            else
-            {
-                GuestLoginEnabledCheckBox.IsChecked = true; // Default to enabled
+                if (settings.TryGetValue("GUEST_LOGIN_ENABLED", out var val))
+                {
+                    GuestLoginEnabledCheckBox.IsChecked = val == "true";
+                }
+                else
+                {
+                    GuestLoginEnabledCheckBox.IsChecked = true; // Default to enabled
+                }
+
+                if (settings.TryGetValue("PRICING_STEP", out var stepVal))
+                {
+                    PricingStepTextBox.Text = stepVal;
+                }
+                else
+                {
+                    PricingStepTextBox.Text = "1000";
+                }
+
+                if (settings.TryGetValue("MINIMUM_CHARGE", out var chargeVal))
+                {
+                    MinimumChargeTextBox.Text = chargeVal;
+                }
+                else
+                {
+                    MinimumChargeTextBox.Text = "1000";
+                }
             }
         }
         catch (Exception ex)
@@ -776,7 +797,24 @@ public partial class MainWindow : Window
                 key = "GUEST_LOGIN_ENABLED",
                 value = isEnabled ? "true" : "false"
             });
-            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 l\u01b0u c\u00e0i \u0111\u1eb7t Kh\u00e1ch v\u00e3ng lai: {(isEnabled ? "B\u1eacT" : "T\u1eaeT")}");
+
+            var step = PricingStepTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(step)) step = "1000";
+            await _httpClient.PostAsJsonAsync(BuildApiUrl("/settings"), new
+            {
+                key = "PRICING_STEP",
+                value = step
+            });
+
+            var charge = MinimumChargeTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(charge)) charge = "1000";
+            await _httpClient.PostAsJsonAsync(BuildApiUrl("/settings"), new
+            {
+                key = "MINIMUM_CHARGE",
+                value = charge
+            });
+
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 l\u01b0u c\u00e0i \u0111\u1eb7t Kh\u00e1ch v\u00e3ng lai, b\u01b0\u1edbc gi\u00e1 v\u00e0 ph\u00ed t\u1ed1i thi\u1ec3u");
         }
         catch (Exception ex)
         {

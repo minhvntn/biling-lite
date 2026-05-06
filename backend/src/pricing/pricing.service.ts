@@ -59,13 +59,19 @@ export class PricingService {
   }
 
   async getClientRuntimeSettings() {
-    const [config, modeSetting, urlSetting] = await Promise.all([
+    const [config, modeSetting, urlSetting, pricingStepSetting, minimumChargeSetting] = await Promise.all([
       this.ensureClientRuntimeSettings(),
       this.prisma.appSetting.findUnique({
         where: { key: CLIENT_LOCK_SCREEN_BACKGROUND_MODE_KEY },
       }),
       this.prisma.appSetting.findUnique({
         where: { key: CLIENT_LOCK_SCREEN_BACKGROUND_URL_KEY },
+      }),
+      this.prisma.appSetting.findUnique({
+        where: { key: 'PRICING_STEP' },
+      }),
+      this.prisma.appSetting.findUnique({
+        where: { key: 'MINIMUM_CHARGE' },
       }),
     ]);
 
@@ -80,6 +86,8 @@ export class PricingService {
         modeSetting?.value,
       ),
       lockScreenBackgroundUrl: (urlSetting?.value ?? '').trim(),
+      pricingStep: pricingStepSetting ? Number(pricingStepSetting.value) : 1000,
+      minimumCharge: minimumChargeSetting ? Number(minimumChargeSetting.value) : 1000,
       serverTime: new Date().toISOString(),
     };
   }

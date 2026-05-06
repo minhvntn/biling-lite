@@ -391,6 +391,15 @@ export class CommandsService {
           });
 
           if (activeSession) {
+            const pricingStepSetting = await tx.appSetting.findUnique({
+              where: { key: 'PRICING_STEP' },
+            });
+            const minimumChargeSetting = await tx.appSetting.findUnique({
+              where: { key: 'MINIMUM_CHARGE' },
+            });
+            const pricingStep = pricingStepSetting ? Number(pricingStepSetting.value) : 1000;
+            const minimumCharge = minimumChargeSetting ? Number(minimumChargeSetting.value) : 1000;
+
             const endedAt = new Date();
             const durationSeconds = Math.max(
               0,
@@ -398,7 +407,14 @@ export class CommandsService {
             );
             const billableMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
             const pricePerMinute = Number(activeSession.pricePerMinute ?? 0);
-            const amount = billableMinutes * pricePerMinute;
+            let amount = billableMinutes * pricePerMinute;
+
+            if (pricingStep > 0) {
+              amount = Math.ceil(amount / pricingStep) * pricingStep;
+            }
+            if (amount < minimumCharge) {
+              amount = minimumCharge;
+            }
 
             const closedSession = await tx.session.update({
               where: { id: activeSession.id },

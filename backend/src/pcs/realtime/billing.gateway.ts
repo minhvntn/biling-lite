@@ -68,12 +68,18 @@ export class BillingGateway implements OnGatewayInit {
     const hourlyRate = await this.pcsService.getEffectiveHourlyRate(baseRate);
     const isGuestLoginEnabled = await this.pcsService.getGuestLoginEnabled();
 
+    const activeSession = await this.pcsService.getActiveSessionForPc(transition.pc.id);
+    const elapsedSeconds = activeSession
+      ? Math.max(0, Math.floor((Date.now() - activeSession.startedAt.getTime()) / 1000))
+      : 0;
+
     client.emit('agent.hello.ack', {
       ok: true,
       pcId: transition.pc.id,
       status: transition.pc.status,
       hourlyRate,
       isGuestLoginEnabled,
+      elapsedSeconds,
       serverTime: new Date().toISOString(),
     });
   }
@@ -102,11 +108,17 @@ export class BillingGateway implements OnGatewayInit {
     const hourlyRate = await this.pcsService.getEffectiveHourlyRate(baseRate);
     const isGuestLoginEnabled = await this.pcsService.getGuestLoginEnabled();
 
+    const activeSession = await this.pcsService.getActiveSessionForPc(transition.pc.id);
+    const elapsedSeconds = activeSession
+      ? Math.max(0, Math.floor((Date.now() - activeSession.startedAt.getTime()) / 1000))
+      : 0;
+
     client.emit('agent.heartbeat.ack', {
       ok: true,
       status: transition.pc.status,
       hourlyRate,
       isGuestLoginEnabled,
+      elapsedSeconds,
       serverTime: new Date().toISOString(),
     });
   }

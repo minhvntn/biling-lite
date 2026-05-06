@@ -263,6 +263,17 @@
                                     <MenuItem Header="Bỏ lọc tìm kiếm" Click="ContextClearMachineFiltersMenuItem_Click" />
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
+                            <DataGrid.ColumnHeaderStyle>
+                                <Style TargetType="DataGridColumnHeader">
+                                    <Setter Property="Background" Value="#EAE8E3" />
+                                    <Setter Property="Foreground" Value="#334155" />
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                    <Setter Property="Padding" Value="8,6" />
+                                    <Setter Property="BorderThickness" Value="0,0,1,1" />
+                                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                    <Setter Property="HorizontalContentAlignment" Value="Center" />
+                                </Style>
+                            </DataGrid.ColumnHeaderStyle>
                             <DataGrid.Columns>
                                 <DataGridTemplateColumn Header="Tên" Width="1.5*" MinWidth="130">
                                     <DataGridTemplateColumn.CellTemplate>
@@ -282,17 +293,119 @@
                                 <DataGridTemplateColumn Header="Tình trạng" Width="1.1*" MinWidth="120">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding StatusText}"
-                                                       Foreground="{Binding StatusBrush}"
-                                                       FontWeight="Bold"
-                                                       TextTrimming="CharacterEllipsis" />
+                                            <Border CornerRadius="0" Margin="-2">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding StatusCode}" Value="ONLINE">
+                                                                <Setter Property="Background" Value="#ECFDF5" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
+                                                                <Setter Property="Background" Value="#EFF6FF" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
+                                                                <Setter Property="Background" Value="#FEF2F2" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding StatusText}"
+                                                           FontWeight="Bold"
+                                                           VerticalAlignment="Center"
+                                                           HorizontalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="Gray" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding StatusCode}" Value="ONLINE">
+                                                                    <Setter Property="Foreground" Value="#16A34A" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
+                                                                    <Setter Property="Foreground" Value="#2563EB" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
+                                                                    <Setter Property="Foreground" Value="#DC2626" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Người sử dụng" Binding="{Binding UserName}" Width="1.1*" MinWidth="120" />
                                 <DataGridTextColumn Header="Bắt đầu" Binding="{Binding StartedAtText}" Width="0.95*" MinWidth="100" />
-                                <DataGridTextColumn Header="Đã sử dụng" Binding="{Binding UsedText}" Width="0.95*" MinWidth="100" />
-                                <DataGridTextColumn Header="Còn lại" Binding="{Binding RemainingText}" Width="0.95*" MinWidth="100" />
+                                <DataGridTemplateColumn Header="Đã sử dụng" Width="0.95*" MinWidth="100">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="0" Margin="-2">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
+                                                                <Setter Property="Background" Value="#FEF2F2" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding UsedText}"
+                                                           VerticalAlignment="Center"
+                                                           HorizontalAlignment="Center"
+                                                           FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#1E293B" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
+                                                                    <Setter Property="Foreground" Value="#DC2626" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Còn lại" Width="0.95*" MinWidth="100">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="0" Margin="-2">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
+                                                                <Setter Property="Background" Value="#EFF6FF" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding RemainingText}"
+                                                           VerticalAlignment="Center"
+                                                           HorizontalAlignment="Center"
+                                                           FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#1E293B" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
+                                                                    <Setter Property="Foreground" Value="#2563EB" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Tiền" Binding="{Binding MoneyText}" Width="0.8*" MinWidth="80" />
                                 <DataGridTextColumn Header="Ngày" Binding="{Binding DateText}" Width="0.95*" MinWidth="95" />
                                 <DataGridTextColumn Header="Phiên bản" Binding="{Binding VersionText}" Width="0.85*" MinWidth="90" />
@@ -1007,6 +1120,152 @@
                     </Grid>
                 </TabItem>
 
+                <TabItem x:Name="StatisticsTabItem">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📊" Margin="0,0,6,0" />
+                            <TextBlock Text="Thống kê" />
+                        </StackPanel>
+                    </TabItem.Header>
+                    <TabItem.Resources>
+                        <Style x:Key="ModernFilterButtonStyle" TargetType="Button">
+                            <Setter Property="Background" Value="#F3F4F6" />
+                            <Setter Property="Foreground" Value="#374151" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                            <Setter Property="Padding" Value="14,6" />
+                            <Setter Property="Cursor" Value="Hand" />
+                        </Style>
+                    </TabItem.Resources>
+                    
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                        <Grid Margin="16">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+                                <TextBlock Text="Khoảng thời gian:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="14" Margin="0,0,12,0" />
+                                <Button x:Name="StatsWeekButton" Content="Tuần này" Margin="0,0,8,0" Style="{StaticResource ModernFilterButtonStyle}" Click="StatsFilterButton_Click" Tag="week" />
+                                <Button x:Name="StatsMonthButton" Content="Tháng này" Margin="0,0,8,0" Style="{StaticResource ModernFilterButtonStyle}" Click="StatsFilterButton_Click" Tag="month" />
+                                <Button x:Name="StatsYearButton" Content="Năm nay" Style="{StaticResource ModernFilterButtonStyle}" Click="StatsFilterButton_Click" Tag="year" />
+                            </StackPanel>
+
+                            <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,20">
+                                <Border Margin="0,0,12,0" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="12" Padding="16">
+                                    <StackPanel>
+                                        <TextBlock Text="Doanh thu Giờ chơi" Foreground="#1E40AF" FontSize="13" FontWeight="Medium" />
+                                        <TextBlock x:Name="PlaytimeRevenueTextBlock" Text="-" FontSize="22" FontWeight="Bold" Foreground="#1E3A8A" Margin="0,8,0,0" />
+                                        <TextBlock x:Name="PlaytimeGrowthTextBlock" Text="▲ +12.5% so với kỳ trước" FontSize="11" Foreground="#15803D" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+                                
+                                <Border Margin="0,0,12,0" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="12" Padding="16">
+                                    <StackPanel>
+                                        <TextBlock Text="Doanh thu Dịch vụ" Foreground="#065F46" FontSize="13" FontWeight="Medium" />
+                                        <TextBlock x:Name="ServiceRevenueTextBlock" Text="-" FontSize="22" FontWeight="Bold" Foreground="#064E3B" Margin="0,8,0,0" />
+                                        <TextBlock x:Name="ServiceGrowthTextBlock" Text="▲ +8.2% so với kỳ trước" FontSize="11" Foreground="#15803D" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Margin="0,0,12,0" Background="#FAF5FF" BorderBrush="#D8B4FE" BorderThickness="1" CornerRadius="12" Padding="16">
+                                    <StackPanel>
+                                        <TextBlock Text="Tổng Doanh thu" Foreground="#6B21A8" FontSize="13" FontWeight="Medium" />
+                                        <TextBlock x:Name="TotalRevenueTextBlock" Text="-" FontSize="22" FontWeight="Bold" Foreground="#581C87" Margin="0,8,0,0" />
+                                        <TextBlock x:Name="TotalGrowthTextBlock" Text="▲ +11.3% so với kỳ trước" FontSize="11" Foreground="#15803D" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Background="#FFF7ED" BorderBrush="#FED7AA" BorderThickness="1" CornerRadius="12" Padding="16">
+                                    <StackPanel>
+                                        <TextBlock Text="Tổng Giờ chơi" Foreground="#9A3412" FontSize="13" FontWeight="Medium" />
+                                        <TextBlock x:Name="TotalPlayHoursTextBlock" Text="-" FontSize="22" FontWeight="Bold" Foreground="#7C2D12" Margin="0,8,0,0" />
+                                        <TextBlock x:Name="PlayHoursGrowthTextBlock" Text="▲ +15.1% so với kỳ trước" FontSize="11" Foreground="#15803D" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </UniformGrid>
+
+                            <Grid Grid.Row="2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="3*" />
+                                    <ColumnDefinition Width="16" />
+                                    <ColumnDefinition Width="2*" />
+                                </Grid.ColumnDefinitions>
+
+                                <Border Grid.Column="0" Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="12" Padding="20">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="24" />
+                                            <RowDefinition Height="250" />
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Grid.Row="0" Text="Biểu đồ Doanh thu" FontSize="16" FontWeight="Bold" Foreground="#1F2937" />
+                                        
+                                        <Grid Grid.Row="2" x:Name="RevenueBarsContainer">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Column="2" Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="12" Padding="20">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="12" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Grid.Row="0" Text="Hội viên chơi nhiều nhất" FontSize="16" FontWeight="Bold" Foreground="#1F2937" />
+
+                                        <ItemsControl Grid.Row="2" x:Name="TopMembersItemsControl">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,0,0,14">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="32" />
+                                                            <ColumnDefinition Width="32" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        
+                                                        <Border Grid.Column="0" Width="24" Height="24" CornerRadius="12" Background="{Binding RankBackground}" VerticalAlignment="Center" HorizontalAlignment="Left">
+                                                            <TextBlock Text="{Binding RankNumber}" FontSize="12" FontWeight="Bold" Foreground="{Binding RankForeground}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                        </Border>
+
+                                                        <TextBlock Grid.Column="1" Text="👤" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0" />
+
+                                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,12,0">
+                                                            <TextBlock Text="{Binding Username}" FontSize="14" FontWeight="SemiBold" Foreground="#1F2937" />
+                                                            <ProgressBar Height="6" Margin="0,4,0,0" Minimum="0" Maximum="100" Value="{Binding ProgressValue}" Foreground="{Binding BarColor}" Background="#F3F4F6" BorderThickness="0" />
+                                                        </StackPanel>
+
+                                                        <TextBlock Grid.Column="3" Text="{Binding PlayHoursText}" FontSize="14" FontWeight="Bold" Foreground="#374151" VerticalAlignment="Center" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Grid>
+                    </ScrollViewer>
+                </TabItem>
+
                 <TabItem>
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
@@ -1014,7 +1273,8 @@
                             <TextBlock Text="Cài đặt" />
                         </StackPanel>
                     </TabItem.Header>
-                    <Grid Margin="8">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                        <Grid Margin="8">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
@@ -1109,6 +1369,24 @@
                             <StackPanel Margin="0,20,0,0">
                                 <TextBlock FontSize="18" FontWeight="SemiBold" Text="Cài đặt máy trạm" />
                                 <CheckBox x:Name="GuestLoginEnabledCheckBox" Content="Cho phép đăng nhập Khách vãng lai" Margin="0,10,0,0" Checked="GuestLoginEnabledCheckBox_Changed" Unchecked="GuestLoginEnabledCheckBox_Changed" />
+
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                    <TextBlock VerticalAlignment="Center" Text="Bước giá tính tiền giờ (VND):" Margin="0,0,8,0" />
+                                    <TextBox x:Name="PricingStepTextBox"
+                                             Width="120"
+                                             Height="30"
+                                             VerticalContentAlignment="Center"
+                                             Text="1000" />
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                    <TextBlock VerticalAlignment="Center" Text="Phí mở máy tối thiểu (VND):" Margin="0,0,8,0" />
+                                    <TextBox x:Name="MinimumChargeTextBox"
+                                             Width="120"
+                                             Height="30"
+                                             VerticalContentAlignment="Center"
+                                             Text="1000" />
+                                </StackPanel>
                                 <StackPanel Margin="0,14,0,0">
                                     <TextBlock FontWeight="SemiBold" Text="Nen lock screen may tram" />
                                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
@@ -1152,6 +1430,7 @@
 
                         <TextBlock Grid.Row="12" Margin="0,12,0,0" Foreground="#555" Text="Thông tin: Cỡ chữ được xem trước ngay khi kéo thanh trượt." />
                     </Grid>
+                    </ScrollViewer>
                 </TabItem>
                 <TabItem>
                     <TabItem.Header>

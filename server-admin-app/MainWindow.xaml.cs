@@ -194,6 +194,10 @@ public partial class MainWindow : Window
 
         if (tabControl.SelectedItem is TabItem tabItem)
         {
+            if (tabItem == StatisticsTabItem)
+            {
+                await RefreshStatisticsAsync();
+            }
             var header = tabItem.Header?.ToString();
             switch (header)
             {
@@ -231,6 +235,7 @@ public partial class MainWindow : Window
         await LoadWebsiteLogSettingsAsync();
         await RefreshWebsiteLogsAsync();
         await RefreshLoyaltyRanksAsync();
+        await RefreshStatisticsAsync();
     }
 
     private bool IsMembersTabActive()
