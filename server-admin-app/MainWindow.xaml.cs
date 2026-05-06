@@ -57,6 +57,8 @@ public partial class MainWindow : Window
     private bool _readyShutdownSettingsInitialized;
     private bool _isLoadingReadyShutdownSettings;
     private int _readyAutoShutdownMinutes = 3;
+    private string _lockScreenBackgroundMode = "none";
+    private string _lockScreenBackgroundUrl = string.Empty;
     private bool _webFilterSettingsInitialized;
     private bool _isLoadingWebFilterSettings;
     private bool _websiteLogSettingsInitialized;
@@ -78,6 +80,18 @@ public partial class MainWindow : Window
     private const int MachinesTabIndex = 0;
     private const int MembersTabIndex = 1;
     private const int SystemLogsTabIndex = 2;
+    private const int MembersCacheTtlSeconds = 4;
+    private const int SystemLogsCacheTtlSeconds = 3;
+    private const int WebsiteLogsCacheTtlSeconds = 4;
+    private string _membersCacheKey = string.Empty;
+    private MemberListResponse? _membersCacheResponse;
+    private DateTime _membersCacheAtUtc = DateTime.MinValue;
+    private int _systemLogsCacheLimit = -1;
+    private SystemEventsResponse? _systemLogsCacheResponse;
+    private DateTime _systemLogsCacheAtUtc = DateTime.MinValue;
+    private string _websiteLogsCacheKey = string.Empty;
+    private WebsiteLogsResponse? _websiteLogsCacheResponse;
+    private DateTime _websiteLogsCacheAtUtc = DateTime.MinValue;
 
     public MainWindow()
     {
@@ -89,6 +103,7 @@ public partial class MainWindow : Window
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         _settings = LoadSettings();
+        UpdateServerIpDisplay();
         ApplyUiFontSize(_settings.UiFontSize);
         ApplyMachineTableFontSize(_settings.MachineTableFontSize);
         ApplyMachineContextMenuPadding(_settings.MachineContextMenuItemPadding);
@@ -226,6 +241,33 @@ public partial class MainWindow : Window
     private bool IsSystemLogsTabActive()
     {
         return IsLoaded && MainTabControl.SelectedIndex == SystemLogsTabIndex;
+    }
+
+    private static bool IsCacheValid(DateTime cachedAtUtc, int ttlSeconds)
+    {
+        return cachedAtUtc != DateTime.MinValue &&
+               (DateTime.UtcNow - cachedAtUtc) <= TimeSpan.FromSeconds(ttlSeconds);
+    }
+
+    private void InvalidateMembersCache()
+    {
+        _membersCacheAtUtc = DateTime.MinValue;
+        _membersCacheKey = string.Empty;
+        _membersCacheResponse = null;
+    }
+
+    private void InvalidateSystemLogsCache()
+    {
+        _systemLogsCacheAtUtc = DateTime.MinValue;
+        _systemLogsCacheLimit = -1;
+        _systemLogsCacheResponse = null;
+    }
+
+    private void InvalidateWebsiteLogsCache()
+    {
+        _websiteLogsCacheAtUtc = DateTime.MinValue;
+        _websiteLogsCacheKey = string.Empty;
+        _websiteLogsCacheResponse = null;
     }
 }
 

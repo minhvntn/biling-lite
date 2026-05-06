@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Globalization;
 using System.Net;
@@ -41,6 +41,7 @@ public partial class App : Application
     private LockScreenWindow? _lockScreenWindow;
     private MainWindow? _mainWindow;
     private ActiveMemberSession? _activeMemberSession;
+    private bool _isPostpaidGuestSession;
     private int _lastSyncedMemberUsedSeconds;
     private readonly SemaphoreSlim _memberUsageSyncLock = new(1, 1);
     private readonly DispatcherTimer _readyAutoShutdownTimer = new();
@@ -48,6 +49,8 @@ public partial class App : Application
     private bool _readyAutoShutdownTriggered;
     private bool _isReadyAutoShutdownTickRunning;
     private int _readyAutoShutdownMinutes = 3;
+    private string _lockScreenBackgroundMode = "none";
+    private string _lockScreenBackgroundUrl = string.Empty;
     private DateTime _lastRuntimeSettingsFetchUtc = DateTime.MinValue;
     private string _currentMachineState = "LOCKED";
     private readonly DispatcherTimer _webFilterSyncTimer = new();
@@ -113,53 +116,17 @@ public partial class App : Application
         _mainWindow.Show();
         TrackMachineState("LOCKED");
 
-        _readyAutoShutdownTimer.Interval = TimeSpan.FromSeconds(10);
-        _readyAutoShutdownTimer.Tick += ReadyAutoShutdownTimer_Tick;
-        _readyAutoShutdownTimer.Start();
-        _ = RefreshClientRuntimeSettingsAsync();
-
-        _webFilterSyncTimer.Interval = TimeSpan.FromSeconds(90);
-        _webFilterSyncTimer.Tick += WebFilterSyncTimer_Tick;
-        _webFilterSyncTimer.Start();
-        _ = RefreshAndApplyWebFilterAsync(true);
-
-        _websiteLogSyncTimer.Interval = TimeSpan.FromSeconds(60);
-        _websiteLogSyncTimer.Tick += WebsiteLogSyncTimer_Tick;
-        _websiteLogSyncTimer.Start();
-        _ = SyncWebsiteLogsAsync(true);
-
         _lockScreenWindow = new LockScreenWindow();
+        _lockScreenWindow.ApplyBackgroundConfiguration(_lockScreenBackgroundMode, _lockScreenBackgroundUrl);
+        _lockScreenWindow.SetCurrentServerUrl(_settings.ServerUrl);
         _lockScreenWindow.PrepareForLock();
 
-        _socketService = new AgentSocketService(
-            _settings,
-            _logger,
-            HandleCommandAsync,
-            OnConnectionStatusChanged,
-            OnAdminNotificationReceived,
-            HandleCaptureScreenshotRequestedAsync,
-            rate =>
-            {
-                _currentHourlyRate = rate;
-                Dispatcher.Invoke(() => _mainWindow?.UpdateHourlyRate(_currentHourlyRate));
-            },
-            isEnabled =>
-            {
-                Dispatcher.Invoke(() => _lockScreenWindow?.SetGuestLoginEnabled(isEnabled));
-            });
+        StartSocketService();
 
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await _socketService.StartAsync();
-            }
-            catch (Exception ex)
-            {
-                await _logger.ErrorAsync("Socket initialization failed", ex);
-                Dispatcher.Invoke(() => _mainWindow.SetConnectionStatus("Disconnected"));
-            }
-        });
+        // Defer non-critical startup work so lock screen becomes interactive sooner.
+        Dispatcher.BeginInvoke(
+            DispatcherPriority.Background,
+            new Action(StartDeferredStartupTasks));
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -194,6 +161,82 @@ public partial class App : Application
         _memberUsageSyncLock.Dispose();
 
         base.OnExit(e);
+    }
+
+    private void StartDeferredStartupTasks()
+    {
+        _readyAutoShutdownTimer.Interval = TimeSpan.FromSeconds(10);
+        _readyAutoShutdownTimer.Tick += ReadyAutoShutdownTimer_Tick;
+        _readyAutoShutdownTimer.Start();
+        _ = RefreshClientRuntimeSettingsAsync();
+
+        _webFilterSyncTimer.Interval = TimeSpan.FromSeconds(90);
+        _webFilterSyncTimer.Tick += WebFilterSyncTimer_Tick;
+        _webFilterSyncTimer.Start();
+        _ = RefreshAndApplyWebFilterAsync(true);
+
+        _websiteLogSyncTimer.Interval = TimeSpan.FromSeconds(60);
+        _websiteLogSyncTimer.Tick += WebsiteLogSyncTimer_Tick;
+        _websiteLogSyncTimer.Start();
+        _ = SyncWebsiteLogsAsync(true);
+    }
+
+    private void StartSocketService()
+    {
+        if (_logger is null)
+        {
+            return;
+        }
+
+        _socketService = new AgentSocketService(
+            _settings,
+            _logger,
+            HandleCommandAsync,
+            OnConnectionStatusChanged,
+            OnAdminNotificationReceived,
+            HandleCaptureScreenshotRequestedAsync,
+            rate =>
+            {
+                _currentHourlyRate = rate;
+                Dispatcher.Invoke(() => _mainWindow?.UpdateHourlyRate(_currentHourlyRate));
+            },
+            isEnabled =>
+            {
+                Dispatcher.Invoke(() => _lockScreenWindow?.SetGuestLoginEnabled(isEnabled));
+            });
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _socketService.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync("Socket initialization failed", ex);
+                Dispatcher.Invoke(() => _mainWindow?.SetConnectionStatus("Disconnected"));
+            }
+        });
+    }
+
+    private async Task ReconnectSocketServiceAsync()
+    {
+        if (_socketService is not null)
+        {
+            try
+            {
+                await _socketService.DisposeAsync();
+            }
+            catch
+            {
+                // ignore reconnect teardown error
+            }
+
+            _socketService = null;
+        }
+
+        Dispatcher.Invoke(() => _mainWindow?.SetConnectionStatus("Reconnecting..."));
+        StartSocketService();
     }
 
     private bool EnsureSingleInstance()
@@ -232,19 +275,22 @@ public partial class App : Application
             {
                 case "OPEN":
                     await TrackAndClearMemberSessionAsync("SERVER_OPEN");
+                    _isPostpaidGuestSession = true;
                     if (payload.HourlyRate is > 0)
                     {
                         _currentHourlyRate = payload.HourlyRate.Value;
                         _mainWindow?.ConfigureBilling(
                             _settings.TotalSessionMinutes,
-                            _currentHourlyRate);
+                            _currentHourlyRate,
+                            true);
                     }
                     Dispatcher.Invoke(UnlockMachine);
                     return (true, "opened");
 
                 case "LOCK":
                     await TrackAndClearMemberSessionAsync("SERVER_LOCK");
-                    Dispatcher.Invoke(LockMachine);
+                    _isPostpaidGuestSession = false;
+                    Dispatcher.Invoke(() => LockMachine(force: true));
                     return (true, "locked");
 
                 case "RESTART":
@@ -270,6 +316,7 @@ public partial class App : Application
                     return (true, "paused");
 
                 case "RESUME":
+                    _isPostpaidGuestSession = false;
                     if (payload.HourlyRate is > 0)
                     {
                         _currentHourlyRate = payload.HourlyRate.Value;
@@ -294,10 +341,19 @@ public partial class App : Application
 
     public async void RequestLockFromClientUi(string reason)
     {
+        if (_isPostpaidGuestSession)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _mainWindow?.SetLastCommand($"BỎ QUA KHÓA (khách trả sau) @ {DateTime.Now:HH:mm:ss}");
+            });
+            return;
+        }
+
         await TrackAndClearMemberSessionAsync(reason);
         Dispatcher.Invoke(() =>
         {
-            LockMachine();
+            LockMachine(force: false);
             _mainWindow?.SetLastCommand($"{reason} @ {DateTime.Now:HH:mm:ss}");
         });
     }
@@ -309,28 +365,63 @@ public partial class App : Application
         var normalizedUsername = username.Trim();
         if (string.IsNullOrWhiteSpace(normalizedUsername) || string.IsNullOrEmpty(password))
         {
-            return new LoginAttemptResult(false, "Vui lòng nhập tên đăng nhập và mật khẩu.");
+            return new LoginAttemptResult(false, "Vui long nhap ten dang nhap va mat khau.");
         }
 
-        // Check if this is an agent-admin login (verified by server)
+        // Check if this is an agent-admin login (verified by server).
         bool isAgentAdmin = false;
+        var adminEndpointUnavailable = false;
+        var adminCheckException = false;
+
         try
         {
             using var adminCheckResp = await _httpClient.PostAsJsonAsync(
                 BuildApiUrl("/settings/agent-admin/login"),
                 new { username = normalizedUsername, password });
-            isAgentAdmin = adminCheckResp.IsSuccessStatusCode;
+
+            if (adminCheckResp.IsSuccessStatusCode)
+            {
+                isAgentAdmin = true;
+            }
+            else if (adminCheckResp.StatusCode is HttpStatusCode.NotFound or
+                     HttpStatusCode.MethodNotAllowed or
+                     HttpStatusCode.NotImplemented)
+            {
+                adminEndpointUnavailable = true;
+                if (_logger is not null)
+                {
+                    await _logger.InfoAsync(
+                        $"Agent admin endpoint unavailable: {(int)adminCheckResp.StatusCode}");
+                }
+            }
         }
-        catch
+        catch (Exception ex)
         {
-            // If server unreachable, fall back to local default
-            isAgentAdmin = normalizedUsername.Equals("admin", StringComparison.OrdinalIgnoreCase)
-                && password == "admin";
+            adminCheckException = true;
+            if (_logger is not null)
+            {
+                await _logger.ErrorAsync("Agent admin login check failed", ex);
+            }
+        }
+
+        // Backward-compatible fallback when server is unreachable
+        // or backend is old and does not expose /settings/agent-admin/login.
+        if (!isAgentAdmin &&
+            normalizedUsername.Equals("admin", StringComparison.OrdinalIgnoreCase) &&
+            password == "admin" &&
+            (adminCheckException || adminEndpointUnavailable))
+        {
+            isAgentAdmin = true;
+            if (_logger is not null)
+            {
+                await _logger.InfoAsync("Using local fallback admin login (admin/admin)");
+            }
         }
 
         if (isAgentAdmin)
         {
             _activeMemberSession = null;
+            _isPostpaidGuestSession = false;
             _lastSyncedMemberUsedSeconds = 0;
             Dispatcher.Invoke(() =>
             {
@@ -342,7 +433,7 @@ public partial class App : Application
                 _mainWindow?.SetLastCommand($"ADMIN LOGIN @ {DateTime.Now:HH:mm:ss}");
             });
 
-            return new LoginAttemptResult(true, "Đăng nhập quản trị thành công.");
+            return new LoginAttemptResult(true, "Dang nhap quan tri thanh cong.");
         }
 
         try
@@ -359,15 +450,21 @@ public partial class App : Application
             if (!response.IsSuccessStatusCode)
             {
                 var errorText = await ReadErrorMessageAsync(response);
+                if (_logger is not null)
+                {
+                    await _logger.InfoAsync(
+                        $"Member login failed: {(int)response.StatusCode} {response.StatusCode} user={normalizedUsername}");
+                }
+
                 return new LoginAttemptResult(
                     false,
                     string.IsNullOrWhiteSpace(errorText)
-                        ? "Đăng nhập không thành công."
+                        ? "Dang nhap khong thanh cong."
                         : errorText);
             }
 
             var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
-            
+
             if (payload.TryGetProperty("hourlyRate", out var rateElement))
             {
                 _currentHourlyRate = rateElement.GetDecimal();
@@ -375,7 +472,7 @@ public partial class App : Application
 
             if (!payload.TryGetProperty("member", out var memberElement))
             {
-                return new LoginAttemptResult(false, "Không đọc được thông tin hội viên.");
+                return new LoginAttemptResult(false, "Khong doc duoc thong tin hoi vien.");
             }
 
             var member = JsonSerializer.Deserialize<MemberLoginItem>(
@@ -384,12 +481,12 @@ public partial class App : Application
 
             if (member is null)
             {
-                return new LoginAttemptResult(false, "Không giải mã được thông tin hội viên.");
+                return new LoginAttemptResult(false, "Khong giai ma duoc thong tin hoi vien.");
             }
 
             if (string.IsNullOrWhiteSpace(member.Id))
             {
-                return new LoginAttemptResult(false, "Thiếu mã hội viên từ máy chủ.");
+                return new LoginAttemptResult(false, "Thieu ma hoi vien tu may chu.");
             }
 
             _activeMemberSession = new ActiveMemberSession
@@ -399,13 +496,19 @@ public partial class App : Application
                 FullName = member.FullName,
                 Rank = member.Rank,
             };
+            _isPostpaidGuestSession = false;
             _lastSyncedMemberUsedSeconds = 0;
 
             await ReportMemberPresenceAsync(_activeMemberSession, true);
 
             Dispatcher.Invoke(() =>
             {
-                var totalMinutes = Math.Max(1, member.PlaySeconds / 60);
+                var totalMinutes = ComputeMinutesFromBalance(member.Balance, _currentHourlyRate);
+                if (totalMinutes <= 0)
+                {
+                    totalMinutes = Math.Max(1, member.PlaySeconds / 60);
+                }
+
                 _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true);
                 _mainWindow?.SetMemberInfo(member.Username, member.Rank);
                 UnlockMachine();
@@ -415,7 +518,7 @@ public partial class App : Application
 
             return new LoginAttemptResult(
                 true,
-                $"Đăng nhập thành công: {member.Username}");
+                $"Dang nhap thanh cong: {member.Username}");
         }
         catch (Exception ex)
         {
@@ -424,29 +527,73 @@ public partial class App : Application
                 await _logger.ErrorAsync("Lock screen member login failed", ex);
             }
 
-            return new LoginAttemptResult(false, $"Không thể kết nối server: {ex.Message}");
+            return new LoginAttemptResult(false, $"Khong the ket noi server: {ex.Message}");
         }
     }
+public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
+    {
+        var primaryAgentId = (_settings.AgentId ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(primaryAgentId))
+        {
+            primaryAgentId = Environment.MachineName;
+        }
 
-    public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
+        var primaryResult = await TryUnlockAsGuestWithAgentIdAsync(primaryAgentId);
+        if (primaryResult.Success)
+        {
+            return primaryResult;
+        }
+
+        var fallbackAgentId = Environment.MachineName.Trim();
+        if (!primaryAgentId.Equals(fallbackAgentId, StringComparison.OrdinalIgnoreCase) &&
+            ShouldRetryGuestLoginWithFallback(primaryResult.Message))
+        {
+            if (_logger is not null)
+            {
+                await _logger.InfoAsync(
+                    $"Guest login fallback: primaryAgentId={primaryAgentId}, fallbackAgentId={fallbackAgentId}");
+            }
+
+            var fallbackResult = await TryUnlockAsGuestWithAgentIdAsync(fallbackAgentId);
+            if (fallbackResult.Success)
+            {
+                return fallbackResult;
+            }
+
+            return new LoginAttemptResult(
+                false,
+                $"{fallbackResult.Message} (Thu lai bang AgentId khac: {fallbackAgentId})");
+        }
+
+        return primaryResult;
+    }
+
+    private async Task<LoginAttemptResult> TryUnlockAsGuestWithAgentIdAsync(string agentId)
     {
         try
         {
             using var response = await _httpClient.PostAsync(
-                BuildApiUrl($"/pcs/{_settings.AgentId}/guest-login"),
+                BuildApiUrl($"/pcs/{agentId}/guest-login"),
                 null);
 
             if (!response.IsSuccessStatusCode)
             {
                 var errorText = await ReadErrorMessageAsync(response);
+                if (_logger is not null)
+                {
+                    await _logger.InfoAsync(
+                        $"Guest login failed: {(int)response.StatusCode} {response.StatusCode} agentId={agentId}");
+                }
+
                 return new LoginAttemptResult(
                     false,
                     string.IsNullOrWhiteSpace(errorText)
-                        ? "Không thể đăng nhập khách vãng lai."
+                        ? "Khong the dang nhap khach vang lai."
                         : errorText);
             }
 
             _activeMemberSession = null;
+            _isPostpaidGuestSession = true;
             _lastSyncedMemberUsedSeconds = 0;
 
             var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -463,16 +610,16 @@ public partial class App : Application
                     _settings.TotalSessionMinutes,
                     _currentHourlyRate,
                     true);
-                
+
                 _mainWindow?.SetMemberInfo(null, null);
-                
+
                 UnlockMachine();
                 _mainWindow?.SetLastCommand($"GUEST LOGIN @ {DateTime.Now:HH:mm:ss}");
             });
 
             _ = ReportGuestPresenceAsync(true);
 
-            return new LoginAttemptResult(true, "Đăng nhập khách vãng lai thành công.");
+            return new LoginAttemptResult(true, "Dang nhap khach vang lai thanh cong.");
         }
         catch (Exception ex)
         {
@@ -481,11 +628,35 @@ public partial class App : Application
                 await _logger.ErrorAsync("Lock screen guest login failed", ex);
             }
 
-            return new LoginAttemptResult(false, $"Không thể kết nối server: {ex.Message}");
+            return new LoginAttemptResult(false, $"Khong the ket noi server: {ex.Message}");
         }
     }
 
-    public async void OpenLoyaltyPanelFromClientUi()
+    private static bool ShouldRetryGuestLoginWithFallback(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return false;
+        }
+
+        var normalized = message.ToLowerInvariant();
+        return normalized.Contains("khong tim thay may") ||
+               normalized.Contains("not found") ||
+               normalized.Contains("machine not found");
+    }
+
+    private static int ComputeMinutesFromBalance(decimal balance, decimal hourlyRate)
+    {
+        if (balance <= 0 || hourlyRate <= 0)
+        {
+            return 0;
+        }
+
+        var minutes = (int)Math.Floor((balance / hourlyRate) * 60m);
+        return Math.Max(0, minutes);
+    }
+
+public async void OpenLoyaltyPanelFromClientUi()
     {
         var activeSession = _activeMemberSession;
         if (activeSession is null)
@@ -697,7 +868,14 @@ public partial class App : Application
             try
             {
                 // 1. Verify current password via login
-                using var loginResp = await _httpClient.PostAsJsonAsync(BuildApiUrl("/members/login"), new { username = activeSession.Username, password = currentPwd });
+                using var loginResp = await _httpClient.PostAsJsonAsync(
+                    BuildApiUrl("/members/login"),
+                    new
+                    {
+                        username = activeSession.Username,
+                        password = currentPwd,
+                        agentId = _settings.AgentId,
+                    });
                 if (!loginResp.IsSuccessStatusCode)
                 {
                     errorText.Text = "Mật khẩu hiện tại không chính xác.";
@@ -813,7 +991,12 @@ public partial class App : Application
             {
                 using var response = await _httpClient.PostAsJsonAsync(
                     BuildApiUrl("/members/login"),
-                    new { username, password = pwd });
+                    new
+                    {
+                        username,
+                        password = pwd,
+                        agentId = _settings.AgentId,
+                    });
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -1164,6 +1347,14 @@ public partial class App : Application
             }
 
             _readyAutoShutdownMinutes = Math.Clamp(payload.ReadyAutoShutdownMinutes, 1, 240);
+            _lockScreenBackgroundMode = NormalizeLockScreenBackgroundMode(payload.LockScreenBackgroundMode);
+            _lockScreenBackgroundUrl = (payload.LockScreenBackgroundUrl ?? string.Empty).Trim();
+            Dispatcher.Invoke(() =>
+            {
+                _lockScreenWindow?.ApplyBackgroundConfiguration(
+                    _lockScreenBackgroundMode,
+                    _lockScreenBackgroundUrl);
+            });
         }
         catch (Exception ex)
         {
@@ -1222,7 +1413,8 @@ public partial class App : Application
     private bool IsReadyStateForAutoShutdown()
     {
         var code = _currentMachineState.Trim().ToUpperInvariant();
-        return code is "ONLINE" or "LOCKED";
+        // LOCKED means the usage session is locked behind login screen, not idle-ready for power off.
+        return code is "ONLINE";
     }
 
     private void TrackMachineState(string state)
@@ -1247,6 +1439,12 @@ public partial class App : Application
 
         _readyIdleSinceUtc = null;
         _readyAutoShutdownTriggered = false;
+    }
+
+    private static string NormalizeLockScreenBackgroundMode(string? mode)
+    {
+        var normalized = (mode ?? string.Empty).Trim().ToLowerInvariant();
+        return normalized is "image" or "video" ? normalized : "none";
     }
 
     private async void WebFilterSyncTimer_Tick(object? sender, EventArgs e)
@@ -2157,8 +2355,13 @@ LIMIT $limit;";
             await SyncActiveMemberUsageAsync(reason, true);
             await ReportMemberPresenceAsync(activeSession, false);
         }
+        else if (_isPostpaidGuestSession)
+        {
+            await ReportGuestPresenceAsync(false);
+        }
 
         _activeMemberSession = null;
+        _isPostpaidGuestSession = false;
         _lastSyncedMemberUsedSeconds = 0;
         TrackMachineState(_currentMachineState);
         
@@ -2940,8 +3143,13 @@ LIMIT $limit;";
         dialog.ShowDialog();
     }
 
-    private void LockMachine()
+    private void LockMachine(bool force)
     {
+        if (!force && _isPostpaidGuestSession)
+        {
+            return;
+        }
+
         _lockScreenWindow?.PrepareForLock();
 
         _mainWindow?.SetMachineState("LOCKED");
@@ -3310,6 +3518,8 @@ public sealed class LoyaltySettingsResponse
 public sealed class ClientRuntimeSettingsResponse
 {
     public int ReadyAutoShutdownMinutes { get; set; }
+    public string LockScreenBackgroundMode { get; set; } = "none";
+    public string LockScreenBackgroundUrl { get; set; } = string.Empty;
 
     public string ServerTime { get; set; } = string.Empty;
 }
@@ -3401,3 +3611,5 @@ public sealed class ActiveMemberSession
 
     public string? Rank { get; set; }
 }
+
+

@@ -27,6 +27,8 @@ $serviceJson = Get-Content -Path $serviceSettingsPath -Raw | ConvertFrom-Json
 $serviceJson.Watchdog.AgentProcessName = "Client.Agent.Wpf"
 $serviceJson.Watchdog.AgentExecutablePath = "C:\Program Files\ServerManagerBilling\Agent\Client.Agent.Wpf.exe"
 $serviceJson.Watchdog.ScheduledTaskName = "ServerManagerBillingAgent"
+$serviceJson.Watchdog.CheckIntervalSeconds = 2
+$serviceJson.Watchdog.RestartCooldownSeconds = 5
 $serviceJson | ConvertTo-Json -Depth 10 | Set-Content -Path $serviceSettingsPath -Encoding UTF8
 
 Write-Host "Configured day5 package successfully."

@@ -81,7 +81,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task RefreshWebsiteLogsAsync()
+    private async Task RefreshWebsiteLogsAsync(bool forceRefresh = false)
     {
         try
         {
@@ -89,6 +89,8 @@ public partial class MainWindow : Window
             var search = WebsiteLogSearchTextBox.Text.Trim();
             var pcId = GetSelectedWebsiteLogPcId();
             var (fromUtc, toUtc) = GetWebsiteLogRange();
+            var cacheKey =
+                $"{limit}|{pcId ?? string.Empty}|{search.ToLowerInvariant()}|{fromUtc?.ToString("O", CultureInfo.InvariantCulture) ?? "-"}|{toUtc?.ToString("O", CultureInfo.InvariantCulture) ?? "-"}";
 
             var queryPairs = new List<string>
             {
@@ -117,8 +119,26 @@ public partial class MainWindow : Window
                     $"to={Uri.EscapeDataString(toUtc.Value.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture))}");
             }
 
-            var url = BuildApiUrl($"/website-logs?{string.Join("&", queryPairs)}");
-            var response = await _httpClient.GetFromJsonAsync<WebsiteLogsResponse>(url, JsonOptions());
+            WebsiteLogsResponse? response;
+            if (!forceRefresh &&
+                _websiteLogsCacheResponse is not null &&
+                string.Equals(_websiteLogsCacheKey, cacheKey, StringComparison.Ordinal) &&
+                IsCacheValid(_websiteLogsCacheAtUtc, WebsiteLogsCacheTtlSeconds))
+            {
+                response = _websiteLogsCacheResponse;
+            }
+            else
+            {
+                var url = BuildApiUrl($"/website-logs?{string.Join("&", queryPairs)}");
+                response = await _httpClient.GetFromJsonAsync<WebsiteLogsResponse>(url, JsonOptions());
+                if (response is not null)
+                {
+                    _websiteLogsCacheResponse = response;
+                    _websiteLogsCacheKey = cacheKey;
+                    _websiteLogsCacheAtUtc = DateTime.UtcNow;
+                }
+            }
+
             if (response is null)
             {
                 return;
@@ -269,7 +289,7 @@ public partial class MainWindow : Window
         WebsiteLogsStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
     }
 
-    private async void RefreshWebsiteLogsButton_Click(object sender, RoutedEventArgs e) => await RefreshWebsiteLogsAsync();
+    private async void RefreshWebsiteLogsButton_Click(object sender, RoutedEventArgs e) => await RefreshWebsiteLogsAsync(forceRefresh: true);
 
     private async void ReloadWebsiteLogSettingsButton_Click(object sender, RoutedEventArgs e)
     {
@@ -333,4 +353,3 @@ public partial class MainWindow : Window
 
     private void WebsiteLogsEnabledCheckBox_Unchecked(object sender, RoutedEventArgs e) => MarkWebsiteLogSettingsPendingChange();
 }
-

@@ -47,6 +47,7 @@ public sealed class ActiveMemberInfo
     public string MemberId { get; set; } = string.Empty;
     public string Username { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
+    public decimal Balance { get; set; }
 }
 
 public sealed class ActiveGuestInfo
@@ -135,6 +136,8 @@ public sealed class LoyaltySettingsResponse
 public sealed class ClientRuntimeSettingsResponse
 {
     public int ReadyAutoShutdownMinutes { get; set; }
+    public string LockScreenBackgroundMode { get; set; } = "none";
+    public string LockScreenBackgroundUrl { get; set; } = string.Empty;
     public string ServerTime { get; set; } = string.Empty;
 }
 

@@ -10,6 +10,43 @@ namespace Client.Agent.Wpf;
 
 public partial class App : Application
 {
+    public async Task<LoginAttemptResult> UpdateServerEndpointFromLockScreenAsync(string input)
+    {
+        if (!TryNormalizeServerUrl(input, out var normalized, out var error))
+        {
+            return new LoginAttemptResult(false, error);
+        }
+
+        if (IsLocalServerEndpoint(normalized))
+        {
+            return new LoginAttemptResult(false, "Khong dung localhost/127.0.0.1. Hay nhap IP may chu.");
+        }
+
+        try
+        {
+            using var timeoutCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(6));
+            var probeUrl = BuildApiUrlFromServerBase(normalized, "/settings");
+            using var response = await _httpClient.GetAsync(probeUrl, timeoutCts.Token);
+            if (!response.IsSuccessStatusCode)
+            {
+                return new LoginAttemptResult(
+                    false,
+                    $"Khong ket noi duoc server ({(int)response.StatusCode}).");
+            }
+        }
+        catch (Exception ex)
+        {
+            return new LoginAttemptResult(false, $"Khong ket noi duoc server: {ex.Message}");
+        }
+
+        _settings.ServerUrl = normalized;
+        SaveWritableSettings(_settings);
+        await ReconnectSocketServiceAsync();
+
+        _lockScreenWindow?.SetCurrentServerUrl(_settings.ServerUrl);
+        return new LoginAttemptResult(true, $"Da luu server: {_settings.ServerUrl}");
+    }
+
     private bool EnsureServerEndpointConfigured()
     {
         if (TryNormalizeServerUrl(_settings.ServerUrl, out var normalized, out _) &&
@@ -263,5 +300,16 @@ public partial class App : Application
         });
 
         File.WriteAllText(GetWritableSettingsPath(), json);
+    }
+
+    private static string BuildApiUrlFromServerBase(string serverBase, string path)
+    {
+        var normalizedBase = serverBase.TrimEnd('/');
+        var apiBase = normalizedBase.EndsWith("/api/v1", StringComparison.OrdinalIgnoreCase)
+            ? normalizedBase
+            : $"{normalizedBase}/api/v1";
+
+        var baseUri = new Uri($"{apiBase.TrimEnd('/')}/");
+        return new Uri(baseUri, path.TrimStart('/')).ToString();
     }
 }

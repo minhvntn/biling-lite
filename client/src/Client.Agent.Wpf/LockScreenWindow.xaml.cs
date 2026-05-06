@@ -1,6 +1,8 @@
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 
 namespace Client.Agent.Wpf;
 
@@ -8,6 +10,8 @@ public partial class LockScreenWindow : Window
 {
     private bool _allowClose;
     private bool _isAuthenticating;
+    private string _backgroundMode = "none";
+    private string _backgroundSource = string.Empty;
 
     public LockScreenWindow()
     {
@@ -16,7 +20,36 @@ public partial class LockScreenWindow : Window
 
     public void SetGuestLoginEnabled(bool isEnabled)
     {
-        GuestLoginButton.Visibility = isEnabled ? Visibility.Visible : Visibility.Collapsed;
+        GuestTabItem.Visibility = isEnabled ? Visibility.Visible : Visibility.Collapsed;
+        if (!isEnabled && LoginModeTabControl.SelectedItem == GuestTabItem)
+        {
+            LoginModeTabControl.SelectedItem = MemberTabItem;
+        }
+    }
+
+    public void SetCurrentServerUrl(string serverUrl)
+    {
+        ServerIpTextBox.Text = (serverUrl ?? string.Empty).Trim();
+    }
+
+    public void ApplyBackgroundConfiguration(string? mode, string? source)
+    {
+        _backgroundMode = NormalizeBackgroundMode(mode);
+        _backgroundSource = (source ?? string.Empty).Trim();
+
+        if (_backgroundMode == "none" || string.IsNullOrWhiteSpace(_backgroundSource))
+        {
+            ClearBackgroundMedia();
+            return;
+        }
+
+        if (_backgroundMode == "image")
+        {
+            TryApplyImageBackground(_backgroundSource);
+            return;
+        }
+
+        TryApplyVideoBackground(_backgroundSource);
     }
 
     public void PrepareForLock()
@@ -26,11 +59,30 @@ public partial class LockScreenWindow : Window
         PasswordBox.IsEnabled = true;
         LoginButton.IsEnabled = true;
         GuestLoginButton.IsEnabled = true;
+        SaveServerButton.IsEnabled = true;
+        ServerIpTextBox.IsEnabled = true;
         LoginButton.Content = "Đăng nhập";
         GuestLoginButton.Content = "Sử dụng Khách vãng lai";
+        SaveServerButton.Content = "Lưu và kết nối lại";
+        LoginModeTabControl.SelectedItem = MemberTabItem;
 
         PasswordBox.Password = string.Empty;
         ErrorTextBlock.Text = string.Empty;
+        ServerSetupStatusTextBlock.Text = string.Empty;
+
+        if (_backgroundMode == "video" &&
+            !string.IsNullOrWhiteSpace(_backgroundSource) &&
+            BackgroundVideoElement.Source is not null)
+        {
+            try
+            {
+                BackgroundVideoElement.Position = TimeSpan.Zero;
+                BackgroundVideoElement.Play();
+            }
+            catch
+            {
+            }
+        }
 
         Show();
         Activate();
@@ -110,6 +162,52 @@ public partial class LockScreenWindow : Window
         await SubmitLoginAsync();
     }
 
+    private async void SaveServerButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isAuthenticating)
+        {
+            return;
+        }
+
+        if (Application.Current is not App app)
+        {
+            ServerSetupStatusTextBlock.Foreground =
+                new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Firebrick);
+            ServerSetupStatusTextBlock.Text = "Ứng dụng chưa sẵn sàng.";
+            return;
+        }
+
+        try
+        {
+            SetBusy(true);
+            ErrorTextBlock.Text = string.Empty;
+            ServerSetupStatusTextBlock.Text = string.Empty;
+
+            var result = await app.UpdateServerEndpointFromLockScreenAsync(ServerIpTextBox.Text.Trim());
+            if (result.Success)
+            {
+                ServerSetupStatusTextBlock.Foreground =
+                    new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.DarkGreen);
+                ServerSetupStatusTextBlock.Text = result.Message;
+                return;
+            }
+
+            ServerSetupStatusTextBlock.Foreground =
+                new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Firebrick);
+            ServerSetupStatusTextBlock.Text = result.Message ?? "Cập nhật server thất bại.";
+        }
+        catch (Exception ex)
+        {
+            ServerSetupStatusTextBlock.Foreground =
+                new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Firebrick);
+            ServerSetupStatusTextBlock.Text = $"Lỗi hệ thống: {ex.Message}";
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
     private async Task SubmitLoginAsync()
     {
         if (_isAuthenticating)
@@ -165,6 +263,8 @@ public partial class LockScreenWindow : Window
         PasswordBox.IsEnabled = !isBusy;
         LoginButton.IsEnabled = !isBusy;
         GuestLoginButton.IsEnabled = !isBusy;
+        SaveServerButton.IsEnabled = !isBusy;
+        ServerIpTextBox.IsEnabled = !isBusy;
 
         if (isBusy)
         {
@@ -176,11 +276,121 @@ public partial class LockScreenWindow : Window
             {
                 LoginButton.Content = "Đang kiểm tra...";
             }
+
+            SaveServerButton.Content = "Đang cập nhật...";
         }
         else
         {
             LoginButton.Content = "Đăng nhập";
             GuestLoginButton.Content = "Sử dụng Khách vãng lai";
+            SaveServerButton.Content = "Lưu và kết nối lại";
         }
     }
+
+    private static string NormalizeBackgroundMode(string? mode)
+    {
+        var normalized = (mode ?? string.Empty).Trim().ToLowerInvariant();
+        return normalized is "image" or "video" ? normalized : "none";
+    }
+
+    private void ClearBackgroundMedia()
+    {
+        try
+        {
+            BackgroundVideoElement.Stop();
+        }
+        catch
+        {
+        }
+
+        BackgroundVideoElement.Source = null;
+        BackgroundVideoElement.Visibility = Visibility.Collapsed;
+        BackgroundImageElement.Source = null;
+        BackgroundImageElement.Visibility = Visibility.Collapsed;
+    }
+
+    private void TryApplyImageBackground(string source)
+    {
+        try
+        {
+            var uri = BuildBackgroundUri(source);
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.UriSource = uri;
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.EndInit();
+            image.Freeze();
+
+            BackgroundImageElement.Source = image;
+            BackgroundImageElement.Visibility = Visibility.Visible;
+
+            BackgroundVideoElement.Stop();
+            BackgroundVideoElement.Source = null;
+            BackgroundVideoElement.Visibility = Visibility.Collapsed;
+        }
+        catch
+        {
+            ClearBackgroundMedia();
+        }
+    }
+
+    private void TryApplyVideoBackground(string source)
+    {
+        try
+        {
+            var uri = BuildBackgroundUri(source);
+            BackgroundImageElement.Source = null;
+            BackgroundImageElement.Visibility = Visibility.Collapsed;
+
+            BackgroundVideoElement.Source = uri;
+            BackgroundVideoElement.Visibility = Visibility.Visible;
+            BackgroundVideoElement.Position = TimeSpan.Zero;
+            BackgroundVideoElement.Play();
+        }
+        catch
+        {
+            ClearBackgroundMedia();
+        }
+    }
+
+    private static Uri BuildBackgroundUri(string source)
+    {
+        var raw = (source ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            throw new ArgumentException("Background source is empty.", nameof(source));
+        }
+
+        if (Uri.TryCreate(raw, UriKind.Absolute, out var absolute))
+        {
+            return absolute;
+        }
+
+        var expanded = Environment.ExpandEnvironmentVariables(raw);
+        if (!Path.IsPathRooted(expanded))
+        {
+            expanded = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, expanded));
+        }
+
+        return new Uri(expanded, UriKind.Absolute);
+    }
+
+    private void BackgroundVideoElement_MediaEnded(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            BackgroundVideoElement.Position = TimeSpan.Zero;
+            BackgroundVideoElement.Play();
+        }
+        catch
+        {
+        }
+    }
+
+    private void BackgroundVideoElement_MediaFailed(object sender, ExceptionRoutedEventArgs e)
+    {
+        ClearBackgroundMedia();
+    }
 }
+
+

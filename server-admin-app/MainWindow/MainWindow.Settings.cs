@@ -2,8 +2,10 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
@@ -12,6 +14,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Microsoft.Win32;
 
 namespace Server.Admin.App;
 public partial class MainWindow : Window
@@ -39,6 +42,35 @@ public partial class MainWindow : Window
     {
         HealthTextBlock.Text = text;
         HealthIndicator.Fill = (SolidColorBrush)new BrushConverter().ConvertFromString(colorHex)!;
+    }
+
+    private void UpdateServerIpDisplay()
+    {
+        if (ServerIpTextBlock is null)
+        {
+            return;
+        }
+
+        var backendHostText = string.Empty;
+        if (Uri.TryCreate(_settings.BackendApiBaseUrl, UriKind.Absolute, out var backendUri) &&
+            !string.IsNullOrWhiteSpace(backendUri.Host))
+        {
+            backendHostText = backendUri.IsDefaultPort
+                ? backendUri.Host
+                : $"{backendUri.Host}:{backendUri.Port}";
+        }
+
+        var lanIps = Dns.GetHostAddresses(Dns.GetHostName())
+            .Where(ip => ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip))
+            .Select(ip => ip.ToString())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(ip => ip)
+            .ToList();
+
+        var ipText = lanIps.Count == 0 ? "-" : string.Join(", ", lanIps);
+        ServerIpTextBlock.Text = string.IsNullOrWhiteSpace(backendHostText)
+            ? $"Server IP: {ipText}"
+            : $"Server IP: {ipText} | API: {backendHostText}";
     }
 
     private static JsonSerializerOptions JsonOptions() => new()
@@ -94,6 +126,8 @@ public partial class MainWindow : Window
             {
                 File.WriteAllText(projectSettingsPath, json);
             }
+
+            UpdateServerIpDisplay();
         }
         catch
         {
@@ -211,21 +245,34 @@ public partial class MainWindow : Window
 
             if (response is null)
             {
-                ReadyAutoShutdownStatusTextBlock.Text = "Không tải được cài đặt tự tắt máy trạm.";
+                ReadyAutoShutdownStatusTextBlock.Text = "Khong tai duoc cai dat tu tat may tram.";
                 ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.Firebrick;
+                LockScreenBackgroundStatusTextBlock.Text = "Khong tai duoc cai dat nen lock screen.";
+                LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
                 return;
             }
 
             _readyAutoShutdownMinutes = Math.Clamp(response.ReadyAutoShutdownMinutes, 1, 240);
+            _lockScreenBackgroundMode = NormalizeLockScreenBackgroundMode(response.LockScreenBackgroundMode);
+            _lockScreenBackgroundUrl = (response.LockScreenBackgroundUrl ?? string.Empty).Trim();
+
             ReadyAutoShutdownMinutesTextBox.Text = _readyAutoShutdownMinutes.ToString(CultureInfo.InvariantCulture);
+            SetLockScreenBackgroundModeUi(_lockScreenBackgroundMode);
+            LockScreenBackgroundUrlTextBox.Text = _lockScreenBackgroundUrl;
+
             ReadyAutoShutdownStatusTextBlock.Text =
-                $"Đang bật: máy Sẵn sàng không login quá {_readyAutoShutdownMinutes} phút sẽ tự tắt.";
+                $"Dang bat: may San sang khong login qua {_readyAutoShutdownMinutes} phut se tu tat.";
             ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.DarkGreen;
+            LockScreenBackgroundStatusTextBlock.Text =
+                DescribeLockScreenBackground(_lockScreenBackgroundMode, _lockScreenBackgroundUrl);
+            LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGreen;
         }
         catch
         {
-            ReadyAutoShutdownStatusTextBlock.Text = "Không kết nối được backend để đọc cài đặt tự tắt.";
+            ReadyAutoShutdownStatusTextBlock.Text = "Khong ket noi duoc backend de doc cai dat tu tat.";
             ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.Firebrick;
+            LockScreenBackgroundStatusTextBlock.Text = "Khong ket noi duoc backend de doc cai dat nen lock screen.";
+            LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
         }
         finally
         {
@@ -237,42 +284,73 @@ public partial class MainWindow : Window
     {
         if (!TryParseReadyAutoShutdownMinutes(out var minutes))
         {
-            ReadyAutoShutdownStatusTextBlock.Text = "Số phút tự tắt không hợp lệ (1 - 240).";
+            ReadyAutoShutdownStatusTextBlock.Text = "So phut tu tat khong hop le (1 - 240).";
             ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        if (!TryGetLockScreenBackgroundSettings(out var mode, out var url, out var error))
+        {
+            LockScreenBackgroundStatusTextBlock.Text = error;
+            LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
             return;
         }
 
         try
         {
+            var effectiveUrl = url;
+            if (mode != "none" && TryResolveLocalLockScreenFile(url, out var localFilePath))
+            {
+                LockScreenBackgroundStatusTextBlock.Text = "Dang upload media lock screen len server...";
+                LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+                effectiveUrl = await UploadLockScreenMediaAsync(mode, localFilePath);
+            }
+
             using var response = await _httpClient.PatchAsJsonAsync(
                 BuildApiUrl("/pricing/client-settings"),
                 new
                 {
                     readyAutoShutdownMinutes = minutes,
+                    lockScreenBackgroundMode = mode,
+                    lockScreenBackgroundUrl = effectiveUrl,
                 });
 
             if (!response.IsSuccessStatusCode)
             {
                 ReadyAutoShutdownStatusTextBlock.Text =
-                    $"Lưu cài đặt tự tắt thất bại ({(int)response.StatusCode}).";
+                    $"Luu cai dat tu tat that bai ({(int)response.StatusCode}).";
                 ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.Firebrick;
-                AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Lưu cài đặt tự tắt thất bại");
+                LockScreenBackgroundStatusTextBlock.Text =
+                    $"Luu cai dat nen lock screen that bai ({(int)response.StatusCode}).";
+                LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
+                AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Luu cai dat runtime client that bai");
                 return;
             }
 
             var payload = await response.Content.ReadFromJsonAsync<ClientRuntimeSettingsResponse>(JsonOptions());
             _readyAutoShutdownMinutes = Math.Clamp(payload?.ReadyAutoShutdownMinutes ?? minutes, 1, 240);
+            _lockScreenBackgroundMode = NormalizeLockScreenBackgroundMode(payload?.LockScreenBackgroundMode ?? mode);
+            _lockScreenBackgroundUrl = (payload?.LockScreenBackgroundUrl ?? effectiveUrl).Trim();
+
             ReadyAutoShutdownMinutesTextBox.Text = _readyAutoShutdownMinutes.ToString(CultureInfo.InvariantCulture);
+            SetLockScreenBackgroundModeUi(_lockScreenBackgroundMode);
+            LockScreenBackgroundUrlTextBox.Text = _lockScreenBackgroundUrl;
+
             ReadyAutoShutdownStatusTextBlock.Text =
-                $"Đã lưu: máy Sẵn sàng không login quá {_readyAutoShutdownMinutes} phút sẽ tự tắt.";
+                $"Da luu: may San sang khong login qua {_readyAutoShutdownMinutes} phut se tu tat.";
             ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.DarkGreen;
-            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã lưu tự tắt máy trạm: {_readyAutoShutdownMinutes} phút");
+            LockScreenBackgroundStatusTextBlock.Text =
+                $"Da luu: {DescribeLockScreenBackground(_lockScreenBackgroundMode, _lockScreenBackgroundUrl)}";
+            LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGreen;
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Da luu runtime client: auto-shutdown={_readyAutoShutdownMinutes}m, lockscreen={_lockScreenBackgroundMode}");
         }
         catch
         {
-            ReadyAutoShutdownStatusTextBlock.Text = "Không kết nối được backend khi lưu cài đặt tự tắt.";
+            ReadyAutoShutdownStatusTextBlock.Text = "Khong ket noi duoc backend khi luu cai dat tu tat.";
             ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.Firebrick;
-            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Lỗi kết nối khi lưu cài đặt tự tắt");
+            LockScreenBackgroundStatusTextBlock.Text = "Khong ket noi duoc backend khi luu nen lock screen.";
+            LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Loi ket noi khi luu runtime client");
         }
     }
 
@@ -302,15 +380,263 @@ public partial class MainWindow : Window
         if (TryParseReadyAutoShutdownMinutes(out var minutes))
         {
             ReadyAutoShutdownStatusTextBlock.Text =
-                $"Đã thay đổi thành {minutes} phút. Bấm \"Lưu cài đặt\" để áp dụng.";
+                $"Da thay doi thanh {minutes} phut. Bam \"Luu cai dat\" de ap dung.";
             ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
             return;
         }
 
-        ReadyAutoShutdownStatusTextBlock.Text = "Số phút tự tắt không hợp lệ (1 - 240).";
+        ReadyAutoShutdownStatusTextBlock.Text = "So phut tu tat khong hop le (1 - 240).";
         ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.Firebrick;
     }
 
+    private void LockScreenBackgroundModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_readyShutdownSettingsInitialized || _isLoadingReadyShutdownSettings)
+        {
+            return;
+        }
+
+        LockScreenBackgroundStatusTextBlock.Text = "Da thay doi loai nen lock screen. Bam \"Luu cai dat\" de ap dung.";
+        LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+    }
+
+    private void LockScreenBackgroundUrlTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_readyShutdownSettingsInitialized || _isLoadingReadyShutdownSettings)
+        {
+            return;
+        }
+
+        LockScreenBackgroundStatusTextBlock.Text = "Da thay doi duong dan nen lock screen. Bam \"Luu cai dat\" de ap dung.";
+        LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+    }
+
+    private void BrowseLockScreenBackgroundFileButton_Click(object sender, RoutedEventArgs e)
+    {
+        var mode = GetLockScreenBackgroundModeFromUi();
+        if (mode == "none")
+        {
+            LockScreenBackgroundStatusTextBlock.Text = "Hay chon loai nen image/video truoc khi chon file.";
+            LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        var dialog = new OpenFileDialog
+        {
+            CheckFileExists = true,
+            Multiselect = false,
+            Filter = mode == "video"
+                ? "Video files|*.mp4;*.webm;*.avi;*.mkv;*.mov|All files|*.*"
+                : "Image files|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.webp|All files|*.*",
+            Title = mode == "video" ? "Chon video nen lock screen" : "Chon anh nen lock screen",
+        };
+
+        var current = (LockScreenBackgroundUrlTextBox.Text ?? string.Empty).Trim();
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(current))
+            {
+                var expanded = Environment.ExpandEnvironmentVariables(current);
+                if (File.Exists(expanded))
+                {
+                    dialog.InitialDirectory = Path.GetDirectoryName(expanded);
+                    dialog.FileName = Path.GetFileName(expanded);
+                }
+            }
+        }
+        catch
+        {
+            // Ignore invalid current path.
+        }
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        LockScreenBackgroundUrlTextBox.Text = dialog.FileName;
+    }
+
+    private bool TryGetLockScreenBackgroundSettings(
+        out string mode,
+        out string url,
+        out string error)
+    {
+        mode = GetLockScreenBackgroundModeFromUi();
+        url = (LockScreenBackgroundUrlTextBox.Text ?? string.Empty).Trim();
+        error = string.Empty;
+
+        if (mode == "none")
+        {
+            url = string.Empty;
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            error = "Vui long nhap duong dan file khi chon nen image/video.";
+            return false;
+        }
+
+        if (url.Length > 2048)
+        {
+            error = "Duong dan nen lock screen qua dai (toi da 2048 ky tu).";
+            return false;
+        }
+
+        if (TryResolveLocalLockScreenFile(url, out _) || IsHttpOrHttpsUrl(url))
+        {
+            return true;
+        }
+
+        error = "Chi ho tro file local/UNC ton tai, hoac URL http/https hop le.";
+        return false;
+    }
+
+    private static bool IsHttpOrHttpsUrl(string value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        return uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+               uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryResolveLocalLockScreenFile(string raw, out string fullPath)
+    {
+        fullPath = string.Empty;
+        if (string.IsNullOrWhiteSpace(raw) || IsHttpOrHttpsUrl(raw))
+        {
+            return false;
+        }
+
+        try
+        {
+            var expanded = Environment.ExpandEnvironmentVariables(raw);
+            fullPath = Path.GetFullPath(expanded);
+            return File.Exists(fullPath);
+        }
+        catch
+        {
+            fullPath = string.Empty;
+            return false;
+        }
+    }
+
+    private async Task<string> UploadLockScreenMediaAsync(string mode, string localFilePath)
+    {
+        using var content = new MultipartFormDataContent();
+        using var stream = File.OpenRead(localFilePath);
+        using var fileContent = new StreamContent(stream);
+
+        var extension = Path.GetExtension(localFilePath).ToLowerInvariant();
+        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+            mode == "video" ? GuessVideoContentType(extension) : GuessImageContentType(extension));
+        content.Add(fileContent, "file", Path.GetFileName(localFilePath));
+        content.Add(new StringContent(mode), "mode");
+
+        using var uploadResponse = await _httpClient.PostAsync(
+            BuildApiUrl("/pricing/client-settings/lock-screen-media"),
+            content);
+
+        if (!uploadResponse.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"Upload media lock screen that bai ({(int)uploadResponse.StatusCode})");
+        }
+
+        var payload = await uploadResponse.Content.ReadFromJsonAsync<ClientRuntimeSettingsResponse>(JsonOptions());
+        var mediaUrl = (payload?.LockScreenBackgroundUrl ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(mediaUrl))
+        {
+            throw new InvalidOperationException("Backend khong tra ve URL media lock screen.");
+        }
+
+        return mediaUrl;
+    }
+
+    private static string GuessImageContentType(string extension)
+    {
+        return extension switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".bmp" => "image/bmp",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            _ => "application/octet-stream",
+        };
+    }
+
+    private static string GuessVideoContentType(string extension)
+    {
+        return extension switch
+        {
+            ".mp4" or ".m4v" => "video/mp4",
+            ".webm" => "video/webm",
+            ".avi" => "video/x-msvideo",
+            ".mkv" => "video/x-matroska",
+            ".mov" => "video/quicktime",
+            ".wmv" => "video/x-ms-wmv",
+            _ => "application/octet-stream",
+        };
+    }
+
+    private void SetLockScreenBackgroundModeUi(string mode)
+    {
+        var normalized = NormalizeLockScreenBackgroundMode(mode);
+        foreach (var item in LockScreenBackgroundModeComboBox.Items.OfType<ComboBoxItem>())
+        {
+            if (string.Equals(item.Tag?.ToString(), normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                LockScreenBackgroundModeComboBox.SelectedItem = item;
+                return;
+            }
+        }
+
+        if (LockScreenBackgroundModeComboBox.Items.Count > 0)
+        {
+            LockScreenBackgroundModeComboBox.SelectedIndex = 0;
+        }
+    }
+
+    private string GetLockScreenBackgroundModeFromUi()
+    {
+        if (LockScreenBackgroundModeComboBox.SelectedItem is ComboBoxItem item)
+        {
+            return NormalizeLockScreenBackgroundMode(item.Tag?.ToString());
+        }
+
+        return "none";
+    }
+
+    private static string NormalizeLockScreenBackgroundMode(string? mode)
+    {
+        var normalized = (mode ?? string.Empty).Trim().ToLowerInvariant();
+        return normalized is "image" or "video" ? normalized : "none";
+    }
+
+    private static string DescribeLockScreenBackground(string mode, string url)
+    {
+        var normalized = NormalizeLockScreenBackgroundMode(mode);
+        if (normalized == "none")
+        {
+            return "Khong dung nen media cho lock screen.";
+        }
+
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return normalized == "image"
+                ? "Nen image dang bat (chua co duong dan file)."
+                : "Nen video dang bat (chua co duong dan file).";
+        }
+
+        return normalized == "image"
+            ? $"Nen image file: {url}"
+            : $"Nen video file: {url}";
+    }
     private async Task LoadLoyaltySettingsAsync()
     {
         try
@@ -406,7 +732,7 @@ public partial class MainWindow : Window
         }
 
         LoyaltySettingsStatusTextBlock.Text =
-            "Ä Ã£ thay Ä‘á»•i tráº¡ng thÃ¡i tÃ­ch lÅ©y Ä‘iá»ƒm. Báº¥m \"LÆ°u cÃ i Ä‘áº·t\" Ä‘á»ƒ Ã¡p dá»¥ng lÃªn backend.";
+            "Đã thay đổi trạng thái tích lũy điểm. Bấm \"Lưu cài đặt\" để áp dụng lên backend.";
         LoyaltySettingsStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
     }
 
@@ -777,5 +1103,6 @@ public partial class MainWindow : Window
         dialog.ShowDialog();
     }
 }
+
 
 

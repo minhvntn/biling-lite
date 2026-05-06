@@ -10,25 +10,26 @@
         Background="#101317"
         WindowStartupLocation="CenterScreen">
     <Grid>
+        <Grid>
+            <Image x:Name="BackgroundImageElement"
+                   Visibility="Collapsed"
+                   Stretch="UniformToFill" />
+            <MediaElement x:Name="BackgroundVideoElement"
+                          Visibility="Collapsed"
+                          LoadedBehavior="Manual"
+                          UnloadedBehavior="Manual"
+                          Stretch="UniformToFill"
+                          IsMuted="True"
+                          MediaEnded="BackgroundVideoElement_MediaEnded"
+                          MediaFailed="BackgroundVideoElement_MediaFailed" />
+            <Border Background="#66000000" />
+        </Grid>
+
         <StackPanel HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     Margin="20">
-            <TextBlock Text="MÁY TRẠM ĐANG KHÓA"
-                       Foreground="#F3F4F6"
-                       FontSize="42"
-                       FontWeight="Bold"
-                       HorizontalAlignment="Center"
-                       TextAlignment="Center"
-                       TextWrapping="Wrap" />
-            <TextBlock Text="Vui lòng đăng nhập để bắt đầu sử dụng"
-                       Foreground="#C7CBD3"
-                       FontSize="18"
-                       Margin="0,12,0,0"
-                       HorizontalAlignment="Center"
-                       TextAlignment="Center" />
-
-            <Border Margin="0,20,0,0"
-                    Width="368"
+            <Border Margin="0"
+                    Width="460"
                     Background="#F8FAFC"
                     BorderBrush="#CBD5E1"
                     BorderThickness="1"
@@ -40,52 +41,159 @@
                                FontWeight="SemiBold"
                                FontSize="20" />
 
-                    <TextBlock Text="Tên đăng nhập" Margin="0,14,0,5" Foreground="#334155" FontWeight="SemiBold" FontSize="13" />
-                    <TextBox x:Name="UsernameTextBox"
-                             Height="32"
-                             Padding="8,4"
-                             FontSize="13"
-                             KeyDown="Input_KeyDown" />
+                    <TabControl x:Name="LoginModeTabControl"
+                                Margin="0,14,0,0"
+                                BorderThickness="1"
+                                Background="White">
+                        <TabItem x:Name="MemberTabItem" Header="Hội viên">
+                            <Grid Margin="12,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="110" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="38" />
+                                    <RowDefinition Height="10" />
+                                    <RowDefinition Height="38" />
+                                </Grid.RowDefinitions>
 
-                    <TextBlock Text="Mật khẩu" Margin="0,10,0,5" Foreground="#334155" FontWeight="SemiBold" FontSize="13" />
-                    <PasswordBox x:Name="PasswordBox"
-                                 Height="32"
-                                 Padding="8,4"
-                                 FontSize="13"
-                                 KeyDown="Input_KeyDown" />
+                                <!-- Row 0, Column 0: Tên đăng nhập with Icon -->
+                                <Border Grid.Row="0" Grid.Column="0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Background="White">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="35" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="👤" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#94A3B8" FontSize="15" />
+                                        
+                                        <Grid Grid.Column="1">
+                                            <TextBox x:Name="UsernameTextBox" TabIndex="0" BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center" Padding="5,0,8,0" FontSize="13" KeyDown="Input_KeyDown" />
+                                            <TextBlock Text="Tên đăng nhập" Foreground="#94A3B8" IsHitTestVisible="False" VerticalAlignment="Center" Margin="5,0,0,0" FontSize="13">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=UsernameTextBox}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Row 0, Column 2: Đăng nhập Button -->
+                                <Button Grid.Row="0" Grid.Column="2" x:Name="LoginButton" TabIndex="2"
+                                        Height="38"
+                                        Content="Đăng nhập"
+                                        FontWeight="SemiBold"
+                                        FontSize="13"
+                                        Background="#2563EB"
+                                        Foreground="White"
+                                        BorderThickness="0"
+                                        Click="LoginButton_Click">
+                                    <Button.Resources>
+                                        <Style TargetType="Border">
+                                            <Setter Property="CornerRadius" Value="4" />
+                                        </Style>
+                                    </Button.Resources>
+                                </Button>
+
+                                <!-- Row 2, Column 0: Mật khẩu with Icon -->
+                                <Border Grid.Row="2" Grid.Column="0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Background="White">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="35" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="🔑" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#94A3B8" FontSize="15" />
+                                        
+                                        <Grid Grid.Column="1">
+                                            <PasswordBox x:Name="PasswordBox" TabIndex="1" BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center" Padding="5,0,8,0" FontSize="13" KeyDown="Input_KeyDown" />
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </TabItem>
+
+                        <TabItem x:Name="GuestTabItem" Header="Khách">
+                            <StackPanel Margin="10">
+                                <TextBlock Text="Đăng nhập nhanh cho khách vãng lai"
+                                           Foreground="#334155"
+                                           FontWeight="SemiBold"
+                                           FontSize="13"
+                                           TextWrapping="Wrap" />
+
+                                <TextBlock Text="Dùng tab này cho khách không sử dụng tài khoản hội viên."
+                                           Margin="0,8,0,0"
+                                           Foreground="#64748B"
+                                           FontSize="12"
+                                           TextWrapping="Wrap" />
+
+                                <Button x:Name="GuestLoginButton"
+                                        Margin="0,14,0,0"
+                                        Height="34"
+                                        Content="Sử dụng Khách vãng lai"
+                                        FontWeight="SemiBold"
+                                        FontSize="13"
+                                        Background="Transparent"
+                                        BorderBrush="#2563EB"
+                                        BorderThickness="1"
+                                        Foreground="#2563EB"
+                                        Click="GuestLoginButton_Click" />
+                            </StackPanel>
+                        </TabItem>
+
+                        <TabItem x:Name="ServerTabItem" Header="Máy chủ">
+                            <StackPanel Margin="10">
+                                <TextBlock Text="Cài đặt lại IP/URL máy chủ"
+                                           Foreground="#334155"
+                                           FontWeight="SemiBold"
+                                           FontSize="13" />
+
+                                <TextBlock Text="Ví dụ: 192.168.1.50 hoặc 192.168.1.50:9000"
+                                           Margin="0,8,0,0"
+                                           Foreground="#64748B"
+                                           FontSize="12"
+                                           TextWrapping="Wrap" />
+
+                                <TextBlock Text="IP/URL Máy chủ"
+                                           Margin="0,12,0,5"
+                                           Foreground="#334155"
+                                           FontWeight="SemiBold"
+                                           FontSize="13" />
+
+                                <TextBox x:Name="ServerIpTextBox"
+                                         Height="32"
+                                         Padding="8,4"
+                                         FontSize="13" />
+
+                                <Button x:Name="SaveServerButton"
+                                        Margin="0,14,0,0"
+                                        Height="34"
+                                        Content="Lưu và kết nối lại"
+                                        FontWeight="SemiBold"
+                                        FontSize="13"
+                                        Background="#2563EB"
+                                        Foreground="White"
+                                        Click="SaveServerButton_Click" />
+
+                                <TextBlock x:Name="ServerSetupStatusTextBlock"
+                                           Margin="0,10,0,0"
+                                           Foreground="#166534"
+                                           FontSize="12"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </TabItem>
+                    </TabControl>
 
                     <TextBlock x:Name="ErrorTextBlock"
-                               Margin="0,8,0,0"
+                               Margin="0,10,0,0"
                                Foreground="#DC2626"
                                FontSize="12"
-                               TextWrapping="Wrap" />
-
-                    <Button x:Name="LoginButton"
-                            Margin="0,14,0,0"
-                            Height="34"
-                            Content="Đăng nhập"
-                            FontWeight="SemiBold"
-                            FontSize="13"
-                            Background="#2563EB"
-                            Foreground="White"
-                            Click="LoginButton_Click" />
-
-                    <Button x:Name="GuestLoginButton"
-                            Margin="0,6,0,0"
-                            Height="34"
-                            Content="Sử dụng Khách vãng lai"
-                            FontWeight="SemiBold"
-                            FontSize="13"
-                            Background="Transparent"
-                            BorderBrush="#2563EB"
-                            BorderThickness="1"
-                            Foreground="#2563EB"
-                            Click="GuestLoginButton_Click" />
-
-                    <TextBlock Text="Bạn có thể dùng tài khoản hội viên đã tạo để đăng nhập."
-                               Margin="0,10,0,0"
-                               Foreground="#64748B"
-                               FontSize="11"
                                TextWrapping="Wrap" />
                 </StackPanel>
             </Border>

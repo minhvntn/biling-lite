@@ -15,7 +15,7 @@ using System.Windows.Threading;
 namespace Server.Admin.App;
 public partial class MainWindow : Window
 {
-    private async Task RefreshSystemLogsAsync()
+    private async Task RefreshSystemLogsAsync(bool forceRefresh = false)
     {
         if (_isRefreshingSystemLogs)
         {
@@ -26,9 +26,26 @@ public partial class MainWindow : Window
         try
         {
             var limit = GetSelectedSystemLogLimit();
-            var response = await _httpClient.GetFromJsonAsync<SystemEventsResponse>(
-                BuildApiUrl($"/reports/events/system?limit={limit}"),
-                JsonOptions());
+            SystemEventsResponse? response;
+            if (!forceRefresh &&
+                _systemLogsCacheResponse is not null &&
+                _systemLogsCacheLimit == limit &&
+                IsCacheValid(_systemLogsCacheAtUtc, SystemLogsCacheTtlSeconds))
+            {
+                response = _systemLogsCacheResponse;
+            }
+            else
+            {
+                response = await _httpClient.GetFromJsonAsync<SystemEventsResponse>(
+                    BuildApiUrl($"/reports/events/system?limit={limit}"),
+                    JsonOptions());
+                if (response is not null)
+                {
+                    _systemLogsCacheResponse = response;
+                    _systemLogsCacheLimit = limit;
+                    _systemLogsCacheAtUtc = DateTime.UtcNow;
+                }
+            }
 
             if (response is null)
             {
@@ -111,7 +128,7 @@ public partial class MainWindow : Window
             ShowMemberTransferPopup(item);
             
             // Refresh members list so the balance update is reflected in the UI immediately
-            _ = RefreshMembersAsync();
+            _ = RefreshMembersAsync(forceRefresh: true);
         }
     }
 
@@ -289,7 +306,7 @@ public partial class MainWindow : Window
         return 100;
     }
 
-    private async void RefreshSystemLogsButton_Click(object sender, RoutedEventArgs e) => await RefreshSystemLogsAsync();
+    private async void RefreshSystemLogsButton_Click(object sender, RoutedEventArgs e) => await RefreshSystemLogsAsync(forceRefresh: true);
 
     private async void SystemLogsTimer_Tick(object? sender, EventArgs e)
     {
@@ -308,7 +325,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        await RefreshSystemLogsAsync();
+        await RefreshSystemLogsAsync(forceRefresh: true);
     }
 
     private async void RefreshTransactionLogsButton_Click(object sender, RoutedEventArgs e) => await RefreshTransactionLogsAsync();

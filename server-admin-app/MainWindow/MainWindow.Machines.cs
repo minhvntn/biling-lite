@@ -123,6 +123,12 @@ public partial class MainWindow : Window
             ? "Khách vãng lai"
             : activeGuest!.DisplayName;
         var isGuestSession = activeMember is null && activeGuest is not null;
+        var remainingText = "-";
+        if (activeMember is not null && item.HourlyRate > 0)
+        {
+            var remainingMinutes = (int)Math.Floor((activeMember.Balance / item.HourlyRate) * 60m);
+            remainingText = FormatRemainingMinutes(Math.Max(0, remainingMinutes));
+        }
         var userName = !string.IsNullOrWhiteSpace(activeMember?.Username)
             ? activeMember!.Username
             : isGuestSession
@@ -145,7 +151,7 @@ public partial class MainWindow : Window
             UserName = userName,
             StartedAtText = startedAt?.ToString("HH:mm:ss") ?? "-",
             UsedText = usedText,
-            RemainingText = "-",
+            RemainingText = remainingText,
             MoneyText = item.ActiveSession is null ? "-" : item.ActiveSession.EstimatedAmount.ToString("N0"),
             DateText = now.ToString("dd-MM-yyyy"),
             VersionText = "0.1.0",
@@ -163,6 +169,23 @@ public partial class MainWindow : Window
         };
     }
 
+    private static string FormatRemainingMinutes(int totalMinutes)
+    {
+        if (totalMinutes <= 0)
+        {
+            return "0 phút";
+        }
+
+        var hours = totalMinutes / 60;
+        var minutes = totalMinutes % 60;
+        if (hours <= 0)
+        {
+            return $"{minutes} phút";
+        }
+
+        return minutes == 0 ? $"{hours} giờ" : $"{hours} giờ {minutes} phút";
+    }
+
     private List<MachineRow> ApplyStatusFilter(List<MachineRow> rows)
     {
         return _statusFilter switch
@@ -177,6 +200,14 @@ public partial class MainWindow : Window
 
     private void UpdateMachineSummary(IReadOnlyCollection<MachineRow> rows)
     {
+        if (SummaryTotalTextBlock is null ||
+            SummaryUsingTextBlock is null ||
+            SummaryLockedTextBlock is null ||
+            SummaryMoneyTextBlock is null)
+        {
+            return;
+        }
+
         var total = rows.Count;
         var usingCount = rows.Count(r => r.StatusCode == "IN_USE");
         var lockedCount = rows.Count(r => r.StatusCode == "LOCKED");
@@ -237,6 +268,11 @@ public partial class MainWindow : Window
         if (StatusFilterComboBox.SelectedItem is ComboBoxItem item)
         {
             _statusFilter = item.Content?.ToString() ?? I18n.StatusAll;
+            if (MachinesDataGrid is null)
+            {
+                return;
+            }
+
             ApplyMachineFiltersToGrid(GetSelectedMachineIdsSnapshot());
         }
     }
@@ -294,17 +330,21 @@ public partial class MainWindow : Window
     {
         var ids = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var selectedItems = MachinesDataGrid?.SelectedItems;
 
-        foreach (var row in MachinesDataGrid.SelectedItems.OfType<MachineRow>())
+        if (selectedItems is not null)
         {
-            if (string.IsNullOrWhiteSpace(row.Id))
+            foreach (var row in selectedItems.OfType<MachineRow>())
             {
-                continue;
-            }
+                if (string.IsNullOrWhiteSpace(row.Id))
+                {
+                    continue;
+                }
 
-            if (seen.Add(row.Id))
-            {
-                ids.Add(row.Id);
+                if (seen.Add(row.Id))
+                {
+                    ids.Add(row.Id);
+                }
             }
         }
 
@@ -331,6 +371,11 @@ public partial class MainWindow : Window
 
     private void RestoreMachineSelections(IReadOnlyCollection<string> selectedPcIds)
     {
+        if (MachinesDataGrid is null)
+        {
+            return;
+        }
+
         _selectedMachineIds.Clear();
         MachinesDataGrid.SelectedItems.Clear();
 

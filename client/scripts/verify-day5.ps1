@@ -24,8 +24,17 @@ if ($LASTEXITCODE -ne 0) {
 
 $agentExe = Join-Path $InstallRoot "Agent\Client.Agent.Wpf.exe"
 $serviceExe = Join-Path $InstallRoot "Service\Client.Watchdog.Service.exe"
-Write-Host (Test-Path $agentExe ? "[OK] Agent exe found" : "[FAIL] Agent exe missing")
-Write-Host (Test-Path $serviceExe ? "[OK] Service exe found" : "[FAIL] Service exe missing")
+if (Test-Path -LiteralPath $agentExe) {
+    Write-Host "[OK] Agent exe found"
+} else {
+    Write-Host "[FAIL] Agent exe missing"
+}
+
+if (Test-Path -LiteralPath $serviceExe) {
+    Write-Host "[OK] Service exe found"
+} else {
+    Write-Host "[FAIL] Service exe missing"
+}
 
 $runningAgent = Get-Process -Name "Client.Agent.Wpf" -ErrorAction SilentlyContinue
 if ($runningAgent) {
@@ -37,5 +46,14 @@ if ($runningAgent) {
 $logRoot = Join-Path $env:ProgramData "ServerManagerBilling\logs"
 $agentLog = Join-Path $logRoot "client-agent.log"
 $watchdogLog = Join-Path $logRoot "watchdog-service.log"
-Write-Host (Test-Path $agentLog ? "[OK] Agent log exists" : "[WARN] Agent log not found yet")
-Write-Host (Test-Path $watchdogLog ? "[OK] Watchdog log exists" : "[WARN] Watchdog log not found yet")
+if (Test-Path -LiteralPath $agentLog) {
+    Write-Host "[OK] Agent log exists"
+} else {
+    Write-Host "[WARN] Agent log not found yet"
+}
+
+if (Test-Path -LiteralPath $watchdogLog) {
+    Write-Host "[OK] Watchdog log exists"
+} else {
+    Write-Host "[WARN] Watchdog log not found yet"
+}

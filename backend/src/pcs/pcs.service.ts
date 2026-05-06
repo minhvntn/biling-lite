@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { EventSource, Pc, PcGroup, PcStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AgentHeartbeatPayload, AgentHelloPayload } from './types/agent-events.type';
@@ -32,6 +36,7 @@ export type PcListItem = {
     memberId: string;
     username: string;
     fullName: string;
+    balance: number;
   } | null;
   activeGuest: {
     displayName: string;
@@ -61,6 +66,27 @@ export class PcsService {
     const activeUsersByPc = await this.resolveActiveUsersByPcId(
       pcs.map((pc) => pc.id),
     );
+    const activeMemberIds = Array.from(
+      new Set(
+        Array.from(activeUsersByPc.values())
+          .filter((x): x is { kind: 'MEMBER'; member: { memberId: string; username: string; fullName: string } } => x.kind === 'MEMBER')
+          .map((x) => x.member.memberId),
+      ),
+    );
+    const activeMembers = activeMemberIds.length
+      ? await this.prisma.member.findMany({
+          where: {
+            id: { in: activeMemberIds },
+          },
+          select: {
+            id: true,
+            balance: true,
+          },
+        })
+      : [];
+    const activeMemberBalanceById = new Map(
+      activeMembers.map((member) => [member.id, Number(member.balance)]),
+    );
 
     const now = Date.now();
     const items = await Promise.all(
@@ -72,8 +98,14 @@ export class PcsService {
         const activeSession = pc.sessions[0] ?? null;
         const activeUser =
           pc.status === PcStatus.IN_USE ? activeUsersByPc.get(pc.id) : null;
-        const activeMember =
+        const activeMemberBase =
           activeUser?.kind === 'MEMBER' ? activeUser.member : null;
+        const activeMember = activeMemberBase
+          ? {
+              ...activeMemberBase,
+              balance: activeMemberBalanceById.get(activeMemberBase.memberId) ?? 0,
+            }
+          : null;
         const activeGuest =
           activeUser?.kind === 'GUEST' ? activeUser.guest : null;
         const elapsedSeconds = activeSession
@@ -161,16 +193,23 @@ export class PcsService {
   }
 
   async startGuestSession(agentId: string) {
+    const guestEnabled = await this.getGuestLoginEnabled();
+    if (!guestEnabled) {
+      throw new BadRequestException(
+        'Dang tat dang nhap khach vang lai tren may chu',
+      );
+    }
+
     const pc = await this.prisma.pc.findFirst({
       where: { agentId },
       include: { group: true },
     });
     if (!pc) {
-      throw new Error('Machine not found');
+      throw new NotFoundException(`Khong tim thay may tram voi agentId=${agentId}`);
     }
 
     if (pc.status === PcStatus.IN_USE) {
-      throw new Error('Machine is already in use');
+      throw new BadRequestException('May da dang su dung');
     }
 
     const defaultGroup = await this.ensureDefaultGroup();

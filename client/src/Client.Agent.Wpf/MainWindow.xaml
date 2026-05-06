@@ -11,7 +11,6 @@
         WindowStartupLocation="Manual"
         Background="#F3F4F6">
     <Window.Resources>
-        <!-- Modern Button Style -->
         <Style x:Key="ActionButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="White" />
             <Setter Property="BorderBrush" Value="#E5E7EB" />
@@ -69,7 +68,6 @@
     </Window.Resources>
 
     <DockPanel>
-        <!-- Header -->
         <Border DockPanel.Dock="Top" Background="#111827" Padding="12,10">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -88,37 +86,55 @@
                         <TextBlock x:Name="ConnectionStatusTextBlock"
                                    Foreground="#9CA3AF"
                                    FontSize="11"
-                                   Text="Đang kết nối..." />
+                                   Text="Connecting..." />
                     </StackPanel>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center" HorizontalAlignment="Right" x:Name="UserInfoPanel" Visibility="Collapsed">
-                    <TextBlock x:Name="MemberUsernameTextBlock" Foreground="White" FontSize="14" FontWeight="Bold" HorizontalAlignment="Right" />
-                    <Border x:Name="MemberRankBorder" Background="#374151" CornerRadius="4" Padding="6,2" HorizontalAlignment="Right" Margin="0,2,0,0">
-                        <TextBlock x:Name="MemberRankTextBlock" Foreground="#FBBF24" FontSize="10" FontWeight="Black" />
+                    <TextBlock x:Name="MemberUsernameTextBlock" Foreground="White" FontSize="15" FontWeight="Bold" HorizontalAlignment="Right" />
+                    <Border x:Name="MemberRankBorder"
+                            Background="#374151"
+                            BorderBrush="#FBBF24"
+                            BorderThickness="1.5"
+                            CornerRadius="10"
+                            Padding="10,4"
+                            HorizontalAlignment="Right"
+                            Margin="0,3,0,0">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#FBBF24" BlurRadius="12" ShadowDepth="0" Opacity="0.65" />
+                        </Border.Effect>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="MemberRankIconTextBlock"
+                                       Foreground="#FBBF24"
+                                       FontSize="14"
+                                       FontWeight="Black"
+                                       Margin="0,0,6,0"
+                                       Text="🔰" />
+                            <TextBlock x:Name="MemberRankTextBlock"
+                                       Foreground="#FBBF24"
+                                       FontSize="12"
+                                       FontWeight="Black" />
+                        </StackPanel>
                     </Border>
                 </StackPanel>
 
-                <Button Grid.Column="2" 
-                        Content="—" 
-                        Foreground="#9CA3AF" 
-                        Background="Transparent" 
-                        BorderThickness="0" 
-                        FontSize="16" 
+                <Button Grid.Column="2"
+                        Content="_"
+                        Foreground="#9CA3AF"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        FontSize="16"
                         FontWeight="Bold"
-                        VerticalAlignment="Top" 
+                        VerticalAlignment="Top"
                         HorizontalAlignment="Right"
-                        Margin="12,-4,-4,0" 
+                        Margin="12,-4,-4,0"
                         Click="MinimizeButton_Click"
                         Cursor="Hand" />
             </Grid>
         </Border>
 
-        <!-- Main Content -->
         <ScrollViewer VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Margin="16,12">
-                
-                <!-- Status Banner -->
                 <Border Margin="0,0,0,16" Background="White" CornerRadius="12" Padding="12" BorderBrush="#E5E7EB" BorderThickness="1">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -126,10 +142,10 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Border Width="40" Height="40" Background="#DBEAFE" CornerRadius="20" HorizontalAlignment="Left">
-                            <TextBlock Text="⚡" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <TextBlock x:Name="StatusIconTextBlock" Text="⚡" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="Trạng thái máy" FontSize="11" Foreground="#6B7280" />
+                            <TextBlock x:Name="StatusTitleTextBlock" Text="Trạng thái máy" FontSize="11" Foreground="#6B7280" />
                             <TextBlock x:Name="MachineStateTextBlock"
                                        Text="Đang sử dụng"
                                        FontSize="16"
@@ -139,32 +155,31 @@
                     </Grid>
                 </Border>
 
-                <!-- Metrics Card -->
                 <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,16">
                     <StackPanel>
                         <Grid Margin="0,0,0,12">
-                            <TextBlock Style="{StaticResource MetricLabelStyle}" Text="Tổng thời gian" />
+                            <TextBlock x:Name="TotalTimeLabelTextBlock" Style="{StaticResource MetricLabelStyle}" Text="Tổng thời gian" />
                             <TextBlock x:Name="TotalTimeValueTextBlock" Style="{StaticResource MetricValueStyle}" Text="100:00" />
                         </Grid>
                         <Rectangle Height="1" Fill="#F3F4F6" Margin="0,0,0,12" />
-                        
+
                         <Grid Margin="0,0,0,12">
-                            <TextBlock Style="{StaticResource MetricLabelStyle}" Text="Đã sử dụng" />
+                            <TextBlock x:Name="UsedTimeLabelTextBlock" Style="{StaticResource MetricLabelStyle}" Text="Đã sử dụng" />
                             <TextBlock x:Name="UsedTimeValueTextBlock" Style="{StaticResource MetricValueStyle}" Text="00:25" Foreground="#EF4444" />
                         </Grid>
-                        
+
                         <Grid Margin="0,0,0,12">
-                            <TextBlock Style="{StaticResource MetricLabelStyle}" Text="Còn lại" />
+                            <TextBlock x:Name="RemainingTimeLabelTextBlock" Style="{StaticResource MetricLabelStyle}" Text="Còn lại" />
                             <TextBlock x:Name="RemainingTimeValueTextBlock" Style="{StaticResource MetricValueStyle}" Text="99:35" Foreground="#10B981" />
                         </Grid>
                         <Rectangle Height="1" Fill="#F3F4F6" Margin="0,0,0,12" />
 
                         <Grid Margin="0,0,0,8">
-                            <TextBlock Style="{StaticResource MetricLabelStyle}" Text="Tiền giờ chơi" />
+                            <TextBlock x:Name="GameCostLabelTextBlock" Style="{StaticResource MetricLabelStyle}" Text="Tiền giờ chơi" />
                             <TextBlock x:Name="GameCostValueTextBlock" Style="{StaticResource MetricValueStyle}" Text="12,000" />
                         </Grid>
                         <Grid>
-                            <TextBlock Style="{StaticResource MetricLabelStyle}" Text="Tiền dịch vụ" />
+                            <TextBlock x:Name="ServiceCostLabelTextBlock" Style="{StaticResource MetricLabelStyle}" Text="Tiền dịch vụ" />
                             <TextBlock x:Name="ServiceCostValueTextBlock" Style="{StaticResource MetricValueStyle}" Text="0" />
                         </Grid>
                     </StackPanel>
@@ -176,59 +191,57 @@
                            FontSize="10"
                            Text="Lệnh gần nhất: Khởi động hệ thống" />
 
-                <!-- Action Grid: 1 Row 4 Columns -->
                 <UniformGrid Columns="4" Margin="-4,0,-4,16">
                     <Button Style="{StaticResource ActionButtonStyle}" Click="MessagesButton_Click">
                         <StackPanel>
-                            <TextBlock Text="💬" FontSize="20" HorizontalAlignment="Center" />
-                            <TextBlock Text="Tin nhắn" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
+                            <TextBlock x:Name="MessagesIconTextBlock" Text="💬" FontSize="20" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="MessagesLabelTextBlock" Text="Tin nhắn" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
                         </StackPanel>
                     </Button>
 
                     <Button Style="{StaticResource ActionButtonStyle}" Click="ServicesButton_Click">
                         <StackPanel>
-                            <TextBlock Text="🛒" FontSize="20" HorizontalAlignment="Center" />
-                            <TextBlock Text="Dịch vụ" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
+                            <TextBlock x:Name="ServicesIconTextBlock" Text="🛒" FontSize="20" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="ServicesLabelTextBlock" Text="Dịch vụ" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
                         </StackPanel>
                     </Button>
 
                     <Button Style="{StaticResource ActionButtonStyle}" Click="LoyaltyButton_Click">
                         <StackPanel>
-                            <TextBlock Text="🎡" FontSize="20" HorizontalAlignment="Center" />
-                            <TextBlock Text="Vòng quay" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
+                            <TextBlock x:Name="LoyaltyIconTextBlock" Text="🎡" FontSize="20" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="LoyaltyLabelTextBlock" Text="Vòng quay" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
                         </StackPanel>
                     </Button>
 
                     <Button Style="{StaticResource ActionButtonStyle}" Click="TransferBalanceButton_Click">
                         <StackPanel>
-                            <TextBlock Text="💸" FontSize="20" HorizontalAlignment="Center" />
-                            <TextBlock Text="Chuyển tiền" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
+                            <TextBlock x:Name="TransferIconTextBlock" Text="💸" FontSize="20" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="TransferLabelTextBlock" Text="Chuyển tiền" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
                         </StackPanel>
                     </Button>
 
                     <Button Style="{StaticResource ActionButtonStyle}" Click="PasswordButton_Click">
                         <StackPanel>
-                            <TextBlock Text="🔑" FontSize="20" HorizontalAlignment="Center" />
-                            <TextBlock Text="Đổi mật mã" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
+                            <TextBlock x:Name="PasswordIconTextBlock" Text="🔑" FontSize="20" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="PasswordLabelTextBlock" Text="Đổi mật mã" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
                         </StackPanel>
                     </Button>
 
                     <Button Style="{StaticResource ActionButtonStyle}" Click="LogoutButton_Click">
                         <StackPanel>
-                            <TextBlock Text="🚪" FontSize="20" HorizontalAlignment="Center" />
-                            <TextBlock Text="Đăng xuất" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
+                            <TextBlock x:Name="LogoutIconTextBlock" Text="🚪" FontSize="20" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="LogoutLabelTextBlock" Text="Đăng xuất" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
                         </StackPanel>
                     </Button>
 
                     <Button Style="{StaticResource ActionButtonStyle}" Click="LockButton_Click" BorderBrush="#FECACA" Background="#FEF2F2">
                         <StackPanel>
-                            <TextBlock Text="🔒" FontSize="20" HorizontalAlignment="Center" />
-                            <TextBlock Text="Khóa máy" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#DC2626" />
+                            <TextBlock x:Name="LockIconTextBlock" Text="🔒" FontSize="20" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="LockLabelTextBlock" Text="Khóa máy" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#DC2626" />
                         </StackPanel>
                     </Button>
                 </UniformGrid>
 
-                <!-- Footer Promo/Info -->
                 <Border CornerRadius="12" Padding="16" BorderThickness="0">
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
@@ -238,13 +251,23 @@
                     </Border.Background>
                     <Grid>
                         <StackPanel>
-                            <TextBlock Text="Loyalty Program" Foreground="White" FontWeight="Bold" FontSize="14" />
-                            <TextBlock Text="Tích lũy điểm khi chơi để đổi giờ hoặc quay thưởng hấp dẫn!" Foreground="#BFDBFE" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap" />
+                            <TextBlock x:Name="FooterTitleTextBlock" Text="Loyalty Program" Foreground="White" FontWeight="Bold" FontSize="14" />
+                            <TextBlock x:Name="FooterDescriptionTextBlock"
+                                       Text="Tích lũy điểm khi chơi để đổi giờ hoặc quay thưởng hấp dẫn!"
+                                       Foreground="#BFDBFE"
+                                       FontSize="11"
+                                       Margin="0,4,0,0"
+                                       TextWrapping="Wrap" />
                         </StackPanel>
-                        <TextBlock Text="💎" FontSize="32" HorizontalAlignment="Right" VerticalAlignment="Center" Opacity="0.3" Margin="0,0,-8,0" />
+                        <TextBlock x:Name="FooterIconTextBlock"
+                                   Text="💎"
+                                   FontSize="32"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Opacity="0.3"
+                                   Margin="0,0,-8,0" />
                     </Grid>
                 </Border>
-                
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

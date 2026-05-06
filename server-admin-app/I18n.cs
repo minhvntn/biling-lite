@@ -1,4 +1,4 @@
-namespace Server.Admin.App;
+﻿namespace Server.Admin.App;
 
 public static class I18n
 {

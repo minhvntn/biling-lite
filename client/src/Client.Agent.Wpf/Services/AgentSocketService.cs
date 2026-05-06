@@ -163,7 +163,7 @@ public sealed class AgentSocketService : IAsyncDisposable
         });
     }
 
-    private async Task EmitHeartbeatAsync(CancellationToken cancellationToken)
+    private async Task EmitHeartbeatAsync()
     {
         if (_socket is null || !_socket.Connected)
         {
@@ -174,7 +174,7 @@ public sealed class AgentSocketService : IAsyncDisposable
         {
             agentId = _settings.AgentId,
             at = DateTimeOffset.UtcNow.ToString("O"),
-        }, cancellationToken);
+        });
     }
 
     private void StartHeartbeatLoop()
@@ -192,7 +192,7 @@ public sealed class AgentSocketService : IAsyncDisposable
             {
                 try
                 {
-                    await EmitHeartbeatAsync(token);
+                    await EmitHeartbeatAsync();
                 }
                 catch (OperationCanceledException)
                 {

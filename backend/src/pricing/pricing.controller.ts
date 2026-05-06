@@ -1,4 +1,19 @@
-import { Body, Controller, Get, Param, Patch, Post, Put } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Req,
+  Res,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Request, Response } from 'express';
 import { AssignPcGroupDto } from './dto/assign-pc-group.dto';
 import { CreateGroupRateDto } from './dto/create-group-rate.dto';
 import { SetClientRuntimeSettingsDto } from './dto/set-client-runtime-settings.dto';
@@ -23,6 +38,29 @@ export class PricingController {
   @Patch('client-settings')
   async setClientRuntimeSettings(@Body() payload: SetClientRuntimeSettingsDto) {
     return this.pricingService.setClientRuntimeSettings(payload);
+  }
+
+  @Post('client-settings/lock-screen-media')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadLockScreenMedia(
+    @UploadedFile() file: any,
+    @Body('mode') mode: string,
+    @Req() request: Request,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Missing file');
+    }
+
+    const baseUrl = `${request.protocol}://${request.get('host')}/api/v1`;
+    return this.pricingService.uploadLockScreenMedia(file, mode, baseUrl);
+  }
+
+  @Get('client-settings/lock-screen-media/:fileName')
+  async getLockScreenMedia(
+    @Param('fileName') fileName: string,
+    @Res() response: Response,
+  ) {
+    return this.pricingService.writeLockScreenMediaToResponse(fileName, response);
   }
 
   @Put('default-rate')

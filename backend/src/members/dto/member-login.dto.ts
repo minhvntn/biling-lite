@@ -1,4 +1,4 @@
-import { IsString, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class MemberLoginDto {
   @IsString()
@@ -11,6 +11,7 @@ export class MemberLoginDto {
   @MaxLength(100)
   password!: string;
 
+  @IsOptional()
   @IsString()
   agentId?: string;
 }

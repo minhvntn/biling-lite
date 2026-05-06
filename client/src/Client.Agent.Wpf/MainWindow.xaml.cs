@@ -1,6 +1,10 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Globalization;
+using System.Text;
+using Client.Agent.Wpf.Localization;
 using System.Windows;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
 using System.Windows.Media;
 using System.Windows.Threading;
 
@@ -17,12 +21,14 @@ public partial class MainWindow : Window
     private int _totalSessionMinutes = DefaultTotalSessionMinutes;
     private decimal _hourlyRate = DefaultHourlyRate;
     private decimal _serviceCost;
+    private bool _isMemberSession;
     private TimeSpan _usedDuration = TimeSpan.Zero;
     private DateTime? _runningStartedAtUtc;
 
     public MainWindow()
     {
         InitializeComponent();
+        ApplyI18nTexts();
 
         _usageTimer.Interval = TimeSpan.FromSeconds(1);
         _usageTimer.Tick += UsageTimer_Tick;
@@ -32,6 +38,47 @@ public partial class MainWindow : Window
 
         Loaded += MainWindow_Loaded;
         LocationChanged += MainWindow_LocationChanged;
+    }
+
+    private void ApplyI18nTexts()
+    {
+        ConnectionStatusTextBlock.Text = ClientI18n.Get(
+            "main.connection.connecting",
+            "Đang kết nối...");
+
+        StatusIconTextBlock.Text = ClientI18n.Get("main.status.icon", "⚡");
+        StatusTitleTextBlock.Text = ClientI18n.Get("main.status.title", "Trạng thái máy");
+
+        TotalTimeLabelTextBlock.Text = ClientI18n.Get("main.metrics.total", "Tổng thời gian");
+        UsedTimeLabelTextBlock.Text = ClientI18n.Get("main.metrics.used", "Đã sử dụng");
+        RemainingTimeLabelTextBlock.Text = ClientI18n.Get("main.metrics.remaining", "Còn lại");
+        GameCostLabelTextBlock.Text = ClientI18n.Get("main.metrics.game_cost", "Tiền giờ chơi");
+        ServiceCostLabelTextBlock.Text = ClientI18n.Get("main.metrics.service_cost", "Tiền dịch vụ");
+
+        LastCommandTextBlock.Text = ClientI18n.Get(
+            "main.last_command.initial",
+            "Lệnh gần nhất: Khởi động hệ thống");
+
+        MessagesIconTextBlock.Text = ClientI18n.Get("main.actions.messages.icon", "💬");
+        MessagesLabelTextBlock.Text = ClientI18n.Get("main.actions.messages.label", "Tin nhắn");
+        ServicesIconTextBlock.Text = ClientI18n.Get("main.actions.services.icon", "🛒");
+        ServicesLabelTextBlock.Text = ClientI18n.Get("main.actions.services.label", "Dịch vụ");
+        LoyaltyIconTextBlock.Text = ClientI18n.Get("main.actions.loyalty.icon", "🎡");
+        LoyaltyLabelTextBlock.Text = ClientI18n.Get("main.actions.loyalty.label", "Vòng quay");
+        TransferIconTextBlock.Text = ClientI18n.Get("main.actions.transfer.icon", "💸");
+        TransferLabelTextBlock.Text = ClientI18n.Get("main.actions.transfer.label", "Chuyển tiền");
+        PasswordIconTextBlock.Text = ClientI18n.Get("main.actions.password.icon", "🔑");
+        PasswordLabelTextBlock.Text = ClientI18n.Get("main.actions.password.label", "Đổi mật mã");
+        LogoutIconTextBlock.Text = ClientI18n.Get("main.actions.logout.icon", "🚪");
+        LogoutLabelTextBlock.Text = ClientI18n.Get("main.actions.logout.label", "Đăng xuất");
+        LockIconTextBlock.Text = ClientI18n.Get("main.actions.lock.icon", "🔒");
+        LockLabelTextBlock.Text = ClientI18n.Get("main.actions.lock.label", "Khóa máy");
+
+        FooterTitleTextBlock.Text = ClientI18n.Get("main.footer.title", "Loyalty Program");
+        FooterDescriptionTextBlock.Text = ClientI18n.Get(
+            "main.footer.description",
+            "Tích lũy điểm khi chơi để đổi giờ hoặc quay thưởng hấp dẫn!");
+        FooterIconTextBlock.Text = ClientI18n.Get("main.footer.icon", "💎");
     }
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -176,79 +223,150 @@ public partial class MainWindow : Window
 
     public void SetMemberInfo(string? username, string? rank)
     {
+        _isMemberSession = !string.IsNullOrWhiteSpace(username);
         if (string.IsNullOrWhiteSpace(username))
         {
             UserInfoPanel.Visibility = Visibility.Collapsed;
+            ApplyRankPulseAnimation(false);
+            UpdateUsageUi();
+            return;
         }
-        else
+
+        UserInfoPanel.Visibility = Visibility.Visible;
+        MemberUsernameTextBlock.Text = username;
+
+        var rankStr = string.IsNullOrWhiteSpace(rank) ? "SAT" : rank;
+        var rankUpper = rankStr.ToUpperInvariant();
+        var rankNormalized = NormalizeRankKey(rankUpper);
+        MemberRankTextBlock.Text = rankUpper;
+
+        string bgColor = "#374151";
+        string fgColor = "#9CA3AF";
+        string rankIcon = "🔰";
+        var shouldPulse = false;
+
+        if (rankNormalized.Contains("DONG") || rankUpper.Contains("BRONZE"))
         {
-            UserInfoPanel.Visibility = Visibility.Visible;
-            MemberUsernameTextBlock.Text = username;
-            
-            var rankStr = string.IsNullOrWhiteSpace(rank) ? "Sắt" : rank;
-            var rankUpper = rankStr.ToUpperInvariant();
-            MemberRankTextBlock.Text = rankUpper;
-            
-            string bgColor = "#374151"; // Default Sắt
-            string fgColor = "#9CA3AF"; 
-
-            if (rankUpper.Contains("ĐỒNG") || rankUpper.Contains("BRONZE"))
-            {
-                bgColor = "#78350F";
-                fgColor = "#FCD34D";
-            }
-            else if (rankUpper.Contains("BẠC") || rankUpper.Contains("SILVER"))
-            {
-                bgColor = "#4B5563";
-                fgColor = "#E5E7EB";
-            }
-            else if (rankUpper.Contains("VÀNG") || rankUpper.Contains("GOLD"))
-            {
-                bgColor = "#854D0E";
-                fgColor = "#FDE047";
-            }
-            else if (rankUpper.Contains("BẠCH KIM") || rankUpper.Contains("PLATINUM"))
-            {
-                bgColor = "#164E63";
-                fgColor = "#22D3EE";
-            }
-            else if (rankUpper.Contains("LỤC BẢO") || rankUpper.Contains("EMERALD"))
-            {
-                bgColor = "#064E3B"; // Emerald 900
-                fgColor = "#34D399"; // Emerald 400
-            }
-            else if (rankUpper.Contains("KIM CƯƠNG") || rankUpper.Contains("DIAMOND"))
-            {
-                bgColor = "#312E81";
-                fgColor = "#C7D2FE";
-            }
-            else if (rankUpper.Contains("ĐẠI CAO THỦ") || rankUpper.Contains("GRANDMASTER"))
-            {
-                bgColor = "#7F1D1D"; // Red 900
-                fgColor = "#FCA5A5"; // Red 300
-            }
-            else if (rankUpper.Contains("CAO THỦ") || rankUpper.Contains("MASTER"))
-            {
-                bgColor = "#701A75"; // Fuchsia 900
-                fgColor = "#F0ABFC"; // Fuchsia 300
-            }
-            else if (rankUpper.Contains("THÁCH ĐẤU") || rankUpper.Contains("CHALLENGER"))
-            {
-                bgColor = "#1E3A8A"; // Blue 900
-                fgColor = "#FDE047"; // Yellow 300
-            }
-            else if (rankUpper.Contains("VIP"))
-            {
-                bgColor = "#831843";
-                fgColor = "#F9A8D4";
-            }
-
-            var bc = new BrushConverter();
-            MemberRankBorder.Background = (Brush)bc.ConvertFromString(bgColor)!;
-            MemberRankTextBlock.Foreground = (Brush)bc.ConvertFromString(fgColor)!;
+            bgColor = "#78350F";
+            fgColor = "#FCD34D";
+            rankIcon = "🥉";
         }
+        else if (rankNormalized.Contains("BAC") || rankUpper.Contains("SILVER"))
+        {
+            bgColor = "#4B5563";
+            fgColor = "#E5E7EB";
+            rankIcon = "🥈";
+        }
+        else if (rankNormalized.Contains("VANG") || rankUpper.Contains("GOLD"))
+        {
+            bgColor = "#854D0E";
+            fgColor = "#FDE047";
+            rankIcon = "🥇";
+        }
+        else if (rankNormalized.Contains("BACH KIM") || rankUpper.Contains("PLATINUM"))
+        {
+            bgColor = "#164E63";
+            fgColor = "#22D3EE";
+            rankIcon = "💠";
+        }
+        else if (rankNormalized.Contains("LUC BAO") || rankUpper.Contains("EMERALD"))
+        {
+            bgColor = "#064E3B";
+            fgColor = "#34D399";
+            rankIcon = "💚";
+        }
+        else if (rankNormalized.Contains("KIM CUONG") || rankUpper.Contains("DIAMOND"))
+        {
+            bgColor = "#312E81";
+            fgColor = "#C7D2FE";
+            rankIcon = "💎";
+            shouldPulse = true;
+        }
+        else if (rankNormalized.Contains("DAI CAO THU") || rankUpper.Contains("GRANDMASTER"))
+        {
+            bgColor = "#7F1D1D";
+            fgColor = "#FCA5A5";
+            rankIcon = "🛡️";
+            shouldPulse = true;
+        }
+        else if (rankNormalized.Contains("CAO THU") || rankUpper.Contains("MASTER"))
+        {
+            bgColor = "#701A75";
+            fgColor = "#F0ABFC";
+            rankIcon = "👑";
+            shouldPulse = true;
+        }
+        else if (rankNormalized.Contains("THACH DAU") || rankUpper.Contains("CHALLENGER"))
+        {
+            bgColor = "#1E3A8A";
+            fgColor = "#FDE047";
+            rankIcon = "🏆";
+            shouldPulse = true;
+        }
+        else if (rankUpper.Contains("VIP"))
+        {
+            bgColor = "#831843";
+            fgColor = "#F9A8D4";
+            rankIcon = "✨";
+        }
+
+        var bc = new BrushConverter();
+        var fgBrush = (Brush)bc.ConvertFromString(fgColor)!;
+        MemberRankBorder.Background = (Brush)bc.ConvertFromString(bgColor)!;
+        MemberRankBorder.BorderBrush = fgBrush;
+        MemberRankTextBlock.Foreground = fgBrush;
+        MemberRankIconTextBlock.Foreground = fgBrush;
+        MemberRankIconTextBlock.Text = rankIcon;
+        if (MemberRankBorder.Effect is DropShadowEffect glow)
+        {
+            var glowColor = (Color)ColorConverter.ConvertFromString(fgColor);
+            glowColor.A = 180;
+            glow.Color = glowColor;
+        }
+        ApplyRankPulseAnimation(shouldPulse);
+        UpdateUsageUi();
     }
 
+    private void ApplyRankPulseAnimation(bool shouldPulse)
+    {
+        if (MemberRankBorder.Effect is not DropShadowEffect glow)
+        {
+            return;
+        }
+
+        if (!shouldPulse)
+        {
+            glow.BeginAnimation(DropShadowEffect.OpacityProperty, null);
+            glow.Opacity = 0.65;
+            return;
+        }
+
+        var pulseAnimation = new DoubleAnimation
+        {
+            From = 0.45,
+            To = 1.0,
+            Duration = TimeSpan.FromMilliseconds(900),
+            AutoReverse = true,
+            RepeatBehavior = RepeatBehavior.Forever,
+            EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+        };
+        glow.BeginAnimation(DropShadowEffect.OpacityProperty, pulseAnimation);
+    }
+
+    private static string NormalizeRankKey(string value)
+    {
+        var normalized = value.Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder(normalized.Length);
+        foreach (var c in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+            {
+                sb.Append(c);
+            }
+        }
+
+        return sb.ToString().Normalize(NormalizationForm.FormC).ToUpperInvariant();
+    }
     public void AllowShutdown()
     {
         _allowClose = true;
@@ -338,6 +456,13 @@ public partial class MainWindow : Window
         UsedTimeValueTextBlock.Text = FormatMinutes(usedMins);
         RemainingTimeValueTextBlock.Text = FormatMinutes(remainingMins);
         
+        if (_isMemberSession)
+        {
+            GameCostValueTextBlock.Text = "-";
+            ServiceCostValueTextBlock.Text = "-";
+            return;
+        }
+
         GameCostValueTextBlock.Text = gameCost.ToString("N0", CultureInfo.InvariantCulture);
         ServiceCostValueTextBlock.Text = _serviceCost.ToString("N0", CultureInfo.InvariantCulture);
     }
@@ -435,3 +560,5 @@ public partial class MainWindow : Window
         SetMachineState("LOCKED");
     }
 }
+
+

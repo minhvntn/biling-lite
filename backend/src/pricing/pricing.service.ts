@@ -5,6 +5,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { Response } from 'express';
+import { promises as fs } from 'fs';
+import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
 import { AssignPcGroupDto } from './dto/assign-pc-group.dto';
 import { CreateGroupRateDto } from './dto/create-group-rate.dto';
@@ -16,6 +19,15 @@ const DEFAULT_GROUP_NAME = 'Mặc định';
 const DEFAULT_HOURLY_RATE = 5000;
 const CLIENT_READY_AUTO_SHUTDOWN_KEY = '__CLIENT_READY_AUTO_SHUTDOWN_MINUTES__';
 const DEFAULT_READY_AUTO_SHUTDOWN_MINUTES = 3;
+const CLIENT_LOCK_SCREEN_BACKGROUND_MODE_KEY = '__CLIENT_LOCK_SCREEN_BACKGROUND_MODE__';
+const CLIENT_LOCK_SCREEN_BACKGROUND_URL_KEY = '__CLIENT_LOCK_SCREEN_BACKGROUND_URL__';
+const DEFAULT_LOCK_SCREEN_BACKGROUND_MODE = 'none';
+const LOCK_SCREEN_MEDIA_DIR = path.join(
+  process.cwd(),
+  'storage',
+  'lock-screen-media',
+);
+const MAX_LOCK_SCREEN_MEDIA_SIZE_BYTES = 100 * 1024 * 1024;
 
 @Injectable()
 export class PricingService {
@@ -47,7 +59,16 @@ export class PricingService {
   }
 
   async getClientRuntimeSettings() {
-    const config = await this.ensureClientRuntimeSettings();
+    const [config, modeSetting, urlSetting] = await Promise.all([
+      this.ensureClientRuntimeSettings(),
+      this.prisma.appSetting.findUnique({
+        where: { key: CLIENT_LOCK_SCREEN_BACKGROUND_MODE_KEY },
+      }),
+      this.prisma.appSetting.findUnique({
+        where: { key: CLIENT_LOCK_SCREEN_BACKGROUND_URL_KEY },
+      }),
+    ]);
+
     return {
       readyAutoShutdownMinutes: Math.max(
         1,
@@ -55,34 +76,135 @@ export class PricingService {
           Number(config.pricePerMinute) || DEFAULT_READY_AUTO_SHUTDOWN_MINUTES,
         ),
       ),
+      lockScreenBackgroundMode: this.normalizeLockScreenBackgroundMode(
+        modeSetting?.value,
+      ),
+      lockScreenBackgroundUrl: (urlSetting?.value ?? '').trim(),
       serverTime: new Date().toISOString(),
     };
   }
 
   async setClientRuntimeSettings(payload: SetClientRuntimeSettingsDto) {
-    const minutes = Math.max(1, Math.round(payload.readyAutoShutdownMinutes));
-    const config = await this.prisma.pricingConfig.upsert({
-      where: { name: CLIENT_READY_AUTO_SHUTDOWN_KEY },
-      update: {
-        pricePerMinute: minutes,
-        isActive: true,
-      },
-      create: {
-        name: CLIENT_READY_AUTO_SHUTDOWN_KEY,
-        pricePerMinute: minutes,
-        isActive: true,
-      },
+    const hasReadyMinutes = payload.readyAutoShutdownMinutes !== undefined;
+    const hasLockScreenMode = payload.lockScreenBackgroundMode !== undefined;
+    const hasLockScreenUrl = payload.lockScreenBackgroundUrl !== undefined;
+
+    if (!hasReadyMinutes && !hasLockScreenMode && !hasLockScreenUrl) {
+      throw new BadRequestException('Khong co du lieu cai dat de cap nhat');
+    }
+
+    if (hasReadyMinutes) {
+      const minutes = Math.max(
+        1,
+        Math.round(payload.readyAutoShutdownMinutes as number),
+      );
+      await this.prisma.pricingConfig.upsert({
+        where: { name: CLIENT_READY_AUTO_SHUTDOWN_KEY },
+        update: {
+          pricePerMinute: minutes,
+          isActive: true,
+        },
+        create: {
+          name: CLIENT_READY_AUTO_SHUTDOWN_KEY,
+          pricePerMinute: minutes,
+          isActive: true,
+        },
+      });
+    }
+
+    if (hasLockScreenMode) {
+      const mode = this.normalizeLockScreenBackgroundMode(
+        payload.lockScreenBackgroundMode,
+      );
+      await this.prisma.appSetting.upsert({
+        where: { key: CLIENT_LOCK_SCREEN_BACKGROUND_MODE_KEY },
+        update: { value: mode },
+        create: { key: CLIENT_LOCK_SCREEN_BACKGROUND_MODE_KEY, value: mode },
+      });
+    }
+
+    if (hasLockScreenUrl) {
+      const url = (payload.lockScreenBackgroundUrl ?? '').trim().slice(0, 2048);
+      await this.prisma.appSetting.upsert({
+        where: { key: CLIENT_LOCK_SCREEN_BACKGROUND_URL_KEY },
+        update: { value: url },
+        create: { key: CLIENT_LOCK_SCREEN_BACKGROUND_URL_KEY, value: url },
+      });
+    }
+
+    return this.getClientRuntimeSettings();
+  }
+
+  async uploadLockScreenMedia(
+    file: any,
+    modeRaw: string | undefined,
+    apiBaseUrl: string,
+  ) {
+    const mode = this.normalizeLockScreenBackgroundMode(modeRaw);
+    if (mode === 'none') {
+      throw new BadRequestException(
+        'Mode lock screen khong hop le. Chi chap nhan image/video',
+      );
+    }
+
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('File upload rong');
+    }
+
+    if (file.size <= 0 || file.size > MAX_LOCK_SCREEN_MEDIA_SIZE_BYTES) {
+      throw new BadRequestException(
+        `Kich thuoc file khong hop le (toi da ${Math.floor(MAX_LOCK_SCREEN_MEDIA_SIZE_BYTES / (1024 * 1024))}MB)`,
+      );
+    }
+
+    const extension = this.resolveLockScreenMediaExtension(
+      file.originalname,
+      file.mimetype,
+      mode,
+    );
+    if (!extension) {
+      throw new BadRequestException(
+        'Dinh dang file khong ho tro cho lock screen',
+      );
+    }
+
+    await fs.mkdir(LOCK_SCREEN_MEDIA_DIR, { recursive: true });
+
+    const suffix = Math.random().toString(36).slice(2, 8);
+    const fileName = `${Date.now()}-${suffix}${extension}`;
+    const fullPath = path.join(LOCK_SCREEN_MEDIA_DIR, fileName);
+    await fs.writeFile(fullPath, file.buffer);
+
+    const mediaUrl = `${apiBaseUrl}/pricing/client-settings/lock-screen-media/${encodeURIComponent(fileName)}`;
+    await this.setClientRuntimeSettings({
+      lockScreenBackgroundMode: mode,
+      lockScreenBackgroundUrl: mediaUrl,
     });
 
-    return {
-      readyAutoShutdownMinutes: Math.max(
-        1,
-        Math.round(
-          Number(config.pricePerMinute) || DEFAULT_READY_AUTO_SHUTDOWN_MINUTES,
-        ),
-      ),
-      serverTime: new Date().toISOString(),
-    };
+    return this.getClientRuntimeSettings();
+  }
+
+  async writeLockScreenMediaToResponse(
+    fileNameRaw: string,
+    response: Response,
+  ) {
+    const safeFileName = path.basename(fileNameRaw ?? '').trim();
+    if (!safeFileName) {
+      throw new NotFoundException('Khong tim thay file');
+    }
+
+    const fullPath = path.join(LOCK_SCREEN_MEDIA_DIR, safeFileName);
+    try {
+      await fs.access(fullPath);
+    } catch {
+      throw new NotFoundException('Khong tim thay file');
+    }
+
+    const extension = path.extname(fullPath).toLowerCase();
+    const contentType = this.getLockScreenMediaContentType(extension);
+    response.setHeader('Content-Type', contentType);
+    response.setHeader('Cache-Control', 'public, max-age=3600');
+    return response.sendFile(fullPath);
   }
 
   async setDefaultRate(payload: SetDefaultRateDto) {
@@ -228,6 +350,97 @@ export class PricingService {
     }
 
     return Math.round(value * 100) / 100;
+  }
+
+  private normalizeLockScreenBackgroundMode(raw?: string | null): string {
+    const normalized = (raw ?? '').trim().toLowerCase();
+    if (normalized === 'image' || normalized === 'video') {
+      return normalized;
+    }
+
+    return DEFAULT_LOCK_SCREEN_BACKGROUND_MODE;
+  }
+
+  private resolveLockScreenMediaExtension(
+    originalName: string,
+    mimeType: string | undefined,
+    mode: string,
+  ): string | null {
+    const extFromName = path.extname(originalName ?? '').toLowerCase();
+    const extFromMime = this.mapLockScreenMimeTypeToExtension(mimeType);
+    const extension = extFromName || extFromMime;
+    if (!extension) {
+      return null;
+    }
+
+    const imageExts = new Set([
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.bmp',
+      '.gif',
+      '.webp',
+    ]);
+    const videoExts = new Set([
+      '.mp4',
+      '.webm',
+      '.avi',
+      '.mkv',
+      '.mov',
+      '.wmv',
+      '.m4v',
+    ]);
+
+    if (mode === 'image' && !imageExts.has(extension)) {
+      return null;
+    }
+
+    if (mode === 'video' && !videoExts.has(extension)) {
+      return null;
+    }
+
+    return extension;
+  }
+
+  private mapLockScreenMimeTypeToExtension(
+    mimeType: string | undefined,
+  ): string {
+    const normalized = (mimeType ?? '').trim().toLowerCase();
+    return (
+      {
+        'image/jpeg': '.jpg',
+        'image/png': '.png',
+        'image/bmp': '.bmp',
+        'image/gif': '.gif',
+        'image/webp': '.webp',
+        'video/mp4': '.mp4',
+        'video/webm': '.webm',
+        'video/x-msvideo': '.avi',
+        'video/quicktime': '.mov',
+        'video/x-matroska': '.mkv',
+        'video/x-ms-wmv': '.wmv',
+      }[normalized] ?? ''
+    );
+  }
+
+  private getLockScreenMediaContentType(extension: string): string {
+    return (
+      {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.bmp': 'image/bmp',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.mp4': 'video/mp4',
+        '.webm': 'video/webm',
+        '.avi': 'video/x-msvideo',
+        '.mkv': 'video/x-matroska',
+        '.mov': 'video/quicktime',
+        '.wmv': 'video/x-ms-wmv',
+        '.m4v': 'video/mp4',
+      }[extension] ?? 'application/octet-stream'
+    );
   }
 
   private async ensureClientRuntimeSettings() {

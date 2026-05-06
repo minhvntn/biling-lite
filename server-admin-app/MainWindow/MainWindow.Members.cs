@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -15,21 +15,39 @@ using System.Windows.Threading;
 namespace Server.Admin.App;
 public partial class MainWindow : Window
 {
-    private async Task RefreshMembersAsync()
+    private async Task RefreshMembersAsync(bool forceRefresh = false)
     {
         try
         {
             var selectedMemberId = _selectedMemberId ?? (MembersDataGrid.SelectedItem as MemberRow)?.Id;
-            var url = BuildApiUrl("/members");
-            if (!string.IsNullOrWhiteSpace(_memberSearchKeyword))
-            {
-                url += $"?search={Uri.EscapeDataString(_memberSearchKeyword)}";
-            }
+            var search = _memberSearchKeyword.Trim();
+            var cacheKey = search.ToLowerInvariant();
+            MemberListResponse? response;
 
-            var response = await _httpClient.GetFromJsonAsync<MemberListResponse>(url, JsonOptions());
-            if (response is null)
+            if (!forceRefresh &&
+                _membersCacheResponse is not null &&
+                string.Equals(_membersCacheKey, cacheKey, StringComparison.Ordinal) &&
+                IsCacheValid(_membersCacheAtUtc, MembersCacheTtlSeconds))
             {
-                return;
+                response = _membersCacheResponse;
+            }
+            else
+            {
+                var url = BuildApiUrl("/members");
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    url += $"?search={Uri.EscapeDataString(search)}";
+                }
+
+                response = await _httpClient.GetFromJsonAsync<MemberListResponse>(url, JsonOptions());
+                if (response is null)
+                {
+                    return;
+                }
+
+                _membersCacheResponse = response;
+                _membersCacheKey = cacheKey;
+                _membersCacheAtUtc = DateTime.UtcNow;
             }
 
             var mapped = response.Items
@@ -205,7 +223,8 @@ public partial class MainWindow : Window
 
             HideAddMemberModal();
             AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 t\u1ea1o h\u1ed9i vi\u00ean {username}");
-            await RefreshMembersAsync();
+            InvalidateMembersCache();
+            await RefreshMembersAsync(forceRefresh: true);
         }
         catch (Exception ex)
         {
@@ -286,7 +305,8 @@ public partial class MainWindow : Window
             AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Tr\u1eeb ti\u1ec1n {Math.Abs(amount.Value):N0} cho h\u1ed9i vi\u00ean {_selectedMemberId}");
         }
 
-        await RefreshMembersAsync();
+        InvalidateMembersCache();
+        await RefreshMembersAsync(forceRefresh: true);
     }
 
     private async Task<decimal?> ShowTopupModalAsync(
@@ -552,7 +572,8 @@ public partial class MainWindow : Window
         }
 
         AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Mua {hours:0.##} gi\u1edd cho h\u1ed9i vi\u00ean {_selectedMemberId}");
-        await RefreshMembersAsync();
+        InvalidateMembersCache();
+        await RefreshMembersAsync(forceRefresh: true);
     }
 
     private async Task AdjustMemberBalanceAsync(bool isRefund)
@@ -583,7 +604,8 @@ public partial class MainWindow : Window
         }
 
         AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] {note} {amount:N0} cho hoi vien {_selectedMemberId}");
-        await RefreshMembersAsync();
+        InvalidateMembersCache();
+        await RefreshMembersAsync(forceRefresh: true);
     }
 
 
@@ -603,7 +625,7 @@ public partial class MainWindow : Window
         MemberModalOverlay.Visibility = Visibility.Collapsed;
     }
 
-    private async void RefreshMembersButton_Click(object sender, RoutedEventArgs e) => await RefreshMembersAsync();
+    private async void RefreshMembersButton_Click(object sender, RoutedEventArgs e) => await RefreshMembersAsync(forceRefresh: true);
 
     private void AddMemberButton_Click(object sender, RoutedEventArgs e) => ShowAddMemberModal();
 
@@ -975,7 +997,8 @@ public partial class MainWindow : Window
         }
 
         AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã cập nhật hội viên {member.Username}");
-        await RefreshMembersAsync();
+        InvalidateMembersCache();
+        await RefreshMembersAsync(forceRefresh: true);
     }
 
 
@@ -1030,7 +1053,8 @@ public partial class MainWindow : Window
 
         AppendServiceLog(
             $"[{DateTime.Now:HH:mm:ss}] Đã chuyển {transferPayload.Value.Amount:N0} từ {sourceMember.Username} sang {transferPayload.Value.TargetMember.Username}");
-        await RefreshMembersAsync();
+        InvalidateMembersCache();
+        await RefreshMembersAsync(forceRefresh: true);
     }
 
     private (MemberRow TargetMember, decimal Amount, string? Note)? ShowTransferMemberModal(
@@ -1435,4 +1459,6 @@ public partial class MainWindow : Window
         return false;
     }
 }
+
+
 
