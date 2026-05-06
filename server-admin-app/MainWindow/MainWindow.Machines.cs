@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -584,7 +584,7 @@ public partial class MainWindow : Window
                 pause: false,
                 resume: false,
                 transfer: false,
-                assignGroup: false,
+                assignGroup: true,
                 viewBilling: false,
                 selectService: false,
                 notify: false);
