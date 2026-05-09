@@ -5,7 +5,10 @@ import { TopNav } from '../components/TopNav';
 import { DailyRevenueResponse, SessionItem } from '../types/session';
 
 function toDayInputValue(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function formatDateTime(value: string | null): string {
@@ -35,8 +38,10 @@ export function SessionHistoryPage() {
     setLoading(true);
     setError(null);
     try {
-      const from = `${targetDate}T00:00:00.000Z`;
-      const to = `${targetDate}T23:59:59.999Z`;
+      const startLocal = new Date(`${targetDate}T00:00:00`);
+      const endLocal = new Date(`${targetDate}T23:59:59.999`);
+      const from = startLocal.toISOString();
+      const to = endLocal.toISOString();
       const [sessionData, revenueData] = await Promise.all([
         fetchSessions({ from, to }),
         fetchDailyRevenue(targetDate),
@@ -55,7 +60,7 @@ export function SessionHistoryPage() {
 
   useEffect(() => {
     void loadData(date);
-  }, []);
+  }, [date]);
 
   const closedCount = useMemo(
     () => sessions.filter((session) => session.status === 'CLOSED').length,

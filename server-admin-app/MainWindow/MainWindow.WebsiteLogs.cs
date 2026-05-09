@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -291,6 +291,59 @@ public partial class MainWindow : Window
 
     private async void RefreshWebsiteLogsButton_Click(object sender, RoutedEventArgs e) => await RefreshWebsiteLogsAsync(forceRefresh: true);
 
+    private async void ClearWebsiteLogsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var confirm = MessageBox.Show(
+            this,
+            "Bạn có chắc muốn xóa toàn bộ nhật ký website?\nDữ liệu đã xóa sẽ không thể khôi phục.",
+            "Xóa nhật ký website",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            using var response = await _httpClient.DeleteAsync(BuildApiUrl("/website-logs"));
+            if (!response.IsSuccessStatusCode)
+            {
+                MessageBox.Show(
+                    this,
+                    $"Xóa nhật ký website thất bại ({(int)response.StatusCode}).",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<ClearWebsiteLogsResponse>(JsonOptions());
+            var deletedCount = payload?.DeletedCount ?? 0;
+
+            InvalidateWebsiteLogsCache();
+            _websiteLogRows.Clear();
+            WebsiteLogsInfoTextBlock.Text = $"Đã xóa {deletedCount} dòng - Cập nhật lúc {DateTime.Now:HH:mm:ss}";
+            await RefreshWebsiteLogsAsync(forceRefresh: true);
+
+            MessageBox.Show(
+                this,
+                $"Đã xóa {deletedCount} dòng nhật ký website.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                this,
+                $"Không thể xóa nhật ký website: {ex.Message}",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
     private async void ReloadWebsiteLogSettingsButton_Click(object sender, RoutedEventArgs e)
     {
         await LoadWebsiteLogSettingsAsync();
@@ -353,3 +406,4 @@ public partial class MainWindow : Window
 
     private void WebsiteLogsEnabledCheckBox_Unchecked(object sender, RoutedEventArgs e) => MarkWebsiteLogSettingsPendingChange();
 }
+

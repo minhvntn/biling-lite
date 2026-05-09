@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Delete, Get, Query } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 
 @Controller('reports')
@@ -26,5 +26,10 @@ export class ReportsController {
   @Get('events/system')
   async getSystemEvents(@Query('limit') limit?: string) {
     return this.reportsService.getSystemEvents(limit);
+  }
+
+  @Delete('events/system')
+  async clearSystemEvents() {
+    return this.reportsService.clearSystemEvents();
   }
 }

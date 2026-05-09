@@ -19,6 +19,9 @@ public sealed class AgentSocketService : IAsyncDisposable
     private global::SocketIOClient.SocketIO? _socket;
     private CancellationTokenSource? _heartbeatCts;
 
+    public Func<AdminGetRunningAppsPayload, Task>? GetRunningAppsHandler { get; set; }
+    public Func<AdminKillProcessPayload, Task>? KillProcessHandler { get; set; }
+
     public AgentSocketService(
         AgentSettings settings,
         FileLogger logger,
@@ -99,6 +102,26 @@ public sealed class AgentSocketService : IAsyncDisposable
             if (_captureScreenshotHandler is not null)
             {
                 await _captureScreenshotHandler(payload);
+            }
+        });
+
+        _socket.On("admin.get_running_apps", async response =>
+        {
+            var payload = response.GetValue<AdminGetRunningAppsPayload>();
+            await _logger.InfoAsync($"Received admin.get_running_apps requestId={payload.RequestId} pcId={payload.PcId}");
+            if (GetRunningAppsHandler is not null)
+            {
+                await GetRunningAppsHandler(payload);
+            }
+        });
+
+        _socket.On("admin.kill_process", async response =>
+        {
+            var payload = response.GetValue<AdminKillProcessPayload>();
+            await _logger.InfoAsync($"Received admin.kill_process pid={payload.Pid} name={payload.Name}");
+            if (KillProcessHandler is not null)
+            {
+                await KillProcessHandler(payload);
             }
         });
 
@@ -266,4 +289,19 @@ public sealed class AdminCaptureScreenshotPayload
     public string RequestId { get; set; } = string.Empty;
     public string? RequestedBy { get; set; }
     public string? RequestedAt { get; set; }
+}
+
+public sealed class AdminGetRunningAppsPayload
+{
+    public string PcId { get; set; } = string.Empty;
+    public string AgentId { get; set; } = string.Empty;
+    public string RequestId { get; set; } = string.Empty;
+    public string? RequestedBy { get; set; }
+}
+
+public sealed class AdminKillProcessPayload
+{
+    public string PcId { get; set; } = string.Empty;
+    public int Pid { get; set; }
+    public string Name { get; set; } = string.Empty;
 }

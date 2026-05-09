@@ -82,6 +82,38 @@ export class CommandsController {
     return this.commandsService.getLatestPcScreenshot(pcId, requestId);
   }
 
+  @Post('pcs/:pcId/request-running-apps')
+  async requestRunningApps(
+    @Param('pcId') pcId: string,
+    @Body() body: RequestCommandDto,
+  ) {
+    return this.commandsService.requestRunningApps(pcId, body.requestedBy);
+  }
+
+  @Post('pcs/:pcId/running-apps-upload')
+  async uploadRunningApps(
+    @Param('pcId') pcId: string,
+    @Body() body: { requestId: string; apps: Array<{ pid: number; name: string; title: string }> },
+  ) {
+    return this.commandsService.uploadRunningApps(pcId, body);
+  }
+
+  @Get('pcs/:pcId/latest-running-apps')
+  async getLatestRunningApps(
+    @Param('pcId') pcId: string,
+    @Query('requestId') requestId?: string,
+  ) {
+    return this.commandsService.getLatestRunningApps(pcId, requestId);
+  }
+
+  @Post('pcs/:pcId/kill-process')
+  async killProcess(
+    @Param('pcId') pcId: string,
+    @Body() body: { pid: number; name: string },
+  ) {
+    return this.commandsService.killProcess(pcId, body);
+  }
+
   @Get('commands/:commandId')
   async getCommand(@Param('commandId') commandId: string) {
     return this.commandsService.getCommandById(commandId);

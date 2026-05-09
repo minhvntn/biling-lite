@@ -901,7 +901,7 @@ public partial class MainWindow : Window
         };
         var saveButton = new Button
         {
-            Content = "Lưu",
+            Content = "Luu",
             Width = 90,
             Margin = new Thickness(0, 0, 8, 0),
             IsDefault = true,
@@ -1459,6 +1459,7 @@ public partial class MainWindow : Window
         return false;
     }
 }
+
 
 
 

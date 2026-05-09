@@ -18,6 +18,65 @@ export class CommandsService {
     private readonly configService: ConfigService,
   ) {}
 
+  private readonly runningAppsStore = new Map<string, Array<{ pid: number; name: string; title: string }>>();
+
+  async requestRunningApps(pcId: string, requestedBy?: string) {
+    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    if (!pc) {
+      throw new NotFoundException('PC not found');
+    }
+
+    const sockets = this.realtime.countAgentSockets(pc.agentId);
+    if (sockets <= 0) {
+      return { ok: false, reason: 'AGENT_OFFLINE' };
+    }
+
+    const requestId = randomUUID();
+    const payload = {
+      pcId: pc.id,
+      agentId: pc.agentId,
+      requestId,
+      requestedBy: requestedBy || 'admin.desktop',
+      requestedAt: new Date().toISOString(),
+    };
+
+    this.realtime.emitToAgent(pc.agentId, 'admin.get_running_apps', payload);
+    return { ok: true, requestId };
+  }
+
+  async uploadRunningApps(pcId: string, body: { requestId: string; apps: Array<{ pid: number; name: string; title: string }> }) {
+    this.runningAppsStore.set(body.requestId, body.apps || []);
+    return { ok: true };
+  }
+
+  async getLatestRunningApps(pcId: string, requestId?: string) {
+    if (!requestId) {
+      return { ok: false, reason: 'MISSING_REQUEST_ID' };
+    }
+
+    const apps = this.runningAppsStore.get(requestId);
+    if (!apps) {
+      return { ok: false, reason: 'PENDING' };
+    }
+
+    return { ok: true, apps };
+  }
+
+  async killProcess(pcId: string, body: { pid: number; name: string }) {
+    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    if (!pc) {
+      throw new NotFoundException('PC not found');
+    }
+
+    this.realtime.emitToAgent(pc.agentId, 'admin.kill_process', {
+      pcId: pc.id,
+      pid: body.pid,
+      name: body.name,
+    });
+
+    return { ok: true };
+  }
+
   async createOpenCommand(pcId: string, requestedBy?: CommandRequestedBy) {
     return this.createAndDispatch(pcId, CommandType.OPEN, requestedBy);
   }
@@ -332,7 +391,7 @@ export class CommandsService {
           command.type === CommandType.OPEN
             ? PcStatus.IN_USE
             : command.type === CommandType.LOCK
-              ? PcStatus.LOCKED
+              ? PcStatus.ONLINE
               : command.type === CommandType.PAUSE
                 ? PcStatus.PAUSED
                 : command.type === CommandType.RESUME

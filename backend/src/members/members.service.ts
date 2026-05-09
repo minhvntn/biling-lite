@@ -13,6 +13,7 @@ import {
   MemberTransactionType,
   Prisma,
 } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { BuyPlaytimeDto } from './dto/buy-playtime.dto';
@@ -27,6 +28,7 @@ import { RecordMemberUsageDto } from './dto/record-member-usage.dto';
 import { RedeemLoyaltyPointsDto } from './dto/redeem-loyalty-points.dto';
 import { SetMemberPresenceDto } from './dto/set-member-presence.dto';
 import { UpdateLoyaltyRankDto } from './dto/update-loyalty-rank.dto';
+import { UpdateSpinPrizeSettingsDto } from './dto/update-spin-prize-settings.dto';
 
 const LOYALTY_CONFIG_KEY = '__LOYALTY_MEMBER_POINTS__';
 const LOYALTY_MINUTES_PER_POINT = 15;
@@ -35,6 +37,27 @@ const LOYALTY_REDEEM_SECONDS_PER_POINT = 60;
 const LOYALTY_USAGE_CREATED_BY = 'client.session.loyalty';
 const LOYALTY_REDEEM_CREATED_BY = 'client.loyalty';
 const LOYALTY_REDEEM_NOTE_PREFIX = 'LOYALTY_REDEEM';
+const LOYALTY_SPIN_CONFIG_KEY = '__LOYALTY_SPIN_CONFIG__';
+const MEMBER_PASSWORD_BCRYPT_ROUNDS = 10;
+
+type SpinPrizeItem = {
+  minutes: number;
+  chance: number;
+  label: string;
+};
+
+const DEFAULT_SPIN_PRIZE_TABLE: ReadonlyArray<SpinPrizeItem> = [
+  { minutes: 0, chance: 28, label: '0p' },
+  { minutes: 1, chance: 18, label: '1p' },
+  { minutes: 2, chance: 15, label: '2p' },
+  { minutes: 4, chance: 12, label: '4p' },
+  { minutes: 6, chance: 10, label: '6p' },
+  { minutes: 8, chance: 7, label: '8p' },
+  { minutes: 10, chance: 5, label: '10p' },
+  { minutes: 15, chance: 3, label: '15p' },
+  { minutes: 20, chance: 1.5, label: '20p' },
+  { minutes: 30, chance: 0.5, label: '30p' },
+];
 
 @Injectable()
 export class MembersService {
@@ -83,14 +106,15 @@ export class MembersService {
 
   async createMember(payload: CreateMemberDto) {
     try {
+      const passwordHash = payload.password
+        ? await this.hashPassword(payload.password)
+        : null;
       const [member, rankConfigs] = await Promise.all([
         this.prisma.member.create({
           data: {
             username: payload.username,
             fullName: payload.fullName ?? payload.username,
-            passwordHash: payload.password
-              ? this.hashPassword(payload.password)
-              : null,
+            passwordHash,
             phone: payload.phone,
             identityNumber: payload.identityNumber,
           },
@@ -138,8 +162,13 @@ export class MembersService {
       throw new UnauthorizedException('Tài khoản hội viên chưa cài mật khẩu');
     }
 
-    if (this.hashPassword(password) !== member.passwordHash) {
+    const passwordResult = await this.verifyPassword(password, member.passwordHash);
+    if (!passwordResult.ok) {
       throw new UnauthorizedException('Sai tài khoản hoặc mật khẩu');
+    }
+
+    if (passwordResult.needsRehash) {
+      await this.rehashMemberPassword(member.id, password);
     }
 
     const [rankConfigs] = await Promise.all([
@@ -230,32 +259,6 @@ export class MembersService {
         },
       });
 
-      // Upfront 1 minute playSeconds deduction (60 seconds) for member login
-      const currentPlaySeconds = Math.max(0, member.playSeconds);
-      const consumedSeconds = Math.min(60, currentPlaySeconds);
-
-      if (consumedSeconds > 0) {
-        await this.prisma.member.update({
-          where: { id: member.id },
-          data: {
-            playSeconds: {
-              decrement: consumedSeconds,
-            },
-          },
-        });
-
-        await this.prisma.memberTransaction.create({
-          data: {
-            memberId: member.id,
-            type: 'ADJUSTMENT',
-            amountDelta: 0,
-            playSecondsDelta: -consumedSeconds,
-            note: 'UPFRONT_LOGIN_CHARGE',
-            createdBy: 'client.session',
-          },
-        });
-      }
-
       const defaultGroup = await this.prisma.pcGroup.findFirst({
         where: { isDefault: true },
       });
@@ -267,6 +270,32 @@ export class MembersService {
       const hourlyRate = await this.getEffectiveHourlyRate(baseRate);
       const pricePerMinute = Number(hourlyRate) / 60;
 
+      // Upfront 1 minute cash deduction for member login
+      const costAmount = Number(pricePerMinute.toFixed(2));
+      const currentBalance = Number(member.balance);
+
+      if (costAmount > 0 && currentBalance >= costAmount) {
+        await this.prisma.member.update({
+          where: { id: member.id },
+          data: {
+            balance: {
+              decrement: costAmount,
+            },
+          },
+        });
+
+        await this.prisma.memberTransaction.create({
+          data: {
+            memberId: member.id,
+            type: 'ADJUSTMENT',
+            amountDelta: -costAmount,
+            playSecondsDelta: 0,
+            note: 'UPFRONT_LOGIN_CHARGE',
+            createdBy: 'client.session',
+          },
+        });
+      }
+
       await this.prisma.session.create({
         data: {
           pcId: pc.id,
@@ -274,6 +303,12 @@ export class MembersService {
           startedAt: new Date(),
           pricePerMinute,
         },
+      });
+
+      // Update PC status to IN_USE
+      await this.prisma.pc.update({
+        where: { id: pc.id },
+        data: { status: 'IN_USE' },
       });
     } else {
       const activeSession = await this.prisma.session.findFirst({
@@ -306,6 +341,12 @@ export class MembersService {
           },
         });
       }
+
+      // Update PC status to ONLINE (Sẵn sàng) on logout
+      await this.prisma.pc.update({
+        where: { id: pc.id },
+        data: { status: 'ONLINE' },
+      });
     }
 
     return {
@@ -473,6 +514,60 @@ export class MembersService {
         });
       }
 
+      const remainingSeconds = requestedSeconds - consumedSeconds;
+      if (remainingSeconds > 0) {
+        const pc = await tx.pc.findFirst({
+          where: { agentId: createdBy },
+        });
+
+        let pricePerMinute = 200;
+        if (pc) {
+          const activeSession = await tx.session.findFirst({
+            where: { pcId: pc.id, status: 'ACTIVE' },
+          });
+          if (activeSession && activeSession.pricePerMinute) {
+            pricePerMinute = Number(activeSession.pricePerMinute);
+          } else {
+            const defaultGroup = await tx.pcGroup.findFirst({
+              where: { isDefault: true },
+            });
+            const baseRate = Number(
+              pc.groupId
+                ? (await tx.pcGroup.findUnique({ where: { id: pc.groupId } }))?.hourlyRate ?? defaultGroup?.hourlyRate ?? 12000
+                : defaultGroup?.hourlyRate ?? 12000,
+            );
+            const hourlyRate = await this.getEffectiveHourlyRate(baseRate);
+            pricePerMinute = Number(hourlyRate) / 60;
+          }
+        }
+
+        const pricePerSecond = pricePerMinute / 60;
+        const rawCost = remainingSeconds * pricePerSecond;
+        const costAmount = Number(rawCost.toFixed(2));
+
+        if (costAmount > 0) {
+          updatedMember = await tx.member.update({
+            where: { id: member.id },
+            data: {
+              balance: {
+                decrement: costAmount,
+              },
+            },
+          });
+
+          await tx.memberTransaction.create({
+            data: {
+              memberId: member.id,
+              type: MemberTransactionType.ADJUSTMENT,
+              amountDelta: -costAmount,
+              playSecondsDelta: 0,
+              note: `${note}:CASH_CHARGE`,
+              createdBy,
+            },
+          });
+        }
+      }
+
       const loyalty = await this.buildLoyaltySnapshot(member.id, tx);
 
       return {
@@ -569,25 +664,26 @@ export class MembersService {
       }
 
       // Roll for prize
-      const roll = Math.random() * 100;
+      const spinPrizeTable = await this.getSpinPrizeTable(tx);
+      const totalChance = spinPrizeTable.reduce((sum, item) => sum + item.chance, 0);
+      const roll = Math.random() * totalChance;
       let wonMinutes = 0;
-      let prizeLabel = 'Hen gap lai lan sau';
-
-      if (roll < 5) {
-        wonMinutes = 30;
-        prizeLabel = "GIẢI ĐẶC BIỆT 30p";
-      } else if (roll < 15) {
-        wonMinutes = 20;
-        prizeLabel = "GIẢI NHẤT 20p";
-      } else if (roll < 30) {
-        wonMinutes = 10;
-        prizeLabel = "GIẢI NHÌ 10p";
-      } else if (roll < 50) {
-        wonMinutes = 5;
-        prizeLabel = "GIẢI BA 5p";
-      } else if (roll < 75) {
-        wonMinutes = 2;
-        prizeLabel = "KHUYẾN KHÍCH 2p";
+      let prizeLabel = '0p';
+      let cumulative = 0;
+      let matched = false;
+      for (const row of spinPrizeTable) {
+        cumulative += row.chance;
+        if (roll < cumulative) {
+          wonMinutes = row.minutes;
+          prizeLabel = row.label;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched && spinPrizeTable.length > 0) {
+        const fallback = spinPrizeTable[spinPrizeTable.length - 1];
+        wonMinutes = fallback.minutes;
+        prizeLabel = fallback.label;
       }
 
       // 1. Spend points by creating a "Redeem" transaction (cost 5 pts)
@@ -852,7 +948,7 @@ export class MembersService {
           throw new BadRequestException('Mat khau khong hop le');
         }
 
-        data.passwordHash = this.hashPassword(payload.password);
+        data.passwordHash = await this.hashPassword(payload.password);
       }
 
       if (payload.isActive !== undefined) {
@@ -1091,6 +1187,71 @@ export class MembersService {
     });
   }
 
+  async getLoyaltySpinSettings() {
+    const setting = await this.prisma.appSetting.findUnique({
+      where: { key: LOYALTY_SPIN_CONFIG_KEY },
+    });
+
+    let prizeTable: SpinPrizeItem[];
+    if (!setting?.value) {
+      prizeTable = DEFAULT_SPIN_PRIZE_TABLE.map((item) => ({ ...item }));
+    } else {
+      try {
+        prizeTable = this.normalizeSpinPrizeTable(JSON.parse(setting.value));
+      } catch {
+        prizeTable = DEFAULT_SPIN_PRIZE_TABLE.map((item) => ({ ...item }));
+      }
+    }
+
+    const totalChance = prizeTable.reduce((sum, item) => sum + item.chance, 0);
+
+    return {
+      items: prizeTable.map((item) => ({
+        minutes: item.minutes,
+        chance: item.chance,
+        label: item.label,
+      })),
+      totalChance: Number(totalChance.toFixed(4)),
+      updatedAt: (setting?.updatedAt ?? new Date()).toISOString(),
+    };
+  }
+
+  async updateLoyaltySpinSettings(payload: UpdateSpinPrizeSettingsDto) {
+    const normalized = this.normalizeSpinPrizeTable(payload.items);
+    const totalChance = normalized.reduce((sum, item) => sum + item.chance, 0);
+
+    if (Math.abs(totalChance - 100) > 0.0001) {
+      throw new BadRequestException(
+        `Tong ty le phai bang 100%. Hien tai: ${Number(totalChance.toFixed(4))}%`,
+      );
+    }
+
+    const updatedBy = payload.updatedBy?.trim() || 'admin.desktop';
+    const updated = await this.prisma.appSetting.upsert({
+      where: { key: LOYALTY_SPIN_CONFIG_KEY },
+      update: {
+        value: JSON.stringify(normalized.map((item) => ({
+          minutes: item.minutes,
+          chance: item.chance,
+        }))),
+      },
+      create: {
+        key: LOYALTY_SPIN_CONFIG_KEY,
+        value: JSON.stringify(normalized.map((item) => ({
+          minutes: item.minutes,
+          chance: item.chance,
+        }))),
+      },
+    });
+
+    return {
+      items: normalized,
+      totalChance: Number(totalChance.toFixed(4)),
+      updatedAt: updated.updatedAt.toISOString(),
+      updatedBy,
+    };
+  }
+
   async updateLoyaltyRank(rankId: string, payload: UpdateLoyaltyRankDto) {
     const updated = await this.prisma.loyaltyRankConfig.update({
       where: { id: rankId },
@@ -1240,6 +1401,74 @@ export class MembersService {
     };
   }
 
+  private async getSpinPrizeTable(
+    tx?: Prisma.TransactionClient,
+  ): Promise<SpinPrizeItem[]> {
+    const prisma = tx ?? this.prisma;
+    const setting = await prisma.appSetting.findUnique({
+      where: { key: LOYALTY_SPIN_CONFIG_KEY },
+    });
+
+    if (!setting?.value) {
+      return DEFAULT_SPIN_PRIZE_TABLE.map((item) => ({ ...item }));
+    }
+
+    try {
+      const raw = JSON.parse(setting.value) as unknown;
+      return this.normalizeSpinPrizeTable(raw);
+    } catch {
+      return DEFAULT_SPIN_PRIZE_TABLE.map((item) => ({ ...item }));
+    }
+  }
+
+  private normalizeSpinPrizeTable(raw: unknown): SpinPrizeItem[] {
+    if (!Array.isArray(raw)) {
+      throw new BadRequestException('Cau hinh vong quay khong hop le');
+    }
+
+    const incomingMap = new Map<number, number>();
+    for (const entry of raw) {
+      if (!entry || typeof entry !== 'object') {
+        throw new BadRequestException('Cau hinh vong quay khong hop le');
+      }
+
+      const minutes = Number((entry as { minutes?: unknown }).minutes);
+      const chance = Number((entry as { chance?: unknown }).chance);
+
+      if (!Number.isFinite(minutes) || !Number.isInteger(minutes) || minutes < 0) {
+        throw new BadRequestException('Gia tri minutes khong hop le');
+      }
+      if (!Number.isFinite(chance) || chance < 0 || chance > 100) {
+        throw new BadRequestException('Gia tri chance khong hop le');
+      }
+      if (incomingMap.has(minutes)) {
+        throw new BadRequestException(`Moc ${minutes}p bi trung lap`);
+      }
+
+      incomingMap.set(minutes, Number(chance.toFixed(4)));
+    }
+
+    const expectedMinutes = DEFAULT_SPIN_PRIZE_TABLE.map((item) => item.minutes);
+    for (const minutes of expectedMinutes) {
+      if (!incomingMap.has(minutes)) {
+        throw new BadRequestException(
+          `Thieu moc ${minutes}p. Cac moc bat buoc: ${expectedMinutes.join(', ')}`,
+        );
+      }
+    }
+    if (incomingMap.size !== expectedMinutes.length) {
+      throw new BadRequestException(
+        `Chi ho tro dung ${expectedMinutes.length} moc: ${expectedMinutes.join(', ')}`,
+      );
+    }
+
+    return DEFAULT_SPIN_PRIZE_TABLE.map((base) => ({
+      minutes: base.minutes,
+      chance: incomingMap.get(base.minutes) ?? base.chance,
+      label: `${base.minutes}p`,
+    }));
+  }
+
   private toTransactionItem(item: MemberTransaction) {
     return {
       id: item.id,
@@ -1294,7 +1523,47 @@ export class MembersService {
     return raw;
   }
 
-  private hashPassword(rawPassword: string): string {
+  private async hashPassword(rawPassword: string): Promise<string> {
+    return bcrypt.hash(rawPassword, MEMBER_PASSWORD_BCRYPT_ROUNDS);
+  }
+
+  private async verifyPassword(
+    rawPassword: string,
+    storedHash: string,
+  ): Promise<{ ok: boolean; needsRehash: boolean }> {
+    if (this.isBcryptHash(storedHash)) {
+      return {
+        ok: await bcrypt.compare(rawPassword, storedHash),
+        needsRehash: false,
+      };
+    }
+
+    if (this.hashLegacyPassword(rawPassword) === storedHash) {
+      return { ok: true, needsRehash: true };
+    }
+
+    return { ok: false, needsRehash: false };
+  }
+
+  private async rehashMemberPassword(
+    memberId: string,
+    rawPassword: string,
+  ): Promise<void> {
+    try {
+      await this.prisma.member.update({
+        where: { id: memberId },
+        data: { passwordHash: await this.hashPassword(rawPassword) },
+      });
+    } catch {
+      // Login already succeeded. A best-effort rehash failure should not block use.
+    }
+  }
+
+  private isBcryptHash(value: string): boolean {
+    return /^\$2[aby]\$\d{2}\$/.test(value);
+  }
+
+  private hashLegacyPassword(rawPassword: string): string {
     const salt =
       this.configService.get<string>('MEMBER_PASSWORD_SALT') ??
       'servermanagerbilling-default-salt';

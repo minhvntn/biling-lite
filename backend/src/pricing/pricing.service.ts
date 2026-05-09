@@ -498,4 +498,81 @@ export class PricingService {
       },
     });
   }
+
+  async getPromotions() {
+    const list = await this.prisma.timeBasedPromotion.findMany({
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (list.length === 0) {
+      const seeded = await this.prisma.timeBasedPromotion.create({
+        data: {
+          name: 'Khuyến mãi ngày thường (Giảm 10% T2 - T6)',
+          daysOfWeek: [1, 2, 3, 4, 5],
+          startTime: '08:00',
+          endTime: '16:00',
+          discountPercent: 10,
+          isActive: true,
+        },
+      });
+      return [seeded];
+    }
+
+    return list;
+  }
+
+  async createPromotion(payload: any) {
+    const name = (payload.name ?? '').trim();
+    if (!name) {
+      throw new BadRequestException('Tên chương trình khuyến mãi không hợp lệ');
+    }
+
+    return this.prisma.timeBasedPromotion.create({
+      data: {
+        name,
+        daysOfWeek: Array.isArray(payload.daysOfWeek) ? payload.daysOfWeek : [1, 2, 3, 4, 5],
+        startTime: payload.startTime || '08:00',
+        endTime: payload.endTime || '16:00',
+        discountPercent: Number(payload.discountPercent) || 0,
+        isActive: payload.isActive !== undefined ? Boolean(payload.isActive) : true,
+      },
+    });
+  }
+
+  async updatePromotion(id: string, payload: any) {
+    const existing = await this.prisma.timeBasedPromotion.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      throw new NotFoundException('Không tìm thấy chương trình khuyến mãi');
+    }
+
+    const data: any = {};
+    if (payload.name !== undefined) data.name = payload.name.trim();
+    if (payload.daysOfWeek !== undefined) data.daysOfWeek = payload.daysOfWeek;
+    if (payload.startTime !== undefined) data.startTime = payload.startTime;
+    if (payload.endTime !== undefined) data.endTime = payload.endTime;
+    if (payload.discountPercent !== undefined) data.discountPercent = Number(payload.discountPercent);
+    if (payload.isActive !== undefined) data.isActive = Boolean(payload.isActive);
+
+    return this.prisma.timeBasedPromotion.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async deletePromotion(id: string) {
+    const existing = await this.prisma.timeBasedPromotion.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      throw new NotFoundException('Không tìm thấy chương trình khuyến mãi');
+    }
+
+    await this.prisma.timeBasedPromotion.delete({
+      where: { id },
+    });
+
+    return { success: true };
+  }
 }

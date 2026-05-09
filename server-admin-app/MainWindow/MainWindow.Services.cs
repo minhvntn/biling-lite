@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net.Http.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -71,19 +71,9 @@ public partial class MainWindow : Window
 
     private async Task CreateServiceItemAsync()
     {
-        var name = ServiceNameTextBox.Text.Trim();
-        var category = ServiceCategoryTextBox.Text.Trim();
-        var priceRaw = ServicePriceTextBox.Text.Trim();
-
-        if (string.IsNullOrWhiteSpace(name))
+        var input = PromptCreateServiceItem();
+        if (input is null)
         {
-            MessageBox.Show("Vui lòng nhập tên dịch vụ.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        if (!TryParsePositiveMoney(priceRaw, out var unitPrice))
-        {
-            MessageBox.Show("Giá dịch vụ không hợp lệ.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -91,9 +81,9 @@ public partial class MainWindow : Window
             BuildApiUrl("/services/items"),
             new
             {
-                name,
-                category = string.IsNullOrWhiteSpace(category) ? null : category,
-                unitPrice = Convert.ToDouble(unitPrice),
+                name = input.Name,
+                category = input.Category,
+                unitPrice = Convert.ToDouble(input.UnitPrice),
                 isActive = true,
             });
 
@@ -110,10 +100,201 @@ public partial class MainWindow : Window
             return;
         }
 
-        ServiceNameTextBox.Text = string.Empty;
-        ServicePriceTextBox.Text = "15000";
-        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã thêm dịch vụ: {name} ({unitPrice:N0} VND)");
+        var qtyLog = input.Quantity == "Không giới hạn" ? "Không giới hạn" : $"{input.Quantity} chiếc";
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã thêm dịch vụ: {input.Name} ({input.UnitPrice:N0} VND, Số lượng: {qtyLog})");
         await RefreshServiceItemsAsync();
+    }
+
+    private CreateServiceItemInput? PromptCreateServiceItem()
+    {
+        var dialog = new Window
+        {
+            Title = "Thêm dịch vụ mới",
+            Width = 450,
+            Height = 360,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+            ShowInTaskbar = false,
+            Owner = this,
+        };
+
+        var root = new Grid { Margin = new Thickness(16) };
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var content = new StackPanel();
+        
+        content.Children.Add(new TextBlock
+        {
+            Text = "Thêm dịch vụ mới vào hệ thống",
+            FontSize = 16,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 16),
+        });
+
+        // 1. Tên dịch vụ
+        content.Children.Add(new TextBlock { Text = "Tên dịch vụ:", Margin = new Thickness(0, 0, 0, 4) });
+        var nameTextBox = new TextBox { Height = 28, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 12) };
+        content.Children.Add(nameTextBox);
+
+        // 2. Danh mục & Giá (VND)
+        var gridFields = new Grid { Margin = new Thickness(0, 0, 0, 12) };
+        gridFields.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        gridFields.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
+        gridFields.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var colLeft = new StackPanel();
+        colLeft.Children.Add(new TextBlock { Text = "Danh mục:", Margin = new Thickness(0, 0, 0, 4) });
+        var categoryTextBox = new TextBox { Height = 28, VerticalContentAlignment = VerticalAlignment.Center };
+        colLeft.Children.Add(categoryTextBox);
+        Grid.SetColumn(colLeft, 0);
+        gridFields.Children.Add(colLeft);
+
+        var colRight = new StackPanel();
+        colRight.Children.Add(new TextBlock { Text = "Giá bán (VND):", Margin = new Thickness(0, 0, 0, 4) });
+        var priceTextBox = new TextBox { Height = 28, VerticalContentAlignment = VerticalAlignment.Center, Text = "15000" };
+        colRight.Children.Add(priceTextBox);
+        Grid.SetColumn(colRight, 2);
+        gridFields.Children.Add(colRight);
+
+        content.Children.Add(gridFields);
+
+        // 3. Số lượng
+        content.Children.Add(new TextBlock { Text = "Số lượng trong kho:", Margin = new Thickness(0, 0, 0, 4) });
+        var quantityPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+        
+        var unlimitedCheckBox = new CheckBox
+        {
+            Content = "Không giới hạn (mặc định)",
+            IsChecked = true,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 16, 0),
+        };
+        quantityPanel.Children.Add(unlimitedCheckBox);
+
+        var quantityTextBox = new TextBox
+        {
+            Width = 80,
+            Height = 28,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            Text = "∞",
+            IsEnabled = false,
+        };
+        quantityPanel.Children.Add(quantityTextBox);
+        content.Children.Add(quantityPanel);
+
+        var errorTextBlock = new TextBlock
+        {
+            Foreground = System.Windows.Media.Brushes.Firebrick,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 4, 0, 0),
+        };
+        content.Children.Add(errorTextBlock);
+
+        Grid.SetRow(content, 0);
+        root.Children.Add(content);
+
+        // Button panel
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 16, 0, 0),
+        };
+        var createButton = new Button
+        {
+            Content = "Thêm",
+            Width = 100,
+            Height = 30,
+            Margin = new Thickness(0, 0, 8, 0),
+            IsDefault = true,
+        };
+        var cancelButton = new Button
+        {
+            Content = "Hủy",
+            Width = 80,
+            Height = 30,
+            IsCancel = true,
+        };
+
+        buttonPanel.Children.Add(createButton);
+        buttonPanel.Children.Add(cancelButton);
+        Grid.SetRow(buttonPanel, 1);
+        root.Children.Add(buttonPanel);
+
+        // Interaction logic
+        unlimitedCheckBox.Checked += (s, e) =>
+        {
+            quantityTextBox.IsEnabled = false;
+            quantityTextBox.Text = "∞";
+        };
+        unlimitedCheckBox.Unchecked += (s, e) =>
+        {
+            quantityTextBox.IsEnabled = true;
+            quantityTextBox.Text = "1";
+        };
+
+        CreateServiceItemInput? result = null;
+
+        createButton.Click += (s, e) =>
+        {
+            errorTextBlock.Text = string.Empty;
+
+            var name = nameTextBox.Text.Trim();
+            var category = categoryTextBox.Text.Trim();
+            var priceRaw = priceTextBox.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                errorTextBlock.Text = "Vui lòng nhập tên dịch vụ.";
+                return;
+            }
+
+            if (!TryParsePositiveMoney(priceRaw, out var unitPrice))
+            {
+                errorTextBlock.Text = "Giá dịch vụ không hợp lệ.";
+                return;
+            }
+
+            string quantityText = "Không giới hạn";
+            if (unlimitedCheckBox.IsChecked == false)
+            {
+                var qRaw = quantityTextBox.Text.Trim();
+                if (!int.TryParse(qRaw, out var qty) || qty <= 0)
+                {
+                    errorTextBlock.Text = "Số lượng không hợp lệ (phải là số nguyên dương).";
+                    return;
+                }
+                quantityText = qty.ToString();
+            }
+
+            result = new CreateServiceItemInput
+            {
+                Name = name,
+                Category = string.IsNullOrWhiteSpace(category) ? null : category,
+                UnitPrice = unitPrice,
+                Quantity = quantityText,
+            };
+
+            dialog.DialogResult = true;
+            dialog.Close();
+        };
+
+        dialog.Content = root;
+        dialog.Loaded += (s, e) => nameTextBox.Focus();
+        _ = dialog.ShowDialog();
+
+        return result;
+    }
+
+    private sealed class CreateServiceItemInput
+    {
+        public string Name { get; init; } = string.Empty;
+        public string? Category { get; init; }
+        public decimal UnitPrice { get; init; }
+        public string Quantity { get; init; } = "Không giới hạn";
     }
 
     private async Task ToggleSelectedServiceItemAsync()
@@ -231,7 +412,86 @@ public partial class MainWindow : Window
 
         AppendServiceLog(
             $"[{DateTime.Now:HH:mm:ss}] {selectedMachine.Name}: +{orderInput.Quantity} x {orderInput.ServiceName} = {orderInput.LineTotal:N0} VND");
+        InvalidateServiceAmountCacheForMachine(selectedMachine);
         await RefreshMachinesAsync();
+    }
+
+    private async Task PayServiceForSelectedMachineAsync()
+    {
+        if (MachinesDataGrid.SelectedItem is not MachineRow selectedMachine)
+        {
+            MessageBox.Show(I18n.PleaseSelectPc, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(selectedMachine.ActiveSessionId))
+        {
+            MessageBox.Show(
+                "Máy chưa có phiên đang sử dụng để thanh toán dịch vụ.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        decimal unpaidAmount;
+        try
+        {
+            unpaidAmount = await GetServiceAmountForMachineAsync(selectedMachine);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Không thể tải tiền dịch vụ: {ex.Message}", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (unpaidAmount <= 0)
+        {
+            MessageBox.Show(
+                "Máy này không còn dịch vụ chưa thanh toán.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            $"Xác nhận thanh toán dịch vụ cho {selectedMachine.Name}: {unpaidAmount:N0} VND?",
+            "Thanh toán dịch vụ",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (confirm != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        using var response = await _httpClient.PostAsJsonAsync(
+            BuildApiUrl($"/services/pcs/{selectedMachine.Id}/orders/pay"),
+            new
+            {
+                requestedBy = "admin.desktop",
+                note = "Thanh toan dich vu tai may",
+            });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            MessageBox.Show(
+                string.IsNullOrWhiteSpace(error)
+                    ? $"Thanh toán dịch vụ thất bại ({(int)response.StatusCode})"
+                    : error,
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        var result = await response.Content.ReadFromJsonAsync<PayPcServiceOrdersResponse>(JsonOptions());
+        var paidAmount = result?.PaidAmount ?? unpaidAmount;
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] {selectedMachine.Name}: đã thanh toán dịch vụ {paidAmount:N0} VND");
+        InvalidateServiceAmountCacheForMachine(selectedMachine);
+        await RefreshMachinesAsync();
+        await RefreshTransactionLogsAsync();
     }
 
     private ServiceOrderInput? PromptServiceOrder(MachineRow machine, IReadOnlyList<ServiceItemRow> items)
@@ -502,6 +762,7 @@ public partial class MainWindow : Window
     private async void UpdateServicePriceButton_Click(object sender, RoutedEventArgs e) => await UpdateSelectedServicePriceAsync();
     private async void ToggleServiceItemButton_Click(object sender, RoutedEventArgs e) => await ToggleSelectedServiceItemAsync();
     private async void ContextSelectServiceMenuItem_Click(object sender, RoutedEventArgs e) => await OpenServiceOrderDialogForSelectedMachineAsync();
+    private async void ContextPayServiceMenuItem_Click(object sender, RoutedEventArgs e) => await PayServiceForSelectedMachineAsync();
 
     private void ServiceItemsDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -522,3 +783,4 @@ public partial class MainWindow : Window
         public decimal LineTotal { get; init; }
     }
 }
+

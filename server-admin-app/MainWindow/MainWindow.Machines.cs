@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -16,6 +16,9 @@ using System.Windows.Threading;
 namespace Server.Admin.App;
 public partial class MainWindow : Window
 {
+    private const int ServiceAmountCacheTtlSeconds = 8;
+    private readonly Dictionary<string, (decimal Amount, DateTime CachedAtUtc)> _serviceAmountBySessionCache = new(StringComparer.OrdinalIgnoreCase);
+
     private async Task RefreshMachinesAsync()
     {
         try
@@ -29,6 +32,7 @@ public partial class MainWindow : Window
             }
 
             var allRows = response.Items.Select(ToMachineRow).OrderBy(r => r.Name).ToList();
+            await PopulateMachineServiceAmountsAsync(allRows);
             _allMachineRows.Clear();
             _allMachineRows.AddRange(allRows);
             RefreshWebsiteLogMachineFilterOptions();
@@ -153,6 +157,8 @@ public partial class MainWindow : Window
             UsedText = usedText,
             RemainingText = remainingText,
             MoneyText = item.ActiveSession is null ? "-" : item.ActiveSession.EstimatedAmount.ToString("N0"),
+            ServiceAmountRaw = 0,
+            ServiceAmountText = item.ActiveSession is null ? "-" : "0",
             DateText = now.ToString("dd-MM-yyyy"),
             VersionText = "0.1.0",
             GroupName = string.IsNullOrWhiteSpace(item.GroupName) ? "Mặc định" : item.GroupName,
@@ -211,7 +217,7 @@ public partial class MainWindow : Window
         var total = rows.Count;
         var usingCount = rows.Count(r => r.StatusCode == "IN_USE");
         var lockedCount = rows.Count(r => r.StatusCode == "LOCKED");
-        var runningMoney = rows.Sum(r => ParseMoney(r.MoneyText));
+        var runningMoney = rows.Sum(r => ParseMoney(r.MoneyText) + r.ServiceAmountRaw);
 
         SummaryTotalTextBlock.Text = $"{I18n.TotalPcPrefix}: {total}";
         SummaryUsingTextBlock.Text = $"{I18n.InUsePcPrefix}: {usingCount}";
@@ -587,6 +593,7 @@ public partial class MainWindow : Window
                 assignGroup: true,
                 viewBilling: false,
                 selectService: false,
+                payService: false,
                 notify: false);
             return;
         }
@@ -608,6 +615,7 @@ public partial class MainWindow : Window
             assignGroup: true,
             viewBilling: isInUse && !hasActiveMember,
             selectService: true,
+            payService: isInUse && selectedMachine.ServiceAmountRaw > 0,
             notify: true);
     }
 
@@ -628,6 +636,7 @@ public partial class MainWindow : Window
         bool assignGroup,
         bool viewBilling,
         bool selectService,
+        bool payService,
         bool notify)
     {
         if (ContextOpenMachineMenuItem is not null)
@@ -675,6 +684,11 @@ public partial class MainWindow : Window
             ContextControlCloseAppsMenuItem.IsEnabled = closeApps;
         }
 
+        if (ContextControlCloseAllAppsMenuItem is not null)
+        {
+            ContextControlCloseAllAppsMenuItem.IsEnabled = closeApps;
+        }
+
         if (ContextControlRemoteMenuItem is not null)
         {
             ContextControlRemoteMenuItem.IsEnabled = remoteControl;
@@ -718,6 +732,11 @@ public partial class MainWindow : Window
         if (ContextSelectServiceMenuItem is not null)
         {
             ContextSelectServiceMenuItem.IsEnabled = selectService;
+        }
+
+        if (ContextPayServiceMenuItem is not null)
+        {
+            ContextPayServiceMenuItem.IsEnabled = payService;
         }
 
         if (ContextNotifyMachineMenuItem is not null)
@@ -783,7 +802,8 @@ public partial class MainWindow : Window
 
     private async void ContextShutdownReadyMachinesMenuItem_Click(object sender, RoutedEventArgs e) => await ShutdownReadyMachinesAsync();
 
-    private async void ContextCloseAppsMenuItem_Click(object sender, RoutedEventArgs e) => await SendCommandAsync("close-apps");
+    private async void ContextCloseAppsMenuItem_Click(object sender, RoutedEventArgs e) => await ManageRunningAppsForSelectedMachineAsync();
+    private async void ContextCloseAllAppsMenuItem_Click(object sender, RoutedEventArgs e) => await CloseAllRunningAppsForSelectedMachineAsync();
     private async void ContextRemoteControlMachineMenuItem_Click(object sender, RoutedEventArgs e) => await OpenRemoteControlForSelectedMachineAsync();
     private async void ContextCaptureScreenshotMachineMenuItem_Click(object sender, RoutedEventArgs e) => await CaptureScreenshotForSelectedMachineAsync();
     private async void ContextPauseMachineMenuItem_Click(object sender, RoutedEventArgs e) => await SendCommandAsync("pause");
@@ -1497,18 +1517,45 @@ public partial class MainWindow : Window
         Grid.SetRow(noteText, 9);
         root.Children.Add(noteText);
 
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 16, 0, 0),
+        };
+
+        if (hasActiveSession)
+        {
+            var checkoutButton = new Button
+            {
+                Content = "Tính tiền & Khóa máy",
+                Width = 160,
+                Height = 34,
+                Background = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 0, 10, 0),
+            };
+            checkoutButton.Click += async (_, _) =>
+            {
+                dialog.Close();
+                await SendCommandAsync("lock");
+            };
+            buttonPanel.Children.Add(checkoutButton);
+        }
+
         var closeButton = new Button
         {
             Content = "Đóng",
             Width = 100,
             Height = 34,
-            IsDefault = true,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 16, 0, 0),
+            IsDefault = !hasActiveSession,
         };
         closeButton.Click += (_, _) => dialog.Close();
-        Grid.SetRow(closeButton, 11);
-        root.Children.Add(closeButton);
+        buttonPanel.Children.Add(closeButton);
+
+        Grid.SetRow(buttonPanel, 11);
+        root.Children.Add(buttonPanel);
 
         dialog.Content = root;
         _ = dialog.ShowDialog();
@@ -1623,6 +1670,99 @@ public partial class MainWindow : Window
         await TopupMemberByRowAsync(member);
     }
 
+    private async Task PopulateMachineServiceAmountsAsync(IReadOnlyList<MachineRow> rows)
+    {
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        var toLoad = new Dictionary<string, MachineRow>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var row in rows)
+        {
+            if (string.IsNullOrWhiteSpace(row.ActiveSessionId))
+            {
+                row.ServiceAmountRaw = 0;
+                row.ServiceAmountText = "-";
+                continue;
+            }
+
+            var cacheKey = BuildServiceAmountCacheKey(row.Id, row.ActiveSessionId);
+            if (_serviceAmountBySessionCache.TryGetValue(cacheKey, out var cacheEntry) &&
+                (nowUtc - cacheEntry.CachedAtUtc).TotalSeconds <= ServiceAmountCacheTtlSeconds)
+            {
+                row.ServiceAmountRaw = cacheEntry.Amount;
+                row.ServiceAmountText = cacheEntry.Amount.ToString("N0");
+                continue;
+            }
+
+            row.ServiceAmountRaw = 0;
+            row.ServiceAmountText = "0";
+            if (!toLoad.ContainsKey(cacheKey))
+            {
+                toLoad[cacheKey] = row;
+            }
+        }
+
+        if (toLoad.Count == 0)
+        {
+            return;
+        }
+
+        var loadTasks = toLoad.Select(async entry =>
+        {
+            try
+            {
+                var amount = await GetServiceAmountForMachineAsync(entry.Value);
+                return (Key: entry.Key, Amount: amount);
+            }
+            catch
+            {
+                return (Key: entry.Key, Amount: 0m);
+            }
+        });
+
+        var loaded = await Task.WhenAll(loadTasks);
+        foreach (var item in loaded)
+        {
+            _serviceAmountBySessionCache[item.Key] = (item.Amount, DateTime.UtcNow);
+        }
+
+        foreach (var row in rows)
+        {
+            if (string.IsNullOrWhiteSpace(row.ActiveSessionId))
+            {
+                continue;
+            }
+
+            var cacheKey = BuildServiceAmountCacheKey(row.Id, row.ActiveSessionId);
+            if (!_serviceAmountBySessionCache.TryGetValue(cacheKey, out var cacheEntry))
+            {
+                continue;
+            }
+
+            row.ServiceAmountRaw = cacheEntry.Amount;
+            row.ServiceAmountText = cacheEntry.Amount.ToString("N0");
+        }
+    }
+
+    private void InvalidateServiceAmountCacheForMachine(MachineRow machine)
+    {
+        var keys = _serviceAmountBySessionCache.Keys
+            .Where(x => x.StartsWith(machine.Id + ":", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        foreach (var key in keys)
+        {
+            _serviceAmountBySessionCache.Remove(key);
+        }
+    }
+
+    private static string BuildServiceAmountCacheKey(string pcId, string? sessionId)
+        => $"{pcId}:{sessionId ?? "-"}";
+
     private async Task<decimal> GetServiceAmountForMachineAsync(MachineRow machine)
     {
         var response = await _httpClient.GetFromJsonAsync<PcServiceOrdersResponse>(
@@ -1645,7 +1785,9 @@ public partial class MainWindow : Window
             scopedOrders = Enumerable.Empty<PcServiceOrderDto>();
         }
 
-        return scopedOrders.Sum(x => x.LineTotal);
+        return scopedOrders
+            .Where(x => !x.IsPaid)
+            .Sum(x => x.LineTotal);
     }
 
     private static void AddBillingLine(Grid root, int rowIndex, string label, string value)
@@ -1897,7 +2039,417 @@ public partial class MainWindow : Window
         _ = dialog.ShowDialog();
         return result;
     }
+
+    private async Task ManageRunningAppsForSelectedMachineAsync()
+    {
+        if (MachinesDataGrid.SelectedItem is not MachineRow selected)
+        {
+            MessageBox.Show(I18n.PleaseSelectPc, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đang yêu cầu danh sách ứng dụng từ {selected.Name}...");
+
+            using var requestResponse = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl($"/pcs/{selected.Id}/request-running-apps"),
+                new { requestedBy = "admin.desktop" });
+
+            if (!requestResponse.IsSuccessStatusCode)
+            {
+                MessageBox.Show(
+                    $"Yêu cầu danh sách ứng dụng thất bại ({(int)requestResponse.StatusCode}).",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            var requestPayload = await requestResponse.Content.ReadFromJsonAsync<RequestRunningAppsResponse>(JsonOptions());
+            if (requestPayload is null || !requestPayload.Ok || string.IsNullOrWhiteSpace(requestPayload.RequestId))
+            {
+                var reasonText = requestPayload?.Reason == "AGENT_OFFLINE"
+                    ? "Máy trạm đang offline."
+                    : "Không thể lấy danh sách ứng dụng đang chạy.";
+                MessageBox.Show(
+                    reasonText,
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            var apps = await WaitForRunningAppsAsync(selected.Id, requestPayload.RequestId, timeoutSeconds: 15);
+            if (apps is null)
+            {
+                MessageBox.Show(
+                    "Không nhận được phản hồi danh sách ứng dụng từ máy trạm. Vui lòng thử lại.",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            if (apps.Count == 0)
+            {
+                MessageBox.Show(
+                    "Không có ứng dụng nào đang chạy trên taskbar của máy trạm.",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            ShowRunningAppsDialog(selected, apps);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Lỗi lấy danh sách ứng dụng: {ex.Message}",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private async Task CloseAllRunningAppsForSelectedMachineAsync()
+    {
+        if (MachinesDataGrid.SelectedItem is not MachineRow selected)
+        {
+            MessageBox.Show(I18n.PleaseSelectPc, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đang yêu cầu danh sách ứng dụng từ {selected.Name} để đóng tất cả...");
+
+            using var requestResponse = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl($"/pcs/{selected.Id}/request-running-apps"),
+                new { requestedBy = "admin.desktop" });
+
+            if (!requestResponse.IsSuccessStatusCode)
+            {
+                MessageBox.Show(
+                    $"Yêu cầu danh sách ứng dụng thất bại ({(int)requestResponse.StatusCode}).",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            var requestPayload = await requestResponse.Content.ReadFromJsonAsync<RequestRunningAppsResponse>(JsonOptions());
+            if (requestPayload is null || !requestPayload.Ok || string.IsNullOrWhiteSpace(requestPayload.RequestId))
+            {
+                var reasonText = requestPayload?.Reason == "AGENT_OFFLINE"
+                    ? "Máy trạm đang offline."
+                    : "Không thể lấy danh sách ứng dụng đang chạy.";
+                MessageBox.Show(
+                    reasonText,
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            var apps = await WaitForRunningAppsAsync(selected.Id, requestPayload.RequestId, timeoutSeconds: 15);
+            if (apps is null)
+            {
+                MessageBox.Show(
+                    "Không nhận được danh sách ứng dụng từ máy trạm. Vui lòng thử lại.",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            if (apps.Count == 0)
+            {
+                MessageBox.Show(
+                    "Không có ứng dụng nào đang chạy trên taskbar của máy trạm.",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            var confirm = MessageBox.Show(
+                $"Máy {selected.Name} đang có {apps.Count} ứng dụng. Đóng tất cả ngay bây giờ?",
+                "Xác nhận đóng tất cả ứng dụng",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            var success = 0;
+            var failed = 0;
+            var processedPids = new HashSet<int>();
+
+            foreach (var app in apps)
+            {
+                if (!processedPids.Add(app.Pid))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    using var response = await _httpClient.PostAsJsonAsync(
+                        BuildApiUrl($"/pcs/{selected.Id}/kill-process"),
+                        new { pid = app.Pid, name = app.Name });
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        success++;
+                    }
+                    else
+                    {
+                        failed++;
+                    }
+                }
+                catch
+                {
+                    failed++;
+                }
+            }
+
+            AppendServiceLog(
+                $"[{DateTime.Now:HH:mm:ss}] Đã gửi đóng tất cả ứng dụng trên {selected.Name}: thành công {success}, thất bại {failed}");
+            MessageBox.Show(
+                $"Đã gửi lệnh đóng ứng dụng cho {selected.Name}.\nThành công: {success}\nThất bại: {failed}",
+                "Server Admin",
+                MessageBoxButton.OK,
+                failed == 0 ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Lỗi đóng tất cả ứng dụng: {ex.Message}",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private async Task<List<RunningAppItem>?> WaitForRunningAppsAsync(
+        string pcId,
+        string requestId,
+        int timeoutSeconds)
+    {
+        var attempts = Math.Max(3, timeoutSeconds);
+        for (var i = 0; i < attempts; i++)
+        {
+            try
+            {
+                var url = BuildApiUrl($"/pcs/{pcId}/latest-running-apps?requestId={Uri.EscapeDataString(requestId)}");
+                var response = await _httpClient.GetFromJsonAsync<LatestRunningAppsResponse>(url, JsonOptions());
+                if (response?.Ok == true && response.Apps is not null)
+                {
+                    return response.Apps;
+                }
+            }
+            catch
+            {
+                // Ignore polling errors
+            }
+
+            await Task.Delay(1000);
+        }
+
+        return null;
+    }
+
+    private void ShowRunningAppsDialog(MachineRow machine, List<RunningAppItem> initialApps)
+    {
+        var dialog = new Window
+        {
+            Title = $"Ứng dụng đang chạy trên Taskbar - {machine.Name}",
+            Width = 650,
+            Height = 450,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = this,
+            ResizeMode = ResizeMode.CanResize,
+            ShowInTaskbar = false,
+            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E1E2E")),
+            Foreground = Brushes.White,
+        };
+
+        var root = new Grid { Margin = new Thickness(15) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var headerText = new TextBlock
+        {
+            Text = $"Chọn ứng dụng trên {machine.Name} để đóng:",
+            Foreground = Brushes.White,
+            FontSize = 14,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 10),
+        };
+        Grid.SetRow(headerText, 0);
+        root.Children.Add(headerText);
+
+        var dataGrid = new DataGrid
+        {
+            AutoGenerateColumns = false,
+            IsReadOnly = true,
+            SelectionMode = DataGridSelectionMode.Single,
+            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#252538")),
+            BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3B3B4F")),
+            Foreground = Brushes.White,
+            RowBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#252538")),
+            AlternatingRowBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2A2A3F")),
+            GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+            HorizontalGridLinesBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3B3B4F")),
+            HeadersVisibility = DataGridHeadersVisibility.Column,
+            Margin = new Thickness(0, 0, 0, 15),
+        };
+
+        dataGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Tên tiến trình",
+            Binding = new System.Windows.Data.Binding("Name"),
+            Width = new DataGridLength(150),
+            ElementStyle = new Style(typeof(TextBlock))
+            {
+                Setters = { new Setter(TextBlock.ForegroundProperty, Brushes.LightGray) }
+            }
+        });
+
+        dataGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Tiêu đề ứng dụng (Taskbar)",
+            Binding = new System.Windows.Data.Binding("Title"),
+            Width = new DataGridLength(1, System.Windows.Controls.DataGridLengthUnitType.Star),
+            ElementStyle = new Style(typeof(TextBlock))
+            {
+                Setters = { new Setter(TextBlock.ForegroundProperty, Brushes.White) }
+            }
+        });
+
+        var itemsList = new System.Collections.ObjectModel.ObservableCollection<RunningAppItem>(initialApps);
+        dataGrid.ItemsSource = itemsList;
+
+        Grid.SetRow(dataGrid, 1);
+        root.Children.Add(dataGrid);
+
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+
+        var closeAppButton = new Button
+        {
+            Content = "Đóng ứng dụng đã chọn",
+            Width = 180,
+            Height = 36,
+            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E06C75")),
+            Foreground = Brushes.White,
+            FontWeight = FontWeights.Bold,
+            BorderThickness = new Thickness(0),
+            Margin = new Thickness(0, 0, 10, 0),
+            Cursor = Cursors.Hand,
+        };
+
+        var cancelButton = new Button
+        {
+            Content = "Hủy bỏ",
+            Width = 100,
+            Height = 36,
+            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4F5D75")),
+            Foreground = Brushes.White,
+            BorderThickness = new Thickness(0),
+            Cursor = Cursors.Hand,
+        };
+
+        closeAppButton.Click += async (s, e) =>
+        {
+            if (dataGrid.SelectedItem is not RunningAppItem selectedApp)
+            {
+                MessageBox.Show("Vui lòng chọn một ứng dụng để đóng.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var confirm = MessageBox.Show(
+                $"Bạn có chắc chắn muốn đóng ứng dụng '{selectedApp.Title}' ({selectedApp.Name})?",
+                "Xác nhận đóng ứng dụng",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            try
+            {
+                closeAppButton.IsEnabled = false;
+                closeAppButton.Content = "Đang gửi lệnh...";
+
+                using var response = await _httpClient.PostAsJsonAsync(
+                    BuildApiUrl($"/pcs/{machine.Id}/kill-process"),
+                    new { pid = selectedApp.Pid, name = selectedApp.Name });
+
+                if (response.IsSuccessStatusCode)
+                {
+                    AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã gửi lệnh đóng ứng dụng {selectedApp.Name} (PID={selectedApp.Pid})");
+                    itemsList.Remove(selectedApp);
+                    MessageBox.Show("Đã gửi lệnh đóng ứng dụng thành công.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    MessageBox.Show($"Đóng ứng dụng thất bại ({(int)response.StatusCode}).", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi gửi lệnh đóng ứng dụng: {ex.Message}", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                closeAppButton.IsEnabled = true;
+                closeAppButton.Content = "Đóng ứng dụng đã chọn";
+            }
+        };
+
+        cancelButton.Click += (s, e) => dialog.Close();
+
+        buttonPanel.Children.Add(closeAppButton);
+        buttonPanel.Children.Add(cancelButton);
+
+        Grid.SetRow(buttonPanel, 2);
+        root.Children.Add(buttonPanel);
+
+        dialog.Content = root;
+        dialog.ShowDialog();
+    }
 }
+
+public class RequestRunningAppsResponse
+{
+    public bool Ok { get; set; }
+    public string? RequestId { get; set; }
+    public string? Reason { get; set; }
+}
+
+public class RunningAppItem
+{
+    public int Pid { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+}
+
+public class LatestRunningAppsResponse
+{
+    public bool Ok { get; set; }
+    public List<RunningAppItem>? Apps { get; set; }
+    public string? Reason { get; set; }
+}
+
 
 
 

@@ -184,6 +184,19 @@ export class WebsiteLogsService {
     };
   }
 
+  async clearLogs() {
+    const result = await this.prisma.eventLog.deleteMany({
+      where: {
+        eventType: WEBSITE_VISIT_EVENT_TYPE,
+      },
+    });
+
+    return {
+      deletedCount: result.count,
+      serverTime: new Date().toISOString(),
+    };
+  }
+
   private async persistSettings(
     enabled: boolean,
     updatedBy: string,

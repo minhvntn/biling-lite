@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { CreatePcServiceOrderDto } from './dto/create-pc-service-order.dto';
 import { CreateServiceItemDto } from './dto/create-service-item.dto';
+import { PayPcServiceOrdersDto } from './dto/pay-pc-service-orders.dto';
 import { UpdateServiceItemDto } from './dto/update-service-item.dto';
 import { ServicesService } from './services.service';
 
@@ -44,5 +45,12 @@ export class ServicesController {
   ) {
     return this.servicesService.createPcServiceOrder(pcId, payload);
   }
-}
 
+  @Post('pcs/:pcId/orders/pay')
+  async payPcServiceOrders(
+    @Param('pcId') pcId: string,
+    @Body() payload: PayPcServiceOrdersDto,
+  ) {
+    return this.servicesService.payPcServiceOrders(pcId, payload);
+  }
+}

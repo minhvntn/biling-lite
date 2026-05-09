@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -87,5 +88,28 @@ export class PricingController {
     @Body() payload: AssignPcGroupDto,
   ) {
     return this.pricingService.assignPcToGroup(pcId, payload);
+  }
+
+  @Get('promotions')
+  async getPromotions() {
+    return this.pricingService.getPromotions();
+  }
+
+  @Post('promotions')
+  async createPromotion(@Body() payload: any) {
+    return this.pricingService.createPromotion(payload);
+  }
+
+  @Put('promotions/:id')
+  async updatePromotion(
+    @Param('id') id: string,
+    @Body() payload: any,
+  ) {
+    return this.pricingService.updatePromotion(id, payload);
+  }
+
+  @Delete('promotions/:id')
+  async deletePromotion(@Param('id') id: string) {
+    return this.pricingService.deletePromotion(id);
   }
 }

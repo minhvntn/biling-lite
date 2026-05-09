@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -308,6 +308,59 @@ public partial class MainWindow : Window
 
     private async void RefreshSystemLogsButton_Click(object sender, RoutedEventArgs e) => await RefreshSystemLogsAsync(forceRefresh: true);
 
+    private async void ClearSystemLogsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var confirm = MessageBox.Show(
+            this,
+            "Bạn có chắc muốn xóa toàn bộ nhật ký hệ thống?\nDữ liệu đã xóa sẽ không thể khôi phục.",
+            "Xóa nhật ký hệ thống",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            using var response = await _httpClient.DeleteAsync(BuildApiUrl("/reports/events/system"));
+            if (!response.IsSuccessStatusCode)
+            {
+                MessageBox.Show(
+                    this,
+                    $"Xóa nhật ký thất bại ({(int)response.StatusCode}).",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<ClearSystemEventsResponse>(JsonOptions());
+            var deletedCount = payload?.DeletedCount ?? 0;
+
+            InvalidateSystemLogsCache();
+            _systemLogRows.Clear();
+            SystemLogInfoTextBlock.Text = $"Đã xóa {deletedCount} dòng - Cập nhật lúc {DateTime.Now:HH:mm:ss}";
+            await RefreshSystemLogsAsync(forceRefresh: true);
+
+            MessageBox.Show(
+                this,
+                $"Đã xóa {deletedCount} dòng nhật ký hệ thống.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                this,
+                $"Không thể xóa nhật ký: {ex.Message}",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
     private async void SystemLogsTimer_Tick(object? sender, EventArgs e)
     {
         if (!IsSystemLogsTabActive() || WindowState == WindowState.Minimized)
@@ -408,4 +461,5 @@ public partial class MainWindow : Window
     }
 
 }
+
 

@@ -66,7 +66,7 @@ public partial class MainWindow : Window
         ServicesIconTextBlock.Text = ClientI18n.Get("main.actions.services.icon", "🛒");
         ServicesLabelTextBlock.Text = ClientI18n.Get("main.actions.services.label", "Dịch vụ");
         LoyaltyIconTextBlock.Text = ClientI18n.Get("main.actions.loyalty.icon", "🎡");
-        LoyaltyLabelTextBlock.Text = ClientI18n.Get("main.actions.loyalty.label", "Vòng quay");
+        LoyaltyLabelTextBlock.Text = ClientI18n.Get("main.actions.loyalty.label", "\u0110\u1ed5i \u0111i\u1ec3m");
         TransferIconTextBlock.Text = ClientI18n.Get("main.actions.transfer.icon", "💸");
         TransferLabelTextBlock.Text = ClientI18n.Get("main.actions.transfer.label", "Chuyển tiền");
         PasswordIconTextBlock.Text = ClientI18n.Get("main.actions.password.icon", "🔑");

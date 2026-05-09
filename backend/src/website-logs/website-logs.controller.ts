@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Put, Query } from '@nestjs/common';
 import { IngestWebsiteLogsDto } from './dto/ingest-website-logs.dto';
 import { QueryWebsiteLogsDto } from './dto/query-website-logs.dto';
 import { UpdateWebsiteLogSettingsDto } from './dto/update-website-log-settings.dto';
@@ -27,5 +27,9 @@ export class WebsiteLogsController {
   async queryLogs(@Query() query: QueryWebsiteLogsDto) {
     return this.websiteLogsService.getLogs(query);
   }
-}
 
+  @Delete()
+  async clearLogs() {
+    return this.websiteLogsService.clearLogs();
+  }
+}

@@ -209,7 +209,7 @@
                     <Button Style="{StaticResource ActionButtonStyle}" Click="LoyaltyButton_Click">
                         <StackPanel>
                             <TextBlock x:Name="LoyaltyIconTextBlock" Text="🎡" FontSize="20" HorizontalAlignment="Center" />
-                            <TextBlock x:Name="LoyaltyLabelTextBlock" Text="Vòng quay" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
+                            <TextBlock x:Name="LoyaltyLabelTextBlock" Text="&#272;&#7893;i &#273;i&#7875;m" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
                         </StackPanel>
                     </Button>
 

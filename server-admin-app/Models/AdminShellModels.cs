@@ -83,6 +83,8 @@ public sealed class MachineRow
     public string UsedText { get; set; } = "-";
     public string RemainingText { get; set; } = "-";
     public string MoneyText { get; set; } = "-";
+    public decimal ServiceAmountRaw { get; set; }
+    public string ServiceAmountText { get; set; } = "-";
     public string DateText { get; set; } = "-";
     public string VersionText { get; set; } = "0.1.0";
     public string GroupName { get; set; } = "M\u1eb7c \u0111\u1ecbnh";
@@ -131,6 +133,21 @@ public sealed class LoyaltySettingsResponse
     public int MinutesPerPoint { get; set; }
     public int PointsToMinutes { get; set; }
     public string UpdatedAt { get; set; } = string.Empty;
+}
+
+public sealed class LoyaltySpinSettingsResponse
+{
+    public List<LoyaltySpinSettingItem> Items { get; set; } = new();
+    public decimal TotalChance { get; set; }
+    public string UpdatedAt { get; set; } = string.Empty;
+    public string? UpdatedBy { get; set; }
+}
+
+public sealed class LoyaltySpinSettingItem
+{
+    public int Minutes { get; set; }
+    public decimal Chance { get; set; }
+    public string Label { get; set; } = string.Empty;
 }
 
 public sealed class ClientRuntimeSettingsResponse
@@ -195,6 +212,12 @@ public sealed class SystemEventsResponse
 {
     public List<SystemEventItem> Items { get; set; } = new();
     public int Total { get; set; }
+}
+
+public sealed class ClearSystemEventsResponse
+{
+    public int DeletedCount { get; set; }
+    public string ServerTime { get; set; } = string.Empty;
 }
 
 public sealed class SystemEventItem
@@ -274,6 +297,12 @@ public sealed class WebsiteLogsResponse
 {
     public List<WebsiteLogItem> Items { get; set; } = new();
     public int Total { get; set; }
+    public string ServerTime { get; set; } = string.Empty;
+}
+
+public sealed class ClearWebsiteLogsResponse
+{
+    public int DeletedCount { get; set; }
     public string ServerTime { get; set; } = string.Empty;
 }
 
@@ -409,7 +438,17 @@ public sealed class PcServiceOrderDto
     public string? Note { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
     public string CreatedAt { get; set; } = string.Empty;
+    public bool IsPaid { get; set; }
     public ServiceItemDto ServiceItem { get; set; } = new();
+}
+
+public sealed class PayPcServiceOrdersResponse
+{
+    public string PcId { get; set; } = string.Empty;
+    public string? SessionId { get; set; }
+    public int PaidOrderCount { get; set; }
+    public decimal PaidAmount { get; set; }
+    public decimal UnpaidAmount { get; set; }
 }
 
 public sealed class CaptureScreenshotRequestResponse
@@ -459,4 +498,12 @@ public sealed class LoyaltyRankRow
     public decimal BonusPercent { get; set; }
     public string MinTopupText { get; set; } = "0";
     public int MinutesPerPoint { get; set; }
+}
+
+public sealed class LoyaltySpinSettingRow
+{
+    public int Minutes { get; set; }
+    public decimal Chance { get; set; }
+    public string MinutesText => $"{Minutes}p";
+    public string Label { get; set; } = string.Empty;
 }

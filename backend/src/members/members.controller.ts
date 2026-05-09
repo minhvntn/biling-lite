@@ -11,6 +11,7 @@ import { RecordMemberUsageDto } from './dto/record-member-usage.dto';
 import { RedeemLoyaltyPointsDto } from './dto/redeem-loyalty-points.dto';
 import { SetMemberPresenceDto } from './dto/set-member-presence.dto';
 import { UpdateLoyaltyRankDto } from './dto/update-loyalty-rank.dto';
+import { UpdateSpinPrizeSettingsDto } from './dto/update-spin-prize-settings.dto';
 import { MembersService } from './members.service';
 
 @Controller('members')
@@ -55,6 +56,18 @@ export class MembersController {
   @Get('loyalty/ranks')
   async getLoyaltyRanks() {
     return this.membersService.getLoyaltyRanks();
+  }
+
+  @Get('loyalty/spin-settings')
+  async getLoyaltySpinSettings() {
+    return this.membersService.getLoyaltySpinSettings();
+  }
+
+  @Patch('loyalty/spin-settings')
+  async updateLoyaltySpinSettings(
+    @Body() payload: UpdateSpinPrizeSettingsDto,
+  ) {
+    return this.membersService.updateLoyaltySpinSettings(payload);
   }
 
   @Patch('loyalty/ranks/:rankId')

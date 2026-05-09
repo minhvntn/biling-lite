@@ -26,7 +26,8 @@ export class RealtimeService {
       return 0;
     }
 
-    const room = this.server.sockets.adapter.rooms.get(`agent:${agentId}`);
+    const adapter = (this.server as any).adapter || (this.server as any).sockets?.adapter;
+    const room = adapter?.rooms?.get(`agent:${agentId}`);
     return room?.size ?? 0;
   }
 }

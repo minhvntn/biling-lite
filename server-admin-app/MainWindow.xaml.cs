@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -32,6 +33,7 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<GroupMachineRow> _groupMachineRows = new();
     private readonly ObservableCollection<ServiceItemRow> _serviceItemRows = new();
     private readonly ObservableCollection<string> _webFilterDomainRows = new();
+    private readonly ObservableCollection<LoyaltySpinSettingRow> _loyaltySpinSettingRows = new();
 
     private readonly List<MachineRow> _allMachineRows = new();
     private PricingSettingsResponse? _pricingSettings;
@@ -63,6 +65,8 @@ public partial class MainWindow : Window
     private bool _isLoadingWebFilterSettings;
     private bool _websiteLogSettingsInitialized;
     private bool _isLoadingWebsiteLogSettings;
+    private bool _loyaltySpinSettingsInitialized;
+    private bool _isLoadingLoyaltySpinSettings;
     private bool _websiteLogFiltersInitialized;
     private bool _isUpdatingWebsiteLogMachineFilters;
     private bool _guestLoginSettingsInitialized;
@@ -119,6 +123,7 @@ public partial class MainWindow : Window
         GroupMachinesDataGrid.ItemsSource = _groupMachineRows;
         ServiceItemsDataGrid.ItemsSource = _serviceItemRows;
         WebFilterDomainsListBox.ItemsSource = _webFilterDomainRows;
+        MiniGameSpinSettingsDataGrid.ItemsSource = _loyaltySpinSettingRows;
         FontSizeSlider.Value = _settings.UiFontSize;
         FontSizeValueTextBlock.Text = _settings.UiFontSize.ToString("0");
         MachineTableFontSizeSlider.Value = _settings.MachineTableFontSize;
@@ -137,6 +142,7 @@ public partial class MainWindow : Window
         _machineContextMenuFontSizeInitialized = true;
         _transactionReportInitialized = true;
         InitializeLoyaltyRanksTab();
+        InitializeMiniGameTab();
 
         _healthTimer.Interval = TimeSpan.FromSeconds(5);
         _healthTimer.Tick += HealthTimer_Tick;
@@ -163,6 +169,7 @@ public partial class MainWindow : Window
         _webFilterSettingsInitialized = true;
         _websiteLogSettingsInitialized = true;
         _websiteLogFiltersInitialized = true;
+        _loyaltySpinSettingsInitialized = true;
     }
 
     private void MainWindow_Closed(object? sender, EventArgs e)
@@ -187,35 +194,80 @@ public partial class MainWindow : Window
 
     private async void MainTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (e.Source is not TabControl tabControl || !IsLoaded)
+        if (!IsLoaded)
         {
             return;
         }
 
-        if (tabControl.SelectedItem is TabItem tabItem)
+        if (e.Source == MainTabControl)
         {
-            if (tabItem == StatisticsTabItem)
+            if (MainTabControl.SelectedItem is TabItem tabItem)
             {
-                await RefreshStatisticsAsync();
+                if (tabItem == StatisticsTabItem)
+                {
+                    await RefreshStatisticsAsync();
+                }
+                else if (tabItem == LogsTabItem)
+                {
+                    await RefreshActiveLogTabAsync();
+                }
+                else if (tabItem == MiniGameTabItem)
+                {
+                    await RefreshMiniGameSpinSettingsAsync();
+                }
+                else
+                {
+                    var header = tabItem.Header?.ToString();
+                    if (header is null || header == "System.Windows.Controls.StackPanel")
+                    {
+                        if (tabItem.Header is StackPanel sp)
+                        {
+                            var textBlock = sp.Children.OfType<TextBlock>().LastOrDefault();
+                            header = textBlock?.Text;
+                        }
+                    }
+
+                    switch (header)
+                    {
+                        case "Máy trạm":
+                            await RefreshMachinesAsync();
+                            break;
+                        case "Tài khoản":
+                            await RefreshMembersAsync();
+                            break;
+                        case "Nhóm máy":
+                            await RefreshGroupsAsync();
+                            break;
+                        case "Dịch vụ":
+                            await RefreshServiceItemsAsync();
+                            break;
+                    }
+                }
             }
-            var header = tabItem.Header?.ToString();
-            switch (header)
+        }
+        else if (e.Source == LogsTabControl)
+        {
+            await RefreshActiveLogTabAsync();
+        }
+    }
+
+    private async Task RefreshActiveLogTabAsync()
+    {
+        if (!IsLoaded) return;
+
+        if (LogsTabControl.SelectedItem is TabItem subTab)
+        {
+            if (subTab == SystemLogsTabItem)
             {
-                case "Máy trạm":
-                    await RefreshMachinesAsync();
-                    break;
-                case "Tài khoản":
-                    await RefreshMembersAsync();
-                    break;
-                case "Nhật ký hệ thống":
-                    await RefreshSystemLogsAsync();
-                    break;
-                case "Nhóm máy":
-                    await RefreshGroupsAsync();
-                    break;
-                case "Dịch vụ":
-                    await RefreshServiceItemsAsync();
-                    break;
+                await RefreshSystemLogsAsync();
+            }
+            else if (subTab == TransactionLogsTabItem)
+            {
+                await RefreshTransactionLogsAsync();
+            }
+            else if (subTab == WebsiteLogsTabItem)
+            {
+                await RefreshWebsiteLogsAsync();
             }
         }
     }
@@ -235,6 +287,7 @@ public partial class MainWindow : Window
         await LoadWebsiteLogSettingsAsync();
         await RefreshWebsiteLogsAsync();
         await RefreshLoyaltyRanksAsync();
+        await RefreshMiniGameSpinSettingsAsync();
         await RefreshStatisticsAsync();
     }
 
@@ -245,7 +298,7 @@ public partial class MainWindow : Window
 
     private bool IsSystemLogsTabActive()
     {
-        return IsLoaded && MainTabControl.SelectedIndex == SystemLogsTabIndex;
+        return IsLoaded && MainTabControl.SelectedItem == LogsTabItem && LogsTabControl.SelectedItem == SystemLogsTabItem;
     }
 
     private static bool IsCacheValid(DateTime cachedAtUtc, int ttlSeconds)

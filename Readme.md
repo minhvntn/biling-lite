@@ -1,156 +1,199 @@
+# ServerManagerBilling - Huong dan chay local de test
 
-# ServerManagerBilling - Hướng dẫn chạy local để test
+He thong quan ly phong may gom:
 
-## 1. Yêu cầu môi trường
+- Backend API: NestJS + Prisma + PostgreSQL
+- Admin Web: React + Vite
+- Server Admin Desktop App: WPF
+- Client Agent: WPF agent tren may tram
+- Watchdog Service: Windows Service giu agent hoat dong
 
-Trước khi chạy project, cần cài sẵn:
+## 1. Yeu cau moi truong
 
 - Windows 10/11
 - Node.js 18+
 - .NET SDK 10
-- PostgreSQL 16 hoặc phiên bản tương thích
+- PostgreSQL 16 hoac phien ban tuong thich
 
----
+## 2. Tao database
 
-## 2. Tạo database
-
-Dùng `pgAdmin` hoặc `psql` để tạo database:
+Dung `pgAdmin` hoac `psql` de tao database:
 
 ```sql
 CREATE DATABASE servermanagerbilling;
+```
 
-Cấu hình mặc định backend đang sử dụng:
+Cau hinh mac dinh backend:
 
-Thông tin	Giá trị
-User	postgres
-Password	postgres
-Host	localhost
-Port	5432
-Database	servermanagerbilling
+| Thong tin | Gia tri |
+| --- | --- |
+| User | postgres |
+| Password | postgres |
+| Host | localhost |
+| Port | 5432 |
+| Database | servermanagerbilling |
 
-Nếu tài khoản hoặc mật khẩu PostgreSQL khác, hãy chỉnh lại trong file:
+Neu tai khoan hoac mat khau PostgreSQL khac, tao file `backend/.env` tu `backend/.env.example` va chinh `DATABASE_URL`.
 
-backend/.env
-3. Cài dependencies
-Backend
+## 3. Cai dependencies
+
+Backend:
+
+```powershell
 cd I:\servermanagerbilling\backend
 npm install
-Admin Web
+```
+
+Admin Web:
+
+```powershell
 cd I:\servermanagerbilling\admin
 npm install
-Server Admin App WPF
+```
+
+Server Admin Desktop App:
+
+```powershell
 cd I:\servermanagerbilling\server-admin-app
 dotnet restore
-4. Chạy migration database
+```
+
+Client Agent:
+
+```powershell
+cd I:\servermanagerbilling\client
+dotnet restore ServerManagerClient.slnx
+```
+
+## 4. Chay migration database
+
+```powershell
 cd I:\servermanagerbilling\backend
 npx prisma migrate deploy
 npx prisma generate
-5. Chạy các service
+```
 
-Mở 4 terminal riêng biệt và chạy lần lượt các service sau.
+## 5. Chay cac service local
 
-Terminal A - Backend API
+Mo cac terminal rieng biet.
 
-Backend API chạy tại port 9000.
+Backend API, port `9000`:
 
+```powershell
 cd I:\servermanagerbilling\backend
 npm run start:dev
-Terminal B - Admin Web
+```
 
-Admin Web chạy tại port 5173.
+Admin Web, port `5173`:
 
+```powershell
 cd I:\servermanagerbilling\admin
 npm run dev
-Terminal C - Mock Agent
+```
 
-Mock Agent dùng để giả lập máy trạm.
+Mock Agent de gia lap may tram:
 
+```powershell
 cd I:\servermanagerbilling\admin
 npm run mock:agent
-Terminal D - Server Admin Desktop App
+```
+
+Server Admin Desktop App:
+
+```powershell
 cd I:\servermanagerbilling\server-admin-app
 dotnet run
-6. Checklist test nhanh
+```
 
-Sau khi chạy đủ các service, mở Server Admin Desktop App và kiểm tra các chức năng sau:
+Client Agent WPF:
 
-Máy trạm
-Hiển thị được danh sách máy.
-Có thể mở máy.
-Có thể khóa máy.
-Tài khoản
-Bấm Thêm hội viên.
-Popup/modal hiển thị đúng.
-Nhập tên đăng nhập và mật khẩu.
-Tạo hội viên thành công.
-Nhật ký hệ thống
-Danh sách log hệ thống tải được.
-Dữ liệu hiển thị đúng.
-Nhật ký giao dịch
-Danh sách phiên sử dụng tải được.
-Doanh thu hiển thị đúng.
-Nhóm máy
-Có tổng hợp nhóm máy.
-Có danh sách máy theo nhóm.
-Dịch vụ
-Có các nút thao tác.
-Có vùng log hoạt động.
-Cài đặt
-Kéo thanh cỡ chữ.
-UI thay đổi ngay.
-Bấm Lưu cài đặt thành công.
-7. Ghi chú
-Nếu service PostgreSQL chưa chạy, backend sẽ báo lỗi kết nối Prisma.
-Nếu PowerShell chặn script do ExecutionPolicy, hãy chạy lệnh thủ công thay vì chạy file .ps1.
-API base URL mà desktop app đang sử dụng:
-http://localhost:9000/api/v1
+```powershell
+cd I:\servermanagerbilling\client\src\Client.Agent.Wpf
+dotnet run
+```
 
-Lưu ý nhỏ: file `README.md` nên lưu bằng encoding **UTF-8** để tiếng Việt không bị lỗi font. Trong VS Code, có thể bấm góc dưới bên phải chỗ encoding rồi chọn **Save with Encoding → UTF-8**.
-## 8. Dynamic pricing by group (new)
+## 6. URL mac dinh
 
-Backend now supports dynamic hourly pricing at server level and per machine group.
+- Backend API: `http://localhost:9000/api/v1`
+- Socket.IO namespace: `http://localhost:9000/billing`
+- Admin Web: `http://localhost:5173`
+- Server Admin Desktop config: `server-admin-app/appsettings.json`
+- Client Agent config: `client/src/Client.Agent.Wpf/appsettings.json`
+
+## 7. Checklist test nhanh
+
+Sau khi chay du service, mo Server Admin Desktop App va kiem tra:
+
+- May tram hien thi danh sach may, trang thai online/offline/in use/locked.
+- Co the mo may, khoa may, tam dung/tiep tuc neu agent dang ket noi.
+- Tao hoi vien moi, nhap username, mat khau, so dien thoai/CCCD neu can.
+- Dang nhap hoi vien tu lock screen client.
+- Nap tien, mua gio, dieu chinh so du, xem lich su giao dich.
+- Xem nhat ky he thong, nhat ky giao dich, website logs neu bat tinh nang.
+- Tao nhom may, dat gia theo nhom, gan may vao nhom.
+- Tao mat hang dich vu va goi dich vu cho may.
+- Luu cai dat client runtime, web filter, guest login, loyalty.
+
+## 8. Dynamic pricing by group
+
+Backend ho tro gia theo nhom may va gia mac dinh.
 
 ### API endpoints
 
-- `GET /api/v1/pricing`
-  - Get default hourly rate and all groups.
-- `PUT /api/v1/pricing/default-rate`
-  - Update default hourly rate.
-  - Body: `{ "hourlyRate": 5000 }`
-- `POST /api/v1/pricing/groups`
-  - Create group rate.
-  - Body: `{ "name": "VIP", "hourlyRate": 7000 }`
-- `PATCH /api/v1/pricing/groups/:groupId`
-  - Update group name/rate.
-  - Body example: `{ "hourlyRate": 6000 }`
-- `POST /api/v1/pricing/pcs/:pcId/group`
-  - Assign machine to a pricing group.
-  - Body: `{ "groupId": "<uuid>" }`
+- `GET /api/v1/pricing`: lay gia mac dinh va danh sach nhom.
+- `PUT /api/v1/pricing/default-rate`: cap nhat gia mac dinh.
+- `POST /api/v1/pricing/groups`: tao nhom gia.
+- `PATCH /api/v1/pricing/groups/:groupId`: cap nhat ten/gia nhom.
+- `POST /api/v1/pricing/pcs/:pcId/group`: gan may vao nhom.
 
 ### PowerShell examples
 
 ```powershell
-# 1) Set default rate = 5000 VND/hour
-Invoke-RestMethod -Method Put \
-  -Uri "http://localhost:9000/api/v1/pricing/default-rate" \
-  -ContentType "application/json" \
+# Dat gia mac dinh = 5000 VND/gio
+Invoke-RestMethod -Method Put `
+  -Uri "http://localhost:9000/api/v1/pricing/default-rate" `
+  -ContentType "application/json" `
   -Body '{"hourlyRate":5000}'
 
-# 2) Create group rate = 7000 VND/hour
-$group = Invoke-RestMethod -Method Post \
-  -Uri "http://localhost:9000/api/v1/pricing/groups" \
-  -ContentType "application/json" \
+# Tao nhom gia = 7000 VND/gio
+$group = Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:9000/api/v1/pricing/groups" `
+  -ContentType "application/json" `
   -Body '{"name":"Phong VIP","hourlyRate":7000}'
 
-# 3) Assign a PC to this group
-Invoke-RestMethod -Method Post \
-  -Uri "http://localhost:9000/api/v1/pricing/pcs/<pcId>/group" \
-  -ContentType "application/json" \
-  -Body ("{\"groupId\":\"" + $group.id + "\"}")
+# Gan PC vao nhom vua tao
+Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:9000/api/v1/pricing/pcs/<pcId>/group" `
+  -ContentType "application/json" `
+  -Body ("{""groupId"":""" + $group.id + """}")
 ```
 
-### Effect
+## 9. Deploy client agent mot may
 
-- New sessions use the hourly rate from the machine group.
-- If machine has no group, it uses the default group rate.
-- Client receives `hourlyRate` in realtime `command.execute` for OPEN/RESUME so child machine UI follows server pricing.
+Chay PowerShell voi quyen Administrator:
+
+```powershell
+cd I:\servermanagerbilling\client\scripts
+.\publish-day5.ps1 -Configuration Release -Runtime win-x64
+.\configure-day5.ps1 -ServerUrl "http://<server-ip>:9000" -AgentId "PC-001"
+.\deploy-day5-local.ps1
+.\verify-day5.ps1
+```
+
+Log mac dinh:
+
+- Agent: `%ProgramData%\ServerManagerBilling\logs\client-agent.log`
+- Watchdog: `%ProgramData%\ServerManagerBilling\logs\watchdog-service.log`
+
+## 10. Luu y bao mat
+
+- Khong commit mat khau, API key, token, URL private hoac thong tin tai khoan ca nhan vao README.
+- Doi mat khau agent-admin trong tab Cai dat cua Server Admin Desktop truoc khi dung ngoai moi truong test.
+- Neu can chia se cau hinh, tao file `.env.example` hoac `appsettings.example.json` khong chua secret that.
+
+## 11. Loi thuong gap
+
+- Backend bao loi Prisma: kiem tra PostgreSQL dang chay va `DATABASE_URL`.
+- PowerShell chan script: mo PowerShell Administrator va dieu chinh ExecutionPolicy cho phien hien tai neu can.
+- Desktop app khong ket noi backend: kiem tra `BackendApiBaseUrl` trong `server-admin-app/appsettings.json`.
+- Agent khong hien tren admin: kiem tra `Agent.ServerUrl`, firewall port `9000`, va log agent.

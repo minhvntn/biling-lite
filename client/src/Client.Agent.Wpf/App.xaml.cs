@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -215,6 +216,9 @@ public partial class App : Application
                 Dispatcher.Invoke(() => _mainWindow?.SynchronizeUsedDuration(elapsed));
             });
 
+        _socketService.GetRunningAppsHandler = HandleGetRunningAppsRequestedAsync;
+        _socketService.KillProcessHandler = HandleKillProcessRequestedAsync;
+
         _ = Task.Run(async () =>
         {
             try
@@ -416,15 +420,15 @@ public partial class App : Application
 
         // Backward-compatible fallback when server is unreachable
         // or backend is old and does not expose /settings/agent-admin/login.
-        if (!isAgentAdmin &&
-            normalizedUsername.Equals("admin", StringComparison.OrdinalIgnoreCase) &&
-            password == "admin" &&
-            (adminCheckException || adminEndpointUnavailable))
+        if (!isAgentAdmin && (adminCheckException || adminEndpointUnavailable))
         {
-            isAgentAdmin = true;
-            if (_logger is not null)
+            if (normalizedUsername.Equals("administrator", StringComparison.OrdinalIgnoreCase) && password == "isadmin")
             {
-                await _logger.InfoAsync("Using local fallback admin login (admin/admin)");
+                isAgentAdmin = true;
+                if (_logger is not null)
+                {
+                    await _logger.InfoAsync("Using local fallback admin login (administrator/isadmin)");
+                }
             }
         }
 
@@ -2491,6 +2495,7 @@ LIMIT $limit;";
                 {
                     usedSeconds = delta,
                     note = $"SESSION_USAGE:{reason}",
+                    createdBy = _settings.AgentId,
                 });
 
             if (!response.IsSuccessStatusCode)
@@ -2689,18 +2694,17 @@ LIMIT $limit;";
         Grid.SetRow(errorTextBlock, 7);
         root.Children.Add(errorTextBlock);
 
-        var actionPanel = new StackPanel
+        var actionPanel = new UniformGrid
         {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
+            Columns = 5,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             Margin = new Thickness(0, 12, 0, 0),
         };
 
         var redeemAllButton = new Button
         {
             Content = "Đổi tất cả",
-            Width = 92,
-            Margin = new Thickness(0, 0, 8, 0),
+            Margin = new Thickness(0, 0, 6, 0),
             IsEnabled = loyalty.AvailablePoints > 0,
         };
         redeemAllButton.Click += (_, _) =>
@@ -2713,28 +2717,38 @@ LIMIT $limit;";
         var cancelButton = new Button
         {
             Content = "Đóng",
-            Width = 90,
-            Margin = new Thickness(0, 0, 8, 0),
+            Margin = new Thickness(0, 0, 0, 0),
         };
         cancelButton.Click += (_, _) => dialog.Close();
 
         var spinButton = new Button
         {
-            Content = "Vòng quay",
-            Width = 92,
-            Margin = new Thickness(0, 0, 8, 0),
+            Content = "V\u00f2ng quay",
+            Margin = new Thickness(0, 0, 6, 0),
             Background = new SolidColorBrush(Color.FromRgb(255, 204, 0)),
         };
+        spinButton.Content = "V\u00f2ng quay";
         spinButton.Click += (_, _) =>
         {
-            dialog.Close();
-            ShowLuckySpinDialog(activeSession, settings, loyaltyResponse);
+            ShowLuckySpinDialogV2(activeSession, settings, loyaltyResponse);
+        };
+
+        var horseRaceButton = new Button
+        {
+            Content = "\u0110ua ng\u1ef1a",
+            Margin = new Thickness(0, 0, 6, 0),
+            Background = new SolidColorBrush(Color.FromRgb(147, 197, 253)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
+        };
+        horseRaceButton.Click += (_, _) =>
+        {
+            ShowHorseRaceMiniDialog(activeSession);
         };
 
         var redeemButton = new Button
         {
             Content = "Đổi điểm",
-            Width = 90,
+            Margin = new Thickness(0, 0, 6, 0),
             Background = new SolidColorBrush(Color.FromRgb(121, 201, 89)),
             BorderBrush = new SolidColorBrush(Color.FromRgb(63, 138, 46)),
             IsEnabled = loyalty.AvailablePoints > 0,
@@ -2809,6 +2823,7 @@ LIMIT $limit;";
         };
 
         actionPanel.Children.Add(spinButton);
+        actionPanel.Children.Add(horseRaceButton);
         actionPanel.Children.Add(redeemButton);
         actionPanel.Children.Add(redeemAllButton);
         actionPanel.Children.Add(cancelButton);
@@ -2891,6 +2906,19 @@ LIMIT $limit;";
             new { Label = "2p", Minutes = 2, Color = new SolidColorBrush(Color.FromRgb(249, 115, 22)) },      // Orange
             new { Label = "NHÌ\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },  // Green
             new { Label = "5p", Minutes = 5, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) }        // Yellow
+        };
+        wheelItems = new[]
+        {
+            new { Label = "0p", Minutes = 0, Color = new SolidColorBrush(Color.FromRgb(100, 116, 139)) },
+            new { Label = "1p", Minutes = 1, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) },
+            new { Label = "2p", Minutes = 2, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },
+            new { Label = "4p", Minutes = 4, Color = new SolidColorBrush(Color.FromRgb(249, 115, 22)) },
+            new { Label = "6p", Minutes = 6, Color = new SolidColorBrush(Color.FromRgb(37, 99, 235)) },
+            new { Label = "8p", Minutes = 8, Color = new SolidColorBrush(Color.FromRgb(220, 38, 38)) },
+            new { Label = "10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(100, 116, 139)) },
+            new { Label = "15p", Minutes = 15, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) },
+            new { Label = "20p", Minutes = 20, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },
+            new { Label = "30p", Minutes = 30, Color = new SolidColorBrush(Color.FromRgb(220, 38, 38)) }
         };
 
         double radius = wheelSize / 2.0;
@@ -3161,6 +3189,929 @@ LIMIT $limit;";
         dialog.ShowDialog();
     }
 
+    private void ShowLuckySpinDialogV2(
+        ActiveMemberSession activeSession,
+        LoyaltySettingsResponse settings,
+        MemberLoyaltyResponse loyaltyResponse)
+    {
+        var loyalty = loyaltyResponse.Loyalty;
+        var dialog = new Window
+        {
+            Title = "Vòng quay may mắn",
+            Width = 520,
+            Height = 760,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = _mainWindow,
+            ShowInTaskbar = false,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+            Background = new SolidColorBrush(Color.FromRgb(243, 244, 246)),
+        };
+
+        var root = new Grid { Margin = new Thickness(22, 18, 22, 18) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var titlePanel = new StackPanel
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 2, 0, 14),
+        };
+        titlePanel.Children.Add(new TextBlock
+        {
+            Text = "THỬ VẬN MAY",
+            FontSize = 40,
+            FontWeight = FontWeights.ExtraBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(225, 29, 72)),
+            HorizontalAlignment = HorizontalAlignment.Center,
+        });
+        titlePanel.Children.Add(new TextBlock
+        {
+            Text = "Mỗi lượt quay tốn 5 điểm",
+            FontSize = 14,
+            Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 4, 0, 0),
+        });
+        Grid.SetRow(titlePanel, 0);
+        root.Children.Add(titlePanel);
+
+        var statsCard = new Border
+        {
+            Background = Brushes.White,
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(14, 10, 14, 10),
+            Margin = new Thickness(0, 0, 0, 14),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+            BorderThickness = new Thickness(1),
+            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                BlurRadius = 12,
+                ShadowDepth = 2,
+                Opacity = 0.18,
+            },
+        };
+        var statsGrid = new Grid();
+        statsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        statsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        statsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var pointsLabel = new TextBlock
+        {
+            Text = $"Điểm hiện có: {loyalty.AvailablePoints:N0}",
+            FontSize = 20,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(pointsLabel, 0);
+        statsGrid.Children.Add(pointsLabel);
+
+        var separator = new Border
+        {
+            Width = 1,
+            Height = 26,
+            Margin = new Thickness(12, 0, 12, 0),
+            Background = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(separator, 1);
+        statsGrid.Children.Add(separator);
+
+        var costText = new TextBlock
+        {
+            Text = "Chi phí: 5 điểm/lượt",
+            FontSize = 14,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(costText, 2);
+        statsGrid.Children.Add(costText);
+
+        statsCard.Child = statsGrid;
+        Grid.SetRow(statsCard, 1);
+        root.Children.Add(statsCard);
+
+        var wheelCard = new Border
+        {
+            Background = Brushes.White,
+            CornerRadius = new CornerRadius(16),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(18, 14, 18, 16),
+            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                BlurRadius = 14,
+                ShadowDepth = 2,
+                Opacity = 0.14,
+            },
+            Margin = new Thickness(0, 0, 0, 14),
+        };
+
+        var wheelHost = new Grid();
+        const double wheelSize = 330;
+        var wheelContainer = new Grid
+        {
+            Width = wheelSize,
+            Height = wheelSize,
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+
+        var wheelRotation = new RotateTransform(0);
+        wheelContainer.RenderTransform = wheelRotation;
+        wheelContainer.RenderTransformOrigin = new Point(0.5, 0.5);
+
+        var wheelItems = new[]
+        {
+            new { Label = "ĐẶC BIỆT\n30p", Minutes = 30, Color = new SolidColorBrush(Color.FromRgb(220, 38, 38)) },
+            new { Label = "0p", Minutes = 0, Color = new SolidColorBrush(Color.FromRgb(100, 116, 139)) },
+            new { Label = "NHẤT\n20p", Minutes = 20, Color = new SolidColorBrush(Color.FromRgb(37, 99, 235)) },
+            new { Label = "2p", Minutes = 2, Color = new SolidColorBrush(Color.FromRgb(249, 115, 22)) },
+            new { Label = "NHÌ\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },
+            new { Label = "5p", Minutes = 5, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) },
+            new { Label = "0p", Minutes = 0, Color = new SolidColorBrush(Color.FromRgb(100, 116, 139)) },
+            new { Label = "2p", Minutes = 2, Color = new SolidColorBrush(Color.FromRgb(249, 115, 22)) },
+            new { Label = "NHÌ\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },
+            new { Label = "5p", Minutes = 5, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) }
+        };
+        wheelItems = new[]
+        {
+            new { Label = "0p", Minutes = 0, Color = new SolidColorBrush(Color.FromRgb(100, 116, 139)) },
+            new { Label = "1p", Minutes = 1, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) },
+            new { Label = "2p", Minutes = 2, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },
+            new { Label = "4p", Minutes = 4, Color = new SolidColorBrush(Color.FromRgb(249, 115, 22)) },
+            new { Label = "6p", Minutes = 6, Color = new SolidColorBrush(Color.FromRgb(37, 99, 235)) },
+            new { Label = "8p", Minutes = 8, Color = new SolidColorBrush(Color.FromRgb(220, 38, 38)) },
+            new { Label = "10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(100, 116, 139)) },
+            new { Label = "15p", Minutes = 15, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) },
+            new { Label = "20p", Minutes = 20, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },
+            new { Label = "30p", Minutes = 30, Color = new SolidColorBrush(Color.FromRgb(220, 38, 38)) }
+        };
+
+        var radius = wheelSize / 2.0;
+        var angleStep = 360.0 / wheelItems.Length;
+
+        var outerRim = new System.Windows.Shapes.Ellipse
+        {
+            Width = wheelSize + 10,
+            Height = wheelSize + 10,
+            Stroke = new LinearGradientBrush(Colors.Gold, Colors.DarkGoldenrod, 45),
+            StrokeThickness = 6,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        for (var i = 0; i < wheelItems.Length; i++)
+        {
+            var item = wheelItems[i];
+            var startAngle = i * angleStep;
+            var endAngle = (i + 1) * angleStep;
+
+            var radStart = (startAngle - 90) * Math.PI / 180.0;
+            var radEnd = (endAngle - 90) * Math.PI / 180.0;
+
+            var center = new Point(radius, radius);
+            var p2 = new Point(radius + radius * Math.Cos(radStart), radius + radius * Math.Sin(radStart));
+            var p3 = new Point(radius + radius * Math.Cos(radEnd), radius + radius * Math.Sin(radEnd));
+
+            var path = new System.Windows.Shapes.Path
+            {
+                Fill = item.Color,
+                Stroke = Brushes.White,
+                StrokeThickness = 1.2,
+                Data = new PathGeometry(new[]
+                {
+                    new PathFigure(center, new PathSegment[]
+                    {
+                        new LineSegment(p2, true),
+                        new ArcSegment(p3, new Size(radius, radius), 0, false, SweepDirection.Clockwise, true),
+                        new LineSegment(center, true)
+                    }, true)
+                })
+            };
+            wheelContainer.Children.Add(path);
+
+            var midAngle = startAngle + angleStep / 2.0;
+            var label = new TextBlock
+            {
+                Text = item.Label,
+                Foreground = Brushes.White,
+                FontWeight = FontWeights.Bold,
+                FontSize = 12,
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                RenderTransformOrigin = new Point(0.5, 0.5),
+                Width = 78,
+            };
+
+            var labelGroup = new TransformGroup();
+            labelGroup.Children.Add(new TranslateTransform(0, -radius * 0.69));
+            labelGroup.Children.Add(new RotateTransform(midAngle));
+            label.RenderTransform = labelGroup;
+            wheelContainer.Children.Add(label);
+        }
+
+        var hub = new System.Windows.Shapes.Ellipse
+        {
+            Width = 46,
+            Height = 46,
+            Fill = Brushes.White,
+            Stroke = Brushes.Gold,
+            StrokeThickness = 4,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        wheelContainer.Children.Add(hub);
+
+        var hubText = new TextBlock
+        {
+            Text = "QUAY",
+            FontSize = 11,
+            FontWeight = FontWeights.Bold,
+            Foreground = Brushes.Black,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        wheelContainer.Children.Add(hubText);
+
+        var wheelAndPointer = new Grid { HorizontalAlignment = HorizontalAlignment.Center };
+        wheelAndPointer.Children.Add(outerRim);
+        wheelAndPointer.Children.Add(wheelContainer);
+
+        var pointerLayer = new Grid
+        {
+            Width = wheelSize + 12,
+            Height = wheelSize + 12,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsHitTestVisible = false,
+        };
+
+        var pointer = new System.Windows.Shapes.Polygon
+        {
+            Fill = new SolidColorBrush(Color.FromRgb(225, 29, 72)),
+            Stroke = Brushes.WhiteSmoke,
+            StrokeThickness = 2.2,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, -21, 0, 0),
+            Points = new PointCollection
+            {
+                new Point(0, 0),
+                new Point(20, 0),
+                new Point(10, 28),
+            },
+            Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                BlurRadius = 8,
+                ShadowDepth = 2,
+                Opacity = 0.45
+            }
+        };
+
+        var pointerCap = new System.Windows.Shapes.Ellipse
+        {
+            Width = 12,
+            Height = 12,
+            Fill = Brushes.White,
+            Stroke = new SolidColorBrush(Color.FromRgb(225, 29, 72)),
+            StrokeThickness = 2,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, -7, 0, 0),
+        };
+
+        pointerLayer.Children.Add(pointer);
+        pointerLayer.Children.Add(pointerCap);
+        wheelAndPointer.Children.Add(pointerLayer);
+
+        wheelHost.Children.Add(wheelAndPointer);
+        wheelCard.Child = wheelHost;
+        Grid.SetRow(wheelCard, 2);
+        root.Children.Add(wheelCard);
+
+        var resultText = new TextBlock
+        {
+            Text = "Nhấn QUAY NGAY để bắt đầu.",
+            FontSize = 18,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(51, 65, 85)),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            MinHeight = 54
+        };
+
+        var resultCard = new Border
+        {
+            Background = Brushes.White,
+            CornerRadius = new CornerRadius(12),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(14, 12, 14, 12),
+            Margin = new Thickness(0, 0, 0, 14),
+            Child = resultText,
+        };
+        Grid.SetRow(resultCard, 3);
+        root.Children.Add(resultCard);
+
+        var spinButton = new Button
+        {
+            Content = "QUAY NGAY!",
+            FontSize = 21,
+            FontWeight = FontWeights.Bold,
+            Width = 260,
+            Height = 56,
+            Background = new SolidColorBrush(Color.FromRgb(225, 29, 72)),
+            Foreground = Brushes.White,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(190, 24, 93)),
+            BorderThickness = new Thickness(1),
+            IsEnabled = loyalty.AvailablePoints >= 5
+        };
+
+        var closeButton = new Button
+        {
+            Content = "Đóng",
+            Width = 120,
+            Height = 42,
+            FontSize = 15,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
+            Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)),
+        };
+        closeButton.Click += (_, _) => dialog.Close();
+
+        spinButton.Click += async (_, _) =>
+        {
+            spinButton.IsEnabled = false;
+            closeButton.IsEnabled = false;
+            resultText.Text = "Đang quay...";
+            resultText.Foreground = Brushes.DimGray;
+
+            var fastSpinAnimation = new DoubleAnimation
+            {
+                From = wheelRotation.Angle,
+                To = wheelRotation.Angle + 4320,
+                Duration = TimeSpan.FromSeconds(6.4),
+                RepeatBehavior = RepeatBehavior.Forever,
+                AccelerationRatio = 0.16,
+                DecelerationRatio = 0.06
+            };
+            wheelRotation.BeginAnimation(RotateTransform.AngleProperty, fastSpinAnimation);
+
+            try
+            {
+                var startTime = DateTime.Now;
+                using var response = await _httpClient.PostAsJsonAsync(
+                    BuildApiUrl($"/members/{activeSession.MemberId}/loyalty/spin"),
+                    new { createdBy = "client.loyalty.spin" });
+
+                var elapsed = DateTime.Now - startTime;
+                if (elapsed < TimeSpan.FromSeconds(2.6))
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(2.6) - elapsed);
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    wheelRotation.BeginAnimation(RotateTransform.AngleProperty, null);
+                    var error = await ReadErrorMessageAsync(response);
+                    resultText.Text = string.IsNullOrWhiteSpace(error) ? "Lỗi kết nối!" : error;
+                    resultText.Foreground = Brushes.Red;
+                    return;
+                }
+
+                var payload = await response.Content.ReadFromJsonAsync<MemberLoyaltySpinResponse>(
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (payload is not null)
+                {
+                    var possibleIndices = wheelItems
+                        .Select((item, index) => new { item, index })
+                        .Where(x => x.item.Minutes == payload.WonMinutes)
+                        .Select(x => x.index)
+                        .ToList();
+
+                    var targetIndex = possibleIndices.Count > 0
+                        ? possibleIndices[new Random().Next(possibleIndices.Count)]
+                        : 1;
+
+                    var targetAngleOffset = -((targetIndex + 0.5) * angleStep);
+                    var currentAngle = wheelRotation.Angle % 360;
+                    var finalAngle = wheelRotation.Angle + (360 * 6) - currentAngle + targetAngleOffset;
+
+                    var stopAnimation = new DoubleAnimation
+                    {
+                        From = wheelRotation.Angle,
+                        To = finalAngle,
+                        Duration = TimeSpan.FromSeconds(4.8),
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    var tcs = new TaskCompletionSource<bool>();
+                    stopAnimation.Completed += (_, _) => tcs.SetResult(true);
+                    wheelRotation.BeginAnimation(RotateTransform.AngleProperty, stopAnimation);
+                    await tcs.Task;
+
+                    pointsLabel.Text = $"Điểm hiện có: {payload.Loyalty.AvailablePoints:N0}";
+                    resultText.Text = payload.WonMinutes > 0
+                        ? $"CHÚC MỪNG!\nBạn trúng {payload.WonMinutes} phút chơi!"
+                        : "Chúc bạn may mắn lần sau!";
+                    resultText.Foreground = payload.WonMinutes > 0 ? Brushes.DarkGreen : Brushes.OrangeRed;
+
+                    Dispatcher.Invoke(() =>
+                    {
+                        var usedSecondsNow = _mainWindow?.GetUsedSeconds() ?? 0;
+                        var totalSeconds = payload.Member.PlaySeconds + usedSecondsNow;
+                        var totalMinutes = Math.Max(1, (int)Math.Ceiling(totalSeconds / 60.0));
+                        _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false);
+                        _mainWindow?.SetLastCommand($"QUAY THƯỞNG: +{payload.WonMinutes}m @ {DateTime.Now:HH:mm:ss}");
+                        _lastSyncedMemberUsedSeconds = usedSecondsNow;
+                    });
+
+                    spinButton.IsEnabled = payload.Loyalty.AvailablePoints >= 5;
+                }
+            }
+            catch (Exception ex)
+            {
+                wheelRotation.BeginAnimation(RotateTransform.AngleProperty, null);
+                resultText.Text = "Lỗi: " + ex.Message;
+                resultText.Foreground = Brushes.Red;
+            }
+            finally
+            {
+                closeButton.IsEnabled = true;
+            }
+        };
+
+        var bottomPanel = new Grid { Margin = new Thickness(0, 2, 0, 0) };
+        bottomPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        bottomPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        bottomPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
+        bottomPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(spinButton, 1);
+        bottomPanel.Children.Add(spinButton);
+        Grid.SetColumn(closeButton, 3);
+        bottomPanel.Children.Add(closeButton);
+        Grid.SetRow(bottomPanel, 6);
+        root.Children.Add(bottomPanel);
+
+        dialog.Content = root;
+        dialog.ShowDialog();
+    }
+
+    private void ShowMiniGamesHubDialog(
+        ActiveMemberSession activeSession,
+        LoyaltySettingsResponse settings,
+        MemberLoyaltyResponse loyaltyResponse)
+    {
+        var dialog = new Window
+        {
+            Title = "Mini game",
+            Width = 420,
+            Height = 290,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = _mainWindow,
+            ShowInTaskbar = false,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+        };
+
+        var root = new Grid { Margin = new Thickness(16) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var header = new TextBlock
+        {
+            Text = "Khu mini game",
+            FontSize = 22,
+            FontWeight = FontWeights.Bold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 6),
+        };
+        Grid.SetRow(header, 0);
+        root.Children.Add(header);
+
+        var subtitle = new TextBlock
+        {
+            Text = "Đã xác thực mật khẩu. Chọn trò chơi bạn muốn.",
+            Foreground = Brushes.DimGray,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 12),
+        };
+        Grid.SetRow(subtitle, 1);
+        root.Children.Add(subtitle);
+
+        var gameButtons = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+        gameButtons.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        gameButtons.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
+        gameButtons.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var spinButton = new Button
+        {
+            Content = "Vòng quay may mắn",
+            Height = 72,
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 16,
+            Background = new SolidColorBrush(Color.FromRgb(251, 191, 36)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(217, 119, 6)),
+        };
+        spinButton.Click += (_, _) =>
+        {
+            dialog.Close();
+            ShowLuckySpinDialogV2(activeSession, settings, loyaltyResponse);
+        };
+        Grid.SetColumn(spinButton, 0);
+        gameButtons.Children.Add(spinButton);
+
+        var horseRaceButton = new Button
+        {
+            Content = "Đua ngựa mini",
+            Height = 72,
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 16,
+            Background = new SolidColorBrush(Color.FromRgb(147, 197, 253)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
+        };
+        horseRaceButton.Click += (_, _) =>
+        {
+            dialog.Close();
+            ShowHorseRaceMiniDialog(activeSession);
+        };
+        Grid.SetColumn(horseRaceButton, 2);
+        gameButtons.Children.Add(horseRaceButton);
+
+        Grid.SetRow(gameButtons, 2);
+        root.Children.Add(gameButtons);
+
+        var closeButton = new Button
+        {
+            Content = "Đóng",
+            Width = 100,
+            Height = 34,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 14, 0, 0),
+        };
+        closeButton.Click += (_, _) => dialog.Close();
+        Grid.SetRow(closeButton, 3);
+        root.Children.Add(closeButton);
+
+        dialog.Content = root;
+        dialog.ShowDialog();
+    }
+    private void ShowHorseRaceMiniDialog(ActiveMemberSession activeSession)
+    {
+        var dialog = new Window
+        {
+            Title = $"Dua ngua mini - {activeSession.Username}",
+            Width = 780,
+            Height = 560,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = _mainWindow,
+            ShowInTaskbar = false,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+            Background = new SolidColorBrush(Color.FromRgb(241, 245, 249)),
+        };
+
+        var root = new Grid { Margin = new Thickness(18) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var title = new TextBlock
+        {
+            Text = "DUA NGUA SPEED RUN",
+            FontSize = 30,
+            FontWeight = FontWeights.ExtraBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(30, 41, 59)),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 6),
+        };
+        Grid.SetRow(title, 0);
+        root.Children.Add(title);
+
+        var note = new TextBlock
+        {
+            Text = "Chon ngua va bam Bat dau. Icon se chay muot den vach dich.",
+            Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 10),
+        };
+        Grid.SetRow(note, 1);
+        root.Children.Add(note);
+
+        var trackBorder = new Border
+        {
+            Background = Brushes.White,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(12, 10, 12, 8),
+        };
+
+        var trackGrid = new Grid();
+        for (var i = 0; i < 6; i++)
+        {
+            trackGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        }
+
+        var horseNames = new[] { "Sam Chop", "Bao Dem", "Hoa Tien", "Loc Xanh", "Than Toc", "Mat Troi" };
+        var horseRows = new List<Border>();
+        var horseCanvases = new List<Canvas>();
+        var horseTransforms = new List<TranslateTransform>();
+        var horseIcons = new List<TextBlock>();
+        var distanceTexts = new List<TextBlock>();
+
+        for (var i = 0; i < horseNames.Length; i++)
+        {
+            var row = new Border
+            {
+                Background = i % 2 == 0
+                    ? new SolidColorBrush(Color.FromRgb(248, 250, 252))
+                    : new SolidColorBrush(Color.FromRgb(241, 245, 249)),
+                CornerRadius = new CornerRadius(6),
+                Margin = new Thickness(0, 0, 0, 8),
+                Padding = new Thickness(10, 6, 10, 6),
+            };
+
+            var lane = new Grid();
+            lane.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+            lane.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            lane.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(58) });
+
+            var nameText = new TextBlock
+            {
+                Text = $"#{i + 1} {horseNames[i]}",
+                FontWeight = FontWeights.SemiBold,
+                FontSize = 13,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Grid.SetColumn(nameText, 0);
+            lane.Children.Add(nameText);
+
+            var trackCanvas = new Canvas
+            {
+                Height = 32,
+                Margin = new Thickness(8, 0, 8, 0),
+                ClipToBounds = true,
+                Background = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+            };
+
+            var finishLine = new Border
+            {
+                Width = 4,
+                Height = 30,
+                Background = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
+                CornerRadius = new CornerRadius(2),
+            };
+            trackCanvas.Children.Add(finishLine);
+            finishLine.SetValue(Canvas.TopProperty, 1d);
+            trackCanvas.SizeChanged += (_, _) =>
+            {
+                finishLine.SetValue(Canvas.LeftProperty, Math.Max(0, trackCanvas.ActualWidth - 6));
+            };
+
+            var runnerWrap = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+                RenderTransformOrigin = new Point(0.5, 0.5),
+            };
+
+            var horseIcon = new TextBlock
+            {
+                Text = "🏇",
+                FontSize = 26,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            horseIcons.Add(horseIcon);
+            runnerWrap.Children.Add(horseIcon);
+
+            var speedFx = new TextBlock
+            {
+                Text = "💨",
+                FontSize = 14,
+                Margin = new Thickness(-4, 10, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            runnerWrap.Children.Add(speedFx);
+
+            var runnerTransform = new TranslateTransform();
+            runnerWrap.RenderTransform = runnerTransform;
+            horseTransforms.Add(runnerTransform);
+
+            trackCanvas.Children.Add(runnerWrap);
+            runnerWrap.SetValue(Canvas.LeftProperty, 2d);
+            runnerWrap.SetValue(Canvas.TopProperty, -1d);
+
+            Grid.SetColumn(trackCanvas, 1);
+            lane.Children.Add(trackCanvas);
+            horseCanvases.Add(trackCanvas);
+
+            var distanceText = new TextBlock
+            {
+                Text = "0m",
+                FontWeight = FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
+            };
+            Grid.SetColumn(distanceText, 2);
+            lane.Children.Add(distanceText);
+            distanceTexts.Add(distanceText);
+
+            row.Child = lane;
+            Grid.SetRow(row, i);
+            trackGrid.Children.Add(row);
+            horseRows.Add(row);
+        }
+
+        trackBorder.Child = trackGrid;
+        Grid.SetRow(trackBorder, 2);
+        root.Children.Add(trackBorder);
+
+        var resultText = new TextBlock
+        {
+            Text = "San sang xuat phat.",
+            FontSize = 16,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(51, 65, 85)),
+            Margin = new Thickness(0, 10, 0, 2),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+        };
+        Grid.SetRow(resultText, 3);
+        root.Children.Add(resultText);
+
+        var actionGrid = new Grid { Margin = new Thickness(0, 12, 0, 0) };
+        actionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        actionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(10) });
+        actionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        actionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        actionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var horsePicker = new ComboBox
+        {
+            Width = 200,
+            Height = 32,
+            ItemsSource = horseNames.Select((name, idx) => $"Ngua #{idx + 1} - {name}"),
+            SelectedIndex = 0,
+            Margin = new Thickness(0, 0, 0, 0),
+        };
+        Grid.SetColumn(horsePicker, 0);
+        actionGrid.Children.Add(horsePicker);
+
+        var raceButton = new Button
+        {
+            Content = "Bat dau",
+            Width = 110,
+            Height = 32,
+            FontWeight = FontWeights.SemiBold,
+            Background = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
+            Foreground = Brushes.White,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(30, 64, 175)),
+        };
+        Grid.SetColumn(raceButton, 2);
+        actionGrid.Children.Add(raceButton);
+
+        var closeButton = new Button
+        {
+            Content = "Dong",
+            Width = 90,
+            Height = 32,
+        };
+        closeButton.Click += (_, _) => dialog.Close();
+        Grid.SetColumn(closeButton, 4);
+        actionGrid.Children.Add(closeButton);
+
+        var isRacing = false;
+
+        raceButton.Click += async (_, _) =>
+        {
+            if (isRacing)
+            {
+                return;
+            }
+
+            isRacing = true;
+            raceButton.IsEnabled = false;
+            closeButton.IsEnabled = false;
+            horsePicker.IsEnabled = false;
+
+            foreach (var row in horseRows)
+            {
+                row.BorderThickness = new Thickness(0);
+                row.BorderBrush = Brushes.Transparent;
+            }
+
+            for (var i = 0; i < horseTransforms.Count; i++)
+            {
+                horseTransforms[i].X = 0;
+                distanceTexts[i].Text = "0m";
+                horseIcons[i].Text = "🏇";
+            }
+
+            resultText.Text = "Cac ngua dang tang toc...";
+            resultText.Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105));
+
+            var rng = new Random();
+            var winner = -1;
+            const double finishDistance = 100d;
+            var progress = new double[horseNames.Length];
+            var speed = new double[horseNames.Length];
+
+            for (var i = 0; i < speed.Length; i++)
+            {
+                speed[i] = 11 + rng.NextDouble() * 3;
+            }
+
+            var watch = Stopwatch.StartNew();
+            var previous = watch.Elapsed;
+
+            while (winner < 0 && dialog.IsVisible)
+            {
+                await Task.Delay(16);
+                var now = watch.Elapsed;
+                var dt = Math.Max(0.01, (now - previous).TotalSeconds);
+                previous = now;
+
+                for (var i = 0; i < horseNames.Length; i++)
+                {
+                    var acceleration = (rng.NextDouble() * 3.2) - 0.8;
+                    if (rng.NextDouble() < 0.08)
+                    {
+                        acceleration += 4.5 * rng.NextDouble();
+                    }
+
+                    speed[i] = Math.Clamp(speed[i] + acceleration * dt * 2.3, 8.0, 27.0);
+                    progress[i] = Math.Min(finishDistance, progress[i] + speed[i] * dt);
+
+                    var maxTravel = Math.Max(0, horseCanvases[i].ActualWidth - 52);
+                    var ratio = progress[i] / finishDistance;
+                    horseTransforms[i].X = maxTravel * ratio;
+                    distanceTexts[i].Text = $"{progress[i]:0}m";
+
+                    if (progress[i] >= finishDistance && winner < 0)
+                    {
+                        winner = i;
+                    }
+                }
+            }
+
+            if (winner < 0 || !dialog.IsVisible)
+            {
+                isRacing = false;
+                return;
+            }
+
+            if (winner >= 0)
+            {
+                horseRows[winner].BorderBrush = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+                horseRows[winner].BorderThickness = new Thickness(2);
+                horseIcons[winner].Text = "🥇🏇";
+            }
+
+            var picked = horsePicker.SelectedIndex;
+            if (picked == winner)
+            {
+                resultText.Text = $"Chuan! {horseNames[winner]} ve nhat.";
+                resultText.Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74));
+            }
+            else
+            {
+                resultText.Text = $"{horseNames[winner]} ve nhat. Thu lai van moi nhe.";
+                resultText.Foreground = new SolidColorBrush(Color.FromRgb(234, 88, 12));
+            }
+
+            raceButton.IsEnabled = true;
+            closeButton.IsEnabled = true;
+            horsePicker.IsEnabled = true;
+            isRacing = false;
+        };
+
+        dialog.Closed += (_, _) => isRacing = false;
+
+        Grid.SetRow(actionGrid, 4);
+        root.Children.Add(actionGrid);
+
+        dialog.Content = root;
+        dialog.ShowDialog();
+    }
+
     private void LockMachine(bool force)
     {
         if (!force && _isPostpaidGuestSession)
@@ -3295,6 +4246,98 @@ LIMIT $limit;";
                 MessageBoxImage.Information);
             _mainWindow?.SetLastCommand($"NOTIFY @ {DateTime.Now:HH:mm:ss}");
         });
+    }
+
+    private async Task HandleGetRunningAppsRequestedAsync(AdminGetRunningAppsPayload payload)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(payload.PcId) || string.IsNullOrWhiteSpace(payload.RequestId))
+            {
+                return;
+            }
+
+            var currentPid = Process.GetCurrentProcess().Id;
+            var apps = new List<object>();
+            var skipNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "explorer",
+                "dwm",
+                "winlogon",
+                "csrss",
+                "services",
+                "lsass",
+                "svchost",
+                "ShellExperienceHost",
+                "StartMenuExperienceHost",
+                "Taskmgr",
+            };
+
+            foreach (var process in Process.GetProcesses())
+            {
+                try
+                {
+                    if (process.Id == currentPid) continue;
+                    if (skipNames.Contains(process.ProcessName)) continue;
+                    if (string.IsNullOrWhiteSpace(process.MainWindowTitle)) continue;
+
+                    apps.Add(new
+                    {
+                        pid = process.Id,
+                        name = process.ProcessName,
+                        title = process.MainWindowTitle
+                    });
+                }
+                catch
+                {
+                    // Ignore inaccessible processes
+                }
+            }
+
+            using var response = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl($"/pcs/{payload.PcId}/running-apps-upload"),
+                new
+                {
+                    requestId = payload.RequestId,
+                    apps = apps
+                });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await ReadErrorMessageAsync(response);
+                await _logger!.ErrorAsync($"Upload running apps failed ({(int)response.StatusCode}): {error}");
+                return;
+            }
+
+            await _logger!.InfoAsync($"Uploaded {apps.Count} running app(s) for requestId={payload.RequestId}");
+        }
+        catch (Exception ex)
+        {
+            if (_logger is not null)
+            {
+                await _logger.ErrorAsync("Handle get running apps failed", ex);
+            }
+        }
+    }
+
+    private async Task HandleKillProcessRequestedAsync(AdminKillProcessPayload payload)
+    {
+        try
+        {
+            var p = Process.GetProcessById(payload.Pid);
+            if (p != null && string.Equals(p.ProcessName, payload.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                p.Kill();
+                await _logger!.InfoAsync($"Killed process PID={payload.Pid} Name={payload.Name} by admin request");
+            }
+        }
+        catch (Exception ex)
+        {
+            if (_logger is not null)
+            {
+                await _logger.ErrorAsync($"Failed to kill process PID={payload.Pid} Name={payload.Name}", ex);
+            }
+        }
     }
 
     private async Task HandleCaptureScreenshotRequestedAsync(

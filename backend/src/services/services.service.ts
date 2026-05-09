@@ -8,6 +8,7 @@ import { EventSource, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePcServiceOrderDto } from './dto/create-pc-service-order.dto';
 import { CreateServiceItemDto } from './dto/create-service-item.dto';
+import { PayPcServiceOrdersDto } from './dto/pay-pc-service-orders.dto';
 import { UpdateServiceItemDto } from './dto/update-service-item.dto';
 
 type GetServiceItemsOptions = {
@@ -200,13 +201,108 @@ export class ServicesService {
       orderBy: [{ createdAt: 'desc' }],
       take: limit,
     });
+    const paidOrderIds = await this.getPaidOrderIdsForPc(pcId);
 
     return {
       pcId,
-      items: orders.map((item) => this.toPcServiceOrder(item)),
+      items: orders.map((item) =>
+        this.toPcServiceOrder(item, paidOrderIds.has(item.id)),
+      ),
       total: orders.length,
       serverTime: new Date().toISOString(),
     };
+  }
+
+  async payPcServiceOrders(pcId: string, payload: PayPcServiceOrdersDto) {
+    const requestedBy = payload.requestedBy?.trim() || 'admin.desktop';
+    const note = this.normalizeOptionalText(payload.note);
+
+    return this.prisma.$transaction(async (tx) => {
+      const [pc, activeSession] = await Promise.all([
+        tx.pc.findUnique({ where: { id: pcId } }),
+        tx.session.findFirst({
+          where: { pcId, status: 'ACTIVE' },
+          orderBy: { startedAt: 'desc' },
+        }),
+      ]);
+
+      if (!pc) {
+        throw new NotFoundException('Khong tim thay may tram');
+      }
+
+      if (!activeSession) {
+        throw new BadRequestException(
+          'May chua co phien dang su dung de thanh toan dich vu',
+        );
+      }
+
+      const [orders, paidEvents] = await Promise.all([
+        tx.pcServiceOrder.findMany({
+          where: { pcId, sessionId: activeSession.id },
+          orderBy: [{ createdAt: 'asc' }],
+        }),
+        tx.eventLog.findMany({
+          where: { pcId, eventType: 'service.order.paid' },
+          select: { payload: true },
+          orderBy: [{ createdAt: 'desc' }],
+          take: 500,
+        }),
+      ]);
+
+      if (orders.length === 0) {
+        return {
+          pcId,
+          sessionId: activeSession.id,
+          paidOrderCount: 0,
+          paidAmount: 0,
+          unpaidAmount: 0,
+          serverTime: new Date().toISOString(),
+        };
+      }
+
+      const paidOrderIds = this.extractPaidOrderIdsFromEvents(paidEvents);
+      const unpaidOrders = orders.filter((item) => !paidOrderIds.has(item.id));
+      const paidAmount = unpaidOrders.reduce(
+        (sum, item) => sum + Number(item.lineTotal ?? 0),
+        0,
+      );
+
+      if (unpaidOrders.length === 0 || paidAmount <= 0) {
+        return {
+          pcId,
+          sessionId: activeSession.id,
+          paidOrderCount: 0,
+          paidAmount: 0,
+          unpaidAmount: 0,
+          serverTime: new Date().toISOString(),
+        };
+      }
+
+      await tx.eventLog.create({
+        data: {
+          source: EventSource.ADMIN,
+          eventType: 'service.order.paid',
+          pcId,
+          payload: {
+            sessionId: activeSession.id,
+            orderIds: unpaidOrders.map((x) => x.id),
+            paidOrderCount: unpaidOrders.length,
+            paidAmount,
+            requestedBy,
+            note,
+          },
+        },
+      });
+
+      return {
+        pcId,
+        sessionId: activeSession.id,
+        paidOrderCount: unpaidOrders.length,
+        paidAmount,
+        unpaidAmount: 0,
+        serverTime: new Date().toISOString(),
+      };
+    });
   }
 
   private toServiceItem(item: {
@@ -249,7 +345,7 @@ export class ServicesService {
       createdAt: Date;
       updatedAt: Date;
     };
-  }) {
+  }, isPaid = false) {
     return {
       id: item.id,
       pcId: item.pcId,
@@ -261,8 +357,61 @@ export class ServicesService {
       note: item.note,
       createdBy: item.createdBy,
       createdAt: item.createdAt.toISOString(),
+      isPaid,
       serviceItem: this.toServiceItem(item.serviceItem),
     };
+  }
+
+  private async getPaidOrderIdsForPc(pcId: string): Promise<Set<string>> {
+    const events = await this.prisma.eventLog.findMany({
+      where: { pcId, eventType: 'service.order.paid' },
+      select: { payload: true },
+      orderBy: [{ createdAt: 'desc' }],
+      take: 500,
+    });
+    return this.extractPaidOrderIdsFromEvents(events);
+  }
+
+  private extractPaidOrderIdsFromEvents(
+    events: Array<{ payload: Prisma.JsonValue | null }>,
+  ): Set<string> {
+    const paidIds = new Set<string>();
+    for (const event of events) {
+      const payload = this.readPayloadObject(event.payload);
+      if (!payload) {
+        continue;
+      }
+
+      const orderIdsRaw = payload.orderIds;
+      if (!Array.isArray(orderIdsRaw)) {
+        continue;
+      }
+
+      for (const orderId of orderIdsRaw) {
+        if (typeof orderId !== 'string') {
+          continue;
+        }
+
+        const normalized = orderId.trim();
+        if (!normalized) {
+          continue;
+        }
+
+        paidIds.add(normalized);
+      }
+    }
+
+    return paidIds;
+  }
+
+  private readPayloadObject(
+    payload: Prisma.JsonValue | null | undefined,
+  ): Record<string, unknown> | null {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return null;
+    }
+
+    return payload as Record<string, unknown>;
   }
 
   private roundMoney(value: number): number {
@@ -286,4 +435,3 @@ export class ServicesService {
     return Math.min(200, Math.max(1, Math.floor(rawLimit!)));
   }
 }
-
