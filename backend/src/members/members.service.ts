@@ -11,11 +11,13 @@ import {
   Member,
   MemberTransaction,
   MemberTransactionType,
+  PcStatus,
   Prisma,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { BuyPlaytimeDto } from './dto/buy-playtime.dto';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { TopupMemberDto } from './dto/topup-member.dto';
@@ -64,6 +66,7 @@ export class MembersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   async getMembers(search?: string) {
@@ -233,6 +236,8 @@ export class MembersService {
 
     const username = payload.username?.trim() || member.username;
     const fullName = payload.fullName?.trim() || member.fullName;
+    const previousStatus = pc.status;
+    const nextStatus: PcStatus = isActive ? PcStatus.IN_USE : PcStatus.ONLINE;
 
     await this.prisma.eventLog.create({
       data: {
@@ -308,7 +313,7 @@ export class MembersService {
       // Update PC status to IN_USE
       await this.prisma.pc.update({
         where: { id: pc.id },
-        data: { status: 'IN_USE' },
+        data: { status: nextStatus },
       });
     } else {
       const activeSession = await this.prisma.session.findFirst({
@@ -345,7 +350,20 @@ export class MembersService {
       // Update PC status to ONLINE (Sẵn sàng) on logout
       await this.prisma.pc.update({
         where: { id: pc.id },
-        data: { status: 'ONLINE' },
+        data: { status: nextStatus },
+      });
+    }
+
+    if (previousStatus !== nextStatus) {
+      this.realtime.emitToAll('pc.status.changed', {
+        pcId: pc.id,
+        agentId: pc.agentId,
+        previousStatus,
+        status: nextStatus,
+        at: new Date().toISOString(),
+        sourceEvent: isActive
+          ? 'member.presence.active'
+          : 'member.presence.inactive',
       });
     }
 

@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -31,7 +32,8 @@ public partial class MainWindow : Window
                 return;
             }
 
-            var allRows = response.Items.Select(ToMachineRow).OrderBy(r => r.Name).ToList();
+            var dedupedItems = DeduplicatePcItemsByIp(response.Items);
+            var allRows = dedupedItems.Select(ToMachineRow).OrderBy(r => r.Name).ToList();
             await PopulateMachineServiceAmountsAsync(allRows);
             _allMachineRows.Clear();
             _allMachineRows.AddRange(allRows);
@@ -81,6 +83,7 @@ public partial class MainWindow : Window
             "IN_USE" => I18n.StatusInUse,
             "LOCKED" => I18n.StatusLocked,
             "ONLINE" => I18n.StatusReady,
+            "OFFLINE" => I18n.StatusLocked,
             _ => "Offline",
         };
 
@@ -89,6 +92,7 @@ public partial class MainWindow : Window
             "IN_USE" => Brushes.RoyalBlue,
             "LOCKED" => Brushes.Red,
             "ONLINE" => Brushes.DarkSlateBlue,
+            "OFFLINE" => Brushes.White,
             _ => Brushes.Gray,
         };
 
@@ -122,6 +126,11 @@ public partial class MainWindow : Window
         {
             statusIconBrush = Brushes.Crimson;
             statusIconToolTip = "Đang bị khóa";
+        }
+        else if (item.Status == "OFFLINE")
+        {
+            statusIconBrush = Brushes.Crimson;
+            statusIconToolTip = "Đang tắt";
         }
         var guestDisplayName = string.IsNullOrWhiteSpace(activeGuest?.DisplayName)
             ? "Khách vãng lai"
@@ -175,6 +184,204 @@ public partial class MainWindow : Window
         };
     }
 
+    private static List<PcListItem> DeduplicatePcItemsByIp(IReadOnlyList<PcListItem> items)
+    {
+        if (items.Count <= 1)
+        {
+            return items.ToList();
+        }
+
+        var byKey = new Dictionary<string, PcListItem>(StringComparer.OrdinalIgnoreCase);
+        var keyOrder = new List<string>();
+
+        foreach (var item in items)
+        {
+            var key = BuildPcDedupKey(item);
+            if (byKey.TryGetValue(key, out var existing))
+            {
+                byKey[key] = PickPreferredPcItem(existing, item);
+                continue;
+            }
+
+            byKey[key] = item;
+            keyOrder.Add(key);
+        }
+
+        return keyOrder
+            .Select(key => byKey[key])
+            .ToList();
+    }
+
+    private static string BuildPcDedupKey(PcListItem item)
+    {
+        var normalizedIp = NormalizeIpForDedup(item.IpAddress);
+        if (!string.IsNullOrWhiteSpace(normalizedIp))
+        {
+            return $"ip:{normalizedIp}";
+        }
+
+        var normalizedName = NormalizeTextKey(item.Name);
+        if (!string.IsNullOrWhiteSpace(normalizedName))
+        {
+            return $"name:{normalizedName}";
+        }
+
+        var normalizedAgent = NormalizeTextKey(item.AgentId);
+        if (!string.IsNullOrWhiteSpace(normalizedAgent))
+        {
+            return $"agent:{normalizedAgent}";
+        }
+
+        return $"id:{NormalizeTextKey(item.Id)}";
+    }
+
+    private static string NormalizeTextKey(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        var cleaned = new string(
+            text.Trim()
+                .Where(ch => !char.IsControl(ch) && char.GetUnicodeCategory(ch) != UnicodeCategory.Format)
+                .ToArray());
+        return cleaned.ToLowerInvariant();
+    }
+
+    private static string NormalizeIpForDedup(string? rawIp)
+    {
+        if (string.IsNullOrWhiteSpace(rawIp))
+        {
+            return string.Empty;
+        }
+
+        var normalizedSource = NormalizeTextKey(rawIp);
+        if (string.IsNullOrWhiteSpace(normalizedSource))
+        {
+            return string.Empty;
+        }
+
+        var tokens = normalizedSource.Split(
+            new[] { ',', ';', '|', '/' },
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var token in tokens)
+        {
+            var normalizedToken = NormalizeSingleIpToken(token);
+            if (!string.IsNullOrWhiteSpace(normalizedToken))
+            {
+                return normalizedToken;
+            }
+        }
+
+        return NormalizeSingleIpToken(normalizedSource);
+    }
+
+    private static string NormalizeSingleIpToken(string rawToken)
+    {
+        if (string.IsNullOrWhiteSpace(rawToken))
+        {
+            return string.Empty;
+        }
+
+        var ip = rawToken.Trim();
+        if (ip.StartsWith("::ffff:", StringComparison.OrdinalIgnoreCase))
+        {
+            ip = ip[7..];
+        }
+
+        // Drop brackets/port styles like [::1]:9000 and 192.168.1.10:9000.
+        if (ip.StartsWith("[", StringComparison.Ordinal))
+        {
+            var closeBracket = ip.IndexOf(']');
+            if (closeBracket > 1)
+            {
+                ip = ip.Substring(1, closeBracket - 1);
+            }
+        }
+        else if (ip.Count(ch => ch == ':') == 1 && ip.Contains('.'))
+        {
+            var separator = ip.LastIndexOf(':');
+            if (separator > 0)
+            {
+                var maybePort = ip[(separator + 1)..];
+                if (maybePort.All(char.IsDigit))
+                {
+                    ip = ip[..separator];
+                }
+            }
+        }
+
+        var zoneSeparator = ip.IndexOf('%');
+        if (zoneSeparator > 0)
+        {
+            ip = ip[..zoneSeparator];
+        }
+
+        if (IPAddress.TryParse(ip, out var parsedIp))
+        {
+            if (parsedIp.IsIPv4MappedToIPv6)
+            {
+                parsedIp = parsedIp.MapToIPv4();
+            }
+
+            if (IPAddress.IsLoopback(parsedIp))
+            {
+                return "127.0.0.1";
+            }
+
+            return parsedIp.ToString().ToLowerInvariant();
+        }
+
+        return ip.ToLowerInvariant();
+    }
+
+    private static PcListItem PickPreferredPcItem(PcListItem current, PcListItem candidate)
+    {
+        var currentScore = GetPcPriorityScore(current);
+        var candidateScore = GetPcPriorityScore(candidate);
+        if (candidateScore > currentScore)
+        {
+            return candidate;
+        }
+
+        if (candidateScore < currentScore)
+        {
+            return current;
+        }
+
+        var currentSeen = ParseDateLocal(current.LastSeenAt) ?? DateTime.MinValue;
+        var candidateSeen = ParseDateLocal(candidate.LastSeenAt) ?? DateTime.MinValue;
+        if (candidateSeen > currentSeen)
+        {
+            return candidate;
+        }
+
+        if (candidateSeen < currentSeen)
+        {
+            return current;
+        }
+
+        return string.Compare(candidate.Id, current.Id, StringComparison.OrdinalIgnoreCase) > 0
+            ? candidate
+            : current;
+    }
+
+    private static int GetPcPriorityScore(PcListItem item)
+    {
+        var connectionScore = (item.ConnectedSockets > 0 || item.IsConnected) ? 50 : 0;
+        var statusScore = item.Status switch
+        {
+            "IN_USE" => 40,
+            "ONLINE" => 30,
+            "LOCKED" => 20,
+            _ => 10,
+        };
+
+        var sessionScore = item.ActiveSession is not null ? 5 : 0;
+        return connectionScore + statusScore + sessionScore;
+    }
+
     private static string FormatRemainingMinutes(int totalMinutes)
     {
         if (totalMinutes <= 0)
@@ -197,7 +404,7 @@ public partial class MainWindow : Window
         return _statusFilter switch
         {
             "\u0110ang s\u1eed d\u1ee5ng" => rows.Where(r => r.StatusCode == "IN_USE").ToList(),
-            "\u0110ang t\u1eaft" => rows.Where(r => r.StatusCode == "LOCKED").ToList(),
+            "\u0110ang t\u1eaft" => rows.Where(r => r.StatusCode is "LOCKED" or "OFFLINE").ToList(),
             "S\u1eb5n s\u00e0ng" => rows.Where(r => r.StatusCode == "ONLINE").ToList(),
             "Offline" => rows.Where(r => r.StatusCode is not "IN_USE" and not "LOCKED" and not "ONLINE").ToList(),
             _ => rows,
@@ -216,7 +423,7 @@ public partial class MainWindow : Window
 
         var total = rows.Count;
         var usingCount = rows.Count(r => r.StatusCode == "IN_USE");
-        var lockedCount = rows.Count(r => r.StatusCode == "LOCKED");
+        var lockedCount = rows.Count(r => r.StatusCode is "LOCKED" or "OFFLINE");
         var runningMoney = rows.Sum(r => ParseMoney(r.MoneyText) + r.ServiceAmountRaw);
 
         SummaryTotalTextBlock.Text = $"{I18n.TotalPcPrefix}: {total}";
@@ -227,7 +434,13 @@ public partial class MainWindow : Window
 
     private async Task SendCommandAsync(string action)
     {
-        if (MachinesDataGrid.SelectedItem is not MachineRow selected)
+        await SendCommandAsync(action, null);
+    }
+
+    private async Task SendCommandAsync(string action, MachineRow? targetMachine)
+    {
+        var selected = targetMachine ?? MachinesDataGrid.SelectedItem as MachineRow;
+        if (selected is null)
         {
             MessageBox.Show(I18n.PleaseSelectPc, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
@@ -245,7 +458,44 @@ public partial class MainWindow : Window
                 return;
             }
 
-            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 g\u1eedi l\u1ec7nh {action.ToUpperInvariant()} cho {selected.Name}");
+            var dispatch = await response.Content.ReadFromJsonAsync<CommandDispatchResponse>(JsonOptions());
+            var resolved = dispatch is null
+                ? null
+                : await WaitForCommandResolutionAsync(dispatch.Id, timeoutMs: 4500);
+            var finalResult = resolved ?? dispatch;
+            var finalStatus = finalResult?.Status?.Trim().ToUpperInvariant() ?? string.Empty;
+
+            if (finalStatus is "TIMEOUT" or "ACK_FAILED")
+            {
+                var detail = string.IsNullOrWhiteSpace(finalResult?.ErrorMessage)
+                    ? "Khong nhan duoc ACK tu client."
+                    : finalResult!.ErrorMessage!;
+                AppendServiceLog(
+                    $"[{DateTime.Now:HH:mm:ss}] Lenh {action.ToUpperInvariant()} that bai cho {selected.Name}: {detail}");
+                MessageBox.Show(
+                    $"Lenh {action.ToUpperInvariant()} that bai: {detail}",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            else if (finalStatus is "PENDING" or "SENT")
+            {
+                var detail = string.IsNullOrWhiteSpace(finalResult?.ErrorMessage)
+                    ? "Client chua ACK. Kiem tra ket noi socket cua may tram."
+                    : finalResult!.ErrorMessage!;
+                AppendServiceLog(
+                    $"[{DateTime.Now:HH:mm:ss}] Lenh {action.ToUpperInvariant()} dang cho ACK cho {selected.Name}: {detail}");
+                MessageBox.Show(
+                    $"Lenh {action.ToUpperInvariant()} dang cho ACK: {detail}",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            else
+            {
+                AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 g\u1eedi l\u1ec7nh {action.ToUpperInvariant()} cho {selected.Name}");
+            }
+
             await RefreshMachinesAsync();
             await RefreshTransactionLogsAsync();
         }
@@ -253,6 +503,44 @@ public partial class MainWindow : Window
         {
             MessageBox.Show($"{I18n.CommandError}: {ex.Message}", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private async Task<CommandDispatchResponse?> WaitForCommandResolutionAsync(
+        string? commandId,
+        int timeoutMs)
+    {
+        if (string.IsNullOrWhiteSpace(commandId))
+        {
+            return null;
+        }
+
+        var startedAt = DateTime.UtcNow;
+        while ((DateTime.UtcNow - startedAt).TotalMilliseconds < timeoutMs)
+        {
+            await Task.Delay(350);
+            try
+            {
+                var latest = await _httpClient.GetFromJsonAsync<CommandDispatchResponse>(
+                    BuildApiUrl($"/commands/{commandId}"),
+                    JsonOptions());
+                var status = latest?.Status?.Trim().ToUpperInvariant();
+                if (status is null)
+                {
+                    continue;
+                }
+
+                if (status is not "PENDING" and not "SENT")
+                {
+                    return latest;
+                }
+            }
+            catch
+            {
+                // Ignore polling errors and keep waiting.
+            }
+        }
+
+        return null;
     }
 
 
@@ -420,7 +708,9 @@ public partial class MainWindow : Window
 
     private async void MachinesDataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (MachinesDataGrid.SelectedItem is not MachineRow selected)
+        var clickedRow = FindAncestor<DataGridRow>(e.OriginalSource as DependencyObject);
+        var selected = clickedRow?.Item as MachineRow ?? MachinesDataGrid.SelectedItem as MachineRow;
+        if (selected is null)
         {
             return;
         }
@@ -430,7 +720,8 @@ public partial class MainWindow : Window
         {
             case "ONLINE":
             case "AVAILABLE":
-                await SendCommandAsync("open");
+            case "READY":
+                await SendCommandAsync("open", selected);
                 return;
 
             case "IN_USE":

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { EventSource, Pc, PcGroup, PcStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { AgentHeartbeatPayload, AgentHelloPayload } from './types/agent-events.type';
 
 type PresencePayload = AgentHelloPayload | AgentHeartbeatPayload;
@@ -23,6 +24,8 @@ export type PcListItem = {
   hourlyRate: number;
   hostname: string | null;
   ipAddress: string | null;
+  connectedSockets: number;
+  isConnected: boolean;
   status: PcStatus;
   lastSeenAt: string | null;
   activeSession: {
@@ -46,7 +49,10 @@ export type PcListItem = {
 
 @Injectable()
 export class PcsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeService,
+  ) {}
 
   async getPcList(): Promise<PcListItem[]> {
     const defaultGroup = await this.ensureDefaultGroup();
@@ -138,6 +144,7 @@ export class PcsService {
           }
         }
 
+        const connectedSockets = this.realtime.countAgentSockets(pc.agentId);
         return {
           id: pc.id,
           agentId: pc.agentId,
@@ -147,6 +154,8 @@ export class PcsService {
           hourlyRate,
           hostname: pc.hostname,
           ipAddress: pc.ipAddress,
+          connectedSockets,
+          isConnected: connectedSockets > 0,
           status: pc.status,
           lastSeenAt: pc.lastSeenAt?.toISOString() ?? null,
           activeSession: activeSession
@@ -236,7 +245,7 @@ export class PcsService {
     const hourlyRate = await this.getEffectiveHourlyRate(baseHourlyRate);
     const pricePerMinute = hourlyRate / 60;
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // Create guest session
       const session = await tx.session.create({
         data: {
@@ -284,6 +293,17 @@ export class PcsService {
 
       return { session, pc: updatedPc };
     });
+
+    this.realtime.emitToAll('pc.status.changed', {
+      pcId: pc.id,
+      agentId: pc.agentId,
+      previousStatus: pc.status,
+      status: PcStatus.IN_USE,
+      at: new Date().toISOString(),
+      sourceEvent: 'guest_login_request',
+    });
+
+    return result;
   }
 
   async registerPresence(

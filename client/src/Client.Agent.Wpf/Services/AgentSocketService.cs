@@ -1,6 +1,8 @@
 using Client.Agent.Wpf.Models;
 using SocketIOClient;
 using SocketIOClient.Transport;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Client.Agent.Wpf.Services;
 
@@ -83,7 +85,23 @@ public sealed class AgentSocketService : IAsyncDisposable
 
         _socket.On("command.execute", async response =>
         {
-            var payload = response.GetValue<CommandExecutePayload>();
+            CommandExecutePayload payload;
+            try
+            {
+                payload = TryParseCommandPayload(response);
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync("Failed to parse command.execute payload", ex);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(payload.CommandId))
+            {
+                await _logger.ErrorAsync("command.execute payload missing commandId");
+                return;
+            }
+
             await HandleCommandAsync(payload);
         });
 
@@ -172,14 +190,126 @@ public sealed class AgentSocketService : IAsyncDisposable
         await _logger.InfoAsync(
             $"Received command.execute {payload.Type} (commandId={payload.CommandId})");
 
-        var result = await _commandHandler(payload);
-        await _socket.EmitAsync("command.ack", new
+        (bool Success, string? Message) result;
+        try
         {
-            commandId = payload.CommandId,
-            agentId = _settings.AgentId,
-            result = result.Success ? "SUCCESS" : "FAILED",
-            message = result.Message,
-        });
+            result = await _commandHandler(payload);
+        }
+        catch (Exception ex)
+        {
+            await _logger.ErrorAsync(
+                $"Command handler crashed for {payload.Type} (commandId={payload.CommandId})",
+                ex);
+            result = (false, ex.Message);
+        }
+
+        try
+        {
+            await _socket.EmitAsync("command.ack", new
+            {
+                commandId = payload.CommandId,
+                agentId = _settings.AgentId,
+                result = result.Success ? "SUCCESS" : "FAILED",
+                message = result.Message,
+            });
+            await _logger.InfoAsync(
+                $"Sent command.ack {payload.Type} (commandId={payload.CommandId}, result={(result.Success ? "SUCCESS" : "FAILED")})");
+        }
+        catch (Exception ex)
+        {
+            await _logger.ErrorAsync(
+                $"Failed to emit command.ack for commandId={payload.CommandId}",
+                ex);
+        }
+    }
+
+    private static CommandExecutePayload TryParseCommandPayload(SocketIOResponse response)
+    {
+        var payload = response.GetValue<CommandExecutePayload>();
+        if (!string.IsNullOrWhiteSpace(payload.CommandId) &&
+            !string.IsNullOrWhiteSpace(payload.Type))
+        {
+            payload.Type = payload.Type.Trim().ToUpperInvariant();
+            return payload;
+        }
+
+        var element = response.GetValue<JsonElement>();
+        if (element.ValueKind == JsonValueKind.Array && element.GetArrayLength() > 0)
+        {
+            element = element[0];
+        }
+
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            payload.CommandId = TryReadString(element, "commandId", "CommandId");
+            payload.Type = TryReadString(element, "type", "Type").ToUpperInvariant();
+            payload.IssuedAt = TryReadStringOrNull(element, "issuedAt", "IssuedAt");
+            payload.AgentId = TryReadStringOrNull(element, "agentId", "AgentId");
+            payload.PcId = TryReadStringOrNull(element, "pcId", "PcId");
+
+            if (TryReadDecimal(element, out var hourlyRate))
+            {
+                payload.HourlyRate = hourlyRate;
+            }
+        }
+
+        return payload;
+    }
+
+    private static bool TryReadDecimal(JsonElement element, out decimal value)
+    {
+        value = 0m;
+        if (!TryGetProperty(element, out var property, "hourlyRate", "HourlyRate"))
+        {
+            return false;
+        }
+
+        if (property.ValueKind == JsonValueKind.Number &&
+            property.TryGetDecimal(out var decimalValue))
+        {
+            value = decimalValue;
+            return true;
+        }
+
+        if (property.ValueKind == JsonValueKind.String &&
+            decimal.TryParse(property.GetString(), out decimalValue))
+        {
+            value = decimalValue;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static string TryReadString(JsonElement element, params string[] names)
+    {
+        if (TryGetProperty(element, out var property, names) &&
+            property.ValueKind == JsonValueKind.String)
+        {
+            return property.GetString()?.Trim() ?? string.Empty;
+        }
+
+        return string.Empty;
+    }
+
+    private static string? TryReadStringOrNull(JsonElement element, params string[] names)
+    {
+        var value = TryReadString(element, names);
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    private static bool TryGetProperty(JsonElement element, out JsonElement value, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (element.TryGetProperty(name, out value))
+            {
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
     }
 
     private async Task EmitHelloAsync()
@@ -277,31 +407,57 @@ public sealed class AgentSocketService : IAsyncDisposable
 
 public sealed class AdminNotifyPayload
 {
+    [JsonPropertyName("message")]
     public string Message { get; set; } = string.Empty;
+
+    [JsonPropertyName("requestedBy")]
     public string? RequestedBy { get; set; }
+
+    [JsonPropertyName("sentAt")]
     public string? SentAt { get; set; }
 }
 
 public sealed class AdminCaptureScreenshotPayload
 {
+    [JsonPropertyName("pcId")]
     public string PcId { get; set; } = string.Empty;
+
+    [JsonPropertyName("agentId")]
     public string AgentId { get; set; } = string.Empty;
+
+    [JsonPropertyName("requestId")]
     public string RequestId { get; set; } = string.Empty;
+
+    [JsonPropertyName("requestedBy")]
     public string? RequestedBy { get; set; }
+
+    [JsonPropertyName("requestedAt")]
     public string? RequestedAt { get; set; }
 }
 
 public sealed class AdminGetRunningAppsPayload
 {
+    [JsonPropertyName("pcId")]
     public string PcId { get; set; } = string.Empty;
+
+    [JsonPropertyName("agentId")]
     public string AgentId { get; set; } = string.Empty;
+
+    [JsonPropertyName("requestId")]
     public string RequestId { get; set; } = string.Empty;
+
+    [JsonPropertyName("requestedBy")]
     public string? RequestedBy { get; set; }
 }
 
 public sealed class AdminKillProcessPayload
 {
+    [JsonPropertyName("pcId")]
     public string PcId { get; set; } = string.Empty;
+
+    [JsonPropertyName("pid")]
     public int Pid { get; set; }
+
+    [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 }

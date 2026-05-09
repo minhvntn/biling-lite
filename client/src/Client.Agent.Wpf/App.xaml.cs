@@ -293,10 +293,11 @@ public partial class App : Application
                     if (payload.HourlyRate is > 0)
                     {
                         _currentHourlyRate = payload.HourlyRate.Value;
-                        _mainWindow?.ConfigureBilling(
-                            _settings.TotalSessionMinutes,
-                            _currentHourlyRate,
-                            true);
+                        Dispatcher.Invoke(() =>
+                            _mainWindow?.ConfigureBilling(
+                                _settings.TotalSessionMinutes,
+                                _currentHourlyRate,
+                                true));
                     }
                     Dispatcher.Invoke(UnlockMachine);
                     return (true, "opened");
@@ -321,7 +322,8 @@ public partial class App : Application
 
                 case "CLOSE_APPS":
                     var closedCount = CloseUserApplications();
-                    _mainWindow?.SetLastCommand($"CLOSE_APPS @ {DateTime.Now:HH:mm:ss}");
+                    Dispatcher.Invoke(() =>
+                        _mainWindow?.SetLastCommand($"CLOSE_APPS @ {DateTime.Now:HH:mm:ss}"));
                     return (true, $"closed {closedCount} app(s)");
 
                 case "PAUSE":
@@ -334,12 +336,14 @@ public partial class App : Application
                     if (payload.HourlyRate is > 0)
                     {
                         _currentHourlyRate = payload.HourlyRate.Value;
-                        _mainWindow?.ConfigureBilling(
-                            _settings.TotalSessionMinutes,
-                            _currentHourlyRate);
+                        Dispatcher.Invoke(() =>
+                            _mainWindow?.ConfigureBilling(
+                                _settings.TotalSessionMinutes,
+                                _currentHourlyRate));
                     }
                     Dispatcher.Invoke(UnlockMachine);
-                    _mainWindow?.SetLastCommand($"RESUME @ {DateTime.Now:HH:mm:ss}");
+                    Dispatcher.Invoke(() =>
+                        _mainWindow?.SetLastCommand($"RESUME @ {DateTime.Now:HH:mm:ss}"));
                     return (true, "resumed");
 
                 default:
@@ -2453,6 +2457,21 @@ LIMIT $limit;";
         }
     }
 
+    private int GetUsedSecondsOnUiThread()
+    {
+        if (_mainWindow is null)
+        {
+            return 0;
+        }
+
+        if (Dispatcher.CheckAccess())
+        {
+            return _mainWindow.GetUsedSeconds();
+        }
+
+        return Dispatcher.Invoke(() => _mainWindow?.GetUsedSeconds() ?? 0);
+    }
+
     private async Task SyncActiveMemberUsageAsync(string reason, bool force)
     {
         var activeSession = _activeMemberSession;
@@ -2461,7 +2480,7 @@ LIMIT $limit;";
             return;
         }
 
-        var usedSeconds = _mainWindow?.GetUsedSeconds() ?? 0;
+        var usedSeconds = GetUsedSecondsOnUiThread();
         var delta = usedSeconds - _lastSyncedMemberUsedSeconds;
         if (delta <= 0)
         {
@@ -2482,7 +2501,7 @@ LIMIT $limit;";
                 return;
             }
 
-            usedSeconds = _mainWindow?.GetUsedSeconds() ?? usedSeconds;
+            usedSeconds = GetUsedSecondsOnUiThread();
             delta = usedSeconds - _lastSyncedMemberUsedSeconds;
             if (delta <= 0)
             {
@@ -4152,7 +4171,7 @@ LIMIT $limit;";
         var psi = new ProcessStartInfo
         {
             FileName = "shutdown",
-            Arguments = "/r /t 0 /f",
+            Arguments = "/r /t 3 /f",
             CreateNoWindow = true,
             UseShellExecute = false,
         };
@@ -4164,7 +4183,7 @@ LIMIT $limit;";
         var psi = new ProcessStartInfo
         {
             FileName = "shutdown",
-            Arguments = "/s /t 0 /f",
+            Arguments = "/s /t 3 /f",
             CreateNoWindow = true,
             UseShellExecute = false,
         };

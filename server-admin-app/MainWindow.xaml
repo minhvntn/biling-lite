@@ -309,6 +309,9 @@
                                                             <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
                                                                 <Setter Property="Background" Value="#FEF2F2" />
                                                             </DataTrigger>
+                                                            <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
+                                                                <Setter Property="Background" Value="#DC2626" />
+                                                            </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
@@ -329,6 +332,9 @@
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
                                                                     <Setter Property="Foreground" Value="#DC2626" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
+                                                                    <Setter Property="Foreground" Value="White" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>

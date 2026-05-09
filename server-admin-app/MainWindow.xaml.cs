@@ -162,6 +162,9 @@ public partial class MainWindow : Window
         _systemLogsTimer.Tick += SystemLogsTimer_Tick;
         _systemLogsTimer.Start();
 
+        InitializeRealtimeMachineRefreshBridge();
+        await ConnectRealtimeMachineRefreshAsync();
+
         await CheckBackendHealthAsync();
         await RefreshAllDataAsync();
         _loyaltySettingsInitialized = true;
@@ -179,6 +182,7 @@ public partial class MainWindow : Window
         _systemLogsTimer.Stop();
         _machineSearchDebounceTimer.Stop();
         _memberSearchDebounceTimer.Stop();
+        ShutdownRealtimeMachineRefreshBridge();
         _httpClient.Dispose();
     }
 

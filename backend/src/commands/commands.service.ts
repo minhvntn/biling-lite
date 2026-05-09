@@ -1,5 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { CommandStatus, CommandType, EventSource, PcStatus, Prisma } from '@prisma/client';
+import {
+  CommandStatus,
+  CommandType,
+  EventSource,
+  Pc,
+  PcStatus,
+  Prisma,
+} from '@prisma/client';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
@@ -97,7 +104,7 @@ export class CommandsService {
       return command;
     }
 
-    await this.logEvent(EventSource.ADMIN, 'guest.pc.presence', pcId, {
+    await this.logEvent(EventSource.ADMIN, 'guest.pc.presence', command.pcId, {
       isActive: true,
       displayName: 'Khách vãng lai',
       prepaidAmount: normalizedAmount,
@@ -392,6 +399,8 @@ export class CommandsService {
             ? PcStatus.IN_USE
             : command.type === CommandType.LOCK
               ? PcStatus.ONLINE
+              : command.type === CommandType.SHUTDOWN
+                ? PcStatus.OFFLINE
               : command.type === CommandType.PAUSE
                 ? PcStatus.PAUSED
                 : command.type === CommandType.RESUME
@@ -440,7 +449,7 @@ export class CommandsService {
           }
         }
 
-        if (command.type === CommandType.LOCK) {
+        if (command.type === CommandType.LOCK || command.type === CommandType.SHUTDOWN) {
           const activeSession = await tx.session.findFirst({
             where: {
               pcId: command.pcId,
@@ -483,7 +492,8 @@ export class CommandsService {
                 billableMinutes,
                 amount,
                 status: 'CLOSED',
-                closedReason: 'ADMIN_LOCK',
+                closedReason:
+                  command.type === CommandType.SHUTDOWN ? 'SYSTEM' : 'ADMIN_LOCK',
               },
             });
             sessionEvent = {
@@ -526,7 +536,11 @@ export class CommandsService {
       });
     }
 
-    if (payload.result === 'SUCCESS' && command.type === CommandType.LOCK) {
+    if (
+      payload.result === 'SUCCESS' &&
+      (command.type === CommandType.LOCK ||
+        command.type === CommandType.SHUTDOWN)
+    ) {
       await this.logEvent(EventSource.SERVER, 'guest.pc.presence', command.pcId, {
         isActive: false,
         at: new Date().toISOString(),
@@ -574,14 +588,19 @@ export class CommandsService {
     type: CommandType,
     requestedBy?: CommandRequestedBy,
   ) {
-    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
-    if (!pc) {
+    const requestedPc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    if (!requestedPc) {
       throw new NotFoundException('PC not found');
     }
 
+    const dispatchTarget = await this.resolveDispatchTargetPc(requestedPc, type);
+    const pc = dispatchTarget.pc;
+    const connectedSockets = dispatchTarget.connectedSockets;
+    const targetPcId = pc.id;
+
     const inflightCommand = await this.prisma.command.findFirst({
       where: {
-        pcId,
+        pcId: targetPcId,
         type,
         status: {
           in: [CommandStatus.PENDING, CommandStatus.SENT],
@@ -591,44 +610,99 @@ export class CommandsService {
       include: { pc: true },
     });
     if (inflightCommand) {
-      await this.logEvent(EventSource.SERVER, 'command.idempotent.inflight', pcId, {
-        commandId: inflightCommand.id,
-        type,
+      if (connectedSockets > 0) {
+        const inflightToDispatch =
+          inflightCommand.status === CommandStatus.PENDING
+            ? await this.prisma.command.update({
+                where: { id: inflightCommand.id },
+                data: {
+                  status: CommandStatus.SENT,
+                  sentAt: new Date(),
+                },
+                include: { pc: true },
+              })
+            : inflightCommand;
+
+        await this.emitCommandExecute(targetPcId, pc.agentId, inflightToDispatch);
+        this.broadcastCommandUpdated(inflightToDispatch);
+        await this.logEvent(
+          EventSource.SERVER,
+          'command.redispatched.inflight',
+          targetPcId,
+          {
+            commandId: inflightToDispatch.id,
+            type: inflightToDispatch.type,
+            sockets: connectedSockets,
+            requestedPcId: requestedPc.id,
+            targetPcId,
+          },
+        );
+
+        return inflightToDispatch;
+      }
+
+      const timeoutInflight = await this.prisma.command.update({
+        where: { id: inflightCommand.id },
+        data: {
+          status: CommandStatus.TIMEOUT,
+          ackAt: new Date(),
+          errorMessage: 'Agent is not connected',
+        },
+        include: { pc: true },
       });
-      return inflightCommand;
+
+      this.broadcastCommandUpdated(timeoutInflight);
+      await this.logEvent(
+        EventSource.SERVER,
+        'command.timeout.agent_offline.inflight',
+        targetPcId,
+        {
+          commandId: timeoutInflight.id,
+          type: timeoutInflight.type,
+          requestedPcId: requestedPc.id,
+          targetPcId,
+        },
+      );
+      return timeoutInflight;
     }
 
     const activeSession = await this.prisma.session.findFirst({
       where: {
-        pcId,
+        pcId: targetPcId,
         status: 'ACTIVE',
       },
     });
 
-    if (type === CommandType.OPEN && activeSession) {
-      const rejected = await this.prisma.command.create({
+    if (type === CommandType.OPEN && activeSession && pc.status === PcStatus.IN_USE) {
+      const noOp = await this.prisma.command.create({
         data: {
-          pcId,
+          pcId: targetPcId,
           type,
-          status: CommandStatus.ACK_FAILED,
+          status: CommandStatus.ACK_SUCCESS,
           requestedBy: requestedBy?.trim() || 'admin.local',
           ackAt: new Date(),
-          errorMessage: 'PC already has an active session',
         },
         include: { pc: true },
       });
-      this.broadcastCommandUpdated(rejected);
-      await this.logEvent(EventSource.SERVER, 'command.rejected.already_active', pcId, {
-        commandId: rejected.id,
-      });
-      return rejected;
+      this.broadcastCommandUpdated(noOp);
+      await this.logEvent(
+        EventSource.SERVER,
+        'command.noop.open_already_in_use',
+        targetPcId,
+        {
+          commandId: noOp.id,
+          requestedPcId: requestedPc.id,
+          targetPcId,
+        },
+      );
+      return noOp;
     }
 
     if (type === CommandType.LOCK && !activeSession) {
       const noOp = await this.prisma.$transaction(async (tx) => {
         const command = await tx.command.create({
           data: {
-            pcId,
+            pcId: targetPcId,
             type,
             status: CommandStatus.ACK_SUCCESS,
             requestedBy: requestedBy?.trim() || 'admin.local',
@@ -656,10 +730,17 @@ export class CommandsService {
         sourceEvent: 'command.lock.noop',
       });
       this.broadcastCommandUpdated(noOp);
-      await this.logEvent(EventSource.SERVER, 'command.noop.lock_without_session', pcId, {
-        commandId: noOp.id,
-      });
-      await this.logEvent(EventSource.SERVER, 'guest.pc.presence', pcId, {
+      await this.logEvent(
+        EventSource.SERVER,
+        'command.noop.lock_without_session',
+        targetPcId,
+        {
+          commandId: noOp.id,
+          requestedPcId: requestedPc.id,
+          targetPcId,
+        },
+      );
+      await this.logEvent(EventSource.SERVER, 'guest.pc.presence', targetPcId, {
         isActive: false,
         at: new Date().toISOString(),
       });
@@ -668,7 +749,7 @@ export class CommandsService {
 
     const command = await this.prisma.command.create({
       data: {
-        pcId,
+        pcId: targetPcId,
         type,
         status: CommandStatus.PENDING,
         requestedBy: requestedBy?.trim() || 'admin.local',
@@ -676,12 +757,13 @@ export class CommandsService {
       include: { pc: true },
     });
     this.broadcastCommandUpdated(command);
-    await this.logEvent(EventSource.SERVER, 'command.created', pcId, {
+    await this.logEvent(EventSource.SERVER, 'command.created', targetPcId, {
       commandId: command.id,
       type: command.type,
+      requestedPcId: requestedPc.id,
+      targetPcId,
     });
 
-    const connectedSockets = this.realtime.countAgentSockets(pc.agentId);
     if (connectedSockets <= 0) {
       const timeoutCommand = await this.prisma.command.update({
         where: { id: command.id },
@@ -694,9 +776,16 @@ export class CommandsService {
       });
 
       this.broadcastCommandUpdated(timeoutCommand);
-      await this.logEvent(EventSource.SERVER, 'command.timeout.agent_offline', pcId, {
-        commandId: timeoutCommand.id,
-      });
+      await this.logEvent(
+        EventSource.SERVER,
+        'command.timeout.agent_offline',
+        targetPcId,
+        {
+          commandId: timeoutCommand.id,
+          requestedPcId: requestedPc.id,
+          targetPcId,
+        },
+      );
       return timeoutCommand;
     }
 
@@ -709,24 +798,138 @@ export class CommandsService {
       include: { pc: true },
     });
 
-    this.realtime.emitToAgent(pc.agentId, 'command.execute', {
-      commandId: sentCommand.id,
-      type: sentCommand.type,
-      issuedAt: new Date().toISOString(),
-      hourlyRate:
-        sentCommand.type === CommandType.OPEN ||
-        sentCommand.type === CommandType.RESUME
-          ? await this.resolveHourlyRateForPc(pc.id)
-          : undefined,
-    });
+    await this.emitCommandExecute(targetPcId, pc.agentId, sentCommand);
     this.broadcastCommandUpdated(sentCommand);
-    await this.logEvent(EventSource.SERVER, 'command.dispatched', pcId, {
+    await this.logEvent(EventSource.SERVER, 'command.dispatched', targetPcId, {
       commandId: sentCommand.id,
       type: sentCommand.type,
       sockets: connectedSockets,
+      requestedPcId: requestedPc.id,
+      targetPcId,
+      targetAgentId: pc.agentId,
     });
 
     return sentCommand;
+  }
+
+  private async resolveDispatchTargetPc(
+    requestedPc: Pc,
+    type: CommandType,
+  ): Promise<{ pc: Pc; connectedSockets: number }> {
+    const requestedSockets = this.realtime.countAgentSockets(requestedPc.agentId);
+    if (requestedSockets > 0) {
+      return { pc: requestedPc, connectedSockets: requestedSockets };
+    }
+
+    const fallbackPc = await this.findConnectedAlternativePc(requestedPc);
+    if (!fallbackPc) {
+      return { pc: requestedPc, connectedSockets: 0 };
+    }
+
+    const fallbackSockets = this.realtime.countAgentSockets(fallbackPc.agentId);
+    if (fallbackSockets <= 0) {
+      return { pc: requestedPc, connectedSockets: 0 };
+    }
+
+    await this.logEvent(EventSource.SERVER, 'command.dispatch.remapped_pc', requestedPc.id, {
+      commandType: type,
+      requestedPcId: requestedPc.id,
+      requestedAgentId: requestedPc.agentId,
+      targetPcId: fallbackPc.id,
+      targetAgentId: fallbackPc.agentId,
+      reason: 'requested_agent_offline',
+      at: new Date().toISOString(),
+    });
+
+    return { pc: fallbackPc, connectedSockets: fallbackSockets };
+  }
+
+  private async findConnectedAlternativePc(requestedPc: Pc): Promise<Pc | null> {
+    const requestedIp = this.normalizeIpKey(requestedPc.ipAddress);
+    const requestedName = this.normalizeTextKey(requestedPc.name);
+    if (!requestedIp && !requestedName) {
+      return null;
+    }
+
+    const candidates = await this.prisma.pc.findMany({
+      where: {
+        id: { not: requestedPc.id },
+        status: { not: PcStatus.OFFLINE },
+      },
+      orderBy: [{ updatedAt: 'desc' }],
+    });
+
+    let bestCandidate: Pc | null = null;
+    let bestScore = Number.NEGATIVE_INFINITY;
+
+    for (const candidate of candidates) {
+      const candidateIp = this.normalizeIpKey(candidate.ipAddress);
+      const candidateName = this.normalizeTextKey(candidate.name);
+      const isSameIp = !!requestedIp && requestedIp === candidateIp;
+      const isSameName = !!requestedName && requestedName === candidateName;
+      if (!isSameIp && !isSameName) {
+        continue;
+      }
+
+      const sockets = this.realtime.countAgentSockets(candidate.agentId);
+      if (sockets <= 0) {
+        continue;
+      }
+
+      const statusScore =
+        candidate.status === PcStatus.IN_USE
+          ? 40
+          : candidate.status === PcStatus.ONLINE
+            ? 30
+            : candidate.status === PcStatus.LOCKED
+              ? 20
+              : 10;
+      const score = sockets * 100 + statusScore;
+      if (score > bestScore) {
+        bestScore = score;
+        bestCandidate = candidate;
+      }
+    }
+
+    return bestCandidate;
+  }
+
+  private normalizeTextKey(value?: string | null): string {
+    return value?.trim().toLowerCase() ?? '';
+  }
+
+  private normalizeIpKey(rawIp?: string | null): string {
+    const normalized = this.normalizeTextKey(rawIp);
+    if (!normalized) {
+      return '';
+    }
+
+    let ip = normalized;
+    if (ip.startsWith('::ffff:')) {
+      ip = ip.slice(7);
+    }
+
+    if (ip.startsWith('[')) {
+      const closeBracket = ip.indexOf(']');
+      if (closeBracket > 1) {
+        ip = ip.slice(1, closeBracket);
+      }
+    } else if (ip.includes('.') && ip.split(':').length === 2) {
+      const separator = ip.lastIndexOf(':');
+      if (separator > 0) {
+        const maybePort = ip.slice(separator + 1);
+        if (/^\d+$/.test(maybePort)) {
+          ip = ip.slice(0, separator);
+        }
+      }
+    }
+
+    const zoneSeparator = ip.indexOf('%');
+    if (zoneSeparator > 0) {
+      ip = ip.slice(0, zoneSeparator);
+    }
+
+    return ip;
   }
 
   private broadcastCommandUpdated(command: {
@@ -743,6 +946,28 @@ export class CommandsService {
       type: command.type,
       errorMessage: command.errorMessage,
       at: new Date().toISOString(),
+    });
+  }
+
+  private async emitCommandExecute(
+    pcId: string,
+    agentId: string,
+    command: {
+      id: string;
+      type: CommandType;
+    },
+  ): Promise<void> {
+    this.realtime.emitToAgent(agentId, 'command.execute', {
+      commandId: command.id,
+      type: command.type,
+      pcId,
+      agentId,
+      issuedAt: new Date().toISOString(),
+      hourlyRate:
+        command.type === CommandType.OPEN ||
+        command.type === CommandType.RESUME
+          ? await this.resolveHourlyRateForPc(pcId)
+          : undefined,
     });
   }
 

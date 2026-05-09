@@ -36,6 +36,8 @@ public sealed class PcListItem
     public decimal HourlyRate { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? IpAddress { get; set; }
+    public int ConnectedSockets { get; set; }
+    public bool IsConnected { get; set; }
     public string? LastSeenAt { get; set; }
     public ActiveSessionInfo? ActiveSession { get; set; }
     public ActiveMemberInfo? ActiveMember { get; set; }
@@ -62,6 +64,15 @@ public sealed class ActiveSessionInfo
     public string StartedAt { get; set; } = string.Empty;
     public int ElapsedSeconds { get; set; }
     public decimal EstimatedAmount { get; set; }
+}
+
+public sealed class CommandDispatchResponse
+{
+    public string Id { get; set; } = string.Empty;
+    public string PcId { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string? ErrorMessage { get; set; }
 }
 
 public sealed class MachineRow
