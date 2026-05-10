@@ -4,11 +4,13 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -43,6 +45,7 @@ public partial class App : Application
     private MainWindow? _mainWindow;
     private ActiveMemberSession? _activeMemberSession;
     private bool _isPostpaidGuestSession;
+    private bool _isAdminSession;
     private int _lastSyncedMemberUsedSeconds;
     private readonly SemaphoreSlim _memberUsageSyncLock = new(1, 1);
     private readonly DispatcherTimer _readyAutoShutdownTimer = new();
@@ -202,6 +205,8 @@ public partial class App : Application
             OnConnectionStatusChanged,
             OnAdminNotificationReceived,
             HandleCaptureScreenshotRequestedAsync,
+            HandleLiveFrameRequestedAsync,
+            HandleRemoteInputRequestedAsync,
             rate =>
             {
                 _currentHourlyRate = rate;
@@ -438,6 +443,9 @@ public partial class App : Application
 
         if (isAgentAdmin)
         {
+            await TrackAndClearMemberSessionAsync("ADMIN_LOCKSCREEN_LOGIN");
+            _isAdminSession = true;
+            await ReportAdminPresenceAsync(true, normalizedUsername);
             _activeMemberSession = null;
             _isPostpaidGuestSession = false;
             _lastSyncedMemberUsedSeconds = 0;
@@ -447,6 +455,7 @@ public partial class App : Application
                     _settings.TotalSessionMinutes,
                     _currentHourlyRate,
                     true);
+                _mainWindow?.SetMemberInfo("Admin", "ADMIN");
                 UnlockMachine();
                 _mainWindow?.SetLastCommand($"ADMIN LOGIN @ {DateTime.Now:HH:mm:ss}");
             });
@@ -514,6 +523,7 @@ public partial class App : Application
                 FullName = member.FullName,
                 Rank = member.Rank,
             };
+            _isAdminSession = false;
             _isPostpaidGuestSession = false;
             _lastSyncedMemberUsedSeconds = 60;
 
@@ -612,6 +622,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             }
 
             _activeMemberSession = null;
+            _isAdminSession = false;
             _isPostpaidGuestSession = true;
             _lastSyncedMemberUsedSeconds = 0;
 
@@ -1449,7 +1460,7 @@ public async void OpenLoyaltyPanelFromClientUi()
             ? _currentMachineState
             : state;
 
-        if (_activeMemberSession is not null)
+        if (_activeMemberSession is not null || _isPostpaidGuestSession || _isAdminSession)
         {
             _readyIdleSinceUtc = null;
             _readyAutoShutdownTriggered = false;
@@ -2385,9 +2396,14 @@ LIMIT $limit;";
         {
             await ReportGuestPresenceAsync(false);
         }
+        else if (_isAdminSession)
+        {
+            await ReportAdminPresenceAsync(false);
+        }
 
         _activeMemberSession = null;
         _isPostpaidGuestSession = false;
+        _isAdminSession = false;
         _lastSyncedMemberUsedSeconds = 0;
         TrackMachineState(_currentMachineState);
         
@@ -2453,6 +2469,42 @@ LIMIT $limit;";
             if (_logger is not null)
             {
                 await _logger.ErrorAsync("Report guest presence failed", ex);
+            }
+        }
+    }
+
+    private async Task ReportAdminPresenceAsync(bool isActive, string? username = null)
+    {
+        try
+        {
+            var normalizedUsername = (username ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(normalizedUsername))
+            {
+                normalizedUsername = "Admin";
+            }
+
+            using var response = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl("/members/admin-presence"),
+                new
+                {
+                    agentId = _settings.AgentId,
+                    isActive,
+                    username = normalizedUsername,
+                    fullName = "Admin",
+                });
+
+            if (!response.IsSuccessStatusCode && _logger is not null)
+            {
+                var err = await ReadErrorMessageAsync(response);
+                await _logger.ErrorAsync(
+                    $"Report admin presence failed ({(isActive ? "ACTIVE" : "INACTIVE")}): {(int)response.StatusCode} {err}");
+            }
+        }
+        catch (Exception ex)
+        {
+            if (_logger is not null)
+            {
+                await _logger.ErrorAsync("Report admin presence failed", ex);
             }
         }
     }
@@ -4410,7 +4462,321 @@ LIMIT $limit;";
         }
     }
 
-    private static CapturedScreenshot? CapturePrimaryScreenJpeg()
+    private async Task HandleLiveFrameRequestedAsync(AdminLiveFrameRequestPayload payload)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(payload.PcId) ||
+                string.IsNullOrWhiteSpace(payload.RequestId))
+            {
+                return;
+            }
+
+            var captured = CapturePrimaryScreenJpeg(
+                maxWidth: 1024,
+                jpegQuality: 45,
+                highQualityResize: false);
+            if (captured is null)
+            {
+                return;
+            }
+
+            using var response = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl($"/pcs/{payload.PcId}/live-frame-upload"),
+                new
+                {
+                    agentId = _settings.AgentId,
+                    requestId = payload.RequestId,
+                    imageBase64 = captured.Base64,
+                    mimeType = "image/jpeg",
+                    width = captured.Width,
+                    height = captured.Height,
+                    capturedAt = DateTime.UtcNow.ToString("o"),
+                });
+
+            if (!response.IsSuccessStatusCode && _logger is not null)
+            {
+                var error = await ReadErrorMessageAsync(response);
+                await _logger.ErrorAsync(
+                    $"Upload live frame failed ({(int)response.StatusCode}): {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            if (_logger is not null)
+            {
+                await _logger.ErrorAsync("Handle live frame request failed", ex);
+            }
+        }
+    }
+
+    private async Task HandleRemoteInputRequestedAsync(AdminRemoteInputPayload payload)
+    {
+        try
+        {
+            ApplyRemoteInput(payload);
+        }
+        catch (Exception ex)
+        {
+            if (_logger is not null)
+            {
+                await _logger.ErrorAsync("Handle remote input failed", ex);
+            }
+        }
+    }
+
+    private static void ApplyRemoteInput(AdminRemoteInputPayload payload)
+    {
+        var type = (payload.Type ?? string.Empty).Trim().ToLowerInvariant();
+        switch (type)
+        {
+            case "mouse_move":
+                MoveMouseToNormalized(payload.X, payload.Y);
+                break;
+            case "mouse_down":
+                ApplyMouseButton(payload.Button, isDown: true, payload.X, payload.Y);
+                break;
+            case "mouse_up":
+                ApplyMouseButton(payload.Button, isDown: false, payload.X, payload.Y);
+                break;
+            case "mouse_wheel":
+                ApplyMouseWheel(payload.Delta ?? 0, payload.X, payload.Y);
+                break;
+            case "key_down":
+                ApplyKeyboardKey(payload.Key, keyUp: false);
+                break;
+            case "key_up":
+                ApplyKeyboardKey(payload.Key, keyUp: true);
+                break;
+            case "text":
+                if (!string.IsNullOrEmpty(payload.Text))
+                {
+                    SendUnicodeText(payload.Text);
+                }
+                break;
+        }
+    }
+
+    private static void MoveMouseToNormalized(double? x, double? y)
+    {
+        if (x is null || y is null)
+        {
+            return;
+        }
+
+        ApplyAbsoluteMousePosition(x.Value, y.Value);
+    }
+
+    private static void ApplyMouseButton(
+        string? button,
+        bool isDown,
+        double? x,
+        double? y)
+    {
+        if (x is not null && y is not null)
+        {
+            ApplyAbsoluteMousePosition(x.Value, y.Value);
+        }
+
+        var normalizedButton = (button ?? "left").Trim().ToLowerInvariant();
+        uint flags = normalizedButton switch
+        {
+            "right" => isDown ? MOUSEEVENTF_RIGHTDOWN : MOUSEEVENTF_RIGHTUP,
+            "middle" => isDown ? MOUSEEVENTF_MIDDLEDOWN : MOUSEEVENTF_MIDDLEUP,
+            _ => isDown ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_LEFTUP,
+        };
+
+        SendMouseInput(flags, 0);
+    }
+
+    private static void ApplyMouseWheel(int delta, double? x, double? y)
+    {
+        if (x is not null && y is not null)
+        {
+            ApplyAbsoluteMousePosition(x.Value, y.Value);
+        }
+
+        if (delta == 0)
+        {
+            return;
+        }
+
+        SendMouseInput(MOUSEEVENTF_WHEEL, delta);
+    }
+
+    private static void ApplyKeyboardKey(string? key, bool keyUp)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return;
+        }
+
+        var virtualKey = ResolveVirtualKey(key);
+        if (virtualKey is null)
+        {
+            return;
+        }
+
+        SendKeyInput(virtualKey.Value, keyUp);
+    }
+
+    private static void ApplyAbsoluteMousePosition(double normalizedX, double normalizedY)
+    {
+        var x = Math.Clamp(normalizedX, 0d, 1d);
+        var y = Math.Clamp(normalizedY, 0d, 1d);
+
+        var width = Math.Max(1, GetSystemMetrics(SM_CXSCREEN));
+        var height = Math.Max(1, GetSystemMetrics(SM_CYSCREEN));
+
+        var pixelX = Math.Clamp((int)Math.Round(x * (width - 1)), 0, width - 1);
+        var pixelY = Math.Clamp((int)Math.Round(y * (height - 1)), 0, height - 1);
+
+        _ = SetCursorPos(pixelX, pixelY);
+    }
+
+    private static void SendMouseInput(uint flags, int mouseData)
+    {
+        var input = new INPUT
+        {
+            type = INPUT_MOUSE,
+            U = new InputUnion
+            {
+                mi = new MOUSEINPUT
+                {
+                    dx = 0,
+                    dy = 0,
+                    mouseData = unchecked((uint)mouseData),
+                    dwFlags = flags,
+                    time = 0,
+                    dwExtraInfo = IntPtr.Zero,
+                },
+            },
+        };
+
+        _ = SendInput(1, new[] { input }, Marshal.SizeOf<INPUT>());
+    }
+
+    private static void SendKeyInput(ushort virtualKey, bool keyUp)
+    {
+        var input = new INPUT
+        {
+            type = INPUT_KEYBOARD,
+            U = new InputUnion
+            {
+                ki = new KEYBDINPUT
+                {
+                    wVk = virtualKey,
+                    wScan = 0,
+                    dwFlags = keyUp ? KEYEVENTF_KEYUP : 0,
+                    time = 0,
+                    dwExtraInfo = IntPtr.Zero,
+                },
+            },
+        };
+
+        _ = SendInput(1, new[] { input }, Marshal.SizeOf<INPUT>());
+    }
+
+    private static void SendUnicodeText(string text)
+    {
+        foreach (var character in text)
+        {
+            var down = new INPUT
+            {
+                type = INPUT_KEYBOARD,
+                U = new InputUnion
+                {
+                    ki = new KEYBDINPUT
+                    {
+                        wVk = 0,
+                        wScan = (ushort)character,
+                        dwFlags = KEYEVENTF_UNICODE,
+                        time = 0,
+                        dwExtraInfo = IntPtr.Zero,
+                    },
+                },
+            };
+
+            var up = new INPUT
+            {
+                type = INPUT_KEYBOARD,
+                U = new InputUnion
+                {
+                    ki = new KEYBDINPUT
+                    {
+                        wVk = 0,
+                        wScan = (ushort)character,
+                        dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP,
+                        time = 0,
+                        dwExtraInfo = IntPtr.Zero,
+                    },
+                },
+            };
+
+            _ = SendInput(2, new[] { down, up }, Marshal.SizeOf<INPUT>());
+        }
+    }
+
+    private static ushort? ResolveVirtualKey(string key)
+    {
+        var normalized = key.Trim();
+        if (Enum.TryParse<Key>(normalized, ignoreCase: true, out var parsedKey))
+        {
+            var wpfVirtualKey = KeyInterop.VirtualKeyFromKey(parsedKey);
+            if (wpfVirtualKey > 0)
+            {
+                return (ushort)wpfVirtualKey;
+            }
+        }
+
+        if (normalized.Length == 1)
+        {
+            var vk = VkKeyScan(normalized[0]);
+            if (vk != -1)
+            {
+                return (ushort)(vk & 0xff);
+            }
+        }
+
+        var upper = normalized.ToUpperInvariant();
+        if (upper.StartsWith("F", StringComparison.Ordinal) &&
+            int.TryParse(upper[1..], out var fnNumber) &&
+            fnNumber is >= 1 and <= 24)
+        {
+            return (ushort)(0x70 + (fnNumber - 1));
+        }
+
+        return upper switch
+        {
+            "ENTER" or "RETURN" => 0x0d,
+            "TAB" => 0x09,
+            "SPACE" => 0x20,
+            "ESC" or "ESCAPE" => 0x1b,
+            "BACK" or "BACKSPACE" => 0x08,
+            "DELETE" => 0x2e,
+            "INSERT" => 0x2d,
+            "HOME" => 0x24,
+            "END" => 0x23,
+            "PAGEUP" or "PRIOR" => 0x21,
+            "PAGEDOWN" or "NEXT" => 0x22,
+            "LEFT" or "LEFTARROW" => 0x25,
+            "UP" or "UPARROW" => 0x26,
+            "RIGHT" or "RIGHTARROW" => 0x27,
+            "DOWN" or "DOWNARROW" => 0x28,
+            "SHIFT" or "LEFTSHIFT" or "RIGHTSHIFT" => 0x10,
+            "CTRL" or "CONTROL" or "LEFTCTRL" or "RIGHTCTRL" => 0x11,
+            "ALT" or "MENU" or "LEFTALT" or "RIGHTALT" => 0x12,
+            "LWIN" or "LEFTWIN" => 0x5b,
+            "RWIN" or "RIGHTWIN" => 0x5c,
+            "CAPSLOCK" => 0x14,
+            _ => null,
+        };
+    }
+
+    private static CapturedScreenshot? CapturePrimaryScreenJpeg(
+        int maxWidth = 1366,
+        long jpegQuality = 65,
+        bool highQualityResize = true)
     {
         try
         {
@@ -4423,18 +4789,26 @@ LIMIT $limit;";
                 graphics.CopyFromScreen(0, 0, 0, 0, new Drawing.Size(width, height));
             }
 
-            var maxWidth = 1366;
             var output = original;
             Drawing.Bitmap? resized = null;
-            if (width > maxWidth)
+            if (maxWidth > 0 && width > maxWidth)
             {
                 var ratio = maxWidth / (double)width;
                 var resizedHeight = Math.Max(1, (int)Math.Round(height * ratio));
                 resized = new Drawing.Bitmap(maxWidth, resizedHeight);
                 using var g = Drawing.Graphics.FromImage(resized);
-                g.InterpolationMode = DrawingDrawing2D.InterpolationMode.HighQualityBicubic;
-                g.SmoothingMode = DrawingDrawing2D.SmoothingMode.HighQuality;
-                g.PixelOffsetMode = DrawingDrawing2D.PixelOffsetMode.HighQuality;
+                if (highQualityResize)
+                {
+                    g.InterpolationMode = DrawingDrawing2D.InterpolationMode.HighQualityBicubic;
+                    g.SmoothingMode = DrawingDrawing2D.SmoothingMode.HighQuality;
+                    g.PixelOffsetMode = DrawingDrawing2D.PixelOffsetMode.HighQuality;
+                }
+                else
+                {
+                    g.InterpolationMode = DrawingDrawing2D.InterpolationMode.Bilinear;
+                    g.SmoothingMode = DrawingDrawing2D.SmoothingMode.HighSpeed;
+                    g.PixelOffsetMode = DrawingDrawing2D.PixelOffsetMode.HighSpeed;
+                }
                 g.DrawImage(original, 0, 0, maxWidth, resizedHeight);
                 output = resized;
                 width = maxWidth;
@@ -4453,7 +4827,8 @@ LIMIT $limit;";
                 {
                     var encoder = DrawingImaging.Encoder.Quality;
                     using var encoderParams = new DrawingImaging.EncoderParameters(1);
-                    encoderParams.Param[0] = new DrawingImaging.EncoderParameter(encoder, 65L);
+                    var quality = Math.Clamp(jpegQuality, 30L, 90L);
+                    encoderParams.Param[0] = new DrawingImaging.EncoderParameter(encoder, quality);
                     output.Save(memory, jpegCodec, encoderParams);
                 }
 
@@ -4480,6 +4855,70 @@ LIMIT $limit;";
         return DrawingImaging.ImageCodecInfo.GetImageEncoders()
             .FirstOrDefault(codec => codec.FormatID == DrawingImaging.ImageFormat.Jpeg.Guid);
     }
+
+    private const uint INPUT_MOUSE = 0;
+    private const uint INPUT_KEYBOARD = 1;
+    private const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
+    private const uint MOUSEEVENTF_LEFTUP = 0x0004;
+    private const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
+    private const uint MOUSEEVENTF_RIGHTUP = 0x0010;
+    private const uint MOUSEEVENTF_MIDDLEDOWN = 0x0020;
+    private const uint MOUSEEVENTF_MIDDLEUP = 0x0040;
+    private const uint MOUSEEVENTF_WHEEL = 0x0800;
+    private const uint KEYEVENTF_KEYUP = 0x0002;
+    private const uint KEYEVENTF_UNICODE = 0x0004;
+    private const int SM_CXSCREEN = 0;
+    private const int SM_CYSCREEN = 1;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct INPUT
+    {
+        public uint type;
+        public InputUnion U;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    private struct InputUnion
+    {
+        [FieldOffset(0)]
+        public MOUSEINPUT mi;
+
+        [FieldOffset(0)]
+        public KEYBDINPUT ki;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MOUSEINPUT
+    {
+        public int dx;
+        public int dy;
+        public uint mouseData;
+        public uint dwFlags;
+        public uint time;
+        public IntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct KEYBDINPUT
+    {
+        public ushort wVk;
+        public ushort wScan;
+        public uint dwFlags;
+        public uint time;
+        public IntPtr dwExtraInfo;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern short VkKeyScan(char ch);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetCursorPos(int x, int y);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern int GetSystemMetrics(int nIndex);
 
     private string BuildApiUrl(string path)
     {

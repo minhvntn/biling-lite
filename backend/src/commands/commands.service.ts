@@ -14,8 +14,22 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { CommandAckPayload } from './types/command-ack.type';
 import { UploadPcScreenshotDto } from './dto/upload-pc-screenshot.dto';
+import { UploadPcLiveFrameDto } from './dto/upload-pc-live-frame.dto';
+import { RemoteInputDto } from './dto/remote-input.dto';
 
 type CommandRequestedBy = string | undefined;
+const ADMIN_LOGIN_MARKER = '|admin-login';
+
+type LiveFrameStoreItem = {
+  pcId: string;
+  requestId: string | null;
+  imageBase64: string;
+  mimeType: string;
+  width: number | null;
+  height: number | null;
+  capturedAt: string;
+  uploadedAt: string;
+};
 
 @Injectable()
 export class CommandsService {
@@ -26,6 +40,9 @@ export class CommandsService {
   ) {}
 
   private readonly runningAppsStore = new Map<string, Array<{ pid: number; name: string; title: string }>>();
+  private readonly liveFrameStore = new Map<string, LiveFrameStoreItem>();
+  private readonly liveFrameByPcId = new Map<string, LiveFrameStoreItem>();
+  private readonly maxLiveFramesPerPc = 10;
 
   async requestRunningApps(pcId: string, requestedBy?: string) {
     const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
@@ -86,6 +103,11 @@ export class CommandsService {
 
   async createOpenCommand(pcId: string, requestedBy?: CommandRequestedBy) {
     return this.createAndDispatch(pcId, CommandType.OPEN, requestedBy);
+  }
+
+  async createAdminLoginCommand(pcId: string, requestedBy?: CommandRequestedBy) {
+    const requestedByWithMarker = this.appendAdminLoginMarker(requestedBy);
+    return this.createAndDispatch(pcId, CommandType.OPEN, requestedByWithMarker);
   }
 
   async createGuestOpenCommand(
@@ -316,6 +338,181 @@ export class CommandsService {
     };
   }
 
+  async requestPcLiveFrame(pcId: string, requestedBy?: CommandRequestedBy) {
+    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    if (!pc) {
+      throw new NotFoundException('PC not found');
+    }
+
+    const sockets = this.realtime.countAgentSockets(pc.agentId);
+    if (sockets <= 0) {
+      return { ok: false, reason: 'AGENT_OFFLINE' as const };
+    }
+
+    const requestId = randomUUID();
+    const payload = {
+      pcId: pc.id,
+      agentId: pc.agentId,
+      requestId,
+      requestedBy: requestedBy?.trim() || 'admin.desktop',
+      requestedAt: new Date().toISOString(),
+    };
+
+    this.realtime.emitToAgent(pc.agentId, 'admin.live_frame.request', payload);
+    return {
+      ok: true,
+      requestId,
+      sentAt: new Date().toISOString(),
+    };
+  }
+
+  async uploadPcLiveFrame(pcId: string, body: UploadPcLiveFrameDto) {
+    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    if (!pc) {
+      throw new NotFoundException('PC not found');
+    }
+
+    const normalizedAgentId = body.agentId.trim();
+    if (!normalizedAgentId) {
+      throw new BadRequestException('agentId is required');
+    }
+
+    if (!pc.agentId) {
+      throw new BadRequestException('AGENT_MISMATCH');
+    }
+    if (
+      normalizedAgentId.localeCompare(pc.agentId, undefined, {
+        sensitivity: 'accent',
+      }) !== 0
+    ) {
+      throw new BadRequestException('AGENT_MISMATCH');
+    }
+
+    const imageBase64 = this.normalizeBase64(body.imageBase64);
+    if (!imageBase64) {
+      throw new BadRequestException('Invalid imageBase64');
+    }
+
+    if (imageBase64.length > 6_000_000) {
+      throw new BadRequestException('Live frame too large');
+    }
+
+    const payload: LiveFrameStoreItem = {
+      pcId: pc.id,
+      requestId: body.requestId?.trim() || null,
+      imageBase64,
+      mimeType: body.mimeType?.trim() || 'image/jpeg',
+      width: body.width ?? null,
+      height: body.height ?? null,
+      capturedAt: body.capturedAt ?? new Date().toISOString(),
+      uploadedAt: new Date().toISOString(),
+    };
+
+    if (payload.requestId) {
+      this.liveFrameStore.set(payload.requestId, payload);
+
+      const pcRequestIds: string[] = [];
+      for (const [requestId, frame] of this.liveFrameStore) {
+        if (frame.pcId === pc.id) {
+          pcRequestIds.push(requestId);
+        }
+      }
+
+      while (pcRequestIds.length > this.maxLiveFramesPerPc) {
+        const oldestRequestId = pcRequestIds.shift();
+        if (!oldestRequestId) {
+          break;
+        }
+        this.liveFrameStore.delete(oldestRequestId);
+      }
+    }
+    this.liveFrameByPcId.set(pc.id, payload);
+
+    return {
+      ok: true,
+      requestId: payload.requestId,
+      capturedAt: payload.capturedAt,
+      serverTime: new Date().toISOString(),
+    };
+  }
+
+  async getLatestPcLiveFrame(pcId: string, requestId?: string) {
+    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    if (!pc) {
+      throw new NotFoundException('PC not found');
+    }
+
+    const normalizedRequestId = requestId?.trim();
+    const frame = normalizedRequestId
+      ? this.liveFrameStore.get(normalizedRequestId)
+      : this.liveFrameByPcId.get(pc.id);
+
+    if (!frame) {
+      return {
+        ok: false,
+        reason: 'PENDING' as const,
+        serverTime: new Date().toISOString(),
+      };
+    }
+
+    return {
+      ok: true,
+      frame: {
+        requestId: frame.requestId,
+        imageBase64: frame.imageBase64,
+        mimeType: frame.mimeType,
+        width: frame.width,
+        height: frame.height,
+        capturedAt: frame.capturedAt,
+        uploadedAt: frame.uploadedAt,
+      },
+      serverTime: new Date().toISOString(),
+    };
+  }
+
+  async sendRemoteInput(pcId: string, body: RemoteInputDto) {
+    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    if (!pc) {
+      throw new NotFoundException('PC not found');
+    }
+
+    const sockets = this.realtime.countAgentSockets(pc.agentId);
+    if (sockets <= 0) {
+      return { ok: false, reason: 'AGENT_OFFLINE' as const };
+    }
+
+    const type = (body.type ?? '').trim().toLowerCase();
+    const allowedTypes = new Set([
+      'mouse_move',
+      'mouse_down',
+      'mouse_up',
+      'mouse_wheel',
+      'key_down',
+      'key_up',
+      'text',
+    ]);
+    if (!allowedTypes.has(type)) {
+      throw new BadRequestException('Invalid remote input type');
+    }
+
+    const payload = {
+      pcId: pc.id,
+      agentId: pc.agentId,
+      type,
+      x: this.normalizeCoordinate(body.x),
+      y: this.normalizeCoordinate(body.y),
+      button: body.button?.trim().toLowerCase() ?? null,
+      delta: Number.isFinite(body.delta) ? Math.round(body.delta as number) : null,
+      key: body.key?.trim() ?? null,
+      text: body.text ?? null,
+      modifiers: Array.isArray(body.modifiers) ? body.modifiers.slice(0, 6) : [],
+      issuedAt: new Date().toISOString(),
+    };
+
+    this.realtime.emitToAgent(pc.agentId, 'admin.remote_input', payload);
+    return { ok: true, at: payload.issuedAt };
+  }
+
   async getCommandById(commandId: string) {
     const command = await this.prisma.command.findUnique({
       where: { id: commandId },
@@ -391,9 +588,13 @@ export class CommandsService {
             hourlyRate?: number;
           }
         | null = null;
+      let adminLoginActivated = false;
 
       if (payload.result === 'SUCCESS') {
         const existingPc = await tx.pc.findUnique({ where: { id: command.pcId } });
+        const isAdminLoginOpen =
+          command.type === CommandType.OPEN &&
+          this.hasAdminLoginMarker(command.requestedBy);
         const targetStatus =
           command.type === CommandType.OPEN
             ? PcStatus.IN_USE
@@ -421,7 +622,7 @@ export class CommandsService {
           };
         }
 
-        if (command.type === CommandType.OPEN) {
+        if (command.type === CommandType.OPEN && !isAdminLoginOpen) {
           const activeSession = await tx.session.findFirst({
             where: {
               pcId: command.pcId,
@@ -447,6 +648,24 @@ export class CommandsService {
               hourlyRate,
             };
           }
+        }
+
+        if (isAdminLoginOpen) {
+          await tx.eventLog.create({
+            data: {
+              source: EventSource.ADMIN,
+              eventType: 'admin.pc.presence',
+              pcId: command.pcId,
+              payload: {
+                isActive: true,
+                username: 'Admin',
+                fullName: 'Admin',
+                requestedBy: command.requestedBy,
+                at: new Date().toISOString(),
+              },
+            },
+          });
+          adminLoginActivated = true;
         }
 
         if (command.type === CommandType.LOCK || command.type === CommandType.SHUTDOWN) {
@@ -506,7 +725,7 @@ export class CommandsService {
         }
       }
 
-      return { updatedCommand, statusTransition, sessionEvent };
+      return { updatedCommand, statusTransition, sessionEvent, adminLoginActivated };
     });
 
     this.broadcastCommandUpdated(result.updatedCommand);
@@ -542,6 +761,10 @@ export class CommandsService {
         command.type === CommandType.SHUTDOWN)
     ) {
       await this.logEvent(EventSource.SERVER, 'guest.pc.presence', command.pcId, {
+        isActive: false,
+        at: new Date().toISOString(),
+      });
+      await this.logEvent(EventSource.SERVER, 'admin.pc.presence', command.pcId, {
         isActive: false,
         at: new Date().toISOString(),
       });
@@ -741,6 +964,10 @@ export class CommandsService {
         },
       );
       await this.logEvent(EventSource.SERVER, 'guest.pc.presence', targetPcId, {
+        isActive: false,
+        at: new Date().toISOString(),
+      });
+      await this.logEvent(EventSource.SERVER, 'admin.pc.presence', targetPcId, {
         isActive: false,
         at: new Date().toISOString(),
       });
@@ -1011,6 +1238,18 @@ export class CommandsService {
     return compact;
   }
 
+  private normalizeCoordinate(value?: number): number | null {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return null;
+    }
+
+    if (value < 0 || value > 1) {
+      return null;
+    }
+
+    return value;
+  }
+
   private parseScreenshotPayload(
     payload: Prisma.JsonValue | null,
   ):
@@ -1102,6 +1341,23 @@ export class CommandsService {
 
     const defaultGroup = await this.ensureDefaultGroup(tx);
     return Number(defaultGroup.hourlyRate);
+  }
+
+  private appendAdminLoginMarker(requestedBy?: string): string {
+    const base = requestedBy?.trim() || 'admin.desktop';
+    const marker = ADMIN_LOGIN_MARKER;
+    if (base.endsWith(marker)) {
+      return base;
+    }
+
+    const maxBaseLength = Math.max(1, 100 - marker.length);
+    const trimmedBase = base.slice(0, maxBaseLength);
+    return `${trimmedBase}${marker}`;
+  }
+
+  private hasAdminLoginMarker(requestedBy?: string | null): boolean {
+    const value = requestedBy?.trim();
+    return !!value && value.endsWith(ADMIN_LOGIN_MARKER);
   }
 
   private async ensureDefaultGroup(client: PrismaService | Prisma.TransactionClient) {

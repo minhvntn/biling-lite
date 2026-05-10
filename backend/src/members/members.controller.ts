@@ -10,6 +10,7 @@ import { UpdateLoyaltySettingsDto } from './dto/update-loyalty-settings.dto';
 import { RecordMemberUsageDto } from './dto/record-member-usage.dto';
 import { RedeemLoyaltyPointsDto } from './dto/redeem-loyalty-points.dto';
 import { SetMemberPresenceDto } from './dto/set-member-presence.dto';
+import { SetAdminPresenceDto } from './dto/set-admin-presence.dto';
 import { UpdateLoyaltyRankDto } from './dto/update-loyalty-rank.dto';
 import { UpdateSpinPrizeSettingsDto } from './dto/update-spin-prize-settings.dto';
 import { MembersService } from './members.service';
@@ -41,6 +42,11 @@ export class MembersController {
   @Post('guest-presence')
   async setGuestPresence(@Body() payload: any) {
     return this.membersService.setGuestPresence(payload);
+  }
+
+  @Post('admin-presence')
+  async setAdminPresence(@Body() payload: SetAdminPresenceDto) {
+    return this.membersService.setAdminPresence(payload);
   }
 
   @Get('loyalty/settings')

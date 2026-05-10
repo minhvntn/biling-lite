@@ -1,7 +1,7 @@
 ﻿param(
     [string]$Configuration = "Release",
     [string]$Runtime = "win-x64",
-    [switch]$SelfContained
+    [switch]$FrameworkDependent
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,7 +17,9 @@ Remove-Item -LiteralPath $distRoot -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $agentOut -Force | Out-Null
 New-Item -ItemType Directory -Path $serviceOut -Force | Out-Null
 
-$selfContainedValue = if ($SelfContained.IsPresent) { "true" } else { "false" }
+$selfContainedValue = if ($FrameworkDependent.IsPresent) { "false" } else { "true" }
+$publishMode = if ($selfContainedValue -eq "true") { "self-contained" } else { "framework-dependent" }
+Write-Host "Publish mode: $publishMode"
 
 Write-Host "Publishing WPF Agent..."
 dotnet publish $agentProject -c $Configuration -r $Runtime --self-contained $selfContainedValue -o $agentOut

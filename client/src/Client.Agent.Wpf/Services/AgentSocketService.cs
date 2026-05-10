@@ -14,6 +14,8 @@ public sealed class AgentSocketService : IAsyncDisposable
     private readonly Action<string> _connectionStatusChanged;
     private readonly Action<string, string?>? _notificationHandler;
     private readonly Func<AdminCaptureScreenshotPayload, Task>? _captureScreenshotHandler;
+    private readonly Func<AdminLiveFrameRequestPayload, Task>? _liveFrameHandler;
+    private readonly Func<AdminRemoteInputPayload, Task>? _remoteInputHandler;
     private readonly Action<decimal>? _hourlyRateHandler;
     private readonly Action<bool>? _guestLoginEnabledHandler;
     private readonly Action<int>? _elapsedSecondsHandler;
@@ -31,6 +33,8 @@ public sealed class AgentSocketService : IAsyncDisposable
         Action<string> connectionStatusChanged,
         Action<string, string?>? notificationHandler = null,
         Func<AdminCaptureScreenshotPayload, Task>? captureScreenshotHandler = null,
+        Func<AdminLiveFrameRequestPayload, Task>? liveFrameHandler = null,
+        Func<AdminRemoteInputPayload, Task>? remoteInputHandler = null,
         Action<decimal>? hourlyRateHandler = null,
         Action<bool>? guestLoginEnabledHandler = null,
         Action<int>? elapsedSecondsHandler = null)
@@ -41,6 +45,8 @@ public sealed class AgentSocketService : IAsyncDisposable
         _connectionStatusChanged = connectionStatusChanged;
         _notificationHandler = notificationHandler;
         _captureScreenshotHandler = captureScreenshotHandler;
+        _liveFrameHandler = liveFrameHandler;
+        _remoteInputHandler = remoteInputHandler;
         _hourlyRateHandler = hourlyRateHandler;
         _guestLoginEnabledHandler = guestLoginEnabledHandler;
         _elapsedSecondsHandler = elapsedSecondsHandler;
@@ -120,6 +126,24 @@ public sealed class AgentSocketService : IAsyncDisposable
             if (_captureScreenshotHandler is not null)
             {
                 await _captureScreenshotHandler(payload);
+            }
+        });
+
+        _socket.On("admin.live_frame.request", async response =>
+        {
+            var payload = response.GetValue<AdminLiveFrameRequestPayload>();
+            if (_liveFrameHandler is not null)
+            {
+                await _liveFrameHandler(payload);
+            }
+        });
+
+        _socket.On("admin.remote_input", async response =>
+        {
+            var payload = response.GetValue<AdminRemoteInputPayload>();
+            if (_remoteInputHandler is not null)
+            {
+                await _remoteInputHandler(payload);
             }
         });
 
@@ -448,6 +472,51 @@ public sealed class AdminGetRunningAppsPayload
 
     [JsonPropertyName("requestedBy")]
     public string? RequestedBy { get; set; }
+}
+
+public sealed class AdminLiveFrameRequestPayload
+{
+    [JsonPropertyName("pcId")]
+    public string PcId { get; set; } = string.Empty;
+
+    [JsonPropertyName("agentId")]
+    public string AgentId { get; set; } = string.Empty;
+
+    [JsonPropertyName("requestId")]
+    public string RequestId { get; set; } = string.Empty;
+
+    [JsonPropertyName("requestedBy")]
+    public string? RequestedBy { get; set; }
+}
+
+public sealed class AdminRemoteInputPayload
+{
+    [JsonPropertyName("pcId")]
+    public string PcId { get; set; } = string.Empty;
+
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    [JsonPropertyName("x")]
+    public double? X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double? Y { get; set; }
+
+    [JsonPropertyName("button")]
+    public string? Button { get; set; }
+
+    [JsonPropertyName("delta")]
+    public int? Delta { get; set; }
+
+    [JsonPropertyName("key")]
+    public string? Key { get; set; }
+
+    [JsonPropertyName("text")]
+    public string? Text { get; set; }
+
+    [JsonPropertyName("issuedAt")]
+    public string? IssuedAt { get; set; }
 }
 
 public sealed class AdminKillProcessPayload

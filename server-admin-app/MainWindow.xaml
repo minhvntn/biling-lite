@@ -221,6 +221,7 @@
                                     </ContextMenu.Resources>
                                     <MenuItem x:Name="ContextOpenMachineMenuItem" Header="Mở máy" Click="ContextOpenMachineMenuItem_Click" />
                                     <MenuItem x:Name="ContextOpenGuestMachineMenuItem" Header="Mở máy khách vãng lai..." Click="ContextOpenGuestMachineMenuItem_Click" />
+                                    <MenuItem x:Name="ContextAdminLoginMachineMenuItem" Header="Đăng nhập admin máy trạm" Click="ContextAdminLoginMachineMenuItem_Click" />
                                     <MenuItem x:Name="ContextLockMachineMenuItem" Header="Khóa máy" Click="ContextLockMachineMenuItem_Click" />
                                     <MenuItem x:Name="ContextTopupMachineMemberMenuItem" Header="Nạp tiền hội viên đang dùng máy..." Click="ContextTopupMachineMemberMenuItem_Click" />
                                     <Separator />
@@ -238,7 +239,7 @@
                                                   Header="Đóng ứng dụng..."
                                                   Click="ContextCloseAppsMenuItem_Click" />
                                         <MenuItem x:Name="ContextControlRemoteMenuItem"
-                                                  Header="Điều khiển từ xa (RDP)"
+                                                  Header="Điều khiển máy trạm (Live)"
                                                   Click="ContextRemoteControlMachineMenuItem_Click" />
                                         <MenuItem x:Name="ContextControlScreenshotMenuItem"
                                                   Header="Chụp màn hình máy trạm"
@@ -312,6 +313,9 @@
                                                             <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
                                                                 <Setter Property="Background" Value="#DC2626" />
                                                             </DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
+                                                                <Setter Property="Background" Value="#FACC15" />
+                                                            </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
@@ -335,6 +339,9 @@
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
                                                                     <Setter Property="Foreground" Value="White" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
+                                                                    <Setter Property="Foreground" Value="#DC2626" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>

@@ -78,9 +78,11 @@ public partial class MainWindow : Window
     private static MachineRow ToMachineRow(PcListItem item)
     {
         var now = DateTime.Now;
+        var activeAdmin = item.ActiveAdmin;
+        var isAdminSession = item.Status == "IN_USE" && activeAdmin is not null;
         var statusText = item.Status switch
         {
-            "IN_USE" => I18n.StatusInUse,
+            "IN_USE" => isAdminSession ? "Admin đăng nhập" : I18n.StatusInUse,
             "LOCKED" => I18n.StatusLocked,
             "ONLINE" => I18n.StatusReady,
             "OFFLINE" => I18n.StatusLocked,
@@ -111,7 +113,12 @@ public partial class MainWindow : Window
         }
         else if (item.Status == "IN_USE")
         {
-            if (activeMember != null)
+            if (isAdminSession)
+            {
+                statusIconBrush = Brushes.Gold;
+                statusIconToolTip = "Admin đang sử dụng";
+            }
+            else if (activeMember != null)
             {
                 statusIconBrush = Brushes.DodgerBlue;
                 statusIconToolTip = "Hội viên đang sử dụng";
@@ -144,6 +151,8 @@ public partial class MainWindow : Window
         }
         var userName = !string.IsNullOrWhiteSpace(activeMember?.Username)
             ? activeMember!.Username
+            : isAdminSession
+                ? "Admin"
             : isGuestSession
                 ? guestDisplayName
                 : "-";
@@ -178,6 +187,7 @@ public partial class MainWindow : Window
             ActiveMemberId = activeMember?.MemberId,
             ActiveMemberUsername = activeMember?.Username,
             ActiveMemberFullName = activeMember?.FullName,
+            IsAdminSession = isAdminSession,
             IsGuestSession = isGuestSession,
             ActiveGuestDisplayName = isGuestSession ? guestDisplayName : null,
             ActiveGuestPrepaidAmount = isGuestSession ? activeGuest!.PrepaidAmount : 0,
@@ -870,6 +880,7 @@ public partial class MainWindow : Window
             SetMachineContextMenuEnabled(
                 open: false,
                 openGuest: false,
+                adminLogin: false,
                 lockMachine: false,
                 topupMember: false,
                 restart: true,
@@ -892,6 +903,7 @@ public partial class MainWindow : Window
         SetMachineContextMenuEnabled(
             open: !isInUse && !isLocked,
             openGuest: isReady,
+            adminLogin: !isInUse && !isOffline,
             lockMachine: !isLocked,
             topupMember: isInUse && hasActiveMember,
             restart: true,
@@ -913,6 +925,7 @@ public partial class MainWindow : Window
     private void SetMachineContextMenuEnabled(
         bool open,
         bool openGuest,
+        bool adminLogin,
         bool lockMachine,
         bool topupMember,
         bool restart,
@@ -938,6 +951,11 @@ public partial class MainWindow : Window
         if (ContextOpenGuestMachineMenuItem is not null)
         {
             ContextOpenGuestMachineMenuItem.IsEnabled = openGuest;
+        }
+
+        if (ContextAdminLoginMachineMenuItem is not null)
+        {
+            ContextAdminLoginMachineMenuItem.IsEnabled = adminLogin;
         }
 
         if (ContextLockMachineMenuItem is not null)
@@ -1083,6 +1101,8 @@ public partial class MainWindow : Window
 
     private async void ContextOpenGuestMachineMenuItem_Click(object sender, RoutedEventArgs e) => await OpenGuestMachineAsync();
 
+    private async void ContextAdminLoginMachineMenuItem_Click(object sender, RoutedEventArgs e) => await SendCommandAsync("admin-login");
+
     private async void ContextLockMachineMenuItem_Click(object sender, RoutedEventArgs e) => await SendCommandAsync("lock");
 
     private async void ContextTopupMachineMemberMenuItem_Click(object sender, RoutedEventArgs e) => await TopupActiveMemberFromMachineAsync();
@@ -1222,52 +1242,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var host = ResolveRemoteControlHost(selected);
-        if (string.IsNullOrWhiteSpace(host))
-        {
-            MessageBox.Show(
-                "Không tìm thấy IP/host của máy trạm để điều khiển từ xa.",
-                "Server Admin",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return;
-        }
-
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "mstsc.exe",
-                Arguments = $"/v:{host}",
-                UseShellExecute = true,
-            });
-            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Mở điều khiển từ xa tới {selected.Name} ({host})");
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(
-                $"Không thể mở Remote Desktop: {ex.Message}",
-                "Server Admin",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
-        }
-    }
-
-    private static string? ResolveRemoteControlHost(MachineRow machine)
-    {
-        var ip = machine.IpAddress?.Trim();
-        if (!string.IsNullOrWhiteSpace(ip) && ip != "-")
-        {
-            if (ip.StartsWith("::ffff:", StringComparison.OrdinalIgnoreCase))
-            {
-                ip = ip[7..];
-            }
-
-            return ip;
-        }
-
-        var name = machine.Name?.Trim();
-        return string.IsNullOrWhiteSpace(name) ? null : name;
+        await OpenLiveControlPanelForMachineAsync(selected);
     }
 
     private async Task CaptureScreenshotForSelectedMachineAsync()
@@ -1280,47 +1255,12 @@ public partial class MainWindow : Window
 
         try
         {
-            using var requestResponse = await _httpClient.PostAsJsonAsync(
-                BuildApiUrl($"/pcs/{selected.Id}/capture-screenshot"),
-                new { requestedBy = "admin.desktop" });
-
-            if (!requestResponse.IsSuccessStatusCode)
-            {
-                MessageBox.Show(
-                    $"Yêu cầu chụp màn hình thất bại ({(int)requestResponse.StatusCode}).",
-                    "Server Admin",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
-            var requestPayload = await requestResponse.Content.ReadFromJsonAsync<CaptureScreenshotRequestResponse>(JsonOptions());
-            if (requestPayload is null || !requestPayload.Ok || string.IsNullOrWhiteSpace(requestPayload.RequestId))
-            {
-                var reasonText = requestPayload?.Reason == "AGENT_OFFLINE"
-                    ? "Máy trạm đang offline."
-                    : "Không thể gửi yêu cầu chụp màn hình.";
-                MessageBox.Show(
-                    reasonText,
-                    "Server Admin",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-                return;
-            }
-
-            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã yêu cầu chụp màn hình {selected.Name}");
-
-            var screenshot = await WaitForScreenshotAsync(
-                selected.Id,
-                requestPayload.RequestId,
-                timeoutSeconds: 15);
+            var screenshot = await CaptureScreenshotForMachineAsync(
+                selected,
+                timeoutSeconds: 15,
+                interactiveErrors: true);
             if (screenshot is null)
             {
-                MessageBox.Show(
-                    "Không nhận được ảnh chụp màn hình từ máy trạm. Vui lòng thử lại.",
-                    "Server Admin",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
                 return;
             }
 
@@ -1345,6 +1285,658 @@ public partial class MainWindow : Window
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
+    }
+
+    private async Task<PcScreenshotItem?> CaptureScreenshotForMachineAsync(
+        MachineRow machine,
+        int timeoutSeconds,
+        bool interactiveErrors)
+    {
+        using var requestResponse = await _httpClient.PostAsJsonAsync(
+            BuildApiUrl($"/pcs/{machine.Id}/capture-screenshot"),
+            new { requestedBy = "admin.desktop" });
+
+        if (!requestResponse.IsSuccessStatusCode)
+        {
+            if (interactiveErrors)
+            {
+                MessageBox.Show(
+                    $"Yêu cầu chụp màn hình thất bại ({(int)requestResponse.StatusCode}).",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            return null;
+        }
+
+        var requestPayload = await requestResponse.Content.ReadFromJsonAsync<CaptureScreenshotRequestResponse>(JsonOptions());
+        if (requestPayload is null || !requestPayload.Ok || string.IsNullOrWhiteSpace(requestPayload.RequestId))
+        {
+            if (interactiveErrors)
+            {
+                var reasonText = requestPayload?.Reason == "AGENT_OFFLINE"
+                    ? "Máy trạm đang offline."
+                    : "Không thể gửi yêu cầu chụp màn hình.";
+                MessageBox.Show(
+                    reasonText,
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            return null;
+        }
+
+        var screenshot = await WaitForScreenshotAsync(
+            machine.Id,
+            requestPayload.RequestId,
+            timeoutSeconds: timeoutSeconds);
+        if (screenshot is null && interactiveErrors)
+        {
+            MessageBox.Show(
+                "Không nhận được ảnh chụp màn hình từ máy trạm. Vui lòng thử lại.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+
+        return screenshot;
+    }
+
+    private async Task OpenLiveControlPanelForMachineAsync(MachineRow machine)
+    {
+        var dialog = new Window
+        {
+            Title = $"Điều khiển máy trạm (Live) - {machine.Name}",
+            Width = 1180,
+            Height = 780,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = this,
+            ResizeMode = ResizeMode.CanResize,
+            ShowInTaskbar = false,
+        };
+
+        var root = new Grid { Margin = new Thickness(12) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var titleText = new TextBlock
+        {
+            Text = $"Máy: {machine.Name} | Agent: {machine.AgentId} | IP: {machine.IpAddress}",
+            FontSize = 14,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        Grid.SetRow(titleText, 0);
+        root.Children.Add(titleText);
+
+        var refreshButton = new Button
+        {
+            Content = "Làm mới ảnh",
+            MinWidth = 120,
+            Height = 32,
+            Margin = new Thickness(0, 0, 8, 0),
+        };
+        const int liveRefreshIntervalMs = 180;
+        const int liveFrameTimeoutMs = 950;
+        const int liveFramePollIntervalMs = 70;
+
+        var autoRefreshCheck = new CheckBox
+        {
+            Content = "Live stream 0.18s",
+            IsChecked = true,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 16, 0),
+        };
+        var controlInputCheck = new CheckBox
+        {
+            Content = "Điều khiển chuột/phím",
+            IsChecked = true,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 16, 0),
+        };
+        var statusText = new TextBlock
+        {
+            Text = "Sẵn sàng. Click vào preview để điều khiển.",
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = Brushes.DimGray,
+        };
+
+        var previewImage = new Image
+        {
+            Stretch = Stretch.Fill,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            Focusable = true,
+        };
+        var previewBorder = new Border
+        {
+            BorderBrush = Brushes.LightGray,
+            BorderThickness = new Thickness(1),
+            Background = Brushes.Black,
+            Child = previewImage,
+        };
+        Grid.SetRow(previewBorder, 1);
+        root.Children.Add(previewBorder);
+
+        var footer = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 10, 0, 0),
+        };
+        var closeButton = new Button
+        {
+            Content = "Đóng",
+            Width = 120,
+            Height = 34,
+        };
+        footer.Children.Add(closeButton);
+
+        Grid.SetRow(footer, 2);
+        root.Children.Add(footer);
+
+        var refreshLock = new SemaphoreSlim(1, 1);
+        var moveStopwatch = Stopwatch.StartNew();
+        var lastMoveSentAt = TimeSpan.Zero;
+        var lastMoveX = -1d;
+        var lastMoveY = -1d;
+        double? queuedMoveX = null;
+        double? queuedMoveY = null;
+        var isMovePumpRunning = false;
+
+        async Task RefreshFrameAsync(bool interactiveErrors)
+        {
+            if (!await refreshLock.WaitAsync(0))
+            {
+                return;
+            }
+
+            try
+            {
+                refreshButton.IsEnabled = false;
+                statusText.Text = "Đang lấy ảnh từ máy trạm...";
+                statusText.Foreground = Brushes.DimGray;
+
+                var liveFrame = await CaptureLiveFrameForMachineAsync(
+                    machine,
+                    timeoutMilliseconds: liveFrameTimeoutMs,
+                    pollIntervalMilliseconds: liveFramePollIntervalMs,
+                    interactiveErrors: interactiveErrors);
+                if (liveFrame is null)
+                {
+                    statusText.Text = "Không lấy được stream từ máy trạm.";
+                    statusText.Foreground = Brushes.IndianRed;
+                    return;
+                }
+
+                var imageSource = DecodeBase64Image(liveFrame.ImageBase64);
+                if (imageSource is null)
+                {
+                    statusText.Text = "Ảnh màn hình không hợp lệ.";
+                    statusText.Foreground = Brushes.IndianRed;
+                    return;
+                }
+
+                previewImage.Source = imageSource;
+                var capturedAt = string.IsNullOrWhiteSpace(liveFrame.CapturedAt)
+                    ? FormatDateTime(liveFrame.UploadedAt)
+                    : FormatDateTime(liveFrame.CapturedAt);
+                statusText.Text = $"Live @ {capturedAt}";
+                statusText.Foreground = Brushes.DarkGreen;
+            }
+            catch (Exception ex)
+            {
+                statusText.Text = $"Lỗi lấy ảnh: {ex.Message}";
+                statusText.Foreground = Brushes.IndianRed;
+                if (interactiveErrors)
+                {
+                    MessageBox.Show(
+                        $"Lỗi lấy ảnh màn hình: {ex.Message}",
+                        "Server Admin",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                }
+            }
+            finally
+            {
+                refreshButton.IsEnabled = true;
+                refreshLock.Release();
+            }
+        }
+
+        async Task PumpMouseMoveAsync(double normalizedX, double normalizedY)
+        {
+            queuedMoveX = normalizedX;
+            queuedMoveY = normalizedY;
+            if (isMovePumpRunning)
+            {
+                return;
+            }
+
+            isMovePumpRunning = true;
+            try
+            {
+                while (queuedMoveX is not null && queuedMoveY is not null)
+                {
+                    var x = queuedMoveX.Value;
+                    var y = queuedMoveY.Value;
+                    queuedMoveX = null;
+                    queuedMoveY = null;
+
+                    _ = await SendRemoteInputToMachineAsync(
+                        machine,
+                        new
+                        {
+                            type = "mouse_move",
+                            x = Math.Round(x, 4),
+                            y = Math.Round(y, 4),
+                        },
+                        interactiveErrors: false);
+                }
+            }
+            finally
+            {
+                isMovePumpRunning = false;
+            }
+        }
+
+        closeButton.Click += (_, _) => dialog.Close();
+
+        previewImage.MouseDown += async (_, e) =>
+        {
+            if (controlInputCheck.IsChecked != true)
+            {
+                return;
+            }
+
+            previewImage.Focus();
+            if (!TryResolveNormalizedPointer(previewImage, e.GetPosition(previewImage), out var x, out var y))
+            {
+                return;
+            }
+
+            var button = MapMouseButton(e.ChangedButton);
+            if (button is null)
+            {
+                return;
+            }
+
+            _ = await SendRemoteInputToMachineAsync(
+                machine,
+                new { type = "mouse_down", button, x = Math.Round(x, 4), y = Math.Round(y, 4) },
+                interactiveErrors: false);
+            e.Handled = true;
+        };
+
+        previewImage.MouseUp += async (_, e) =>
+        {
+            if (controlInputCheck.IsChecked != true)
+            {
+                return;
+            }
+
+            if (!TryResolveNormalizedPointer(previewImage, e.GetPosition(previewImage), out var x, out var y))
+            {
+                return;
+            }
+
+            var button = MapMouseButton(e.ChangedButton);
+            if (button is null)
+            {
+                return;
+            }
+
+            _ = await SendRemoteInputToMachineAsync(
+                machine,
+                new { type = "mouse_up", button, x = Math.Round(x, 4), y = Math.Round(y, 4) },
+                interactiveErrors: false);
+            e.Handled = true;
+        };
+
+        previewImage.MouseWheel += async (_, e) =>
+        {
+            if (controlInputCheck.IsChecked != true)
+            {
+                return;
+            }
+
+            if (!TryResolveNormalizedPointer(previewImage, e.GetPosition(previewImage), out var x, out var y))
+            {
+                return;
+            }
+
+            _ = await SendRemoteInputToMachineAsync(
+                machine,
+                new
+                {
+                    type = "mouse_wheel",
+                    delta = e.Delta,
+                    x = Math.Round(x, 4),
+                    y = Math.Round(y, 4),
+                },
+                interactiveErrors: false);
+            e.Handled = true;
+        };
+
+        previewImage.MouseMove += async (_, e) =>
+        {
+            if (controlInputCheck.IsChecked != true)
+            {
+                return;
+            }
+
+            if (!TryResolveNormalizedPointer(previewImage, e.GetPosition(previewImage), out var x, out var y))
+            {
+                return;
+            }
+
+            var now = moveStopwatch.Elapsed;
+            var deltaMs = (now - lastMoveSentAt).TotalMilliseconds;
+            var hasLargeMove = Math.Abs(x - lastMoveX) >= 0.002 || Math.Abs(y - lastMoveY) >= 0.002;
+            if (deltaMs < 22 && !hasLargeMove)
+            {
+                return;
+            }
+
+            lastMoveSentAt = now;
+            lastMoveX = x;
+            lastMoveY = y;
+            await PumpMouseMoveAsync(x, y);
+        };
+
+        previewImage.PreviewKeyDown += async (_, e) =>
+        {
+            if (controlInputCheck.IsChecked != true)
+            {
+                return;
+            }
+
+            var key = e.Key == Key.System ? e.SystemKey : e.Key;
+            if (!ShouldForwardKeyToRemote(key, Keyboard.Modifiers))
+            {
+                return;
+            }
+
+            _ = await SendRemoteInputToMachineAsync(
+                machine,
+                new { type = "key_down", key = key.ToString() },
+                interactiveErrors: false);
+            e.Handled = true;
+        };
+
+        previewImage.PreviewKeyUp += async (_, e) =>
+        {
+            if (controlInputCheck.IsChecked != true)
+            {
+                return;
+            }
+
+            var key = e.Key == Key.System ? e.SystemKey : e.Key;
+            if (!ShouldForwardKeyToRemote(key, Keyboard.Modifiers))
+            {
+                return;
+            }
+
+            _ = await SendRemoteInputToMachineAsync(
+                machine,
+                new { type = "key_up", key = key.ToString() },
+                interactiveErrors: false);
+            e.Handled = true;
+        };
+
+        previewImage.PreviewTextInput += async (_, e) =>
+        {
+            if (controlInputCheck.IsChecked != true || string.IsNullOrEmpty(e.Text))
+            {
+                return;
+            }
+
+            _ = await SendRemoteInputToMachineAsync(
+                machine,
+                new { type = "text", text = e.Text },
+                interactiveErrors: false);
+            e.Handled = true;
+        };
+
+        var autoRefreshTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(liveRefreshIntervalMs),
+        };
+        autoRefreshTimer.Tick += async (_, _) =>
+        {
+            if (autoRefreshCheck.IsChecked == true && dialog.IsVisible)
+            {
+                await RefreshFrameAsync(interactiveErrors: false);
+            }
+        };
+
+        dialog.Closed += (_, _) =>
+        {
+            autoRefreshTimer.Stop();
+            refreshLock.Dispose();
+        };
+
+        dialog.Content = root;
+        dialog.Loaded += async (_, _) =>
+        {
+            await RefreshFrameAsync(interactiveErrors: true);
+            previewImage.Focus();
+            autoRefreshTimer.Start();
+        };
+
+        _ = dialog.ShowDialog();
+    }
+
+    private async Task<PcLiveFrameItem?> CaptureLiveFrameForMachineAsync(
+        MachineRow machine,
+        int timeoutMilliseconds,
+        int pollIntervalMilliseconds,
+        bool interactiveErrors)
+    {
+        using var requestResponse = await _httpClient.PostAsJsonAsync(
+            BuildApiUrl($"/pcs/{machine.Id}/request-live-frame"),
+            new { requestedBy = "admin.desktop" });
+
+        if (!requestResponse.IsSuccessStatusCode)
+        {
+            if (interactiveErrors)
+            {
+                MessageBox.Show(
+                    $"Yêu cầu live stream thất bại ({(int)requestResponse.StatusCode}).",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            return null;
+        }
+
+        var requestPayload = await requestResponse.Content.ReadFromJsonAsync<CaptureScreenshotRequestResponse>(JsonOptions());
+        if (requestPayload is null || !requestPayload.Ok || string.IsNullOrWhiteSpace(requestPayload.RequestId))
+        {
+            if (interactiveErrors)
+            {
+                var reasonText = requestPayload?.Reason == "AGENT_OFFLINE"
+                    ? "Máy trạm đang offline."
+                    : "Không thể gửi yêu cầu live stream.";
+                MessageBox.Show(
+                    reasonText,
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            return null;
+        }
+
+        var liveFrame = await WaitForLiveFrameAsync(
+            machine.Id,
+            requestPayload.RequestId,
+            timeoutMilliseconds,
+            pollIntervalMilliseconds);
+        if (liveFrame is null && interactiveErrors)
+        {
+            MessageBox.Show(
+                "Không nhận được frame từ máy trạm. Vui lòng thử lại.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+
+        return liveFrame;
+    }
+
+    private async Task<PcLiveFrameItem?> WaitForLiveFrameAsync(
+        string pcId,
+        string requestId,
+        int timeoutMilliseconds,
+        int pollIntervalMilliseconds)
+    {
+        var waitUntil = DateTime.UtcNow.AddMilliseconds(Math.Max(450, timeoutMilliseconds));
+        var pollDelayMs = Math.Clamp(pollIntervalMilliseconds, 40, 240);
+        while (DateTime.UtcNow < waitUntil)
+        {
+            try
+            {
+                var url = BuildApiUrl(
+                    $"/pcs/{pcId}/latest-live-frame?requestId={Uri.EscapeDataString(requestId)}");
+                var response = await _httpClient.GetFromJsonAsync<LatestPcLiveFrameResponse>(
+                    url,
+                    JsonOptions());
+                if (response?.Ok == true && response.Frame is not null)
+                {
+                    return response.Frame;
+                }
+
+                if (response?.Reason is "AGENT_OFFLINE" or "PC_NOT_FOUND")
+                {
+                    return null;
+                }
+            }
+            catch
+            {
+                // Ignore polling errors and continue waiting.
+            }
+
+            await Task.Delay(pollDelayMs);
+        }
+
+        return null;
+    }
+
+    private async Task<bool> SendRemoteInputToMachineAsync(
+        MachineRow machine,
+        object payload,
+        bool interactiveErrors)
+    {
+        try
+        {
+            using var response = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl($"/pcs/{machine.Id}/remote-input"),
+                payload);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
+            }
+
+            if (interactiveErrors)
+            {
+                MessageBox.Show(
+                    $"Gửi lệnh điều khiển thất bại ({(int)response.StatusCode}).",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            return false;
+        }
+        catch (Exception ex)
+        {
+            if (interactiveErrors)
+            {
+                MessageBox.Show(
+                    $"Gửi lệnh điều khiển thất bại: {ex.Message}",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            return false;
+        }
+    }
+
+    private static string? MapMouseButton(MouseButton button)
+    {
+        return button switch
+        {
+            MouseButton.Left => "left",
+            MouseButton.Right => "right",
+            MouseButton.Middle => "middle",
+            _ => null,
+        };
+    }
+
+    private static bool TryResolveNormalizedPointer(
+        FrameworkElement target,
+        Point position,
+        out double x,
+        out double y)
+    {
+        x = 0;
+        y = 0;
+        var width = target.ActualWidth;
+        var height = target.ActualHeight;
+        if (width <= 1 || height <= 1)
+        {
+            return false;
+        }
+
+        x = Math.Clamp(position.X / width, 0d, 1d);
+        y = Math.Clamp(position.Y / height, 0d, 1d);
+        return true;
+    }
+
+    private static bool ShouldForwardKeyToRemote(Key key, ModifierKeys modifiers)
+    {
+        if (key == Key.None || key == Key.DeadCharProcessed || key == Key.ImeProcessed)
+        {
+            return false;
+        }
+
+        var hasCommandModifier =
+            modifiers.HasFlag(ModifierKeys.Control) ||
+            modifiers.HasFlag(ModifierKeys.Alt) ||
+            modifiers.HasFlag(ModifierKeys.Windows);
+
+        if (hasCommandModifier)
+        {
+            return true;
+        }
+
+        return !IsPrintableKey(key);
+    }
+
+    private static bool IsPrintableKey(Key key)
+    {
+        if (key is >= Key.A and <= Key.Z)
+        {
+            return true;
+        }
+
+        if (key is >= Key.D0 and <= Key.D9)
+        {
+            return true;
+        }
+
+        if (key is >= Key.NumPad0 and <= Key.NumPad9)
+        {
+            return true;
+        }
+
+        if (key == Key.Space)
+        {
+            return true;
+        }
+
+        return key is >= Key.Oem1 and <= Key.OemBackslash || key == Key.Oem102;
     }
 
     private async Task<PcScreenshotItem?> WaitForScreenshotAsync(
@@ -2339,6 +2931,16 @@ public partial class MainWindow : Window
             return;
         }
 
+        await ManageRunningAppsForMachineAsync(selected);
+    }
+
+    private async Task ManageRunningAppsForMachineAsync(MachineRow selected)
+    {
+        if (selected is null)
+        {
+            return;
+        }
+
         try
         {
             AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đang yêu cầu danh sách ứng dụng từ {selected.Name}...");
@@ -2740,6 +3342,9 @@ public class LatestRunningAppsResponse
     public List<RunningAppItem>? Apps { get; set; }
     public string? Reason { get; set; }
 }
+
+
+
 
 
 

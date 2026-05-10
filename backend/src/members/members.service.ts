@@ -29,6 +29,7 @@ import { UpdateLoyaltySettingsDto } from './dto/update-loyalty-settings.dto';
 import { RecordMemberUsageDto } from './dto/record-member-usage.dto';
 import { RedeemLoyaltyPointsDto } from './dto/redeem-loyalty-points.dto';
 import { SetMemberPresenceDto } from './dto/set-member-presence.dto';
+import { SetAdminPresenceDto } from './dto/set-admin-presence.dto';
 import { UpdateLoyaltyRankDto } from './dto/update-loyalty-rank.dto';
 import { UpdateSpinPrizeSettingsDto } from './dto/update-spin-prize-settings.dto';
 
@@ -408,6 +409,75 @@ export class MembersService {
     });
 
     return { ok: true };
+  }
+
+  async setAdminPresence(payload: SetAdminPresenceDto) {
+    const agentId = payload.agentId.trim();
+    const isActive = payload.isActive;
+    const pc = await this.prisma.pc.findUnique({
+      where: { agentId },
+    });
+
+    if (!pc) {
+      throw new NotFoundException('Khong tim thay may tram');
+    }
+
+    const username = payload.username?.trim() || 'Admin';
+    const fullName = payload.fullName?.trim() || username;
+    const previousStatus = pc.status;
+    const nextStatus: PcStatus = isActive ? PcStatus.IN_USE : PcStatus.ONLINE;
+
+    await this.prisma.eventLog.create({
+      data: {
+        source: EventSource.CLIENT,
+        eventType: 'admin.pc.presence',
+        pcId: pc.id,
+        payload: {
+          isActive,
+          username,
+          fullName,
+          at: new Date().toISOString(),
+        },
+      },
+    });
+
+    if (isActive) {
+      await this.prisma.session.updateMany({
+        where: { pcId: pc.id, status: 'ACTIVE' },
+        data: {
+          endedAt: new Date(),
+          status: 'CLOSED',
+          closedReason: 'SYSTEM',
+        },
+      });
+    }
+
+    if (previousStatus !== nextStatus) {
+      await this.prisma.pc.update({
+        where: { id: pc.id },
+        data: { status: nextStatus },
+      });
+
+      this.realtime.emitToAll('pc.status.changed', {
+        pcId: pc.id,
+        agentId: pc.agentId,
+        previousStatus,
+        status: nextStatus,
+        at: new Date().toISOString(),
+        sourceEvent: isActive
+          ? 'admin.presence.active'
+          : 'admin.presence.inactive',
+      });
+    }
+
+    return {
+      ok: true,
+      agentId,
+      pcId: pc.id,
+      username,
+      isActive,
+      updatedAt: new Date().toISOString(),
+    };
   }
 
   async getLoyaltySettings() {

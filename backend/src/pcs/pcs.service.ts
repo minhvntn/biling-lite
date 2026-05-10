@@ -45,6 +45,10 @@ export type PcListItem = {
     displayName: string;
     prepaidAmount: number;
   } | null;
+  activeAdmin: {
+    username: string;
+    fullName: string;
+  } | null;
 };
 
 @Injectable()
@@ -123,6 +127,8 @@ export class PcsService {
           : null;
         const activeGuest =
           activeUser?.kind === 'GUEST' ? activeUser.guest : null;
+        const activeAdmin =
+          activeUser?.kind === 'ADMIN' ? activeUser.admin : null;
         const elapsedSeconds = activeSession
           ? Math.max(
               0,
@@ -169,6 +175,7 @@ export class PcsService {
             : null,
           activeMember,
           activeGuest,
+          activeAdmin,
         };
       }),
     );
@@ -430,12 +437,14 @@ export class PcsService {
       string,
       | { kind: 'MEMBER'; member: { memberId: string; username: string; fullName: string } }
       | { kind: 'GUEST'; guest: { displayName: string; prepaidAmount: number } }
+      | { kind: 'ADMIN'; admin: { username: string; fullName: string } }
     >
   > {
     const result = new Map<
       string,
       | { kind: 'MEMBER'; member: { memberId: string; username: string; fullName: string } }
       | { kind: 'GUEST'; guest: { displayName: string; prepaidAmount: number } }
+      | { kind: 'ADMIN'; admin: { username: string; fullName: string } }
     >();
     if (pcIds.length === 0) {
       return result;
@@ -447,7 +456,7 @@ export class PcsService {
           where: {
             pcId,
             eventType: {
-              in: ['member.pc.presence', 'guest.pc.presence'],
+              in: ['member.pc.presence', 'guest.pc.presence', 'admin.pc.presence'],
             },
           },
           orderBy: {
@@ -472,6 +481,17 @@ export class PcsService {
             result.set(pcId, {
               kind: 'GUEST',
               guest,
+            });
+          }
+          return;
+        }
+
+        if (latestPresence?.eventType === 'admin.pc.presence') {
+          const admin = this.parseAdminPresencePayload(latestPresence.payload);
+          if (admin) {
+            result.set(pcId, {
+              kind: 'ADMIN',
+              admin,
             });
           }
         }
@@ -527,6 +547,23 @@ export class PcsService {
       displayName,
       prepaidAmount,
     };
+  }
+
+  private parseAdminPresencePayload(
+    payload?: Prisma.JsonValue | null,
+  ): { username: string; fullName: string } | null {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return null;
+    }
+
+    const value = payload as Record<string, unknown>;
+    if (value.isActive !== true) {
+      return null;
+    }
+
+    const username = this.readString(value.username) || 'Admin';
+    const fullName = this.readString(value.fullName) || username;
+    return { username, fullName };
   }
 
   private readString(value: unknown): string {

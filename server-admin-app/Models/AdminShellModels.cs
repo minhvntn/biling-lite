@@ -42,6 +42,7 @@ public sealed class PcListItem
     public ActiveSessionInfo? ActiveSession { get; set; }
     public ActiveMemberInfo? ActiveMember { get; set; }
     public ActiveGuestInfo? ActiveGuest { get; set; }
+    public ActiveAdminInfo? ActiveAdmin { get; set; }
 }
 
 public sealed class ActiveMemberInfo
@@ -56,6 +57,12 @@ public sealed class ActiveGuestInfo
 {
     public string DisplayName { get; set; } = string.Empty;
     public decimal PrepaidAmount { get; set; }
+}
+
+public sealed class ActiveAdminInfo
+{
+    public string Username { get; set; } = "Admin";
+    public string FullName { get; set; } = "Admin";
 }
 
 public sealed class ActiveSessionInfo
@@ -105,6 +112,7 @@ public sealed class MachineRow
     public string? ActiveMemberId { get; set; }
     public string? ActiveMemberUsername { get; set; }
     public string? ActiveMemberFullName { get; set; }
+    public bool IsAdminSession { get; set; }
     public bool IsGuestSession { get; set; }
     public string? ActiveGuestDisplayName { get; set; }
     public decimal ActiveGuestPrepaidAmount { get; set; }
@@ -488,6 +496,25 @@ public sealed class PcScreenshotItem
     public int? Height { get; set; }
     public string? CapturedAt { get; set; }
     public string CreatedAt { get; set; } = string.Empty;
+}
+
+public sealed class LatestPcLiveFrameResponse
+{
+    public bool Ok { get; set; }
+    public string? Reason { get; set; }
+    public PcLiveFrameItem? Frame { get; set; }
+    public string ServerTime { get; set; } = string.Empty;
+}
+
+public sealed class PcLiveFrameItem
+{
+    public string? RequestId { get; set; }
+    public string ImageBase64 { get; set; } = string.Empty;
+    public string MimeType { get; set; } = "image/jpeg";
+    public int? Width { get; set; }
+    public int? Height { get; set; }
+    public string? CapturedAt { get; set; }
+    public string UploadedAt { get; set; } = string.Empty;
 }
 
 public sealed class LoyaltyRankItem

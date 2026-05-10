@@ -4,6 +4,8 @@ import { RequestCommandDto } from './dto/request-command.dto';
 import { NotifyPcDto } from './dto/notify-pc.dto';
 import { GuestOpenDto } from './dto/guest-open.dto';
 import { UploadPcScreenshotDto } from './dto/upload-pc-screenshot.dto';
+import { UploadPcLiveFrameDto } from './dto/upload-pc-live-frame.dto';
+import { RemoteInputDto } from './dto/remote-input.dto';
 
 @Controller()
 export class CommandsController {
@@ -12,6 +14,14 @@ export class CommandsController {
   @Post('pcs/:pcId/open')
   async openPc(@Param('pcId') pcId: string, @Body() body: RequestCommandDto) {
     return this.commandsService.createOpenCommand(pcId, body.requestedBy);
+  }
+
+  @Post('pcs/:pcId/admin-login')
+  async adminLoginPc(
+    @Param('pcId') pcId: string,
+    @Body() body: RequestCommandDto,
+  ) {
+    return this.commandsService.createAdminLoginCommand(pcId, body.requestedBy);
   }
 
   @Post('pcs/:pcId/guest-open')
@@ -80,6 +90,38 @@ export class CommandsController {
     @Query('requestId') requestId?: string,
   ) {
     return this.commandsService.getLatestPcScreenshot(pcId, requestId);
+  }
+
+  @Post('pcs/:pcId/request-live-frame')
+  async requestLiveFrame(
+    @Param('pcId') pcId: string,
+    @Body() body: RequestCommandDto,
+  ) {
+    return this.commandsService.requestPcLiveFrame(pcId, body.requestedBy);
+  }
+
+  @Post('pcs/:pcId/live-frame-upload')
+  async uploadLiveFrame(
+    @Param('pcId') pcId: string,
+    @Body() body: UploadPcLiveFrameDto,
+  ) {
+    return this.commandsService.uploadPcLiveFrame(pcId, body);
+  }
+
+  @Get('pcs/:pcId/latest-live-frame')
+  async getLatestLiveFrame(
+    @Param('pcId') pcId: string,
+    @Query('requestId') requestId?: string,
+  ) {
+    return this.commandsService.getLatestPcLiveFrame(pcId, requestId);
+  }
+
+  @Post('pcs/:pcId/remote-input')
+  async sendRemoteInput(
+    @Param('pcId') pcId: string,
+    @Body() body: RemoteInputDto,
+  ) {
+    return this.commandsService.sendRemoteInput(pcId, body);
   }
 
   @Post('pcs/:pcId/request-running-apps')
