@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { EventSource, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CancelPcServiceOrdersDto } from './dto/cancel-pc-service-orders.dto';
 import { CreatePcServiceOrderDto } from './dto/create-pc-service-order.dto';
 import { CreateServiceItemDto } from './dto/create-service-item.dto';
 import { PayPcServiceOrdersDto } from './dto/pay-pc-service-orders.dto';
@@ -211,6 +212,221 @@ export class ServicesService {
       total: orders.length,
       serverTime: new Date().toISOString(),
     };
+  }
+
+  async cancelPcServiceOrders(pcId: string, payload: CancelPcServiceOrdersDto) {
+    const requestedBy = payload.requestedBy?.trim() || 'admin.desktop';
+    const note = this.normalizeOptionalText(payload.note);
+    const isAdminRequester = this.isAdminServiceRequester(requestedBy);
+    const cancelByOrderIds = (payload.orderIds ?? []).length > 0;
+    const cancelByServiceQuantity =
+      !!payload.serviceItemId && Number.isInteger(payload.quantity);
+
+    if (!cancelByOrderIds && !cancelByServiceQuantity) {
+      throw new BadRequestException(
+        'Can cung cap orderIds hoac serviceItemId + quantity de huy',
+      );
+    }
+
+    if (
+      !cancelByOrderIds &&
+      (!!payload.orderIds?.length ||
+        payload.serviceItemId === undefined ||
+        payload.quantity === undefined)
+    ) {
+      throw new BadRequestException('Yeu cau huy dich vu khong hop le');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const [pc, orders, paidEvents] = await Promise.all([
+        tx.pc.findUnique({ where: { id: pcId } }),
+        tx.pcServiceOrder.findMany({
+          where: {
+            pcId,
+            sessionId: payload.sessionId ?? undefined,
+          },
+          orderBy: [{ createdAt: 'desc' }],
+        }),
+        tx.eventLog.findMany({
+          where: { pcId, eventType: 'service.order.paid' },
+          select: { payload: true },
+          orderBy: [{ createdAt: 'desc' }],
+          take: 500,
+        }),
+      ]);
+
+      if (!pc) {
+        throw new NotFoundException('Khong tim thay may tram');
+      }
+
+      const paidOrderIds = this.extractPaidOrderIdsFromEvents(paidEvents);
+      const unpaidOrders = orders.filter((item) => !paidOrderIds.has(item.id));
+      const cancelableOrders = isAdminRequester
+        ? unpaidOrders
+        : unpaidOrders.filter((item) =>
+            this.isServiceOrderOwnedByRequester(item.createdBy, requestedBy),
+          );
+
+      const canceledOrderIds: string[] = [];
+      const updatedOrders: Array<{
+        orderId: string;
+        previousQuantity: number;
+        nextQuantity: number;
+        canceledQuantity: number;
+        canceledAmount: number;
+      }> = [];
+      let canceledQuantity = 0;
+      let canceledAmount = 0;
+
+      if (cancelByOrderIds) {
+        const orderIds = payload.orderIds ?? [];
+        const requestedOrderIdSet = new Set(orderIds);
+        const targetOrders = cancelableOrders.filter((item) =>
+          requestedOrderIdSet.has(item.id),
+        );
+
+        if (targetOrders.length !== requestedOrderIdSet.size) {
+          throw new BadRequestException(
+            isAdminRequester
+              ? 'Mot so don da thanh toan hoac khong ton tai'
+              : 'Chi duoc huy dich vu do chinh may tram da goi',
+          );
+        }
+
+        for (const order of targetOrders) {
+          await tx.pcServiceOrder.delete({
+            where: { id: order.id },
+          });
+
+          canceledOrderIds.push(order.id);
+          canceledQuantity += Math.max(0, order.quantity);
+          canceledAmount += Math.max(0, Number(order.lineTotal ?? 0));
+        }
+      } else {
+        const serviceItemId = payload.serviceItemId!;
+        let remainingToCancel = payload.quantity!;
+
+        const sameServiceOrders = cancelableOrders.filter(
+          (item) => item.serviceItemId === serviceItemId,
+        );
+        if (sameServiceOrders.length === 0) {
+          throw new BadRequestException(
+            isAdminRequester
+              ? 'Khong co dich vu chua thanh toan de huy'
+              : 'Khong co dich vu do may tram tu goi de huy',
+          );
+        }
+
+        for (const order of sameServiceOrders) {
+          if (remainingToCancel <= 0) {
+            break;
+          }
+
+          const orderQuantity = Math.max(0, order.quantity);
+          if (orderQuantity <= 0) {
+            continue;
+          }
+
+          if (orderQuantity <= remainingToCancel) {
+            await tx.pcServiceOrder.delete({
+              where: { id: order.id },
+            });
+
+            canceledOrderIds.push(order.id);
+            canceledQuantity += orderQuantity;
+            canceledAmount += Math.max(0, Number(order.lineTotal ?? 0));
+            remainingToCancel -= orderQuantity;
+            continue;
+          }
+
+          const canceledFromThisOrder = remainingToCancel;
+          const nextQuantity = orderQuantity - canceledFromThisOrder;
+          const unitPrice = Number(order.unitPrice ?? 0);
+          const nextLineTotal = this.roundMoney(unitPrice * nextQuantity);
+          const canceledLineTotal = this.roundMoney(
+            unitPrice * canceledFromThisOrder,
+          );
+
+          await tx.pcServiceOrder.update({
+            where: { id: order.id },
+            data: {
+              quantity: nextQuantity,
+              lineTotal: nextLineTotal,
+            },
+          });
+
+          updatedOrders.push({
+            orderId: order.id,
+            previousQuantity: orderQuantity,
+            nextQuantity,
+            canceledQuantity: canceledFromThisOrder,
+            canceledAmount: canceledLineTotal,
+          });
+
+          canceledQuantity += canceledFromThisOrder;
+          canceledAmount += canceledLineTotal;
+          remainingToCancel = 0;
+        }
+
+        if (remainingToCancel > 0) {
+          throw new BadRequestException(
+            isAdminRequester
+              ? 'So luong huy vuot qua so luong da goi chua thanh toan'
+              : 'So luong huy vuot qua so luong may tram da tu goi',
+          );
+        }
+      }
+
+      canceledAmount = Math.round(canceledAmount * 100) / 100;
+      const remainingOrders = await tx.pcServiceOrder.findMany({
+        where: {
+          pcId,
+          sessionId: payload.sessionId ?? undefined,
+        },
+        select: {
+          id: true,
+          lineTotal: true,
+        },
+      });
+      const unpaidAmount = remainingOrders.reduce((sum, item) => {
+        if (paidOrderIds.has(item.id)) {
+          return sum;
+        }
+
+        return sum + Math.max(0, Number(item.lineTotal ?? 0));
+      }, 0);
+
+      try {
+        await tx.eventLog.create({
+          data: {
+            source: EventSource.ADMIN,
+            eventType: 'service.order.canceled',
+            pcId: pc.id,
+            payload: {
+              sessionId: payload.sessionId ?? null,
+              canceledOrderIds,
+              updatedOrders,
+              canceledQuantity,
+              canceledAmount,
+              requestedBy,
+              note,
+            },
+          },
+        });
+      } catch {
+        // Ignore audit logging failures.
+      }
+
+      return {
+        pcId,
+        sessionId: payload.sessionId ?? null,
+        canceledOrderCount: canceledOrderIds.length,
+        canceledQuantity,
+        canceledAmount,
+        unpaidAmount: Math.round(unpaidAmount * 100) / 100,
+        serverTime: new Date().toISOString(),
+      };
+    });
   }
 
   async payPcServiceOrders(pcId: string, payload: PayPcServiceOrdersDto) {
@@ -445,5 +661,24 @@ export class ServicesService {
     }
 
     return Math.min(200, Math.max(1, Math.floor(rawLimit!)));
+  }
+
+  private isAdminServiceRequester(requestedBy: string): boolean {
+    const normalized = requestedBy.trim().toLowerCase();
+    return normalized === 'admin' || normalized.startsWith('admin.');
+  }
+
+  private isServiceOrderOwnedByRequester(
+    createdBy: string | null | undefined,
+    requestedBy: string,
+  ): boolean {
+    const normalizedCreatedBy = createdBy?.trim().toLowerCase();
+    const normalizedRequestedBy = requestedBy.trim().toLowerCase();
+
+    if (!normalizedCreatedBy || !normalizedRequestedBy) {
+      return false;
+    }
+
+    return normalizedCreatedBy === normalizedRequestedBy;
   }
 }

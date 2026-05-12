@@ -944,6 +944,33 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             .ToList();
     }
 
+    private string ResolveServiceOrderRequester()
+    {
+        var requester = (_settings.AgentId ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(requester))
+        {
+            requester = Environment.MachineName.Trim();
+        }
+
+        return string.IsNullOrWhiteSpace(requester)
+            ? "client.agent"
+            : requester;
+    }
+
+    private static bool IsClientOwnedServiceOrder(
+        ClientPcServiceOrderItem order,
+        string requester)
+    {
+        var createdBy = (order.CreatedBy ?? string.Empty).Trim();
+        var normalizedRequester = (requester ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(createdBy) || string.IsNullOrWhiteSpace(normalizedRequester))
+        {
+            return false;
+        }
+
+        return createdBy.Equals(normalizedRequester, StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task RefreshServiceCostUiAsync(bool force)
     {
         if (_isServiceCostSyncRunning)
@@ -1005,7 +1032,22 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             return;
         }
 
+        var serviceRequester = ResolveServiceOrderRequester();
+
         var existingSummaries = existingOrders
+            .Where(x => !string.IsNullOrWhiteSpace(x.ServiceItem?.Id))
+            .GroupBy(x => x.ServiceItem!.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => new ClientExistingServiceSummary
+                {
+                    Quantity = g.Sum(x => Math.Max(0, x.Quantity)),
+                    Amount = g.Sum(x => Math.Max(0, x.LineTotal)),
+                },
+                StringComparer.OrdinalIgnoreCase);
+
+        var clientOwnedSummaries = existingOrders
+            .Where(x => IsClientOwnedServiceOrder(x, serviceRequester))
             .Where(x => !string.IsNullOrWhiteSpace(x.ServiceItem?.Id))
             .GroupBy(x => x.ServiceItem!.Id, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
@@ -1035,7 +1077,8 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
                 .Select(item =>
                 {
                     existingSummaries.TryGetValue(item.Id, out var summary);
-                    return ClientServiceOrderSelectionRow.FromServiceItem(item, summary);
+                    clientOwnedSummaries.TryGetValue(item.Id, out var clientOwnedSummary);
+                    return ClientServiceOrderSelectionRow.FromServiceItem(item, summary, clientOwnedSummary);
                 })
                 .OrderByDescending(x => x.ExistingQuantity)
                 .ThenBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
@@ -1125,6 +1168,13 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             Binding = new Binding(nameof(ClientServiceOrderSelectionRow.ExistingText)),
             IsReadOnly = true,
         });
+        serviceGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Nguon",
+            Width = 95,
+            Binding = new Binding(nameof(ClientServiceOrderSelectionRow.SourceText)),
+            IsReadOnly = true,
+        });
 
         var quantityTemplateColumn = new DataGridTemplateColumn
         {
@@ -1147,6 +1197,8 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
         decreaseButtonFactory.SetValue(Button.ForegroundProperty, Brushes.White);
         decreaseButtonFactory.SetValue(Button.BackgroundProperty, new SolidColorBrush(Color.FromRgb(239, 68, 68)));
         decreaseButtonFactory.SetValue(Button.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(185, 28, 28)));
+        decreaseButtonFactory.SetValue(Button.ToolTipProperty, "Chi huy mon do may tram da tu goi.");
+        decreaseButtonFactory.SetBinding(Button.IsEnabledProperty, new Binding(nameof(ClientServiceOrderSelectionRow.CanDecrease)));
         decreaseButtonFactory.AddHandler(Button.ClickEvent, new RoutedEventHandler((sender, _) =>
         {
             if ((sender as FrameworkElement)?.DataContext is ClientServiceOrderSelectionRow row)
@@ -1272,12 +1324,13 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
         void RefreshSummary()
         {
-            var selectedRows = rows.Where(x => x.Quantity > 0).ToList();
+            var selectedRows = rows.Where(x => x.Quantity != 0).ToList();
             var selectedItemCount = selectedRows.Count;
-            var totalQuantity = selectedRows.Sum(x => x.Quantity);
-            var totalAmount = selectedRows.Sum(x => x.LineTotal);
+            var totalAdded = selectedRows.Where(x => x.Quantity > 0).Sum(x => x.Quantity);
+            var totalCanceled = selectedRows.Where(x => x.Quantity < 0).Sum(x => -x.Quantity);
+            var netAmount = selectedRows.Sum(x => x.LineTotal);
             summaryTextBlock.Text =
-                $"Đã chọn {selectedItemCount} món | Tổng SL: {totalQuantity} | Tổng tạm tính: {totalAmount:N0} VND";
+                $"Da chon {selectedItemCount} mon | Goi them: {totalAdded} | Huy: {totalCanceled} | Chenh lech: {netAmount:N0} VND";
         }
 
         void RowPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -1298,12 +1351,12 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             errorTextBlock.Text = string.Empty;
 
             var selectedRows = rows
-                .Where(x => x.Quantity > 0)
+                .Where(x => x.Quantity != 0)
                 .ToList();
 
             if (selectedRows.Count == 0)
             {
-                errorTextBlock.Text = "Vui lòng bấm + để chọn ít nhất 1 dịch vụ.";
+                errorTextBlock.Text = "Hay chon so luong de goi (+) hoac huy (-).";
                 return;
             }
 
@@ -1313,7 +1366,10 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             {
                 var failedItems = new List<string>();
                 var successCount = 0;
-                foreach (var row in selectedRows)
+                var positiveRows = selectedRows.Where(x => x.Quantity > 0).ToList();
+                var negativeRows = selectedRows.Where(x => x.Quantity < 0).ToList();
+
+                foreach (var row in positiveRows)
                 {
                     using var response = await _httpClient.PostAsJsonAsync(
                         BuildApiUrl($"/services/pcs/{pcId}/orders"),
@@ -1322,7 +1378,33 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
                             serviceItemId = row.ServiceItemId,
                             quantity = row.Quantity,
                             note = string.IsNullOrWhiteSpace(noteTextBox.Text) ? null : noteTextBox.Text.Trim(),
-                            requestedBy = _settings.AgentId,
+                            requestedBy = serviceRequester,
+                        });
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var err = await ReadErrorMessageAsync(response);
+                        failedItems.Add(
+                            string.IsNullOrWhiteSpace(err)
+                                ? $"{row.ServiceName} ({(int)response.StatusCode})"
+                                : $"{row.ServiceName}: {err}");
+                        continue;
+                    }
+
+                    successCount++;
+                }
+
+                foreach (var row in negativeRows)
+                {
+                    using var response = await _httpClient.PostAsJsonAsync(
+                        BuildApiUrl($"/services/pcs/{pcId}/orders/cancel"),
+                        new
+                        {
+                            serviceItemId = row.ServiceItemId,
+                            quantity = Math.Abs(row.Quantity),
+                            sessionId = activeSessionId,
+                            note = string.IsNullOrWhiteSpace(noteTextBox.Text) ? null : noteTextBox.Text.Trim(),
+                            requestedBy = serviceRequester,
                         });
 
                     if (!response.IsSuccessStatusCode)
@@ -1341,7 +1423,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
                 if (successCount > 0)
                 {
                     _ = RefreshServiceCostUiAsync(force: true);
-                    _mainWindow?.SetLastCommand($"GỌI DỊCH VỤ @ {DateTime.Now:HH:mm:ss}");
+                    _mainWindow?.SetLastCommand($"CAP NHAT DICH VU @ {DateTime.Now:HH:mm:ss}");
                 }
 
                 if (failedItems.Count > 0)
@@ -1350,7 +1432,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
                         Environment.NewLine,
                         failedItems.Take(6).Select(x => $"- {x}"));
                     errorTextBlock.Text =
-                        $"Gọi thành công {successCount}/{selectedRows.Count}.{Environment.NewLine}{errorPreview}";
+                        $"Cap nhat thanh cong {successCount}/{selectedRows.Count}.{Environment.NewLine}{errorPreview}";
                     return;
                 }
 
@@ -1761,7 +1843,7 @@ public async void OpenLoyaltyPanelFromClientUi()
         {
             Title = "Khoa may thu cong",
             Width = 390,
-            Height = 240,
+            Height = 210,
             ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Owner = _mainWindow,
@@ -1774,7 +1856,6 @@ public async void OpenLoyaltyPanelFromClientUi()
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         var title = new TextBlock
         {
@@ -1795,14 +1876,6 @@ public async void OpenLoyaltyPanelFromClientUi()
         Grid.SetRow(passwordBox, 1);
         root.Children.Add(passwordBox);
 
-        var confirmPasswordBox = new PasswordBox
-        {
-            Height = 32,
-            VerticalContentAlignment = VerticalAlignment.Center,
-        };
-        Grid.SetRow(confirmPasswordBox, 2);
-        root.Children.Add(confirmPasswordBox);
-
         var errorText = new TextBlock
         {
             Foreground = Brushes.Firebrick,
@@ -1810,7 +1883,7 @@ public async void OpenLoyaltyPanelFromClientUi()
             Margin = new Thickness(0, 8, 0, 0),
             TextWrapping = TextWrapping.Wrap,
         };
-        Grid.SetRow(errorText, 3);
+        Grid.SetRow(errorText, 2);
         root.Children.Add(errorText);
 
         var buttonPanel = new StackPanel
@@ -1835,24 +1908,17 @@ public async void OpenLoyaltyPanelFromClientUi()
         };
         buttonPanel.Children.Add(cancelButton);
         buttonPanel.Children.Add(confirmButton);
-        Grid.SetRow(buttonPanel, 4);
+        Grid.SetRow(buttonPanel, 3);
         root.Children.Add(buttonPanel);
 
         cancelButton.Click += (_, _) => dialog.Close();
         confirmButton.Click += (_, _) =>
         {
             var password = passwordBox.Password;
-            var confirmedPassword = confirmPasswordBox.Password;
 
             if (string.IsNullOrEmpty(password))
             {
                 errorText.Text = "Vui long nhap mat ma.";
-                return;
-            }
-
-            if (!string.Equals(password, confirmedPassword, StringComparison.Ordinal))
-            {
-                errorText.Text = "Xac nhan mat ma khong khop.";
                 return;
             }
 
@@ -6006,6 +6072,7 @@ public sealed class ClientPcServiceOrderItem
     public decimal UnitPrice { get; set; }
     public decimal LineTotal { get; set; }
     public string? Note { get; set; }
+    public string? CreatedBy { get; set; }
     public bool IsPaid { get; set; }
     public string CreatedAt { get; set; } = string.Empty;
     public ClientServiceItemDto? ServiceItem { get; set; }
@@ -6019,6 +6086,7 @@ public sealed class ClientExistingServiceSummary
 
 public sealed class ClientServiceOrderSelectionRow : INotifyPropertyChanged
 {
+    private const int MaxAddQuantity = 99;
     private int _quantity;
 
     public string ServiceItemId { get; init; } = string.Empty;
@@ -6026,16 +6094,43 @@ public sealed class ClientServiceOrderSelectionRow : INotifyPropertyChanged
     public string Category { get; init; } = "-";
     public decimal UnitPrice { get; init; }
     public int ExistingQuantity { get; init; }
+    public int CancelableQuantity { get; init; }
     public decimal ExistingAmount { get; init; }
     public string UnitPriceText => UnitPrice.ToString("N0", CultureInfo.InvariantCulture);
     public string ExistingText => ExistingQuantity <= 0 ? "-" : $"{ExistingQuantity:N0} ({ExistingAmount:N0})";
+    public int ServerOwnedQuantity => Math.Max(0, ExistingQuantity - Math.Max(0, CancelableQuantity));
+    public string SourceText
+    {
+        get
+        {
+            var clientOwnedQuantity = Math.Max(0, CancelableQuantity);
+            if (ExistingQuantity <= 0)
+            {
+                return "-";
+            }
+
+            if (clientOwnedQuantity > 0 && ServerOwnedQuantity > 0)
+            {
+                return "Hon hop";
+            }
+
+            if (ServerOwnedQuantity > 0)
+            {
+                return "Server";
+            }
+
+            return "May tram";
+        }
+    }
+    public bool CanDecrease => Quantity > -Math.Max(0, CancelableQuantity);
 
     public int Quantity
     {
         get => _quantity;
         set
         {
-            var clamped = Math.Clamp(value, 0, 99);
+            var minCancelableQuantity = -Math.Max(0, CancelableQuantity);
+            var clamped = Math.Clamp(value, minCancelableQuantity, MaxAddQuantity);
             if (_quantity == clamped)
             {
                 return;
@@ -6053,10 +6148,12 @@ public sealed class ClientServiceOrderSelectionRow : INotifyPropertyChanged
 
     public static ClientServiceOrderSelectionRow FromServiceItem(
         ClientServiceItemDto item,
-        ClientExistingServiceSummary? existingSummary = null)
+        ClientExistingServiceSummary? existingSummary = null,
+        ClientExistingServiceSummary? clientOwnedSummary = null)
     {
         var existingQuantity = existingSummary?.Quantity ?? 0;
         var existingAmount = existingSummary?.Amount ?? 0;
+        var cancelableQuantity = clientOwnedSummary?.Quantity ?? 0;
         return new ClientServiceOrderSelectionRow
         {
             ServiceItemId = item.Id,
@@ -6064,6 +6161,7 @@ public sealed class ClientServiceOrderSelectionRow : INotifyPropertyChanged
             Category = string.IsNullOrWhiteSpace(item.Category) ? "-" : item.Category,
             UnitPrice = item.UnitPrice,
             ExistingQuantity = existingQuantity,
+            CancelableQuantity = cancelableQuantity,
             ExistingAmount = existingAmount,
             Quantity = 0,
         };
@@ -6071,12 +6169,13 @@ public sealed class ClientServiceOrderSelectionRow : INotifyPropertyChanged
 
     public void IncreaseQuantity()
     {
-        Quantity = Math.Min(99, Quantity + 1);
+        Quantity = Math.Min(MaxAddQuantity, Quantity + 1);
     }
 
     public void DecreaseQuantity()
     {
-        Quantity = Math.Max(0, Quantity - 1);
+        var minCancelableQuantity = -Math.Max(0, CancelableQuantity);
+        Quantity = Math.Max(minCancelableQuantity, Quantity - 1);
     }
 
     private void NotifyQuantityChanged()
@@ -6084,5 +6183,7 @@ public sealed class ClientServiceOrderSelectionRow : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Quantity)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LineTotal)));
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LineTotalText)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanDecrease)));
     }
 }
+

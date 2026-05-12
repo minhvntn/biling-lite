@@ -35,6 +35,7 @@ public partial class MainWindow : Window
             var dedupedItems = DeduplicatePcItemsByIp(response.Items);
             var allRows = dedupedItems.Select(ToMachineRow).OrderBy(r => r.Name).ToList();
             await PopulateMachineServiceAmountsAsync(allRows);
+            TrackGuestSessionNotifications(allRows);
             _allMachineRows.Clear();
             _allMachineRows.AddRange(allRows);
             RefreshWebsiteLogMachineFilterOptions();
