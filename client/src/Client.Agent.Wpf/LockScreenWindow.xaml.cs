@@ -10,6 +10,7 @@ public partial class LockScreenWindow : Window
 {
     private bool _allowClose;
     private bool _isAuthenticating;
+    private bool _manualUnlockMode;
     private string _backgroundMode = "none";
     private string _backgroundSource = string.Empty;
 
@@ -23,6 +24,20 @@ public partial class LockScreenWindow : Window
         GuestTabItem.Visibility = isEnabled ? Visibility.Visible : Visibility.Collapsed;
         if (!isEnabled && LoginModeTabControl.SelectedItem == GuestTabItem)
         {
+            LoginModeTabControl.SelectedItem = MemberTabItem;
+        }
+    }
+
+    public void SetManualUnlockMode(bool enabled)
+    {
+        _manualUnlockMode = enabled;
+        TitleTextBlock.Text = enabled ? "Khóa máy tạm thời" : "Đăng nhập máy trạm";
+        ManualUnlockPanel.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+        LoginModeTabControl.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
+
+        if (!enabled)
+        {
+            ManualUnlockPasswordBox.Password = string.Empty;
             LoginModeTabControl.SelectedItem = MemberTabItem;
         }
     }
@@ -57,16 +72,32 @@ public partial class LockScreenWindow : Window
         _isAuthenticating = false;
         UsernameTextBox.IsEnabled = true;
         PasswordBox.IsEnabled = true;
+        ManualUnlockPasswordBox.IsEnabled = true;
         LoginButton.IsEnabled = true;
+        ManualUnlockButton.IsEnabled = true;
         GuestLoginButton.IsEnabled = true;
         SaveServerButton.IsEnabled = true;
         ServerIpTextBox.IsEnabled = true;
         LoginButton.Content = "Đăng nhập";
+        ManualUnlockButton.Content = "Mở khóa";
         GuestLoginButton.Content = "Sử dụng Khách vãng lai";
         SaveServerButton.Content = "Lưu và kết nối lại";
-        LoginModeTabControl.SelectedItem = MemberTabItem;
+        if (_manualUnlockMode)
+        {
+            TitleTextBlock.Text = "Khóa máy tạm thời";
+            ManualUnlockPanel.Visibility = Visibility.Visible;
+            LoginModeTabControl.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            TitleTextBlock.Text = "Đăng nhập máy trạm";
+            ManualUnlockPanel.Visibility = Visibility.Collapsed;
+            LoginModeTabControl.Visibility = Visibility.Visible;
+            LoginModeTabControl.SelectedItem = MemberTabItem;
+        }
 
         PasswordBox.Password = string.Empty;
+        ManualUnlockPasswordBox.Password = string.Empty;
         ErrorTextBlock.Text = string.Empty;
         ServerSetupStatusTextBlock.Text = string.Empty;
 
@@ -86,7 +117,14 @@ public partial class LockScreenWindow : Window
 
         Show();
         Activate();
-        UsernameTextBox.Focus();
+        if (_manualUnlockMode)
+        {
+            ManualUnlockPasswordBox.Focus();
+        }
+        else
+        {
+            UsernameTextBox.Focus();
+        }
     }
 
     public void AllowShutdown()
@@ -162,6 +200,22 @@ public partial class LockScreenWindow : Window
         await SubmitLoginAsync();
     }
 
+    private void ManualUnlockPasswordBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        SubmitManualUnlock();
+    }
+
+    private void ManualUnlockButton_Click(object sender, RoutedEventArgs e)
+    {
+        SubmitManualUnlock();
+    }
+
     private async void SaveServerButton_Click(object sender, RoutedEventArgs e)
     {
         if (_isAuthenticating)
@@ -215,6 +269,12 @@ public partial class LockScreenWindow : Window
             return;
         }
 
+        if (_manualUnlockMode)
+        {
+            SubmitManualUnlock();
+            return;
+        }
+
         var username = UsernameTextBox.Text.Trim();
         var password = PasswordBox.Password;
 
@@ -256,12 +316,55 @@ public partial class LockScreenWindow : Window
         }
     }
 
+    private void SubmitManualUnlock()
+    {
+        if (_isAuthenticating || !_manualUnlockMode)
+        {
+            return;
+        }
+
+        var password = ManualUnlockPasswordBox.Password;
+        if (string.IsNullOrEmpty(password))
+        {
+            ErrorTextBlock.Text = "Vui lòng nhập mật mã đã đặt.";
+            return;
+        }
+
+        if (Application.Current is not App app)
+        {
+            ErrorTextBlock.Text = "Ứng dụng chưa sẵn sàng.";
+            return;
+        }
+
+        try
+        {
+            SetBusy(true);
+            ErrorTextBlock.Text = string.Empty;
+
+            var result = app.TryUnlockWithManualPassword(password);
+            if (result.Success)
+            {
+                ManualUnlockPasswordBox.Password = string.Empty;
+                ErrorTextBlock.Text = string.Empty;
+                return;
+            }
+
+            ErrorTextBlock.Text = result.Message ?? "Mật mã không đúng.";
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
     private void SetBusy(bool isBusy, bool isGuest = false)
     {
         _isAuthenticating = isBusy;
         UsernameTextBox.IsEnabled = !isBusy;
         PasswordBox.IsEnabled = !isBusy;
+        ManualUnlockPasswordBox.IsEnabled = !isBusy;
         LoginButton.IsEnabled = !isBusy;
+        ManualUnlockButton.IsEnabled = !isBusy;
         GuestLoginButton.IsEnabled = !isBusy;
         SaveServerButton.IsEnabled = !isBusy;
         ServerIpTextBox.IsEnabled = !isBusy;
@@ -271,6 +374,10 @@ public partial class LockScreenWindow : Window
             if (isGuest)
             {
                 GuestLoginButton.Content = "Đang xử lý...";
+            }
+            else if (_manualUnlockMode)
+            {
+                ManualUnlockButton.Content = "Đang kiểm tra...";
             }
             else
             {
@@ -282,6 +389,7 @@ public partial class LockScreenWindow : Window
         else
         {
             LoginButton.Content = "Đăng nhập";
+            ManualUnlockButton.Content = "Mở khóa";
             GuestLoginButton.Content = "Sử dụng Khách vãng lai";
             SaveServerButton.Content = "Lưu và kết nối lại";
         }

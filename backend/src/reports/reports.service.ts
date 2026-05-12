@@ -2,6 +2,22 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 type RevenuePeriod = 'day' | 'week' | 'month';
+type DashboardPeriod = 'week' | 'month' | 'year';
+
+type TimeRange = {
+  start: Date;
+  endExclusive: Date;
+};
+
+type PaidServiceOrderRecord = {
+  orderId: string;
+  paidAt: Date;
+  serviceItemId: string;
+  serviceItemName: string;
+  serviceItemCategory: string | null;
+  quantity: number;
+  lineTotal: number;
+};
 
 @Injectable()
 export class ReportsService {
@@ -25,7 +41,7 @@ export class ReportsService {
     const anchorDate = this.parseDate(date);
     const range = this.getRange(period, anchorDate);
 
-    const [sessions, serviceOrders] = await Promise.all([
+    const [sessions, paidServiceRecords] = await Promise.all([
       this.prisma.session.findMany({
         where: {
           status: 'CLOSED',
@@ -38,24 +54,14 @@ export class ReportsService {
           amount: true,
         },
       }),
-      this.prisma.pcServiceOrder.findMany({
-        where: {
-          createdAt: {
-            gte: range.start,
-            lt: range.endExclusive,
-          },
-        },
-        select: {
-          lineTotal: true,
-        },
-      }),
+      this.getPaidServiceOrderRecords(range),
     ]);
 
     const sessionAmount = sessions.reduce((total, item) => {
       return total + Number(item.amount ?? 0);
     }, 0);
-    const serviceAmount = serviceOrders.reduce((total, item) => {
-      return total + Number(item.lineTotal ?? 0);
+    const serviceAmount = paidServiceRecords.reduce((total, item) => {
+      return total + item.lineTotal;
     }, 0);
     const totalAmount = sessionAmount + serviceAmount;
 
@@ -66,7 +72,7 @@ export class ReportsService {
       rangeStart: range.start.toISOString(),
       rangeEndExclusive: range.endExclusive.toISOString(),
       closedSessions: sessions.length,
-      serviceOrders: serviceOrders.length,
+      serviceOrders: paidServiceRecords.length,
       sessionAmount,
       serviceAmount,
       totalAmount,
@@ -227,70 +233,60 @@ export class ReportsService {
     };
 
     if (period === 'day') {
-      return `Ngày ${toDisplayDate(start)}`;
+      return `Ngay ${toDisplayDate(start)}`;
     }
 
     if (period === 'week') {
       const end = new Date(endExclusive);
       end.setDate(end.getDate() - 1);
-      return `Tuần ${toDisplayDate(start)} đến ${toDisplayDate(end)}`;
+      return `Tuan ${toDisplayDate(start)} den ${toDisplayDate(end)}`;
     }
 
     const month = `${start.getMonth() + 1}`.padStart(2, '0');
-    return `Tháng ${month}-${start.getFullYear()}`;
+    return `Thang ${month}-${start.getFullYear()}`;
   }
 
   async getDashboardStats(periodRaw?: string) {
-    const period = periodRaw?.trim().toLowerCase() === 'year' ? 'year' : (periodRaw?.trim().toLowerCase() === 'month' ? 'month' : 'week');
+    const period = this.parseDashboardPeriod(periodRaw);
     const now = new Date();
-    
-    let start: Date;
-    let prevStart: Date;
+    const currentRange = this.getCurrentDashboardRange(period, now);
+    const previousRange = this.getPreviousComparableRange(currentRange);
 
-    if (period === 'week') {
-      const dayOfWeek = now.getDay();
-      const offset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset, 0, 0, 0, 0);
-      prevStart = new Date(start);
-      prevStart.setDate(prevStart.getDate() - 7);
-    } else if (period === 'month') {
-      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-      prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
-    } else {
-      start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
-      prevStart = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0, 0);
-    }
-
-    const [sessions, serviceOrders, members, pcs] = await Promise.all([
+    const [
+      currentSessions,
+      previousSessions,
+      currentPaidServiceOrders,
+      previousPaidServiceOrders,
+      topMemberUsageRows,
+      pcs,
+    ] = await Promise.all([
       this.prisma.session.findMany({
         where: {
           status: 'CLOSED',
-          endedAt: { gte: start },
+          endedAt: { gte: currentRange.start, lt: currentRange.endExclusive },
         },
         select: {
           amount: true,
           durationSeconds: true,
+          startedAt: true,
           endedAt: true,
         },
       }),
-      this.prisma.pcServiceOrder.findMany({
+      this.prisma.session.findMany({
         where: {
-          createdAt: { gte: start },
+          status: 'CLOSED',
+          endedAt: { gte: previousRange.start, lt: previousRange.endExclusive },
         },
         select: {
-          lineTotal: true,
-          createdAt: true,
+          amount: true,
+          durationSeconds: true,
+          startedAt: true,
+          endedAt: true,
         },
       }),
-      this.prisma.member.findMany({
-        take: 5,
-        orderBy: { playSeconds: 'desc' },
-        select: {
-          username: true,
-          playSeconds: true,
-          totalTopup: true,
-        },
-      }),
+      this.getPaidServiceOrderRecords(currentRange),
+      this.getPaidServiceOrderRecords(previousRange),
+      this.getTopMemberUsageInRange(currentRange),
       this.prisma.pc.findMany({
         select: {
           id: true,
@@ -298,7 +294,7 @@ export class ReportsService {
           sessions: {
             where: {
               status: 'CLOSED',
-              endedAt: { gte: start },
+              endedAt: { gte: currentRange.start, lt: currentRange.endExclusive },
             },
             select: {
               durationSeconds: true,
@@ -308,77 +304,64 @@ export class ReportsService {
       }),
     ]);
 
-    let playtimeRevenue = sessions.reduce((sum, s) => sum + Number(s.amount ?? 0), 0);
-    let serviceRevenue = serviceOrders.reduce((sum, o) => sum + Number(o.lineTotal ?? 0), 0);
-    let totalPlaySeconds = sessions.reduce((sum, s) => sum + (s.durationSeconds ?? 0), 0);
-
-    if (playtimeRevenue === 0) playtimeRevenue = period === 'week' ? 450000 : (period === 'month' ? 1850000 : 12400000);
-    if (serviceRevenue === 0) serviceRevenue = period === 'week' ? 180000 : (period === 'month' ? 750000 : 4800000);
-    if (totalPlaySeconds === 0) totalPlaySeconds = period === 'week' ? 108 * 3600 : (period === 'month' ? 450 * 3600 : 3120 * 3600);
-
+    const playtimeRevenue = currentSessions.reduce(
+      (sum, session) => sum + Number(session.amount ?? 0),
+      0,
+    );
+    const previousPlaytimeRevenue = previousSessions.reduce(
+      (sum, session) => sum + Number(session.amount ?? 0),
+      0,
+    );
+    const serviceRevenue = currentPaidServiceOrders.reduce(
+      (sum, record) => sum + record.lineTotal,
+      0,
+    );
+    const previousServiceRevenue = previousPaidServiceOrders.reduce(
+      (sum, record) => sum + record.lineTotal,
+      0,
+    );
     const totalRevenue = playtimeRevenue + serviceRevenue;
+    const previousTotalRevenue = previousPlaytimeRevenue + previousServiceRevenue;
+
+    const totalPlaySeconds = currentSessions.reduce(
+      (sum, session) => sum + Math.max(0, session.durationSeconds ?? 0),
+      0,
+    );
+    const previousPlaySeconds = previousSessions.reduce(
+      (sum, session) => sum + Math.max(0, session.durationSeconds ?? 0),
+      0,
+    );
     const totalPlayHours = Math.round(totalPlaySeconds / 3600);
 
-    const dailyData: { label: string; playtimeRevenue: number; serviceRevenue: number }[] = [];
-    if (period === 'week') {
-      const days = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
-      const defaultPlayVals = [60000, 75000, 50000, 90000, 110000, 140000, 160000];
-      const defaultServVals = [20000, 30000, 15000, 40000, 45000, 60000, 80000];
-      for (let i = 0; i < 7; i++) {
-        dailyData.push({
-          label: days[i],
-          playtimeRevenue: defaultPlayVals[i],
-          serviceRevenue: defaultServVals[i],
-        });
-      }
-    } else if (period === 'month') {
-      const weeks = ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4'];
-      const defaultPlayVals = [400000, 480000, 520000, 450000];
-      const defaultServVals = [150000, 200000, 220000, 180000];
-      for (let i = 0; i < 4; i++) {
-        dailyData.push({
-          label: weeks[i],
-          playtimeRevenue: defaultPlayVals[i],
-          serviceRevenue: defaultServVals[i],
-        });
-      }
-    } else {
-      const months = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
-      const defaultPlayVals = [850000, 920000, 1050000, 980000, 1100000, 1200000, 1300000, 1150000, 950000, 1020000, 1080000, 1250000];
-      const defaultServVals = [300000, 350000, 420000, 380000, 450000, 500000, 550000, 480000, 390000, 410000, 430000, 510000];
-      for (let i = 0; i < 12; i++) {
-        dailyData.push({
-          label: months[i],
-          playtimeRevenue: defaultPlayVals[i],
-          serviceRevenue: defaultServVals[i],
-        });
-      }
-    }
+    const maxTopMemberConsumedSeconds = Math.max(
+      1,
+      topMemberUsageRows[0]?.consumedSeconds ?? 0,
+    );
 
-    const formattedMembers = members.map((m, idx) => {
-      const ranks = ['KIM CƯƠNG', 'BẠCH KIM', 'VÀNG', 'BẠC', 'ĐỒNG'];
-      const playHours = Math.round(m.playSeconds / 3600) || (24 - idx * 4);
+    const topMembers = topMemberUsageRows.map((member, index) => {
+      const playHours = Math.round(member.consumedSeconds / 3600);
       return {
-        username: m.username,
-        rank: ranks[idx % ranks.length],
+        username: member.username,
+        rank: `${index + 1}`,
         playHours,
-        progress: idx === 0 ? 100 : Math.round((playHours / 24) * 100),
+        progress:
+          member.consumedSeconds <= 0
+            ? 0
+            : Math.max(
+                0,
+                Math.min(
+                  100,
+                  Math.round((member.consumedSeconds / maxTopMemberConsumedSeconds) * 100),
+                ),
+              ),
       };
     });
 
-    if (formattedMembers.length === 0) {
-      const mockMembers = [
-        { username: 'playhard99', rank: 'KIM CƯƠNG', playHours: 48, progress: 100 },
-        { username: 'gamersoul', rank: 'BẠCH KIM', playHours: 36, progress: 75 },
-        { username: 'shadow_ninja', rank: 'VÀNG', playHours: 24, progress: 50 },
-        { username: 'ez_win', rank: 'BẠC', playHours: 18, progress: 37 },
-        { username: 'newbie_01', rank: 'ĐỒNG', playHours: 10, progress: 20 },
-      ];
-      formattedMembers.push(...mockMembers);
-    }
-
     const pcPlaytimes = pcs.map((pc) => {
-      const seconds = pc.sessions.reduce((sum, s) => sum + (s.durationSeconds ?? 0), 0);
+      const seconds = pc.sessions.reduce(
+        (sum, session) => sum + Math.max(0, session.durationSeconds ?? 0),
+        0,
+      );
       return {
         name: pc.name,
         playHours: Math.round(seconds / 3600),
@@ -387,63 +370,21 @@ export class ReportsService {
 
     const sortedMost = [...pcPlaytimes].sort((a, b) => b.playHours - a.playHours);
     const sortedLeast = [...pcPlaytimes].sort((a, b) => a.playHours - b.playHours);
+    const maxHours = Math.max(1, sortedMost[0]?.playHours ?? 0);
 
-    const topPcsMapped = sortedMost.slice(0, 5).map((item) => {
-      const maxHours = sortedMost[0]?.playHours || 1;
-      return {
-        name: item.name,
-        playHours: item.playHours,
-        progress: Math.round((item.playHours / maxHours) * 100) || 0,
-      };
-    });
+    const topPcs = sortedMost.slice(0, 5).map((item) => ({
+      name: item.name,
+      playHours: item.playHours,
+      progress: item.playHours <= 0 ? 0 : Math.round((item.playHours / maxHours) * 100),
+    }));
 
-    const leastPcsMapped = sortedLeast.slice(0, 5).map((item) => {
-      const maxHours = sortedMost[0]?.playHours || 1;
-      return {
-        name: item.name,
-        playHours: item.playHours,
-        progress: Math.round((item.playHours / maxHours) * 100) || 0,
-      };
-    });
+    const leastPcs = sortedLeast.slice(0, 5).map((item) => ({
+      name: item.name,
+      playHours: item.playHours,
+      progress: item.playHours <= 0 ? 0 : Math.round((item.playHours / maxHours) * 100),
+    }));
 
-    if (topPcsMapped.length === 0 || topPcsMapped.every(p => p.playHours === 0)) {
-      const mult = period === 'week' ? 1 : (period === 'month' ? 4 : 45);
-      topPcsMapped.length = 0;
-      topPcsMapped.push(
-        { name: 'PC-12 (VIP)', playHours: 42 * mult, progress: 100 },
-        { name: 'PC-05 (Gaming)', playHours: 35 * mult, progress: 83 },
-        { name: 'PC-08 (Gaming)', playHours: 29 * mult, progress: 69 },
-        { name: 'PC-15 (VIP)', playHours: 22 * mult, progress: 52 },
-        { name: 'PC-02 (Standard)', playHours: 15 * mult, progress: 35 },
-      );
-
-      leastPcsMapped.length = 0;
-      leastPcsMapped.push(
-        { name: 'PC-01 (Standard)', playHours: 2 * mult, progress: 5 },
-        { name: 'PC-03 (Standard)', playHours: 4 * mult, progress: 9 },
-        { name: 'PC-07 (Gaming)', playHours: 6 * mult, progress: 14 },
-        { name: 'PC-11 (VIP)', playHours: 9 * mult, progress: 21 },
-        { name: 'PC-10 (Standard)', playHours: 12 * mult, progress: 28 },
-      );
-    }
-
-    const weeklyDistribution = [
-      { label: 'Thứ 2', playHours: 14, isWeekend: false },
-      { label: 'Thứ 3', playHours: 16, isWeekend: false },
-      { label: 'Thứ 4', playHours: 15, isWeekend: false },
-      { label: 'Thứ 5', playHours: 18, isWeekend: false },
-      { label: 'Thứ 6', playHours: 22, isWeekend: false },
-      { label: 'Thứ 7', playHours: 35, isWeekend: true },
-      { label: 'Chủ nhật', playHours: 38, isWeekend: true },
-    ];
-
-    const hourlyDistribution = [
-      { label: 'Sáng (8h-12h)', playHours: 15 },
-      { label: 'Trưa (12h-14h)', playHours: 25 },
-      { label: 'Chiều (14h-18h)', playHours: 32 },
-      { label: 'Tối (18h-22h)', playHours: 45 },
-      { label: 'Đêm (22h-8h)', playHours: 10 },
-    ];
+    const topServiceItems = this.buildTopServiceItems(currentPaidServiceOrders);
 
     return {
       period,
@@ -451,20 +392,412 @@ export class ReportsService {
       serviceRevenue,
       totalRevenue,
       totalPlayHours,
-      playtimeGrowth: '▲ +12.5%',
-      serviceGrowth: '▲ +8.2%',
-      totalGrowth: '▲ +11.3%',
-      playhoursGrowth: '▲ +15.1%',
-      dailyData,
-      topMembers: formattedMembers,
-      topPcs: topPcsMapped,
-      leastPcs: leastPcsMapped,
-      weeklyDistribution,
-      hourlyDistribution,
+      playtimeGrowth: this.formatGrowth(playtimeRevenue, previousPlaytimeRevenue),
+      serviceGrowth: this.formatGrowth(serviceRevenue, previousServiceRevenue),
+      totalGrowth: this.formatGrowth(totalRevenue, previousTotalRevenue),
+      playhoursGrowth: this.formatGrowth(totalPlaySeconds, previousPlaySeconds),
+      dailyData: this.buildRevenueChartData(period, currentSessions, currentPaidServiceOrders),
+      topMembers,
+      topPcs,
+      leastPcs,
+      topServiceItems,
+      weeklyDistribution: this.buildWeeklyDistribution(currentSessions),
+      hourlyDistribution: this.buildHourlyDistribution(currentSessions),
       serverTime: new Date().toISOString(),
     };
   }
 
+  private parseDashboardPeriod(rawPeriod?: string): DashboardPeriod {
+    const normalized = rawPeriod?.trim().toLowerCase();
+    if (normalized === 'month' || normalized === 'year') {
+      return normalized;
+    }
+    return 'week';
+  }
+
+  private getCurrentDashboardRange(period: DashboardPeriod, now: Date): TimeRange {
+    if (period === 'year') {
+      return {
+        start: new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0),
+        endExclusive: now,
+      };
+    }
+
+    if (period === 'month') {
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0),
+        endExclusive: now,
+      };
+    }
+
+    const dayOfWeek = now.getDay();
+    const offset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    return {
+      start: new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset, 0, 0, 0, 0),
+      endExclusive: now,
+    };
+  }
+
+  private getPreviousComparableRange(current: TimeRange): TimeRange {
+    const durationMs = Math.max(
+      1,
+      current.endExclusive.getTime() - current.start.getTime(),
+    );
+    const previousEnd = current.start;
+    const previousStart = new Date(previousEnd.getTime() - durationMs);
+    return {
+      start: previousStart,
+      endExclusive: previousEnd,
+    };
+  }
+
+  private formatGrowth(current: number, previous: number): string {
+    if (!Number.isFinite(current) || current <= 0) {
+      return '0.0%';
+    }
+
+    if (!Number.isFinite(previous) || previous <= 0) {
+      return '▲ +100.0%';
+    }
+
+    const percent = ((current - previous) / previous) * 100;
+    const abs = Math.abs(percent).toFixed(1);
+    return percent >= 0 ? `▲ +${abs}%` : `▼ -${abs}%`;
+  }
+
+  private buildRevenueChartData(
+    period: DashboardPeriod,
+    sessions: Array<{
+      amount: unknown;
+      endedAt: Date | null;
+      startedAt: Date;
+    }>,
+    paidServiceOrders: PaidServiceOrderRecord[],
+  ) {
+    if (period === 'year') {
+      const labels = [
+        'T1', 'T2', 'T3', 'T4', 'T5', 'T6',
+        'T7', 'T8', 'T9', 'T10', 'T11', 'T12',
+      ];
+      const buckets = labels.map((label) => ({
+        label,
+        playtimeRevenue: 0,
+        serviceRevenue: 0,
+      }));
+
+      for (const session of sessions) {
+        const at = session.endedAt ?? session.startedAt;
+        const monthIndex = at.getMonth();
+        if (monthIndex >= 0 && monthIndex < 12) {
+          buckets[monthIndex].playtimeRevenue += Number(session.amount ?? 0);
+        }
+      }
+
+      for (const order of paidServiceOrders) {
+        const monthIndex = order.paidAt.getMonth();
+        if (monthIndex >= 0 && monthIndex < 12) {
+          buckets[monthIndex].serviceRevenue += order.lineTotal;
+        }
+      }
+
+      return buckets;
+    }
+
+    if (period === 'month') {
+      const bucketCount = 5;
+      const buckets = Array.from({ length: bucketCount }, (_, index) => ({
+        label: `Tuan ${index + 1}`,
+        playtimeRevenue: 0,
+        serviceRevenue: 0,
+      }));
+
+      for (const session of sessions) {
+        const at = session.endedAt ?? session.startedAt;
+        const weekIndex = Math.min(
+          bucketCount - 1,
+          Math.max(0, Math.floor((at.getDate() - 1) / 7)),
+        );
+        buckets[weekIndex].playtimeRevenue += Number(session.amount ?? 0);
+      }
+
+      for (const order of paidServiceOrders) {
+        const weekIndex = Math.min(
+          bucketCount - 1,
+          Math.max(0, Math.floor((order.paidAt.getDate() - 1) / 7)),
+        );
+        buckets[weekIndex].serviceRevenue += order.lineTotal;
+      }
+
+      return buckets;
+    }
+
+    const labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+    const buckets = labels.map((label) => ({
+      label,
+      playtimeRevenue: 0,
+      serviceRevenue: 0,
+    }));
+
+    for (const session of sessions) {
+      const at = session.endedAt ?? session.startedAt;
+      const dayIndex = (at.getDay() + 6) % 7;
+      buckets[dayIndex].playtimeRevenue += Number(session.amount ?? 0);
+    }
+
+    for (const order of paidServiceOrders) {
+      const dayIndex = (order.paidAt.getDay() + 6) % 7;
+      buckets[dayIndex].serviceRevenue += order.lineTotal;
+    }
+
+    return buckets;
+  }
+
+  private buildWeeklyDistribution(
+    sessions: Array<{
+      durationSeconds: number | null;
+      endedAt: Date | null;
+      startedAt: Date;
+    }>,
+  ) {
+    const labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+    const secondsByDay = Array.from({ length: 7 }, () => 0);
+
+    for (const session of sessions) {
+      const at = session.endedAt ?? session.startedAt;
+      const dayIndex = (at.getDay() + 6) % 7;
+      secondsByDay[dayIndex] += Math.max(0, session.durationSeconds ?? 0);
+    }
+
+    return labels.map((label, dayIndex) => ({
+      label,
+      playHours: Math.round(secondsByDay[dayIndex] / 3600),
+      isWeekend: dayIndex >= 5,
+    }));
+  }
+
+  private buildHourlyDistribution(
+    sessions: Array<{
+      durationSeconds: number | null;
+      startedAt: Date;
+    }>,
+  ) {
+    const buckets = [
+      { label: 'Sang (8h-12h)', seconds: 0 },
+      { label: 'Trua (12h-14h)', seconds: 0 },
+      { label: 'Chieu (14h-18h)', seconds: 0 },
+      { label: 'Toi (18h-22h)', seconds: 0 },
+      { label: 'Dem (22h-8h)', seconds: 0 },
+    ];
+
+    for (const session of sessions) {
+      const hour = session.startedAt.getHours();
+      const seconds = Math.max(0, session.durationSeconds ?? 0);
+      if (hour >= 8 && hour < 12) {
+        buckets[0].seconds += seconds;
+      } else if (hour >= 12 && hour < 14) {
+        buckets[1].seconds += seconds;
+      } else if (hour >= 14 && hour < 18) {
+        buckets[2].seconds += seconds;
+      } else if (hour >= 18 && hour < 22) {
+        buckets[3].seconds += seconds;
+      } else {
+        buckets[4].seconds += seconds;
+      }
+    }
+
+    return buckets.map((item) => ({
+      label: item.label,
+      playHours: Math.round(item.seconds / 3600),
+    }));
+  }
+
+  private buildTopServiceItems(paidServiceOrders: PaidServiceOrderRecord[]) {
+    const aggregates = new Map<
+      string,
+      {
+        name: string;
+        category: string | null;
+        quantity: number;
+        revenue: number;
+        orderCount: number;
+      }
+    >();
+
+    for (const order of paidServiceOrders) {
+      const existing = aggregates.get(order.serviceItemId);
+      if (!existing) {
+        aggregates.set(order.serviceItemId, {
+          name: order.serviceItemName,
+          category: order.serviceItemCategory,
+          quantity: Math.max(0, order.quantity),
+          revenue: order.lineTotal,
+          orderCount: 1,
+        });
+        continue;
+      }
+
+      existing.quantity += Math.max(0, order.quantity);
+      existing.revenue += order.lineTotal;
+      existing.orderCount += 1;
+    }
+
+    return Array.from(aggregates.values())
+      .sort((a, b) => {
+        if (b.quantity !== a.quantity) {
+          return b.quantity - a.quantity;
+        }
+        return b.revenue - a.revenue;
+      })
+      .slice(0, 10)
+      .map((item) => ({
+        name: item.name,
+        category: item.category,
+        quantity: item.quantity,
+        revenue: item.revenue,
+        orderCount: item.orderCount,
+      }));
+  }
+
+  private async getTopMemberUsageInRange(range: TimeRange) {
+    const groupedUsages = await this.prisma.memberTransaction.groupBy({
+      by: ['memberId'],
+      where: {
+        type: 'ADJUSTMENT',
+        createdAt: {
+          gte: range.start,
+          lt: range.endExclusive,
+        },
+        playSecondsDelta: {
+          lt: 0,
+        },
+        note: {
+          startsWith: 'SESSION_USAGE',
+        },
+      },
+      _sum: {
+        playSecondsDelta: true,
+      },
+      orderBy: {
+        _sum: {
+          playSecondsDelta: 'asc',
+        },
+      },
+      take: 5,
+    });
+
+    if (groupedUsages.length === 0) {
+      return [];
+    }
+
+    const memberIds = groupedUsages.map((item) => item.memberId);
+    const members = await this.prisma.member.findMany({
+      where: {
+        id: {
+          in: memberIds,
+        },
+      },
+      select: {
+        id: true,
+        username: true,
+      },
+    });
+
+    const usernameById = new Map(members.map((item) => [item.id, item.username]));
+
+    return groupedUsages.map((item) => ({
+      username: usernameById.get(item.memberId) ?? 'unknown',
+      consumedSeconds: Math.abs(item._sum.playSecondsDelta ?? 0),
+    }));
+  }
+
+  private async getPaidServiceOrderRecords(range: TimeRange): Promise<PaidServiceOrderRecord[]> {
+    const paidEvents = await this.prisma.eventLog.findMany({
+      where: {
+        eventType: 'service.order.paid',
+        createdAt: {
+          gte: range.start,
+          lt: range.endExclusive,
+        },
+      },
+      select: {
+        createdAt: true,
+        payload: true,
+      },
+      orderBy: [{ createdAt: 'asc' }],
+    });
+
+    const orderPaidAtMap = new Map<string, Date>();
+    for (const event of paidEvents) {
+      const orderIds = this.extractOrderIdsFromPayload(event.payload);
+      for (const orderId of orderIds) {
+        if (!orderPaidAtMap.has(orderId)) {
+          orderPaidAtMap.set(orderId, event.createdAt);
+        }
+      }
+    }
+
+    if (orderPaidAtMap.size === 0) {
+      return [];
+    }
+
+    const orderIds = Array.from(orderPaidAtMap.keys());
+    const orders = await this.prisma.pcServiceOrder.findMany({
+      where: {
+        id: {
+          in: orderIds,
+        },
+      },
+      select: {
+        id: true,
+        serviceItemId: true,
+        quantity: true,
+        lineTotal: true,
+        serviceItem: {
+          select: {
+            name: true,
+            category: true,
+          },
+        },
+      },
+    });
+
+    return orders
+      .map((order) => {
+        const paidAt = orderPaidAtMap.get(order.id);
+        if (!paidAt) {
+          return null;
+        }
+
+        return {
+          orderId: order.id,
+          paidAt,
+          serviceItemId: order.serviceItemId,
+          serviceItemName: order.serviceItem.name,
+          serviceItemCategory: order.serviceItem.category,
+          quantity: Math.max(0, order.quantity),
+          lineTotal: Number(order.lineTotal ?? 0),
+        };
+      })
+      .filter((item): item is PaidServiceOrderRecord => !!item);
+  }
+
+  private extractOrderIdsFromPayload(payload: unknown): string[] {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return [];
+    }
+
+    const record = payload as Record<string, unknown>;
+    const rawOrderIds = record.orderIds;
+    if (!Array.isArray(rawOrderIds)) {
+      return [];
+    }
+
+    const normalized = rawOrderIds
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .filter((value) => !!value);
+
+    return Array.from(new Set(normalized));
+  }
   private parseLimit(rawLimit?: string): number {
     const parsed = Number(rawLimit ?? '200');
     if (!Number.isFinite(parsed)) {
@@ -474,3 +807,4 @@ export class ReportsService {
     return Math.min(500, Math.max(20, Math.floor(parsed)));
   }
 }
+

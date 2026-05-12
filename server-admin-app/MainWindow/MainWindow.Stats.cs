@@ -114,6 +114,39 @@ public partial class MainWindow : Window
 
                 LeastPlayedPcsItemsControl.ItemsSource = leastPcRows;
 
+                var maxServiceQuantity = response.TopServiceItems.Count == 0
+                    ? 1
+                    : Math.Max(1, response.TopServiceItems.Max(x => x.Quantity));
+
+                var topServiceRows = response.TopServiceItems
+                    .Select((item, idx) =>
+                    {
+                        string rankBg = "#F3F4F6";
+                        string rankFg = "#374151";
+                        string barColor = "#10B981";
+                        if (idx == 0) { rankBg = "#FEF3C7"; rankFg = "#D97706"; barColor = "#EF4444"; }
+                        else if (idx == 1) { rankBg = "#E0E7FF"; rankFg = "#4F46E5"; barColor = "#F59E0B"; }
+                        else if (idx == 2) { rankBg = "#ECFDF5"; rankFg = "#059669"; barColor = "#10B981"; }
+
+                        var progress = item.Quantity <= 0 ? 0 : Math.Clamp((int)Math.Round((double)item.Quantity * 100.0 / maxServiceQuantity), 0, 100);
+
+                        var categoryText = string.IsNullOrWhiteSpace(item.Category) ? "-" : item.Category;
+                        return new TopServiceItemRowViewModel
+                        {
+                            RankNumber = (idx + 1).ToString(),
+                            RankBackground = rankBg,
+                            RankForeground = rankFg,
+                            ServiceName = item.Name,
+                            MetaText = $"SL: {item.Quantity} | Don: {item.OrderCount} | Nhom: {categoryText}",
+                            RevenueText = $"{item.Revenue:N0} VND",
+                            ProgressValue = progress,
+                            BarColor = barColor,
+                        };
+                    })
+                    .ToList();
+
+                TopServiceItemsItemsControl.ItemsSource = topServiceRows;
+
                 RevenueBarsContainer.Children.Clear();
                 
                 decimal maxVal = 10000;
@@ -563,6 +596,7 @@ public class DashboardStatsResponse
     public List<TopMemberData> TopMembers { get; set; } = new();
     public List<TopPcData> TopPcs { get; set; } = new();
     public List<TopPcData> LeastPcs { get; set; } = new();
+    public List<TopServiceItemData> TopServiceItems { get; set; } = new();
     public List<DistributionData> WeeklyDistribution { get; set; } = new();
     public List<DistributionData> HourlyDistribution { get; set; } = new();
 }
@@ -607,6 +641,15 @@ public class TopPcData
     public int Progress { get; set; }
 }
 
+public class TopServiceItemData
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Category { get; set; }
+    public int Quantity { get; set; }
+    public decimal Revenue { get; set; }
+    public int OrderCount { get; set; }
+}
+
 public class TopPcRowViewModel
 {
     public string RankNumber { get; set; } = string.Empty;
@@ -616,6 +659,18 @@ public class TopPcRowViewModel
     public int ProgressValue { get; set; }
     public string BarColor { get; set; } = string.Empty;
     public string PlayHoursText { get; set; } = string.Empty;
+}
+
+public class TopServiceItemRowViewModel
+{
+    public string RankNumber { get; set; } = string.Empty;
+    public string RankBackground { get; set; } = string.Empty;
+    public string RankForeground { get; set; } = string.Empty;
+    public string ServiceName { get; set; } = string.Empty;
+    public string MetaText { get; set; } = string.Empty;
+    public string RevenueText { get; set; } = string.Empty;
+    public int ProgressValue { get; set; }
+    public string BarColor { get; set; } = string.Empty;
 }
 
 public class TimeBasedPromotionDto

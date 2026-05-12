@@ -32,6 +32,7 @@ import { SetMemberPresenceDto } from './dto/set-member-presence.dto';
 import { SetAdminPresenceDto } from './dto/set-admin-presence.dto';
 import { UpdateLoyaltyRankDto } from './dto/update-loyalty-rank.dto';
 import { UpdateSpinPrizeSettingsDto } from './dto/update-spin-prize-settings.dto';
+import { PetLoyaltyPointsDto } from './dto/pet-loyalty-points.dto';
 
 const LOYALTY_CONFIG_KEY = '__LOYALTY_MEMBER_POINTS__';
 const LOYALTY_MINUTES_PER_POINT = 15;
@@ -40,8 +41,15 @@ const LOYALTY_REDEEM_SECONDS_PER_POINT = 60;
 const LOYALTY_USAGE_CREATED_BY = 'client.session.loyalty';
 const LOYALTY_REDEEM_CREATED_BY = 'client.loyalty';
 const LOYALTY_REDEEM_NOTE_PREFIX = 'LOYALTY_REDEEM';
+const LOYALTY_PET_REWARD_NOTE_PREFIX = 'PET_REWARD';
+const LOYALTY_PET_SPEND_NOTE_PREFIX = `${LOYALTY_REDEEM_NOTE_PREFIX}_PET`;
 const LOYALTY_SPIN_CONFIG_KEY = '__LOYALTY_SPIN_CONFIG__';
 const MEMBER_PASSWORD_BCRYPT_ROUNDS = 10;
+const ACTIVE_PRESENCE_EVENT_TYPES = [
+  'member.pc.presence',
+  'guest.pc.presence',
+  'admin.pc.presence',
+] as const;
 
 type SpinPrizeItem = {
   minutes: number;
@@ -109,6 +117,11 @@ export class MembersService {
   }
 
   async createMember(payload: CreateMemberDto) {
+    const normalizedUsername = payload.username?.trim() ?? '';
+    if (normalizedUsername.length < 3) {
+      throw new BadRequestException('Username phai co it nhat 3 ky tu');
+    }
+
     try {
       const passwordHash = payload.password
         ? await this.hashPassword(payload.password)
@@ -116,8 +129,8 @@ export class MembersService {
       const [member, rankConfigs] = await Promise.all([
         this.prisma.member.create({
           data: {
-            username: payload.username,
-            fullName: payload.fullName ?? payload.username,
+            username: normalizedUsername,
+            fullName: payload.fullName ?? normalizedUsername,
             passwordHash,
             phone: payload.phone,
             identityNumber: payload.identityNumber,
@@ -173,6 +186,31 @@ export class MembersService {
 
     if (passwordResult.needsRehash) {
       await this.rehashMemberPassword(member.id, password);
+    }
+
+    const normalizedAgentId = payload.agentId?.trim();
+    const currentPc = normalizedAgentId
+      ? await this.prisma.pc.findFirst({
+          where: {
+            agentId: {
+              equals: normalizedAgentId,
+              mode: 'insensitive',
+            },
+          },
+          select: { id: true },
+        })
+      : null;
+    const activeOnOtherPc = await this.findMemberActivePc(
+      member.id,
+      currentPc?.id,
+    );
+    if (activeOnOtherPc) {
+      throw new ConflictException(
+        this.buildMemberAlreadyInUseMessage(
+          activeOnOtherPc.pcName,
+          activeOnOtherPc.agentId,
+        ),
+      );
     }
 
     const [rankConfigs] = await Promise.all([
@@ -239,6 +277,18 @@ export class MembersService {
     const fullName = payload.fullName?.trim() || member.fullName;
     const previousStatus = pc.status;
     const nextStatus: PcStatus = isActive ? PcStatus.IN_USE : PcStatus.ONLINE;
+
+    if (isActive) {
+      const activeOnOtherPc = await this.findMemberActivePc(member.id, pc.id);
+      if (activeOnOtherPc) {
+        throw new ConflictException(
+          this.buildMemberAlreadyInUseMessage(
+            activeOnOtherPc.pcName,
+            activeOnOtherPc.agentId,
+          ),
+        );
+      }
+    }
 
     await this.prisma.eventLog.create({
       data: {
@@ -818,6 +868,98 @@ export class MembersService {
         costPoints,
         loyalty: after,
         spunAt: new Date().toISOString(),
+      };
+    });
+  }
+
+  async applyPetLoyaltyPoints(memberId: string, payload: PetLoyaltyPointsDto) {
+    const action = payload.action;
+    const points = Math.trunc(payload.points);
+    const requestedBy = payload.createdBy?.trim() || 'client.virtual_pet';
+
+    if (action === 'REWARD' && points > 12) {
+      throw new BadRequestException('Moi lan thu ao chi thuong toi da 12 diem');
+    }
+
+    const enabled = await this.getLoyaltyFeatureEnabled();
+    if (!enabled) {
+      throw new BadRequestException('Tinh nang diem tich luy dang tat');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const member = await tx.member.findUnique({ where: { id: memberId } });
+      if (!member) {
+        throw new NotFoundException('Khong tim thay hoi vien');
+      }
+
+      const before = await this.buildLoyaltySnapshot(memberId, tx);
+      if (action === 'SPEND' && before.availablePoints < points) {
+        throw new BadRequestException(
+          `Khong du diem. Hien chi con ${before.availablePoints} diem`,
+        );
+      }
+
+      if (action === 'SPEND') {
+        const secondsToSpend = points * LOYALTY_REDEEM_SECONDS_PER_POINT;
+        await tx.memberTransaction.create({
+          data: {
+            memberId,
+            type: MemberTransactionType.ADJUSTMENT,
+            amountDelta: 0,
+            playSecondsDelta: secondsToSpend,
+            note:
+              payload.note?.trim() ||
+              `${LOYALTY_PET_SPEND_NOTE_PREFIX}: spend ${points} points`,
+            createdBy: LOYALTY_REDEEM_CREATED_BY,
+          },
+        });
+      } else {
+        const secondsToReward = points * LOYALTY_SECONDS_PER_POINT;
+        await tx.memberTransaction.create({
+          data: {
+            memberId,
+            type: MemberTransactionType.ADJUSTMENT,
+            amountDelta: 0,
+            playSecondsDelta: -secondsToReward,
+            note:
+              payload.note?.trim() ||
+              `${LOYALTY_PET_REWARD_NOTE_PREFIX}: reward ${points} points`,
+            createdBy: LOYALTY_USAGE_CREATED_BY,
+          },
+        });
+      }
+
+      await tx.eventLog.create({
+        data: {
+          source: EventSource.CLIENT,
+          eventType: 'member.loyalty.pet_points',
+          pcId: null,
+          payload: {
+            memberId,
+            action,
+            points,
+            requestedBy,
+            at: new Date().toISOString(),
+          },
+        },
+      });
+
+      const [updatedMember, rankConfigs, loyalty] = await Promise.all([
+        tx.member.findUnique({ where: { id: memberId } }),
+        tx.loyaltyRankConfig.findMany({ orderBy: { minTopup: 'desc' } }),
+        this.buildLoyaltySnapshot(memberId, tx),
+      ]);
+
+      return {
+        member: this.toMemberItem(
+          updatedMember!,
+          this.calculateRankName(Number(updatedMember!.totalTopup), rankConfigs),
+          loyalty.availablePoints,
+        ),
+        loyalty,
+        action,
+        points,
+        updatedAt: new Date().toISOString(),
       };
     });
   }
@@ -1657,6 +1799,86 @@ export class MembersService {
       'servermanagerbilling-default-salt';
 
     return createHash('sha256').update(`${salt}:${rawPassword}`).digest('hex');
+  }
+
+  private async findMemberActivePc(
+    memberId: string,
+    excludePcId?: string,
+  ): Promise<{ pcId: string; pcName: string; agentId: string } | null> {
+    const activePcs = await this.prisma.pc.findMany({
+      where: excludePcId
+        ? {
+            status: PcStatus.IN_USE,
+            id: {
+              not: excludePcId,
+            },
+          }
+        : {
+            status: PcStatus.IN_USE,
+          },
+      select: {
+        id: true,
+        name: true,
+        agentId: true,
+        eventsLog: {
+          where: {
+            eventType: {
+              in: [...ACTIVE_PRESENCE_EVENT_TYPES],
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+          select: {
+            eventType: true,
+            payload: true,
+          },
+        },
+      },
+    });
+
+    for (const pc of activePcs) {
+      const latestPresence = pc.eventsLog[0];
+      if (!latestPresence || latestPresence.eventType !== 'member.pc.presence') {
+        continue;
+      }
+
+      const activeMemberId = this.extractActiveMemberId(latestPresence.payload);
+      if (activeMemberId === memberId) {
+        return {
+          pcId: pc.id,
+          pcName: pc.name,
+          agentId: pc.agentId,
+        };
+      }
+    }
+
+    return null;
+  }
+
+  private extractActiveMemberId(
+    payload?: Prisma.JsonValue | null,
+  ): string | null {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return null;
+    }
+
+    const value = payload as Record<string, unknown>;
+    if (value.isActive !== true) {
+      return null;
+    }
+
+    if (typeof value.memberId !== 'string') {
+      return null;
+    }
+
+    const memberId = value.memberId.trim();
+    return memberId.length > 0 ? memberId : null;
+  }
+
+  private buildMemberAlreadyInUseMessage(pcName: string, agentId: string): string {
+    return `Tai khoan dang duoc su dung tren may ${pcName} (${agentId}). Vui long dang xuat o may do truoc.`;
   }
 
   private async logMemberTransferEvent(

@@ -220,7 +220,7 @@
                                         </Style>
                                     </ContextMenu.Resources>
                                     <MenuItem x:Name="ContextOpenMachineMenuItem" Header="Mở máy" Click="ContextOpenMachineMenuItem_Click" />
-                                    <MenuItem x:Name="ContextOpenGuestMachineMenuItem" Header="Mở máy khách vãng lai..." Click="ContextOpenGuestMachineMenuItem_Click" />
+                                    <MenuItem x:Name="ContextOpenGuestMachineMenuItem" Header="Đăng nhập trả tiền trước..." Click="ContextOpenGuestMachineMenuItem_Click" />
                                     <MenuItem x:Name="ContextAdminLoginMachineMenuItem" Header="Đăng nhập admin máy trạm" Click="ContextAdminLoginMachineMenuItem_Click" />
                                     <MenuItem x:Name="ContextLockMachineMenuItem" Header="Khóa máy" Click="ContextLockMachineMenuItem_Click" />
                                     <MenuItem x:Name="ContextTopupMachineMemberMenuItem" Header="Nạp tiền hội viên đang dùng máy..." Click="ContextTopupMachineMemberMenuItem_Click" />
@@ -262,7 +262,6 @@
                                     <MenuItem x:Name="ContextNotifyMachineMenuItem" Header="Gửi thông báo" Click="ContextNotifyMachineMenuItem_Click" />
                                     <Separator />
                                     <MenuItem Header="Làm mới danh sách" Click="ContextRefreshMachinesMenuItem_Click" />
-                                    <MenuItem Header="Bỏ lọc tìm kiếm" Click="ContextClearMachineFiltersMenuItem_Click" />
                                     <Separator />
                                     <MenuItem x:Name="ContextControlCloseAllAppsMenuItem"
                                               Header="Đóng tất cả ứng dụng (Taskbar)"
@@ -1260,7 +1259,11 @@
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="12" />
-                                            <RowDefinition Height="*" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="20" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="12" />
+                                            <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
 
                                         <TextBlock Grid.Row="0" Text="Hội viên chơi nhiều nhất" FontSize="16" FontWeight="Bold" Foreground="#1F2937" />
@@ -1288,6 +1291,34 @@
                                                         </StackPanel>
 
                                                         <TextBlock Grid.Column="3" Text="{Binding PlayHoursText}" FontSize="14" FontWeight="Bold" Foreground="#374151" VerticalAlignment="Center" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <TextBlock Grid.Row="4" Text="Doanh thu sản phẩm bán chạy" FontSize="16" FontWeight="Bold" Foreground="#1F2937" />
+
+                                        <ItemsControl Grid.Row="6" x:Name="TopServiceItemsItemsControl">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,0,0,12">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="32" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <Border Grid.Column="0" Width="24" Height="24" CornerRadius="12" Background="{Binding RankBackground}" VerticalAlignment="Center" HorizontalAlignment="Left">
+                                                            <TextBlock Text="{Binding RankNumber}" FontSize="12" FontWeight="Bold" Foreground="{Binding RankForeground}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                        </Border>
+
+                                                        <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                                            <TextBlock Text="{Binding ServiceName}" FontSize="13" FontWeight="SemiBold" Foreground="#1F2937" />
+                                                            <TextBlock Text="{Binding MetaText}" FontSize="11" Foreground="#6B7280" Margin="0,2,0,0" />
+                                                            <ProgressBar Height="5" Margin="0,5,0,0" Minimum="0" Maximum="100" Value="{Binding ProgressValue}" Foreground="{Binding BarColor}" Background="#F3F4F6" BorderThickness="0" />
+                                                        </StackPanel>
+
+                                                        <TextBlock Grid.Column="2" Text="{Binding RevenueText}" FontSize="13" FontWeight="Bold" Foreground="#065F46" VerticalAlignment="Center" />
                                                     </Grid>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>

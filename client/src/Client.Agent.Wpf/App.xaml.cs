@@ -7,9 +7,12 @@ using System.Net.Http.Json;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -46,6 +49,8 @@ public partial class App : Application
     private ActiveMemberSession? _activeMemberSession;
     private bool _isPostpaidGuestSession;
     private bool _isAdminSession;
+    private string? _manualLockPassword;
+    private bool _skipSessionClearOnExit;
     private int _lastSyncedMemberUsedSeconds;
     private readonly SemaphoreSlim _memberUsageSyncLock = new(1, 1);
     private readonly DispatcherTimer _readyAutoShutdownTimer = new();
@@ -63,8 +68,12 @@ public partial class App : Application
     private string _lastWebFilterSignature = string.Empty;
     private readonly DispatcherTimer _websiteLogSyncTimer = new();
     private readonly DispatcherTimer _memberUsageSyncTimer = new();
+    private readonly DispatcherTimer _serviceCostSyncTimer = new();
     private bool _isWebsiteLogSyncRunning;
+    private bool _isServiceCostSyncRunning;
     private bool _websiteLogEnabled;
+    private DateTime _lastServiceCostRefreshUtc = DateTime.MinValue;
+    private string? _cachedPcId;
     private DateTime _lastWebsiteLogSettingsFetchUtc = DateTime.MinValue;
     private DateTime _lastWebsiteHistoryScanUtc = DateTime.MinValue;
     private readonly Dictionary<string, DateTime> _websiteDomainLastSentAt =
@@ -138,7 +147,10 @@ public partial class App : Application
     {
         try
         {
-            Task.Run(() => TrackAndClearMemberSessionAsync("APP_EXIT")).GetAwaiter().GetResult();
+            if (!_skipSessionClearOnExit)
+            {
+                Task.Run(() => TrackAndClearMemberSessionAsync("APP_EXIT")).GetAwaiter().GetResult();
+            }
         }
         catch
         {
@@ -151,6 +163,7 @@ public partial class App : Application
         _webFilterSyncTimer.Stop();
         _websiteLogSyncTimer.Stop();
         _memberUsageSyncTimer.Stop();
+        _serviceCostSyncTimer.Stop();
 
         try
         {
@@ -189,6 +202,11 @@ public partial class App : Application
         _memberUsageSyncTimer.Interval = TimeSpan.FromSeconds(10);
         _memberUsageSyncTimer.Tick += MemberUsageSyncTimer_Tick;
         _memberUsageSyncTimer.Start();
+
+        _serviceCostSyncTimer.Interval = TimeSpan.FromSeconds(12);
+        _serviceCostSyncTimer.Tick += ServiceCostSyncTimer_Tick;
+        _serviceCostSyncTimer.Start();
+        _ = RefreshServiceCostUiAsync(force: true);
     }
 
     private void StartSocketService()
@@ -219,6 +237,16 @@ public partial class App : Application
             elapsed =>
             {
                 Dispatcher.Invoke(() => _mainWindow?.SynchronizeUsedDuration(elapsed));
+                _ = RefreshServiceCostUiAsync(force: false);
+            },
+            resumeGuest =>
+            {
+                if (!resumeGuest)
+                {
+                    return;
+                }
+
+                Dispatcher.Invoke(ResumeGuestSessionFromServer);
             });
 
         _socketService.GetRunningAppsHandler = HandleGetRunningAppsRequestedAsync;
@@ -314,7 +342,20 @@ public partial class App : Application
                     return (true, "locked");
 
                 case "RESTART":
-                    await TrackAndClearMemberSessionAsync("SERVER_RESTART");
+                    var shouldPreserveGuestSession =
+                        _isPostpaidGuestSession &&
+                        _activeMemberSession is null &&
+                        !_isAdminSession;
+                    if (shouldPreserveGuestSession)
+                    {
+                        _skipSessionClearOnExit = true;
+                        _ = _logger?.InfoAsync(
+                            "Preserving guest session state on restart for auto-resume");
+                    }
+                    else
+                    {
+                        await TrackAndClearMemberSessionAsync("SERVER_RESTART");
+                    }
                     _ = _logger?.InfoAsync("Executing RESTART command");
                     TriggerSystemRestart();
                     return (true, "restart triggered");
@@ -373,6 +414,7 @@ public partial class App : Application
             return;
         }
 
+        ClearManualLockState();
         await TrackAndClearMemberSessionAsync(reason);
         Dispatcher.Invoke(() =>
         {
@@ -381,10 +423,52 @@ public partial class App : Application
         });
     }
 
+    public void RequestManualLockFromClientUi()
+    {
+        var lockPassword = PromptForManualLockPassword();
+        if (lockPassword is null)
+        {
+            return;
+        }
+
+        _manualLockPassword = lockPassword;
+        _lockScreenWindow?.SetManualUnlockMode(true);
+        _lockScreenWindow?.PrepareForLock();
+        _mainWindow?.SetLastCommand($"KHÓA THỦ CÔNG @ {DateTime.Now:HH:mm:ss}");
+    }
+
+    public LoginAttemptResult TryUnlockWithManualPassword(string password)
+    {
+        if (string.IsNullOrEmpty(_manualLockPassword))
+        {
+            return new LoginAttemptResult(false, "Không có khóa thủ công đang hoạt động.");
+        }
+
+        if (string.IsNullOrEmpty(password))
+        {
+            return new LoginAttemptResult(false, "Vui lòng nhập mật mã.");
+        }
+
+        if (!string.Equals(_manualLockPassword, password, StringComparison.Ordinal))
+        {
+            return new LoginAttemptResult(false, "Mật mã không đúng.");
+        }
+
+        ClearManualLockState();
+        _lockScreenWindow?.Hide();
+        _mainWindow?.SetLastCommand($"MỞ KHÓA THỦ CÔNG @ {DateTime.Now:HH:mm:ss}");
+        return new LoginAttemptResult(true, "Mở khóa thành công.");
+    }
+
     public async Task<LoginAttemptResult> TryUnlockFromLockScreenAsync(
         string username,
         string password)
     {
+        if (!string.IsNullOrEmpty(_manualLockPassword))
+        {
+            return new LoginAttemptResult(false, "Vui lòng nhập mật mã khóa máy đã đặt.");
+        }
+
         var normalizedUsername = username.Trim();
         if (string.IsNullOrWhiteSpace(normalizedUsername) || string.IsNullOrEmpty(password))
         {
@@ -492,9 +576,10 @@ public partial class App : Application
 
             var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
 
-            if (payload.TryGetProperty("hourlyRate", out var rateElement))
+            if (payload.TryGetProperty("hourlyRate", out var rateElement) &&
+                TryReadDecimal(rateElement, out var hourlyRate))
             {
-                _currentHourlyRate = rateElement.GetDecimal();
+                _currentHourlyRate = hourlyRate;
             }
 
             if (!payload.TryGetProperty("member", out var memberElement))
@@ -527,7 +612,17 @@ public partial class App : Application
             _isPostpaidGuestSession = false;
             _lastSyncedMemberUsedSeconds = 60;
 
-            await ReportMemberPresenceAsync(_activeMemberSession, true);
+            var presenceResult = await ReportMemberPresenceAsync(
+                _activeMemberSession,
+                true);
+            if (!presenceResult.Success)
+            {
+                _activeMemberSession = null;
+                _isPostpaidGuestSession = false;
+                _isAdminSession = false;
+                _lastSyncedMemberUsedSeconds = 0;
+                return new LoginAttemptResult(false, presenceResult.Message);
+            }
 
             Dispatcher.Invoke(() =>
             {
@@ -629,9 +724,10 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
             if (payload.TryGetProperty("pc", out var pcElement) &&
                 pcElement.TryGetProperty("group", out var groupElement) &&
-                groupElement.TryGetProperty("hourlyRate", out var rateElement))
+                groupElement.TryGetProperty("hourlyRate", out var rateElement) &&
+                TryReadDecimal(rateElement, out var guestHourlyRate))
             {
-                _currentHourlyRate = rateElement.GetDecimal();
+                _currentHourlyRate = guestHourlyRate;
             }
 
             Dispatcher.Invoke(() =>
@@ -684,6 +780,602 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
         var minutes = (int)Math.Floor((balance / hourlyRate) * 60m);
         return Math.Max(0, minutes);
+    }
+
+    private static bool TryReadDecimal(JsonElement element, out decimal value)
+    {
+        if (element.ValueKind == JsonValueKind.Number &&
+            element.TryGetDecimal(out var numericValue))
+        {
+            value = numericValue;
+            return true;
+        }
+
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            var raw = element.GetString();
+            if (!string.IsNullOrWhiteSpace(raw) &&
+                (decimal.TryParse(
+                    raw,
+                    NumberStyles.Number,
+                    CultureInfo.InvariantCulture,
+                    out var invariantValue) ||
+                 decimal.TryParse(
+                     raw,
+                     NumberStyles.Number,
+                     CultureInfo.CurrentCulture,
+                     out invariantValue)))
+            {
+                value = invariantValue;
+                return true;
+            }
+        }
+
+        value = 0;
+        return false;
+    }
+
+    public async void OpenServicesPanelFromClientUi()
+    {
+        try
+        {
+            var pcContext = await ResolveCurrentPcContextAsync();
+            if (pcContext is null)
+            {
+                MessageBox.Show(
+                    "Không xác định được máy trạm hiện tại để gọi dịch vụ.",
+                    "Dịch vụ",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            var (pcId, pcName, activeSessionId) = pcContext.Value;
+            if (string.IsNullOrWhiteSpace(activeSessionId))
+            {
+                MessageBox.Show(
+                    "Máy chưa có phiên đang sử dụng để gọi dịch vụ.",
+                    "Dịch vụ",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            await ShowServiceOrderDialogAsync(pcId, pcName, activeSessionId);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Không thể mở màn hình dịch vụ: {ex.Message}",
+                "Dịch vụ",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
+    private async Task<(string PcId, string PcName, string? ActiveSessionId)?> ResolveCurrentPcContextAsync()
+    {
+        var response = await _httpClient.GetFromJsonAsync<ClientPcListResponse>(BuildApiUrl("/pcs"));
+        if (response?.Items is null || response.Items.Count == 0)
+        {
+            return null;
+        }
+
+        var preferredAgentId = (_settings.AgentId ?? string.Empty).Trim();
+        var fallbackAgentId = Environment.MachineName.Trim();
+
+        ClientPcItemDto? selected = null;
+        if (!string.IsNullOrWhiteSpace(preferredAgentId))
+        {
+            selected = response.Items.FirstOrDefault(x =>
+                string.Equals(x.AgentId, preferredAgentId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (selected is null && !string.IsNullOrWhiteSpace(fallbackAgentId))
+        {
+            selected = response.Items.FirstOrDefault(x =>
+                string.Equals(x.AgentId, fallbackAgentId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (selected is null && !string.IsNullOrWhiteSpace(_cachedPcId))
+        {
+            selected = response.Items.FirstOrDefault(x =>
+                string.Equals(x.Id, _cachedPcId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (selected is null)
+        {
+            return null;
+        }
+
+        _cachedPcId = selected.Id;
+        var pcName = string.IsNullOrWhiteSpace(selected.Name) ? selected.AgentId : selected.Name;
+        return (selected.Id, pcName, selected.ActiveSession?.Id);
+    }
+
+    private async Task<List<ClientServiceItemDto>> LoadActiveServiceItemsAsync()
+    {
+        var response = await _httpClient.GetFromJsonAsync<ClientServiceItemsResponse>(
+            BuildApiUrl("/services/items"));
+
+        if (response?.Items is null || response.Items.Count == 0)
+        {
+            return new List<ClientServiceItemDto>();
+        }
+
+        return response.Items
+            .Where(x => x.IsActive)
+            .OrderBy(x => string.IsNullOrWhiteSpace(x.Category) ? "-" : x.Category, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private async Task<List<ClientPcServiceOrderItem>> LoadUnpaidServiceOrdersAsync(
+        string pcId,
+        string activeSessionId)
+    {
+        if (string.IsNullOrWhiteSpace(pcId) || string.IsNullOrWhiteSpace(activeSessionId))
+        {
+            return new List<ClientPcServiceOrderItem>();
+        }
+
+        var response = await _httpClient.GetFromJsonAsync<ClientPcServiceOrdersResponse>(
+            BuildApiUrl($"/services/pcs/{pcId}/orders?limit=200"));
+
+        if (response?.Items is null || response.Items.Count == 0)
+        {
+            return new List<ClientPcServiceOrderItem>();
+        }
+
+        return response.Items
+            .Where(x =>
+                !x.IsPaid &&
+                string.Equals(x.SessionId, activeSessionId, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x =>
+            {
+                if (DateTime.TryParse(x.CreatedAt, out var createdAt))
+                {
+                    return createdAt;
+                }
+
+                return DateTime.MaxValue;
+            })
+            .ThenBy(x => x.ServiceItem?.Name ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private async Task RefreshServiceCostUiAsync(bool force)
+    {
+        if (_isServiceCostSyncRunning)
+        {
+            return;
+        }
+
+        if (!force && (DateTime.UtcNow - _lastServiceCostRefreshUtc).TotalSeconds < 8)
+        {
+            return;
+        }
+
+        _isServiceCostSyncRunning = true;
+        _lastServiceCostRefreshUtc = DateTime.UtcNow;
+        try
+        {
+            decimal serviceCost = 0;
+            var serviceOrderCount = 0;
+            var pcContext = await ResolveCurrentPcContextAsync();
+            if (pcContext is { } context && !string.IsNullOrWhiteSpace(context.ActiveSessionId))
+            {
+                var unpaidOrders = await LoadUnpaidServiceOrdersAsync(context.PcId, context.ActiveSessionId);
+                serviceCost = unpaidOrders.Sum(x => Math.Max(0, x.LineTotal));
+                serviceOrderCount = unpaidOrders.Sum(x => Math.Max(0, x.Quantity));
+            }
+
+            Dispatcher.Invoke(() =>
+            {
+                _mainWindow?.SetServiceCost(serviceCost);
+                _mainWindow?.SetServiceOrderCount(serviceOrderCount);
+            });
+        }
+        catch
+        {
+            // Keep UI responsive when service API is temporarily unavailable.
+        }
+        finally
+        {
+            _isServiceCostSyncRunning = false;
+        }
+    }
+
+    private async Task ShowServiceOrderDialogAsync(string pcId, string pcName, string activeSessionId)
+    {
+        var serviceItemsTask = LoadActiveServiceItemsAsync();
+        var existingOrdersTask = LoadUnpaidServiceOrdersAsync(pcId, activeSessionId);
+        await Task.WhenAll(serviceItemsTask, existingOrdersTask);
+
+        var activeItems = serviceItemsTask.Result;
+        var existingOrders = existingOrdersTask.Result;
+
+        if (activeItems.Count == 0)
+        {
+            MessageBox.Show(
+                "Hiện chưa có dịch vụ đang bán.",
+                "Dịch vụ",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var existingSummaries = existingOrders
+            .Where(x => !string.IsNullOrWhiteSpace(x.ServiceItem?.Id))
+            .GroupBy(x => x.ServiceItem!.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => new ClientExistingServiceSummary
+                {
+                    Quantity = g.Sum(x => Math.Max(0, x.Quantity)),
+                    Amount = g.Sum(x => Math.Max(0, x.LineTotal)),
+                },
+                StringComparer.OrdinalIgnoreCase);
+
+        var orderedPreview = existingOrders.Count == 0
+            ? "Chưa gọi dịch vụ."
+            : string.Join(
+                " | ",
+                existingOrders
+                    .GroupBy(x => x.ServiceItem?.Name ?? "Dịch vụ")
+                    .Select(g =>
+                    {
+                        var quantity = g.Sum(x => Math.Max(0, x.Quantity));
+                        var amount = g.Sum(x => Math.Max(0, x.LineTotal));
+                        return $"{g.Key} x{quantity} ({amount:N0})";
+                    }));
+
+        var rows = new ObservableCollection<ClientServiceOrderSelectionRow>(
+            activeItems
+                .Select(item =>
+                {
+                    existingSummaries.TryGetValue(item.Id, out var summary);
+                    return ClientServiceOrderSelectionRow.FromServiceItem(item, summary);
+                })
+                .OrderByDescending(x => x.ExistingQuantity)
+                .ThenBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.ServiceName, StringComparer.OrdinalIgnoreCase));
+
+        var dialog = new Window
+        {
+            Title = $"Dịch vụ - {pcName}",
+            Width = 920,
+            Height = 640,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ResizeMode = ResizeMode.CanResize,
+            MinWidth = 820,
+            MinHeight = 520,
+            Owner = _mainWindow,
+            ShowInTaskbar = false,
+        };
+
+        var root = new Grid { Margin = new Thickness(12) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var titleText = new TextBlock
+        {
+            Text = $"Máy trạm: {pcName}",
+            FontSize = 16,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 6),
+        };
+        Grid.SetRow(titleText, 0);
+        root.Children.Add(titleText);
+
+        var orderedPreviewText = new TextBlock
+        {
+            Text = $"Đã gọi: {orderedPreview}",
+            Foreground = Brushes.DimGray,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        Grid.SetRow(orderedPreviewText, 1);
+        root.Children.Add(orderedPreviewText);
+
+        var serviceGrid = new DataGrid
+        {
+            AutoGenerateColumns = false,
+            CanUserAddRows = false,
+            CanUserDeleteRows = false,
+            CanUserReorderColumns = false,
+            CanUserResizeRows = false,
+            SelectionMode = DataGridSelectionMode.Single,
+            SelectionUnit = DataGridSelectionUnit.FullRow,
+            GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+            HeadersVisibility = DataGridHeadersVisibility.Column,
+            ItemsSource = rows,
+            Margin = new Thickness(0, 0, 0, 10),
+        };
+
+        serviceGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Dịch vụ",
+            Width = new DataGridLength(2.0, DataGridLengthUnitType.Star),
+            Binding = new Binding(nameof(ClientServiceOrderSelectionRow.ServiceName)),
+            IsReadOnly = true,
+        });
+        serviceGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Danh mục",
+            Width = new DataGridLength(1.2, DataGridLengthUnitType.Star),
+            Binding = new Binding(nameof(ClientServiceOrderSelectionRow.Category)),
+            IsReadOnly = true,
+        });
+        serviceGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Đơn giá",
+            Width = 110,
+            Binding = new Binding(nameof(ClientServiceOrderSelectionRow.UnitPriceText)),
+            IsReadOnly = true,
+        });
+        serviceGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Đã gọi",
+            Width = 140,
+            Binding = new Binding(nameof(ClientServiceOrderSelectionRow.ExistingText)),
+            IsReadOnly = true,
+        });
+
+        var quantityTemplateColumn = new DataGridTemplateColumn
+        {
+            Header = "Số lượng",
+            Width = 150,
+        };
+
+        var quantityPanelFactory = new FrameworkElementFactory(typeof(StackPanel));
+        quantityPanelFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+        quantityPanelFactory.SetValue(StackPanel.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+
+        var decreaseButtonFactory = new FrameworkElementFactory(typeof(Button));
+        decreaseButtonFactory.SetValue(Button.ContentProperty, "-");
+        decreaseButtonFactory.SetValue(Button.WidthProperty, 30d);
+        decreaseButtonFactory.SetValue(Button.HeightProperty, 28d);
+        decreaseButtonFactory.SetValue(Button.PaddingProperty, new Thickness(0));
+        decreaseButtonFactory.SetValue(Button.MarginProperty, new Thickness(0, 0, 6, 0));
+        decreaseButtonFactory.SetValue(Button.FontWeightProperty, FontWeights.SemiBold);
+        decreaseButtonFactory.SetValue(Button.FontSizeProperty, 14d);
+        decreaseButtonFactory.SetValue(Button.ForegroundProperty, Brushes.White);
+        decreaseButtonFactory.SetValue(Button.BackgroundProperty, new SolidColorBrush(Color.FromRgb(239, 68, 68)));
+        decreaseButtonFactory.SetValue(Button.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(185, 28, 28)));
+        decreaseButtonFactory.AddHandler(Button.ClickEvent, new RoutedEventHandler((sender, _) =>
+        {
+            if ((sender as FrameworkElement)?.DataContext is ClientServiceOrderSelectionRow row)
+            {
+                row.DecreaseQuantity();
+            }
+        }));
+
+        var quantityValueFactory = new FrameworkElementFactory(typeof(TextBlock));
+        quantityValueFactory.SetValue(TextBlock.WidthProperty, 48d);
+        quantityValueFactory.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Center);
+        quantityValueFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+        quantityValueFactory.SetValue(TextBlock.FontSizeProperty, 14d);
+        quantityValueFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+        quantityValueFactory.SetBinding(TextBlock.TextProperty, new Binding(nameof(ClientServiceOrderSelectionRow.Quantity)));
+
+        var increaseButtonFactory = new FrameworkElementFactory(typeof(Button));
+        increaseButtonFactory.SetValue(Button.ContentProperty, "+");
+        increaseButtonFactory.SetValue(Button.WidthProperty, 30d);
+        increaseButtonFactory.SetValue(Button.HeightProperty, 28d);
+        increaseButtonFactory.SetValue(Button.PaddingProperty, new Thickness(0));
+        increaseButtonFactory.SetValue(Button.MarginProperty, new Thickness(6, 0, 0, 0));
+        increaseButtonFactory.SetValue(Button.FontWeightProperty, FontWeights.SemiBold);
+        increaseButtonFactory.SetValue(Button.FontSizeProperty, 14d);
+        increaseButtonFactory.SetValue(Button.ForegroundProperty, Brushes.White);
+        increaseButtonFactory.SetValue(Button.BackgroundProperty, new SolidColorBrush(Color.FromRgb(34, 197, 94)));
+        increaseButtonFactory.SetValue(Button.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(22, 163, 74)));
+        increaseButtonFactory.AddHandler(Button.ClickEvent, new RoutedEventHandler((sender, _) =>
+        {
+            if ((sender as FrameworkElement)?.DataContext is ClientServiceOrderSelectionRow row)
+            {
+                row.IncreaseQuantity();
+            }
+        }));
+
+        quantityPanelFactory.AppendChild(decreaseButtonFactory);
+        quantityPanelFactory.AppendChild(quantityValueFactory);
+        quantityPanelFactory.AppendChild(increaseButtonFactory);
+        quantityTemplateColumn.CellTemplate = new DataTemplate
+        {
+            VisualTree = quantityPanelFactory,
+        };
+        serviceGrid.Columns.Add(quantityTemplateColumn);
+
+        serviceGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Thành tiền",
+            Width = 130,
+            Binding = new Binding(nameof(ClientServiceOrderSelectionRow.LineTotalText)),
+            IsReadOnly = true,
+        });
+
+        Grid.SetRow(serviceGrid, 2);
+        root.Children.Add(serviceGrid);
+
+        var notePanel = new StackPanel
+        {
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        notePanel.Children.Add(new TextBlock
+        {
+            Text = "Ghi chú (không bắt buộc):",
+            Margin = new Thickness(0, 0, 0, 4),
+        });
+        var noteTextBox = new TextBox
+        {
+            Height = 52,
+            TextWrapping = TextWrapping.Wrap,
+            AcceptsReturn = true,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+        };
+        notePanel.Children.Add(noteTextBox);
+        Grid.SetRow(notePanel, 3);
+        root.Children.Add(notePanel);
+
+        var summaryTextBlock = new TextBlock
+        {
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+        var errorTextBlock = new TextBlock
+        {
+            Foreground = Brushes.Firebrick,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 6),
+        };
+        var statusPanel = new StackPanel();
+        statusPanel.Children.Add(summaryTextBlock);
+        statusPanel.Children.Add(errorTextBlock);
+        Grid.SetRow(statusPanel, 4);
+        root.Children.Add(statusPanel);
+
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 6, 0, 0),
+        };
+        var orderButton = new Button
+        {
+            Content = "Gọi dịch vụ",
+            Width = 130,
+            Height = 34,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Brushes.White,
+            Background = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(29, 78, 216)),
+            Margin = new Thickness(0, 0, 8, 0),
+            IsDefault = true,
+        };
+        var cancelButton = new Button
+        {
+            Content = "Hủy",
+            Width = 90,
+            Height = 34,
+            FontWeight = FontWeights.SemiBold,
+            IsCancel = true,
+        };
+        buttonPanel.Children.Add(orderButton);
+        buttonPanel.Children.Add(cancelButton);
+        Grid.SetRow(buttonPanel, 5);
+        root.Children.Add(buttonPanel);
+
+        void RefreshSummary()
+        {
+            var selectedRows = rows.Where(x => x.Quantity > 0).ToList();
+            var selectedItemCount = selectedRows.Count;
+            var totalQuantity = selectedRows.Sum(x => x.Quantity);
+            var totalAmount = selectedRows.Sum(x => x.LineTotal);
+            summaryTextBlock.Text =
+                $"Đã chọn {selectedItemCount} món | Tổng SL: {totalQuantity} | Tổng tạm tính: {totalAmount:N0} VND";
+        }
+
+        void RowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(ClientServiceOrderSelectionRow.Quantity))
+            {
+                RefreshSummary();
+            }
+        }
+
+        foreach (var row in rows)
+        {
+            row.PropertyChanged += RowPropertyChanged;
+        }
+
+        orderButton.Click += async (_, _) =>
+        {
+            errorTextBlock.Text = string.Empty;
+
+            var selectedRows = rows
+                .Where(x => x.Quantity > 0)
+                .ToList();
+
+            if (selectedRows.Count == 0)
+            {
+                errorTextBlock.Text = "Vui lòng bấm + để chọn ít nhất 1 dịch vụ.";
+                return;
+            }
+
+            orderButton.IsEnabled = false;
+            cancelButton.IsEnabled = false;
+            try
+            {
+                var failedItems = new List<string>();
+                var successCount = 0;
+                foreach (var row in selectedRows)
+                {
+                    using var response = await _httpClient.PostAsJsonAsync(
+                        BuildApiUrl($"/services/pcs/{pcId}/orders"),
+                        new
+                        {
+                            serviceItemId = row.ServiceItemId,
+                            quantity = row.Quantity,
+                            note = string.IsNullOrWhiteSpace(noteTextBox.Text) ? null : noteTextBox.Text.Trim(),
+                            requestedBy = _settings.AgentId,
+                        });
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        var err = await ReadErrorMessageAsync(response);
+                        failedItems.Add(
+                            string.IsNullOrWhiteSpace(err)
+                                ? $"{row.ServiceName} ({(int)response.StatusCode})"
+                                : $"{row.ServiceName}: {err}");
+                        continue;
+                    }
+
+                    successCount++;
+                }
+
+                if (successCount > 0)
+                {
+                    _ = RefreshServiceCostUiAsync(force: true);
+                    _mainWindow?.SetLastCommand($"GỌI DỊCH VỤ @ {DateTime.Now:HH:mm:ss}");
+                }
+
+                if (failedItems.Count > 0)
+                {
+                    var errorPreview = string.Join(
+                        Environment.NewLine,
+                        failedItems.Take(6).Select(x => $"- {x}"));
+                    errorTextBlock.Text =
+                        $"Gọi thành công {successCount}/{selectedRows.Count}.{Environment.NewLine}{errorPreview}";
+                    return;
+                }
+
+                dialog.DialogResult = true;
+                dialog.Close();
+            }
+            finally
+            {
+                orderButton.IsEnabled = true;
+                cancelButton.IsEnabled = true;
+            }
+        };
+
+        dialog.Content = root;
+        dialog.Loaded += (_, _) =>
+        {
+            RefreshSummary();
+            serviceGrid.Focus();
+        };
+        _ = dialog.ShowDialog();
+
+        foreach (var row in rows)
+        {
+            row.PropertyChanged -= RowPropertyChanged;
+        }
     }
 
 public async void OpenLoyaltyPanelFromClientUi()
@@ -1057,6 +1749,124 @@ public async void OpenLoyaltyPanelFromClientUi()
         return tcs.Task;
     }
 
+    private string? PromptForManualLockPassword()
+    {
+        if (_mainWindow is null)
+        {
+            return null;
+        }
+
+        string? result = null;
+        var dialog = new Window
+        {
+            Title = "Khoa may thu cong",
+            Width = 390,
+            Height = 240,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = _mainWindow,
+            ShowInTaskbar = false,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+        };
+
+        var root = new Grid { Margin = new Thickness(20) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var title = new TextBlock
+        {
+            Text = "Nhap mat ma de khoa may tam thoi:",
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 10),
+            TextWrapping = TextWrapping.Wrap,
+        };
+        Grid.SetRow(title, 0);
+        root.Children.Add(title);
+
+        var passwordBox = new PasswordBox
+        {
+            Height = 32,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        Grid.SetRow(passwordBox, 1);
+        root.Children.Add(passwordBox);
+
+        var confirmPasswordBox = new PasswordBox
+        {
+            Height = 32,
+            VerticalContentAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetRow(confirmPasswordBox, 2);
+        root.Children.Add(confirmPasswordBox);
+
+        var errorText = new TextBlock
+        {
+            Foreground = Brushes.Firebrick,
+            FontSize = 11,
+            Margin = new Thickness(0, 8, 0, 0),
+            TextWrapping = TextWrapping.Wrap,
+        };
+        Grid.SetRow(errorText, 3);
+        root.Children.Add(errorText);
+
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        var cancelButton = new Button
+        {
+            Content = "Huy",
+            Width = 80,
+            Margin = new Thickness(0, 0, 8, 0),
+            IsCancel = true,
+        };
+        var confirmButton = new Button
+        {
+            Content = "Khoa may",
+            Width = 90,
+            IsDefault = true,
+            Background = new SolidColorBrush(Color.FromRgb(220, 38, 38)),
+            Foreground = Brushes.White,
+        };
+        buttonPanel.Children.Add(cancelButton);
+        buttonPanel.Children.Add(confirmButton);
+        Grid.SetRow(buttonPanel, 4);
+        root.Children.Add(buttonPanel);
+
+        cancelButton.Click += (_, _) => dialog.Close();
+        confirmButton.Click += (_, _) =>
+        {
+            var password = passwordBox.Password;
+            var confirmedPassword = confirmPasswordBox.Password;
+
+            if (string.IsNullOrEmpty(password))
+            {
+                errorText.Text = "Vui long nhap mat ma.";
+                return;
+            }
+
+            if (!string.Equals(password, confirmedPassword, StringComparison.Ordinal))
+            {
+                errorText.Text = "Xac nhan mat ma khong khop.";
+                return;
+            }
+
+            result = password;
+            dialog.DialogResult = true;
+            dialog.Close();
+        };
+
+        dialog.Content = root;
+        dialog.Loaded += (_, _) => passwordBox.Focus();
+        _ = dialog.ShowDialog();
+        return result;
+    }
+
     private void ShowTransferBalanceDialog(
         ActiveMemberSession activeSession,
         MemberLoginItem sourceMember)
@@ -1346,6 +2156,11 @@ public async void OpenLoyaltyPanelFromClientUi()
     private async void MemberUsageSyncTimer_Tick(object? sender, EventArgs e)
     {
         await SyncActiveMemberUsageAsync("PERIODIC", false);
+    }
+
+    private async void ServiceCostSyncTimer_Tick(object? sender, EventArgs e)
+    {
+        await RefreshServiceCostUiAsync(force: false);
     }
 
     private async Task RefreshClientRuntimeSettingsIfDueAsync()
@@ -2390,7 +3205,7 @@ LIMIT $limit;";
         if (activeSession is not null)
         {
             await SyncActiveMemberUsageAsync(reason, true);
-            await ReportMemberPresenceAsync(activeSession, false);
+            _ = await ReportMemberPresenceAsync(activeSession, false);
         }
         else if (_isPostpaidGuestSession)
         {
@@ -2410,10 +3225,14 @@ LIMIT $limit;";
         Dispatcher.Invoke(() =>
         {
             _mainWindow?.SetMemberInfo(null, null);
+            _mainWindow?.SetServiceCost(0);
+            _mainWindow?.SetServiceOrderCount(0);
         });
     }
 
-    private async Task ReportMemberPresenceAsync(ActiveMemberSession activeSession, bool isActive)
+    private async Task<(bool Success, string Message)> ReportMemberPresenceAsync(
+        ActiveMemberSession activeSession,
+        bool isActive)
     {
         try
         {
@@ -2428,12 +3247,23 @@ LIMIT $limit;";
                     isActive,
                 });
 
-            if (!response.IsSuccessStatusCode && _logger is not null)
+            if (!response.IsSuccessStatusCode)
             {
                 var err = await ReadErrorMessageAsync(response);
-                await _logger.ErrorAsync(
-                    $"Report member presence failed ({(isActive ? "ACTIVE" : "INACTIVE")}): {(int)response.StatusCode} {err}");
+                if (_logger is not null)
+                {
+                    await _logger.ErrorAsync(
+                        $"Report member presence failed ({(isActive ? "ACTIVE" : "INACTIVE")}): {(int)response.StatusCode} {err}");
+                }
+
+                return (
+                    false,
+                    string.IsNullOrWhiteSpace(err)
+                        ? "Khong the cap nhat trang thai hoi vien."
+                        : err);
             }
+
+            return (true, string.Empty);
         }
         catch (Exception ex)
         {
@@ -2441,6 +3271,8 @@ LIMIT $limit;";
             {
                 await _logger.ErrorAsync("Report member presence failed", ex);
             }
+
+            return (false, $"Khong the ket noi server: {ex.Message}");
         }
     }
 
@@ -2767,7 +3599,7 @@ LIMIT $limit;";
 
         var actionPanel = new UniformGrid
         {
-            Columns = 5,
+            Columns = 4,
             HorizontalAlignment = HorizontalAlignment.Stretch,
             Margin = new Thickness(0, 12, 0, 0),
         };
@@ -2802,18 +3634,6 @@ LIMIT $limit;";
         spinButton.Click += (_, _) =>
         {
             ShowLuckySpinDialogV2(activeSession, settings, loyaltyResponse);
-        };
-
-        var horseRaceButton = new Button
-        {
-            Content = "\u0110ua ng\u1ef1a",
-            Margin = new Thickness(0, 0, 6, 0),
-            Background = new SolidColorBrush(Color.FromRgb(147, 197, 253)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
-        };
-        horseRaceButton.Click += (_, _) =>
-        {
-            ShowHorseRaceMiniDialog(activeSession);
         };
 
         var redeemButton = new Button
@@ -2894,7 +3714,6 @@ LIMIT $limit;";
         };
 
         actionPanel.Children.Add(spinButton);
-        actionPanel.Children.Add(horseRaceButton);
         actionPanel.Children.Add(redeemButton);
         actionPanel.Children.Add(redeemAllButton);
         actionPanel.Children.Add(cancelButton);
@@ -3786,8 +4605,6 @@ LIMIT $limit;";
 
         var gameButtons = new Grid { Margin = new Thickness(0, 4, 0, 0) };
         gameButtons.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        gameButtons.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
-        gameButtons.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         var spinButton = new Button
         {
@@ -3805,23 +4622,6 @@ LIMIT $limit;";
         };
         Grid.SetColumn(spinButton, 0);
         gameButtons.Children.Add(spinButton);
-
-        var horseRaceButton = new Button
-        {
-            Content = "Đua ngựa mini",
-            Height = 72,
-            FontWeight = FontWeights.SemiBold,
-            FontSize = 16,
-            Background = new SolidColorBrush(Color.FromRgb(147, 197, 253)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
-        };
-        horseRaceButton.Click += (_, _) =>
-        {
-            dialog.Close();
-            ShowHorseRaceMiniDialog(activeSession);
-        };
-        Grid.SetColumn(horseRaceButton, 2);
-        gameButtons.Children.Add(horseRaceButton);
 
         Grid.SetRow(gameButtons, 2);
         root.Children.Add(gameButtons);
@@ -4190,6 +4990,7 @@ LIMIT $limit;";
             return;
         }
 
+        ClearManualLockState();
         _lockScreenWindow?.PrepareForLock();
 
         _mainWindow?.SetMachineState("LOCKED");
@@ -4199,10 +5000,29 @@ LIMIT $limit;";
 
     private void UnlockMachine()
     {
+        ClearManualLockState();
         _lockScreenWindow?.Hide();
         _mainWindow?.SetMachineState("IN_USE");
         _mainWindow?.SetLastCommand($"OPEN @ {DateTime.Now:HH:mm:ss}");
         TrackMachineState("IN_USE");
+        _ = RefreshServiceCostUiAsync(force: true);
+    }
+
+    private void ResumeGuestSessionFromServer()
+    {
+        if (_activeMemberSession is not null || _isAdminSession)
+        {
+            return;
+        }
+
+        _isPostpaidGuestSession = true;
+        _mainWindow?.ConfigureBilling(
+            _settings.TotalSessionMinutes,
+            _currentHourlyRate,
+            false);
+        _mainWindow?.SetMemberInfo(null, null);
+        UnlockMachine();
+        _mainWindow?.SetLastCommand($"GUEST RESUME @ {DateTime.Now:HH:mm:ss}");
     }
 
     private void OnConnectionStatusChanged(string status)
@@ -4212,10 +5032,17 @@ LIMIT $limit;";
 
     private void PauseMachine()
     {
+        ClearManualLockState();
         _lockScreenWindow?.PrepareForLock();
         _mainWindow?.SetMachineState("PAUSED");
         _mainWindow?.SetLastCommand($"PAUSE @ {DateTime.Now:HH:mm:ss}");
         TrackMachineState("PAUSED");
+    }
+
+    private void ClearManualLockState()
+    {
+        _manualLockPassword = null;
+        _lockScreenWindow?.SetManualUnlockMode(false);
     }
 
     private static void TriggerSystemRestart()
@@ -5133,4 +5960,129 @@ public sealed class ActiveMemberSession
     public string? Rank { get; set; }
 }
 
+public sealed class ClientPcListResponse
+{
+    public List<ClientPcItemDto> Items { get; set; } = new();
+}
 
+public sealed class ClientPcItemDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string AgentId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public ClientPcActiveSessionDto? ActiveSession { get; set; }
+}
+
+public sealed class ClientPcActiveSessionDto
+{
+    public string Id { get; set; } = string.Empty;
+}
+
+public sealed class ClientServiceItemsResponse
+{
+    public List<ClientServiceItemDto> Items { get; set; } = new();
+}
+
+public sealed class ClientServiceItemDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Category { get; set; } = "-";
+    public decimal UnitPrice { get; set; }
+    public bool IsActive { get; set; }
+}
+
+public sealed class ClientPcServiceOrdersResponse
+{
+    public string PcId { get; set; } = string.Empty;
+    public List<ClientPcServiceOrderItem> Items { get; set; } = new();
+}
+
+public sealed class ClientPcServiceOrderItem
+{
+    public string Id { get; set; } = string.Empty;
+    public string? SessionId { get; set; }
+    public int Quantity { get; set; }
+    public decimal UnitPrice { get; set; }
+    public decimal LineTotal { get; set; }
+    public string? Note { get; set; }
+    public bool IsPaid { get; set; }
+    public string CreatedAt { get; set; } = string.Empty;
+    public ClientServiceItemDto? ServiceItem { get; set; }
+}
+
+public sealed class ClientExistingServiceSummary
+{
+    public int Quantity { get; set; }
+    public decimal Amount { get; set; }
+}
+
+public sealed class ClientServiceOrderSelectionRow : INotifyPropertyChanged
+{
+    private int _quantity;
+
+    public string ServiceItemId { get; init; } = string.Empty;
+    public string ServiceName { get; init; } = string.Empty;
+    public string Category { get; init; } = "-";
+    public decimal UnitPrice { get; init; }
+    public int ExistingQuantity { get; init; }
+    public decimal ExistingAmount { get; init; }
+    public string UnitPriceText => UnitPrice.ToString("N0", CultureInfo.InvariantCulture);
+    public string ExistingText => ExistingQuantity <= 0 ? "-" : $"{ExistingQuantity:N0} ({ExistingAmount:N0})";
+
+    public int Quantity
+    {
+        get => _quantity;
+        set
+        {
+            var clamped = Math.Clamp(value, 0, 99);
+            if (_quantity == clamped)
+            {
+                return;
+            }
+
+            _quantity = clamped;
+            NotifyQuantityChanged();
+        }
+    }
+
+    public decimal LineTotal => UnitPrice * Quantity;
+    public string LineTotalText => LineTotal.ToString("N0", CultureInfo.InvariantCulture);
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public static ClientServiceOrderSelectionRow FromServiceItem(
+        ClientServiceItemDto item,
+        ClientExistingServiceSummary? existingSummary = null)
+    {
+        var existingQuantity = existingSummary?.Quantity ?? 0;
+        var existingAmount = existingSummary?.Amount ?? 0;
+        return new ClientServiceOrderSelectionRow
+        {
+            ServiceItemId = item.Id,
+            ServiceName = item.Name,
+            Category = string.IsNullOrWhiteSpace(item.Category) ? "-" : item.Category,
+            UnitPrice = item.UnitPrice,
+            ExistingQuantity = existingQuantity,
+            ExistingAmount = existingAmount,
+            Quantity = 0,
+        };
+    }
+
+    public void IncreaseQuantity()
+    {
+        Quantity = Math.Min(99, Quantity + 1);
+    }
+
+    public void DecreaseQuantity()
+    {
+        Quantity = Math.Max(0, Quantity - 1);
+    }
+
+    private void NotifyQuantityChanged()
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Quantity)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LineTotal)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LineTotalText)));
+    }
+}

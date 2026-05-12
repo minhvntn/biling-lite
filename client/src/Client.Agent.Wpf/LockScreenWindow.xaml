@@ -36,10 +36,64 @@
                     CornerRadius="8"
                     Padding="18">
                 <StackPanel>
-                    <TextBlock Text="Đăng nhập máy trạm"
+                    <TextBlock x:Name="TitleTextBlock"
+                               Text="Đăng nhập máy trạm"
                                Foreground="#0F172A"
                                FontWeight="SemiBold"
-                               FontSize="20" />
+                               FontSize="22" />
+
+                    <StackPanel x:Name="ManualUnlockPanel"
+                                Margin="0,14,0,0"
+                                Visibility="Collapsed">
+                        <TextBlock Text="Máy đang khóa tạm thời."
+                                   Foreground="#334155"
+                                   FontWeight="SemiBold"
+                                   FontSize="15" />
+
+                        <TextBlock Text="Vui lòng nhập mật mã đã đặt để tiếp tục sử dụng."
+                                   Margin="0,8,0,0"
+                                   Foreground="#64748B"
+                                   FontSize="14"
+                                   TextWrapping="Wrap" />
+
+                        <Border Margin="0,12,0,0"
+                                BorderBrush="#CBD5E1"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Background="White">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="35" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                           Text="🔐"
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Center"
+                                           Foreground="#94A3B8"
+                                           FontSize="15" />
+                                <PasswordBox x:Name="ManualUnlockPasswordBox"
+                                             Grid.Column="1"
+                                             BorderThickness="0"
+                                             Background="Transparent"
+                                             VerticalContentAlignment="Center"
+                                             Padding="5,0,8,0"
+                                             FontSize="15"
+                                             KeyDown="ManualUnlockPasswordBox_KeyDown" />
+                            </Grid>
+                        </Border>
+
+                        <Button x:Name="ManualUnlockButton"
+                                Margin="0,14,0,0"
+                                Height="34"
+                                Content="Mở khóa"
+                                FontWeight="SemiBold"
+                                FontSize="15"
+                                Background="#2563EB"
+                                Foreground="White"
+                                BorderThickness="0"
+                                Click="ManualUnlockButton_Click" />
+                    </StackPanel>
 
                     <TabControl x:Name="LoginModeTabControl"
                                 Margin="0,14,0,0"
@@ -68,8 +122,8 @@
                                         <TextBlock Grid.Column="0" Text="👤" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#94A3B8" FontSize="15" />
                                         
                                         <Grid Grid.Column="1">
-                                            <TextBox x:Name="UsernameTextBox" TabIndex="0" BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center" Padding="5,0,8,0" FontSize="13" KeyDown="Input_KeyDown" />
-                                            <TextBlock Text="Tên đăng nhập" Foreground="#94A3B8" IsHitTestVisible="False" VerticalAlignment="Center" Margin="5,0,0,0" FontSize="13">
+                                            <TextBox x:Name="UsernameTextBox" TabIndex="0" BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center" Padding="5,0,8,0" FontSize="15" KeyDown="Input_KeyDown" />
+                                            <TextBlock Text="Tên đăng nhập" Foreground="#94A3B8" IsHitTestVisible="False" VerticalAlignment="Center" Margin="5,0,0,0" FontSize="15">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Visibility" Value="Collapsed" />
@@ -90,7 +144,7 @@
                                         Height="38"
                                         Content="Đăng nhập"
                                         FontWeight="SemiBold"
-                                        FontSize="13"
+                                        FontSize="15"
                                         Background="#2563EB"
                                         Foreground="White"
                                         BorderThickness="0"
@@ -112,7 +166,7 @@
                                         <TextBlock Grid.Column="0" Text="🔑" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#94A3B8" FontSize="15" />
                                         
                                         <Grid Grid.Column="1">
-                                            <PasswordBox x:Name="PasswordBox" TabIndex="1" BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center" Padding="5,0,8,0" FontSize="13" KeyDown="Input_KeyDown" />
+                                            <PasswordBox x:Name="PasswordBox" TabIndex="1" BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center" Padding="5,0,8,0" FontSize="15" KeyDown="Input_KeyDown" />
                                         </Grid>
                                     </Grid>
                                 </Border>
@@ -124,13 +178,13 @@
                                 <TextBlock Text="Đăng nhập nhanh cho khách vãng lai"
                                            Foreground="#334155"
                                            FontWeight="SemiBold"
-                                           FontSize="13"
+                                           FontSize="15"
                                            TextWrapping="Wrap" />
 
                                 <TextBlock Text="Dùng tab này cho khách không sử dụng tài khoản hội viên."
                                            Margin="0,8,0,0"
                                            Foreground="#64748B"
-                                           FontSize="12"
+                                           FontSize="14"
                                            TextWrapping="Wrap" />
 
                                 <Button x:Name="GuestLoginButton"
@@ -138,7 +192,7 @@
                                         Height="34"
                                         Content="Sử dụng Khách vãng lai"
                                         FontWeight="SemiBold"
-                                        FontSize="13"
+                                        FontSize="15"
                                         Background="Transparent"
                                         BorderBrush="#2563EB"
                                         BorderThickness="1"
@@ -152,31 +206,31 @@
                                 <TextBlock Text="Cài đặt lại IP/URL máy chủ"
                                            Foreground="#334155"
                                            FontWeight="SemiBold"
-                                           FontSize="13" />
+                                           FontSize="15" />
 
                                 <TextBlock Text="Ví dụ: 192.168.1.50 hoặc 192.168.1.50:9000"
                                            Margin="0,8,0,0"
                                            Foreground="#64748B"
-                                           FontSize="12"
+                                           FontSize="14"
                                            TextWrapping="Wrap" />
 
                                 <TextBlock Text="IP/URL Máy chủ"
                                            Margin="0,12,0,5"
                                            Foreground="#334155"
                                            FontWeight="SemiBold"
-                                           FontSize="13" />
+                                           FontSize="15" />
 
                                 <TextBox x:Name="ServerIpTextBox"
                                          Height="32"
                                          Padding="8,4"
-                                         FontSize="13" />
+                                         FontSize="15" />
 
                                 <Button x:Name="SaveServerButton"
                                         Margin="0,14,0,0"
                                         Height="34"
                                         Content="Lưu và kết nối lại"
                                         FontWeight="SemiBold"
-                                        FontSize="13"
+                                        FontSize="15"
                                         Background="#2563EB"
                                         Foreground="White"
                                         Click="SaveServerButton_Click" />
@@ -184,7 +238,7 @@
                                 <TextBlock x:Name="ServerSetupStatusTextBlock"
                                            Margin="0,10,0,0"
                                            Foreground="#166534"
-                                           FontSize="12"
+                                           FontSize="14"
                                            TextWrapping="Wrap" />
                             </StackPanel>
                         </TabItem>
@@ -193,7 +247,7 @@
                     <TextBlock x:Name="ErrorTextBlock"
                                Margin="0,10,0,0"
                                Foreground="#DC2626"
-                               FontSize="12"
+                               FontSize="14"
                                TextWrapping="Wrap" />
                 </StackPanel>
             </Border>

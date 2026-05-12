@@ -1,10 +1,10 @@
-<Window x:Class="Client.Agent.Wpf.MainWindow"
+﻿<Window x:Class="Client.Agent.Wpf.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Server Manager Client"
-        Height="760"
-        Width="320"
-        MinWidth="300"
+        Height="608"
+        Width="256"
+        MinWidth="240"
         WindowStyle="None"
         ResizeMode="NoResize"
         Topmost="True"
@@ -54,20 +54,23 @@
         <Style x:Key="MetricLabelStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#6B7280" />
             <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="Medium" />
         </Style>
 
         <Style x:Key="MetricValueStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#111827" />
             <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontSize" Value="16" />
             <Setter Property="FontFamily" Value="Consolas" />
             <Setter Property="HorizontalAlignment" Value="Right" />
         </Style>
     </Window.Resources>
 
     <DockPanel>
+        <DockPanel.LayoutTransform>
+            <ScaleTransform ScaleX="0.8" ScaleY="0.8" />
+        </DockPanel.LayoutTransform>
         <Border DockPanel.Dock="Top" Background="#111827" Padding="12,10">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -82,16 +85,16 @@
                         <TextBlock x:Name="AgentIdTextBlock"
                                    Foreground="White"
                                    FontWeight="Bold"
-                                   FontSize="14" />
+                                   FontSize="16" />
                         <TextBlock x:Name="ConnectionStatusTextBlock"
                                    Foreground="#9CA3AF"
-                                   FontSize="11"
+                                   FontSize="13"
                                    Text="Connecting..." />
                     </StackPanel>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center" HorizontalAlignment="Right" x:Name="UserInfoPanel" Visibility="Collapsed">
-                    <TextBlock x:Name="MemberUsernameTextBlock" Foreground="White" FontSize="15" FontWeight="Bold" HorizontalAlignment="Right" />
+                    <TextBlock x:Name="MemberUsernameTextBlock" Foreground="White" FontSize="17" FontWeight="Bold" HorizontalAlignment="Right" />
                     <Border x:Name="MemberRankBorder"
                             Background="#374151"
                             BorderBrush="#FBBF24"
@@ -109,10 +112,10 @@
                                        FontSize="14"
                                        FontWeight="Black"
                                        Margin="0,0,6,0"
-                                       Text="🔰" />
+                                       Text="ðŸ”°" />
                             <TextBlock x:Name="MemberRankTextBlock"
                                        Foreground="#FBBF24"
-                                       FontSize="12"
+                                       FontSize="14"
                                        FontWeight="Black" />
                         </StackPanel>
                     </Border>
@@ -123,7 +126,7 @@
                         Foreground="#9CA3AF"
                         Background="Transparent"
                         BorderThickness="0"
-                        FontSize="16"
+                        FontSize="18"
                         FontWeight="Bold"
                         VerticalAlignment="Top"
                         HorizontalAlignment="Right"
@@ -142,13 +145,13 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Border Width="40" Height="40" Background="#DBEAFE" CornerRadius="20" HorizontalAlignment="Left">
-                            <TextBlock x:Name="StatusIconTextBlock" Text="⚡" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <TextBlock x:Name="StatusIconTextBlock" Text="âš¡" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                            <TextBlock x:Name="StatusTitleTextBlock" Text="Trạng thái máy" FontSize="11" Foreground="#6B7280" />
+                            <TextBlock x:Name="StatusTitleTextBlock" Text="Tráº¡ng thÃ¡i mÃ¡y" FontSize="13" Foreground="#6B7280" />
                             <TextBlock x:Name="MachineStateTextBlock"
-                                       Text="Đang sử dụng"
-                                       FontSize="16"
+                                       Text="Äang sá»­ dá»¥ng"
+                                       FontSize="18"
                                        FontWeight="Bold"
                                        Foreground="#1D4ED8" />
                         </StackPanel>
@@ -158,28 +161,28 @@
                 <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,16">
                     <StackPanel>
                         <Grid Margin="0,0,0,12">
-                            <TextBlock x:Name="TotalTimeLabelTextBlock" Style="{StaticResource MetricLabelStyle}" Text="Tổng thời gian" />
+                            <TextBlock x:Name="TotalTimeLabelTextBlock" Style="{StaticResource MetricLabelStyle}" Text="Tá»•ng thá»i gian" />
                             <TextBlock x:Name="TotalTimeValueTextBlock" Style="{StaticResource MetricValueStyle}" Text="100:00" />
                         </Grid>
                         <Rectangle Height="1" Fill="#F3F4F6" Margin="0,0,0,12" />
 
                         <Grid Margin="0,0,0,12">
-                            <TextBlock x:Name="UsedTimeLabelTextBlock" Style="{StaticResource MetricLabelStyle}" Text="Đã sử dụng" />
+                            <TextBlock x:Name="UsedTimeLabelTextBlock" Style="{StaticResource MetricLabelStyle}" Text="ÄÃ£ sá»­ dá»¥ng" />
                             <TextBlock x:Name="UsedTimeValueTextBlock" Style="{StaticResource MetricValueStyle}" Text="00:25" Foreground="#EF4444" />
                         </Grid>
 
                         <Grid Margin="0,0,0,12">
-                            <TextBlock x:Name="RemainingTimeLabelTextBlock" Style="{StaticResource MetricLabelStyle}" Text="Còn lại" />
+                            <TextBlock x:Name="RemainingTimeLabelTextBlock" Style="{StaticResource MetricLabelStyle}" Text="CÃ²n láº¡i" />
                             <TextBlock x:Name="RemainingTimeValueTextBlock" Style="{StaticResource MetricValueStyle}" Text="99:35" Foreground="#10B981" />
                         </Grid>
                         <Rectangle Height="1" Fill="#F3F4F6" Margin="0,0,0,12" />
 
                         <Grid Margin="0,0,0,8">
-                            <TextBlock x:Name="GameCostLabelTextBlock" Style="{StaticResource MetricLabelStyle}" Text="Tiền giờ chơi" />
+                            <TextBlock x:Name="GameCostLabelTextBlock" Style="{StaticResource MetricLabelStyle}" Text="Tiá»n giá» chÆ¡i" />
                             <TextBlock x:Name="GameCostValueTextBlock" Style="{StaticResource MetricValueStyle}" Text="12,000" />
                         </Grid>
                         <Grid>
-                            <TextBlock x:Name="ServiceCostLabelTextBlock" Style="{StaticResource MetricLabelStyle}" Text="Tiền dịch vụ" />
+                            <TextBlock x:Name="ServiceCostLabelTextBlock" Style="{StaticResource MetricLabelStyle}" Text="Tiá»n dá»‹ch vá»¥" />
                             <TextBlock x:Name="ServiceCostValueTextBlock" Style="{StaticResource MetricValueStyle}" Text="0" />
                         </Grid>
                     </StackPanel>
@@ -188,56 +191,89 @@
                 <TextBlock x:Name="LastCommandTextBlock"
                            Margin="4,0,0,8"
                            Foreground="#9CA3AF"
-                           FontSize="10"
-                           Text="Lệnh gần nhất: Khởi động hệ thống" />
+                           FontSize="12"
+                           Visibility="Collapsed"
+                           Text="Lá»‡nh gáº§n nháº¥t: Khá»Ÿi Ä‘á»™ng há»‡ thá»‘ng" />
 
                 <UniformGrid Columns="4" Margin="-4,0,-4,16">
                     <Button Style="{StaticResource ActionButtonStyle}" Click="MessagesButton_Click">
                         <StackPanel>
-                            <TextBlock x:Name="MessagesIconTextBlock" Text="💬" FontSize="20" HorizontalAlignment="Center" />
-                            <TextBlock x:Name="MessagesLabelTextBlock" Text="Tin nhắn" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
+                            <TextBlock x:Name="MessagesIconTextBlock" Text="ðŸ’¬" FontSize="20" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="MessagesLabelTextBlock" Text="Tin nháº¯n" FontSize="12" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
                         </StackPanel>
                     </Button>
 
                     <Button Style="{StaticResource ActionButtonStyle}" Click="ServicesButton_Click">
-                        <StackPanel>
-                            <TextBlock x:Name="ServicesIconTextBlock" Text="🛒" FontSize="20" HorizontalAlignment="Center" />
-                            <TextBlock x:Name="ServicesLabelTextBlock" Text="Dịch vụ" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
-                        </StackPanel>
-                    </Button>
+    <StackPanel>
+        <Grid Width="34" Height="24" HorizontalAlignment="Center">
+            <TextBlock x:Name="ServicesIconTextBlock"
+                       Text="ðŸ›’"
+                       FontSize="20"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center" />
+            <Border x:Name="ServicesBadgeBorder"
+                    Visibility="Collapsed"
+                    Background="#EF4444"
+                    BorderBrush="White"
+                    BorderThickness="1"
+                    CornerRadius="9"
+                    MinWidth="18"
+                    Height="18"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="0,-4,-8,0"
+                    Padding="4,0">
+                <TextBlock x:Name="ServicesBadgeTextBlock"
+                           Text="0"
+                           Foreground="White"
+                           FontSize="10"
+                           FontWeight="Bold"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           TextAlignment="Center" />
+            </Border>
+        </Grid>
+        <TextBlock x:Name="ServicesLabelTextBlock"
+                   Text="Dá»‹ch vá»¥"
+                   FontSize="12"
+                   Margin="0,4,0,0"
+                   HorizontalAlignment="Center"
+                   Foreground="#374151" />
+    </StackPanel>
+</Button>
 
                     <Button Style="{StaticResource ActionButtonStyle}" Click="LoyaltyButton_Click">
                         <StackPanel>
-                            <TextBlock x:Name="LoyaltyIconTextBlock" Text="🎡" FontSize="20" HorizontalAlignment="Center" />
-                            <TextBlock x:Name="LoyaltyLabelTextBlock" Text="&#272;&#7893;i &#273;i&#7875;m" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
+                            <TextBlock x:Name="LoyaltyIconTextBlock" Text="ðŸŽ¡" FontSize="20" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="LoyaltyLabelTextBlock" Text="&#272;&#7893;i &#273;i&#7875;m" FontSize="12" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
                         </StackPanel>
                     </Button>
 
                     <Button Style="{StaticResource ActionButtonStyle}" Click="TransferBalanceButton_Click">
                         <StackPanel>
-                            <TextBlock x:Name="TransferIconTextBlock" Text="💸" FontSize="20" HorizontalAlignment="Center" />
-                            <TextBlock x:Name="TransferLabelTextBlock" Text="Chuyển tiền" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
+                            <TextBlock x:Name="TransferIconTextBlock" Text="ðŸ’¸" FontSize="20" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="TransferLabelTextBlock" Text="Chuyá»ƒn tiá»n" FontSize="12" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
                         </StackPanel>
                     </Button>
 
                     <Button Style="{StaticResource ActionButtonStyle}" Click="PasswordButton_Click">
                         <StackPanel>
-                            <TextBlock x:Name="PasswordIconTextBlock" Text="🔑" FontSize="20" HorizontalAlignment="Center" />
-                            <TextBlock x:Name="PasswordLabelTextBlock" Text="Đổi mật mã" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
+                            <TextBlock x:Name="PasswordIconTextBlock" Text="ðŸ”‘" FontSize="20" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="PasswordLabelTextBlock" Text="Äá»•i máº­t mÃ£" FontSize="12" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
                         </StackPanel>
                     </Button>
 
-                    <Button Style="{StaticResource ActionButtonStyle}" Click="LogoutButton_Click">
+                    <Button x:Name="LogoutActionButton" Style="{StaticResource ActionButtonStyle}" Click="LogoutButton_Click">
                         <StackPanel>
-                            <TextBlock x:Name="LogoutIconTextBlock" Text="🚪" FontSize="20" HorizontalAlignment="Center" />
-                            <TextBlock x:Name="LogoutLabelTextBlock" Text="Đăng xuất" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
+                            <TextBlock x:Name="LogoutIconTextBlock" Text="ðŸšª" FontSize="20" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="LogoutLabelTextBlock" Text="ÄÄƒng xuáº¥t" FontSize="12" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
                         </StackPanel>
                     </Button>
 
                     <Button Style="{StaticResource ActionButtonStyle}" Click="LockButton_Click" BorderBrush="#FECACA" Background="#FEF2F2">
                         <StackPanel>
-                            <TextBlock x:Name="LockIconTextBlock" Text="🔒" FontSize="20" HorizontalAlignment="Center" />
-                            <TextBlock x:Name="LockLabelTextBlock" Text="Khóa máy" FontSize="10" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#DC2626" />
+                            <TextBlock x:Name="LockIconTextBlock" Text="ðŸ”’" FontSize="20" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="LockLabelTextBlock" Text="KhÃ³a mÃ¡y" FontSize="12" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#DC2626" />
                         </StackPanel>
                     </Button>
                 </UniformGrid>
@@ -251,16 +287,16 @@
                     </Border.Background>
                     <Grid>
                         <StackPanel>
-                            <TextBlock x:Name="FooterTitleTextBlock" Text="Loyalty Program" Foreground="White" FontWeight="Bold" FontSize="14" />
+                            <TextBlock x:Name="FooterTitleTextBlock" Text="Loyalty Program" Foreground="White" FontWeight="Bold" FontSize="16" />
                             <TextBlock x:Name="FooterDescriptionTextBlock"
-                                       Text="Tích lũy điểm khi chơi để đổi giờ hoặc quay thưởng hấp dẫn!"
+                                       Text="TÃ­ch lÅ©y Ä‘iá»ƒm khi chÆ¡i Ä‘á»ƒ Ä‘á»•i giá» hoáº·c quay thÆ°á»Ÿng háº¥p dáº«n!"
                                        Foreground="#BFDBFE"
-                                       FontSize="11"
+                                       FontSize="13"
                                        Margin="0,4,0,0"
                                        TextWrapping="Wrap" />
                         </StackPanel>
                         <TextBlock x:Name="FooterIconTextBlock"
-                                   Text="💎"
+                                   Text="ðŸ’Ž"
                                    FontSize="32"
                                    HorizontalAlignment="Right"
                                    VerticalAlignment="Center"
@@ -272,3 +308,4 @@
         </ScrollViewer>
     </DockPanel>
 </Window>
+

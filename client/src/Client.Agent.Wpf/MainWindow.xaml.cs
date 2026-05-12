@@ -23,6 +23,7 @@ public partial class MainWindow : Window
     private int _totalSessionMinutes = DefaultTotalSessionMinutes;
     private decimal _hourlyRate = DefaultHourlyRate;
     private decimal _serviceCost;
+    private int _serviceOrderCount;
     private bool _isMemberSession;
     private TimeSpan _usedDuration = TimeSpan.Zero;
     private DateTime? _runningStartedAtUtc;
@@ -31,6 +32,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         ApplyI18nTexts();
+        SetLogoutActionVisible(false);
 
         _usageTimer.Interval = TimeSpan.FromSeconds(1);
         _usageTimer.Tick += UsageTimer_Tick;
@@ -125,6 +127,8 @@ public partial class MainWindow : Window
             _usedDuration = TimeSpan.Zero;
             _runningStartedAtUtc = null;
             _serviceCost = 0;
+            _serviceOrderCount = 0;
+            UpdateServiceBadgeUi();
         }
 
         _totalSessionMinutes = Math.Max(1, totalSessionMinutes);
@@ -162,6 +166,12 @@ public partial class MainWindow : Window
     {
         _serviceCost = amount < 0 ? 0 : amount;
         UpdateUsageUi();
+    }
+
+    public void SetServiceOrderCount(int count)
+    {
+        _serviceOrderCount = Math.Max(0, count);
+        UpdateServiceBadgeUi();
     }
 
     public void SetAgentId(string agentId)
@@ -246,6 +256,9 @@ public partial class MainWindow : Window
     public void SetMemberInfo(string? username, string? rank)
     {
         _isMemberSession = !string.IsNullOrWhiteSpace(username);
+        var isAdminSession = string.Equals(username, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(rank, "ADMIN", StringComparison.OrdinalIgnoreCase);
+        SetLogoutActionVisible(_isMemberSession || isAdminSession);
         if (string.IsNullOrWhiteSpace(username))
         {
             UserInfoPanel.Visibility = Visibility.Collapsed;
@@ -389,6 +402,17 @@ public partial class MainWindow : Window
 
         return sb.ToString().Normalize(NormalizationForm.FormC).ToUpperInvariant();
     }
+
+    private void SetLogoutActionVisible(bool visible)
+    {
+        if (LogoutActionButton is null)
+        {
+            return;
+        }
+
+        LogoutActionButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     public void AllowShutdown()
     {
         _allowClose = true;
@@ -443,6 +467,8 @@ public partial class MainWindow : Window
 
         _usedDuration = TimeSpan.Zero;
         _serviceCost = 0;
+        _serviceOrderCount = 0;
+        UpdateServiceBadgeUi();
     }
 
     private TimeSpan GetCurrentUsedDuration()
@@ -464,18 +490,27 @@ public partial class MainWindow : Window
     {
         var total = TimeSpan.FromMinutes(Math.Max(1, _totalSessionMinutes));
         var used = GetCurrentUsedDuration();
-        
-        // Display consistency: ensure Used + Remaining = Total
+
+        // Keep client display aligned with server/admin:
+        // elapsed seconds are rounded up to billable minutes and minimum is 1 minute.
         var totalMins = (int)total.TotalMinutes;
-        var usedMins = (int)used.TotalMinutes;
+        var elapsedSeconds = Math.Max(0, (int)used.TotalSeconds);
+        var hasSessionUsage = _runningStartedAtUtc is not null || _usedDuration > TimeSpan.Zero;
+        var usedMins = hasSessionUsage
+            ? Math.Max(1, (int)Math.Ceiling(elapsedSeconds / 60.0))
+            : 0;
         var remainingMins = Math.Max(0, totalMins - usedMins);
 
         // Match backend logic: use billable minutes (rounded up) and apply pricing step and minimum charge
-        var billableMins = (int)Math.Max(1, Math.Ceiling(used.TotalMinutes));
+        var billableMins = hasSessionUsage
+            ? Math.Max(1, (int)Math.Ceiling(elapsedSeconds / 60.0))
+            : 0;
         var rawCost = billableMins * (_hourlyRate / 60m);
         var step = PricingStep > 0 ? PricingStep : 1000m;
         var roundedCost = Math.Ceiling(rawCost / step) * step;
-        var gameCost = Math.Max(MinimumCharge > 0 ? MinimumCharge : 1000m, roundedCost);
+        var gameCost = billableMins <= 0
+            ? 0m
+            : Math.Max(MinimumCharge > 0 ? MinimumCharge : 1000m, roundedCost);
 
         TotalTimeValueTextBlock.Text = FormatMinutes(totalMins);
         UsedTimeValueTextBlock.Text = FormatMinutes(usedMins);
@@ -499,6 +534,25 @@ public partial class MainWindow : Window
         return $"{hours:00}:{mins:00}";
     }
 
+    private void UpdateServiceBadgeUi()
+    {
+        if (ServicesBadgeBorder is null || ServicesBadgeTextBlock is null)
+        {
+            return;
+        }
+
+        if (_serviceOrderCount <= 0)
+        {
+            ServicesBadgeBorder.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        ServicesBadgeBorder.Visibility = Visibility.Visible;
+        ServicesBadgeTextBlock.Text = _serviceOrderCount > 99
+            ? "99+"
+            : _serviceOrderCount.ToString(CultureInfo.InvariantCulture);
+    }
+
 
     private void MessagesButton_Click(object sender, RoutedEventArgs e)
     {
@@ -511,8 +565,14 @@ public partial class MainWindow : Window
 
     private void ServicesButton_Click(object sender, RoutedEventArgs e)
     {
+        if (Application.Current is App app)
+        {
+            app.OpenServicesPanelFromClientUi();
+            return;
+        }
+
         MessageBox.Show(
-            "Tính năng gọi dịch vụ sẽ được bật ở phase bán hàng.\nHiện tại chi phí dịch vụ đang là 0.",
+            "Ứng dụng chưa sẵn sàng để gọi dịch vụ.",
             "Dịch vụ",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
@@ -578,7 +638,7 @@ public partial class MainWindow : Window
     {
         if (Application.Current is App app)
         {
-            app.RequestLockFromClientUi("Khóa máy thủ công");
+            app.RequestManualLockFromClientUi();
             return;
         }
 

@@ -19,6 +19,7 @@ public sealed class AgentSocketService : IAsyncDisposable
     private readonly Action<decimal>? _hourlyRateHandler;
     private readonly Action<bool>? _guestLoginEnabledHandler;
     private readonly Action<int>? _elapsedSecondsHandler;
+    private readonly Action<bool>? _resumeGuestSessionHandler;
 
     private global::SocketIOClient.SocketIO? _socket;
     private CancellationTokenSource? _heartbeatCts;
@@ -37,7 +38,8 @@ public sealed class AgentSocketService : IAsyncDisposable
         Func<AdminRemoteInputPayload, Task>? remoteInputHandler = null,
         Action<decimal>? hourlyRateHandler = null,
         Action<bool>? guestLoginEnabledHandler = null,
-        Action<int>? elapsedSecondsHandler = null)
+        Action<int>? elapsedSecondsHandler = null,
+        Action<bool>? resumeGuestSessionHandler = null)
     {
         _settings = settings;
         _logger = logger;
@@ -50,6 +52,7 @@ public sealed class AgentSocketService : IAsyncDisposable
         _hourlyRateHandler = hourlyRateHandler;
         _guestLoginEnabledHandler = guestLoginEnabledHandler;
         _elapsedSecondsHandler = elapsedSecondsHandler;
+        _resumeGuestSessionHandler = resumeGuestSessionHandler;
     }
 
     public async Task StartAsync()
@@ -181,6 +184,11 @@ public sealed class AgentSocketService : IAsyncDisposable
             if (element.TryGetProperty("elapsedSeconds", out var elapsed))
             {
                 _elapsedSecondsHandler?.Invoke(elapsed.GetInt32());
+            }
+
+            if (element.TryGetProperty("resumeGuestSession", out var resumeGuest))
+            {
+                _resumeGuestSessionHandler?.Invoke(resumeGuest.GetBoolean());
             }
         });
 

@@ -589,6 +589,7 @@ export class CommandsService {
           }
         | null = null;
       let adminLoginActivated = false;
+      let preserveSessionForRestart = false;
 
       if (payload.result === 'SUCCESS') {
         const existingPc = await tx.pc.findUnique({ where: { id: command.pcId } });
@@ -600,7 +601,8 @@ export class CommandsService {
             ? PcStatus.IN_USE
             : command.type === CommandType.LOCK
               ? PcStatus.ONLINE
-              : command.type === CommandType.SHUTDOWN
+              : command.type === CommandType.SHUTDOWN ||
+                  command.type === CommandType.RESTART
                 ? PcStatus.OFFLINE
               : command.type === CommandType.PAUSE
                 ? PcStatus.PAUSED
@@ -668,64 +670,47 @@ export class CommandsService {
           adminLoginActivated = true;
         }
 
-        if (command.type === CommandType.LOCK || command.type === CommandType.SHUTDOWN) {
-          const activeSession = await tx.session.findFirst({
-            where: {
-              pcId: command.pcId,
-              status: 'ACTIVE',
-            },
-            orderBy: { startedAt: 'desc' },
-          });
+        if (
+          command.type === CommandType.LOCK ||
+          command.type === CommandType.SHUTDOWN ||
+          command.type === CommandType.RESTART
+        ) {
+          preserveSessionForRestart =
+            command.type === CommandType.RESTART
+              ? await this.shouldPreserveSessionForRestartTx(tx, command.pcId)
+              : false;
+          const shouldCloseSession =
+            command.type === CommandType.LOCK ||
+            command.type === CommandType.SHUTDOWN ||
+            (command.type === CommandType.RESTART && !preserveSessionForRestart);
 
-          if (activeSession) {
-            const pricingStepSetting = await tx.appSetting.findUnique({
-              where: { key: 'PRICING_STEP' },
-            });
-            const minimumChargeSetting = await tx.appSetting.findUnique({
-              where: { key: 'MINIMUM_CHARGE' },
-            });
-            const pricingStep = pricingStepSetting ? Number(pricingStepSetting.value) : 1000;
-            const minimumCharge = minimumChargeSetting ? Number(minimumChargeSetting.value) : 1000;
-
-            const endedAt = new Date();
-            const durationSeconds = Math.max(
-              0,
-              Math.floor((endedAt.getTime() - activeSession.startedAt.getTime()) / 1000),
+          if (shouldCloseSession) {
+            const applySettlementRules = command.type !== CommandType.RESTART;
+            const closedSession = await this.closeActiveSessionTx(
+              tx,
+              command.pcId,
+              command.type === CommandType.LOCK ? 'ADMIN_LOCK' : 'SYSTEM',
+              applySettlementRules,
             );
-            const billableMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
-            const pricePerMinute = Number(activeSession.pricePerMinute ?? 0);
-            let amount = billableMinutes * pricePerMinute;
-
-            if (pricingStep > 0) {
-              amount = Math.ceil(amount / pricingStep) * pricingStep;
+            if (closedSession) {
+              sessionEvent = {
+                type: 'session.closed',
+                sessionId: closedSession.sessionId,
+                amount: closedSession.amount,
+                billableMinutes: closedSession.billableMinutes,
+              };
             }
-            if (amount < minimumCharge) {
-              amount = minimumCharge;
-            }
-
-            const closedSession = await tx.session.update({
-              where: { id: activeSession.id },
-              data: {
-                endedAt,
-                durationSeconds,
-                billableMinutes,
-                amount,
-                status: 'CLOSED',
-                closedReason:
-                  command.type === CommandType.SHUTDOWN ? 'SYSTEM' : 'ADMIN_LOCK',
-              },
-            });
-            sessionEvent = {
-              type: 'session.closed',
-              sessionId: closedSession.id,
-              amount,
-              billableMinutes,
-            };
           }
         }
       }
 
-      return { updatedCommand, statusTransition, sessionEvent, adminLoginActivated };
+      return {
+        updatedCommand,
+        statusTransition,
+        sessionEvent,
+        adminLoginActivated,
+        preserveSessionForRestart,
+      };
     });
 
     this.broadcastCommandUpdated(result.updatedCommand);
@@ -758,13 +743,19 @@ export class CommandsService {
     if (
       payload.result === 'SUCCESS' &&
       (command.type === CommandType.LOCK ||
-        command.type === CommandType.SHUTDOWN)
+        command.type === CommandType.SHUTDOWN ||
+        command.type === CommandType.RESTART) &&
+      !result.preserveSessionForRestart
     ) {
       await this.logEvent(EventSource.SERVER, 'guest.pc.presence', command.pcId, {
         isActive: false,
         at: new Date().toISOString(),
       });
       await this.logEvent(EventSource.SERVER, 'admin.pc.presence', command.pcId, {
+        isActive: false,
+        at: new Date().toISOString(),
+      });
+      await this.logEvent(EventSource.SERVER, 'member.pc.presence', command.pcId, {
         isActive: false,
         at: new Date().toISOString(),
       });
@@ -1024,6 +1015,100 @@ export class CommandsService {
       },
       include: { pc: true },
     });
+
+    if (type === CommandType.RESTART || type === CommandType.SHUTDOWN) {
+      const immediateTransition = await this.prisma.$transaction(async (tx) => {
+        const existingPc = await tx.pc.findUnique({ where: { id: targetPcId } });
+        if (!existingPc) {
+          return {
+            statusTransition: null as
+              | { pcId: string; agentId: string; previousStatus: PcStatus; status: PcStatus }
+              | null,
+            sessionClosed: null as
+              | { sessionId: string; amount: number; billableMinutes: number }
+              | null,
+            preserveSessionForRestart: false,
+          };
+        }
+
+        const preserveSessionForRestart =
+          type === CommandType.RESTART
+            ? await this.shouldPreserveSessionForRestartTx(tx, targetPcId)
+            : false;
+        const shouldCloseSession =
+          type === CommandType.SHUTDOWN ||
+          (type === CommandType.RESTART && !preserveSessionForRestart);
+        const sessionClosed = shouldCloseSession
+          ? await this.closeActiveSessionTx(
+              tx,
+              targetPcId,
+              'SYSTEM',
+              type === CommandType.SHUTDOWN,
+            )
+          : null;
+
+        if (existingPc.status === PcStatus.OFFLINE) {
+          return {
+            statusTransition: null,
+            sessionClosed,
+            preserveSessionForRestart,
+          };
+        }
+
+        const updatedPc = await tx.pc.update({
+          where: { id: existingPc.id },
+          data: { status: PcStatus.OFFLINE },
+        });
+
+        return {
+          statusTransition: {
+            pcId: updatedPc.id,
+            agentId: updatedPc.agentId,
+            previousStatus: existingPc.status,
+            status: updatedPc.status,
+          },
+          sessionClosed,
+          preserveSessionForRestart,
+        };
+      });
+
+      if (immediateTransition.sessionClosed) {
+        await this.logEvent(EventSource.SERVER, 'session.closed', targetPcId, {
+          sessionId: immediateTransition.sessionClosed.sessionId,
+          amount: immediateTransition.sessionClosed.amount,
+          billableMinutes: immediateTransition.sessionClosed.billableMinutes,
+          sourceEvent: 'command.dispatched.power',
+        });
+      }
+
+      if (immediateTransition.statusTransition) {
+        this.realtime.emitToAll('pc.status.changed', {
+          ...immediateTransition.statusTransition,
+          at: new Date().toISOString(),
+          sourceEvent: 'command.dispatched.power',
+        });
+        await this.logEvent(EventSource.SERVER, 'pc.status.changed', targetPcId, {
+          previousStatus: immediateTransition.statusTransition.previousStatus,
+          status: immediateTransition.statusTransition.status,
+          sourceEvent: 'command.dispatched.power',
+        });
+      }
+
+      if (!immediateTransition.preserveSessionForRestart) {
+        await this.logEvent(EventSource.SERVER, 'guest.pc.presence', targetPcId, {
+          isActive: false,
+          at: new Date().toISOString(),
+        });
+        await this.logEvent(EventSource.SERVER, 'admin.pc.presence', targetPcId, {
+          isActive: false,
+          at: new Date().toISOString(),
+        });
+        await this.logEvent(EventSource.SERVER, 'member.pc.presence', targetPcId, {
+          isActive: false,
+          at: new Date().toISOString(),
+        });
+      }
+    }
 
     await this.emitCommandExecute(targetPcId, pc.agentId, sentCommand);
     this.broadcastCommandUpdated(sentCommand);
@@ -1341,6 +1426,108 @@ export class CommandsService {
 
     const defaultGroup = await this.ensureDefaultGroup(tx);
     return Number(defaultGroup.hourlyRate);
+  }
+
+  private async closeActiveSessionTx(
+    tx: Prisma.TransactionClient,
+    pcId: string,
+    closedReason: 'ADMIN_LOCK' | 'SYSTEM',
+    applySettlementRules: boolean,
+  ): Promise<{ sessionId: string; amount: number; billableMinutes: number } | null> {
+    const activeSession = await tx.session.findFirst({
+      where: {
+        pcId,
+        status: 'ACTIVE',
+      },
+      orderBy: { startedAt: 'desc' },
+    });
+
+    if (!activeSession) {
+      return null;
+    }
+
+    const pricingStepSetting = await tx.appSetting.findUnique({
+      where: { key: 'PRICING_STEP' },
+    });
+    const minimumChargeSetting = await tx.appSetting.findUnique({
+      where: { key: 'MINIMUM_CHARGE' },
+    });
+    const pricingStep = pricingStepSetting ? Number(pricingStepSetting.value) : 1000;
+    const minimumCharge = minimumChargeSetting ? Number(minimumChargeSetting.value) : 1000;
+
+    const endedAt = new Date();
+    const durationSeconds = Math.max(
+      0,
+      Math.floor((endedAt.getTime() - activeSession.startedAt.getTime()) / 1000),
+    );
+    const billableMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
+    const pricePerMinute = Number(activeSession.pricePerMinute ?? 0);
+    let amount = applySettlementRules
+      ? billableMinutes * pricePerMinute
+      : (durationSeconds / 60) * pricePerMinute;
+
+    if (applySettlementRules) {
+      if (pricingStep > 0) {
+        amount = Math.ceil(amount / pricingStep) * pricingStep;
+      }
+      if (amount < minimumCharge) {
+        amount = minimumCharge;
+      }
+    } else {
+      amount = Math.round(amount * 100) / 100;
+    }
+
+    const closedSession = await tx.session.update({
+      where: { id: activeSession.id },
+      data: {
+        endedAt,
+        durationSeconds,
+        billableMinutes,
+        amount,
+        status: 'CLOSED',
+        closedReason,
+      },
+    });
+
+    return {
+      sessionId: closedSession.id,
+      amount,
+      billableMinutes,
+    };
+  }
+
+  private async shouldPreserveSessionForRestartTx(
+    tx: Prisma.TransactionClient,
+    pcId: string,
+  ): Promise<boolean> {
+    const latestPresence = await tx.eventLog.findFirst({
+      where: {
+        pcId,
+        eventType: {
+          in: ['member.pc.presence', 'guest.pc.presence', 'admin.pc.presence'],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        eventType: true,
+        payload: true,
+      },
+    });
+
+    if (!latestPresence || latestPresence.eventType !== 'guest.pc.presence') {
+      return false;
+    }
+
+    return this.isActivePresencePayload(latestPresence.payload);
+  }
+
+  private isActivePresencePayload(payload?: Prisma.JsonValue | null): boolean {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return false;
+    }
+
+    const value = payload as Record<string, unknown>;
+    return value.isActive === true;
   }
 
   private appendAdminLoginMarker(requestedBy?: string): string {

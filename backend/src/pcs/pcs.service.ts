@@ -352,8 +352,20 @@ export class PcsService {
       return { pc: createdPc, previousStatus: null };
     }
 
-    const nextStatus =
-      existing.status === PcStatus.OFFLINE ? PcStatus.ONLINE : existing.status;
+    let nextStatus = existing.status;
+    if (existing.status === PcStatus.OFFLINE) {
+      const activeSession = await this.prisma.session.findFirst({
+        where: {
+          pcId: existing.id,
+          status: 'ACTIVE',
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      nextStatus = activeSession ? PcStatus.IN_USE : PcStatus.ONLINE;
+    }
 
     const updatedPc = await this.prisma.pc.update({
       where: { id: existing.id },
@@ -428,6 +440,76 @@ export class PcsService {
     );
 
     return transitions;
+  }
+
+  async markAgentOfflineByDisconnect(
+    agentId: string,
+  ): Promise<PresenceTransition | null> {
+    const normalizedAgentId = agentId.trim();
+    if (!normalizedAgentId) {
+      return null;
+    }
+
+    const existing = await this.prisma.pc.findFirst({
+      where: {
+        agentId: {
+          equals: normalizedAgentId,
+          mode: 'insensitive',
+        },
+      },
+    });
+
+    if (!existing || existing.status === PcStatus.OFFLINE) {
+      return null;
+    }
+
+    const updated = await this.prisma.pc.update({
+      where: { id: existing.id },
+      data: { status: PcStatus.OFFLINE },
+    });
+
+    await this.logEvent('pc.status.changed', updated.id, {
+      previousStatus: existing.status,
+      status: updated.status,
+      sourceEvent: 'socket.disconnect',
+    });
+
+    return {
+      pc: updated,
+      previousStatus: existing.status,
+    };
+  }
+
+  async getActivePresenceKindForPc(
+    pcId: string,
+  ): Promise<'MEMBER' | 'GUEST' | 'ADMIN' | null> {
+    const latestPresence = await this.prisma.eventLog.findFirst({
+      where: {
+        pcId,
+        eventType: {
+          in: ['member.pc.presence', 'guest.pc.presence', 'admin.pc.presence'],
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (latestPresence?.eventType === 'member.pc.presence') {
+      return this.parseMemberPresencePayload(latestPresence.payload)
+        ? 'MEMBER'
+        : null;
+    }
+
+    if (latestPresence?.eventType === 'guest.pc.presence') {
+      return this.parseGuestPresencePayload(latestPresence.payload) ? 'GUEST' : null;
+    }
+
+    if (latestPresence?.eventType === 'admin.pc.presence') {
+      return this.parseAdminPresencePayload(latestPresence.payload) ? 'ADMIN' : null;
+    }
+
+    return null;
   }
 
   private async resolveActiveUsersByPcId(

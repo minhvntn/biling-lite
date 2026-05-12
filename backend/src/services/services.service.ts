@@ -262,18 +262,30 @@ export class ServicesService {
 
       const paidOrderIds = this.extractPaidOrderIdsFromEvents(paidEvents);
       const unpaidOrders = orders.filter((item) => !paidOrderIds.has(item.id));
-      const paidAmount = unpaidOrders.reduce(
+      const totalUnpaidAmount = unpaidOrders.reduce(
         (sum, item) => sum + Number(item.lineTotal ?? 0),
         0,
       );
 
-      if (unpaidOrders.length === 0 || paidAmount <= 0) {
+      const selectedOrderIds = payload.orderIds ?? [];
+      const shouldPaySelectedOnly = selectedOrderIds.length > 0;
+      const selectedOrderIdSet = new Set(selectedOrderIds);
+      const targetOrders = shouldPaySelectedOnly
+        ? unpaidOrders.filter((item) => selectedOrderIdSet.has(item.id))
+        : unpaidOrders;
+      const paidAmount = targetOrders.reduce(
+        (sum, item) => sum + Number(item.lineTotal ?? 0),
+        0,
+      );
+      const remainingUnpaidAmount = Math.max(0, totalUnpaidAmount - paidAmount);
+
+      if (targetOrders.length === 0 || paidAmount <= 0) {
         return {
           pcId,
           sessionId: activeSession.id,
           paidOrderCount: 0,
           paidAmount: 0,
-          unpaidAmount: 0,
+          unpaidAmount: totalUnpaidAmount,
           serverTime: new Date().toISOString(),
         };
       }
@@ -285,8 +297,8 @@ export class ServicesService {
           pcId,
           payload: {
             sessionId: activeSession.id,
-            orderIds: unpaidOrders.map((x) => x.id),
-            paidOrderCount: unpaidOrders.length,
+            orderIds: targetOrders.map((x) => x.id),
+            paidOrderCount: targetOrders.length,
             paidAmount,
             requestedBy,
             note,
@@ -297,9 +309,9 @@ export class ServicesService {
       return {
         pcId,
         sessionId: activeSession.id,
-        paidOrderCount: unpaidOrders.length,
+        paidOrderCount: targetOrders.length,
         paidAmount,
-        unpaidAmount: 0,
+        unpaidAmount: remainingUnpaidAmount,
         serverTime: new Date().toISOString(),
       };
     });

@@ -1,12 +1,20 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { EventSource, Prisma, SessionStatus } from '@prisma/client';
+import {
+  CommandStatus,
+  CommandType,
+  EventSource,
+  Prisma,
+  SessionStatus,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { QuerySessionsDto } from './dto/query-sessions.dto';
 
 @Injectable()
 export class SessionsService {
+  private static readonly RestartResumeGraceSeconds = 180;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
@@ -135,6 +143,35 @@ export class SessionsService {
     };
   }
 
+  async closeActiveSessionForOfflinePc(
+    pcId: string,
+    sourceEvent: string,
+  ): Promise<{ sessionId: string; amount: number; billableMinutes: number } | null> {
+    const shouldPreserveForRestart =
+      sourceEvent !== 'offline.close_stale' &&
+      (await this.shouldPreserveGuestSessionForRestartResume(pcId));
+    if (shouldPreserveForRestart) {
+      return null;
+    }
+
+    const activeSession = await this.prisma.session.findFirst({
+      where: {
+        pcId,
+        status: 'ACTIVE',
+      },
+      include: {
+        pc: true,
+      },
+      orderBy: { startedAt: 'desc' },
+    });
+
+    if (!activeSession) {
+      return null;
+    }
+
+    return this.closeSessionAsAutoOffline(activeSession, sourceEvent);
+  }
+
   @Cron(CronExpression.EVERY_MINUTE)
   async closeStaleOfflineSessions(): Promise<void> {
     const timeoutMinutes = this.getOfflineCloseMinutes();
@@ -156,34 +193,7 @@ export class SessionsService {
     });
 
     for (const session of activeSessions) {
-      const endedAt = new Date();
-      const durationSeconds = Math.max(
-        0,
-        Math.floor((endedAt.getTime() - session.startedAt.getTime()) / 1000),
-      );
-      const billableMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
-      const pricePerMinute = Number(session.pricePerMinute ?? 0);
-      const amount = billableMinutes * pricePerMinute;
-
-      await this.prisma.session.update({
-        where: { id: session.id },
-        data: {
-          endedAt,
-          durationSeconds,
-          billableMinutes,
-          amount,
-          status: 'CLOSED',
-          closedReason: 'AUTO_OFFLINE',
-        },
-      });
-
-      await this.logEvent('session.closed.auto_offline', session.pcId, {
-        sessionId: session.id,
-        durationSeconds,
-        billableMinutes,
-        amount,
-        lastSeenAt: session.pc.lastSeenAt?.toISOString() ?? null,
-      });
+      await this.closeSessionAsAutoOffline(session, 'offline.close_stale');
     }
   }
 
@@ -215,5 +225,110 @@ export class SessionsService {
     } catch {
       // Ignore audit log failures.
     }
+  }
+
+  private async closeSessionAsAutoOffline(
+    session: {
+      id: string;
+      pcId: string;
+      startedAt: Date;
+      pricePerMinute: Prisma.Decimal | null;
+      pc: { lastSeenAt: Date | null };
+    },
+    sourceEvent: string,
+  ): Promise<{ sessionId: string; amount: number; billableMinutes: number }> {
+    const endedAt = new Date();
+    const durationSeconds = Math.max(
+      0,
+      Math.floor((endedAt.getTime() - session.startedAt.getTime()) / 1000),
+    );
+    const billableMinutes = Math.max(0, Math.ceil(durationSeconds / 60));
+    const pricePerMinute = Number(session.pricePerMinute ?? 0);
+    const rawAmount = (durationSeconds / 60) * pricePerMinute;
+    const amount = Math.round(rawAmount * 100) / 100;
+
+    await this.prisma.session.update({
+      where: { id: session.id },
+      data: {
+        endedAt,
+        durationSeconds,
+        billableMinutes,
+        amount,
+        status: 'CLOSED',
+        closedReason: 'AUTO_OFFLINE',
+      },
+    });
+
+    await this.logEvent('session.closed.auto_offline', session.pcId, {
+      sessionId: session.id,
+      durationSeconds,
+      billableMinutes,
+      amount,
+      lastSeenAt: session.pc.lastSeenAt?.toISOString() ?? null,
+      sourceEvent,
+    });
+
+    return {
+      sessionId: session.id,
+      amount,
+      billableMinutes,
+    };
+  }
+
+  private async shouldPreserveGuestSessionForRestartResume(
+    pcId: string,
+  ): Promise<boolean> {
+    const latestPresence = await this.prisma.eventLog.findFirst({
+      where: {
+        pcId,
+        eventType: {
+          in: ['member.pc.presence', 'guest.pc.presence', 'admin.pc.presence'],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        eventType: true,
+        payload: true,
+      },
+    });
+
+    if (
+      !latestPresence ||
+      latestPresence.eventType !== 'guest.pc.presence' ||
+      !this.isActivePresencePayload(latestPresence.payload)
+    ) {
+      return false;
+    }
+
+    const cutoff = new Date(
+      Date.now() - SessionsService.RestartResumeGraceSeconds * 1000,
+    );
+    const recentRestartCommand = await this.prisma.command.findFirst({
+      where: {
+        pcId,
+        type: CommandType.RESTART,
+        status: {
+          in: [CommandStatus.SENT, CommandStatus.ACK_SUCCESS],
+        },
+        OR: [
+          { requestedAt: { gte: cutoff } },
+          { sentAt: { gte: cutoff } },
+          { ackAt: { gte: cutoff } },
+        ],
+      },
+      orderBy: { requestedAt: 'desc' },
+      select: { id: true },
+    });
+
+    return !!recentRestartCommand;
+  }
+
+  private isActivePresencePayload(payload?: Prisma.JsonValue | null): boolean {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return false;
+    }
+
+    const value = payload as Record<string, unknown>;
+    return value.isActive === true;
   }
 }
