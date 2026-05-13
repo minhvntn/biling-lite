@@ -950,7 +950,6 @@ public partial class MainWindow : Window
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         var headerText = new TextBlock
         {
@@ -964,7 +963,7 @@ public partial class MainWindow : Window
 
         var instructionText = new TextBlock
         {
-            Text = "Bấm nút - / + để chỉnh số lượng từng dịch vụ (0-999). Cột \"Đã gọi trước\" hiển thị SL và tiền dịch vụ chưa thanh toán của phiên hiện tại.",
+            Text = "Bấm nút - / + để chỉnh số lượng từng dịch vụ (0-999). Thông tin dịch vụ đã gọi trước hiển thị ở panel bên trái.",
             Foreground = Brushes.DimGray,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 8),
@@ -973,6 +972,28 @@ public partial class MainWindow : Window
         root.Children.Add(instructionText);
 
         existingOrdersByServiceId ??= new Dictionary<string, ExistingServiceOrderSummary>(StringComparer.OrdinalIgnoreCase);
+        var serviceItemById = items.ToDictionary(x => x.Id, StringComparer.OrdinalIgnoreCase);
+        var previouslyOrderedRows = existingOrdersByServiceId
+            .Where(x => x.Value.Quantity > 0 || x.Value.Amount > 0)
+            .Select(x =>
+            {
+                serviceItemById.TryGetValue(x.Key, out var serviceItem);
+                return new
+                {
+                    ServiceName = serviceItem?.Name ?? "Dịch vụ",
+                    Quantity = Math.Max(0, x.Value.Quantity),
+                    Amount = Math.Max(0, x.Value.Amount),
+                };
+            })
+            .OrderByDescending(x => x.Quantity)
+            .ThenBy(x => x.ServiceName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var previouslyOrderedLines = previouslyOrderedRows
+            .Select(x => $"{x.ServiceName}: {x.Quantity:N0} ({x.Amount:N0} VND)")
+            .ToList();
+        var previouslyOrderedTotalQuantity = previouslyOrderedRows.Sum(x => x.Quantity);
+        var previouslyOrderedTotalAmount = previouslyOrderedRows.Sum(x => x.Amount);
+
         var selectionRows = new ObservableCollection<ServiceOrderSelectionRow>(
             items
                 .Select(item =>
@@ -996,7 +1017,7 @@ public partial class MainWindow : Window
             SelectionUnit = DataGridSelectionUnit.FullRow,
             GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
             ItemsSource = selectionRows,
-            Margin = new Thickness(0, 0, 0, 10),
+            Margin = new Thickness(0),
         };
 
         serviceGrid.Columns.Add(new DataGridTextColumn
@@ -1020,14 +1041,6 @@ public partial class MainWindow : Window
             Binding = new Binding(nameof(ServiceOrderSelectionRow.UnitPriceText)),
             IsReadOnly = true,
         });
-        serviceGrid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "Đã gọi trước",
-            Width = 145,
-            Binding = new Binding(nameof(ServiceOrderSelectionRow.PreviouslyOrderedText)),
-            IsReadOnly = true,
-        });
-
         var quantityTemplateColumn = new DataGridTemplateColumn
         {
             Header = "Số lượng",
@@ -1102,28 +1115,57 @@ public partial class MainWindow : Window
             IsReadOnly = true,
         });
 
-        Grid.SetRow(serviceGrid, 2);
-        root.Children.Add(serviceGrid);
-
-        var notePanel = new StackPanel
+        var contentGrid = new Grid
         {
             Margin = new Thickness(0, 0, 0, 10),
         };
-        notePanel.Children.Add(new TextBlock
+        contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
+        contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var previouslyOrderedPanel = new Border
         {
-            Text = "Ghi chú (không bắt buộc):",
+            BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(8),
+            Margin = new Thickness(0, 0, 10, 0),
+            Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)),
+        };
+        var previouslyOrderedPanelStack = new StackPanel();
+        previouslyOrderedPanelStack.Children.Add(new TextBlock
+        {
+            Text = "Đã chọn trước đó:",
+            FontWeight = FontWeights.SemiBold,
             Margin = new Thickness(0, 0, 0, 4),
         });
-        var noteTextBox = new TextBox
+        var previouslyOrderedListBox = new ListBox
         {
-            Height = 58,
-            TextWrapping = TextWrapping.Wrap,
-            AcceptsReturn = true,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            Height = 250,
+            MinHeight = 220,
+            MaxHeight = 360,
+            ItemsSource = previouslyOrderedLines,
+            IsHitTestVisible = false,
+            Focusable = false,
         };
-        notePanel.Children.Add(noteTextBox);
-        Grid.SetRow(notePanel, 3);
-        root.Children.Add(notePanel);
+        previouslyOrderedPanelStack.Children.Add(previouslyOrderedListBox);
+        previouslyOrderedPanelStack.Children.Add(new TextBlock
+        {
+            Margin = new Thickness(0, 6, 0, 0),
+            Foreground = Brushes.DimGray,
+            TextWrapping = TextWrapping.Wrap,
+            Text = previouslyOrderedRows.Count == 0
+                ? "Chưa có dịch vụ gọi trước."
+                : $"Tổng gọi trước: {previouslyOrderedRows.Count} món | {previouslyOrderedTotalQuantity} SL | {previouslyOrderedTotalAmount:N0} VND",
+        });
+        previouslyOrderedPanel.Child = previouslyOrderedPanelStack;
+        Grid.SetColumn(previouslyOrderedPanel, 0);
+        contentGrid.Children.Add(previouslyOrderedPanel);
+
+        Grid.SetColumn(serviceGrid, 1);
+        contentGrid.Children.Add(serviceGrid);
+
+        Grid.SetRow(contentGrid, 2);
+        root.Children.Add(contentGrid);
 
         var summaryTextBlock = new TextBlock
         {
@@ -1139,7 +1181,7 @@ public partial class MainWindow : Window
         var statusPanel = new StackPanel();
         statusPanel.Children.Add(summaryTextBlock);
         statusPanel.Children.Add(errorTextBlock);
-        Grid.SetRow(statusPanel, 4);
+        Grid.SetRow(statusPanel, 3);
         root.Children.Add(statusPanel);
 
         var buttonPanel = new StackPanel
@@ -1174,7 +1216,7 @@ public partial class MainWindow : Window
 
         buttonPanel.Children.Add(addButton);
         buttonPanel.Children.Add(cancelButton);
-        Grid.SetRow(buttonPanel, 5);
+        Grid.SetRow(buttonPanel, 4);
         root.Children.Add(buttonPanel);
 
         ServiceOrderBatchInput? result = null;
@@ -1185,6 +1227,7 @@ public partial class MainWindow : Window
             var selectedItemCount = selectedRows.Count;
             var totalQuantity = selectedRows.Sum(x => x.Quantity);
             var totalAmount = selectedRows.Sum(x => x.LineTotal);
+
             summaryTextBlock.Text =
                 $"Đã chọn {selectedItemCount} món | Tổng SL: {totalQuantity} | Tổng tạm tính: {totalAmount:N0} VND";
         }
@@ -1227,7 +1270,7 @@ public partial class MainWindow : Window
             result = new ServiceOrderBatchInput
             {
                 Lines = selectedRows,
-                Note = string.IsNullOrWhiteSpace(noteTextBox.Text) ? null : noteTextBox.Text.Trim(),
+                Note = null,
                 Total = selectedRows.Sum(x => x.LineTotal),
             };
 

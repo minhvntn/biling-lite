@@ -486,6 +486,20 @@ public partial class MainWindow : Window
         return Math.Max(0, (int)GetCurrentUsedDuration().TotalSeconds);
     }
 
+    public int GetRemainingMinutes()
+    {
+        var total = TimeSpan.FromMinutes(Math.Max(1, _totalSessionMinutes));
+        var used = GetCurrentUsedDuration();
+        var totalMins = (int)total.TotalMinutes;
+        var elapsedSeconds = Math.Max(0, (int)used.TotalSeconds);
+        var hasSessionUsage = _runningStartedAtUtc is not null || _usedDuration > TimeSpan.Zero;
+        var usedMins = hasSessionUsage
+            ? Math.Max(1, (int)Math.Ceiling(elapsedSeconds / 60.0))
+            : 0;
+
+        return Math.Max(0, totalMins - usedMins);
+    }
+
     private void UpdateUsageUi()
     {
         var total = TimeSpan.FromMinutes(Math.Max(1, _totalSessionMinutes));

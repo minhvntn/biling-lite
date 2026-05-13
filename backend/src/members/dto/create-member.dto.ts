@@ -3,7 +3,7 @@ import { IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-valid
 
 export class CreateMemberDto {
   @IsString()
-  @MinLength(3)
+  @MinLength(1)
   @MaxLength(50)
   @Matches(/^[a-zA-Z0-9_.-]+$/)
   @Transform(({ value }: { value: string }) => value?.trim())

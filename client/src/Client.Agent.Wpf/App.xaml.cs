@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Runtime.InteropServices;
+using System.Speech.Synthesis;
 using System.Text.Json;
 using System.Threading;
 using System.Collections.ObjectModel;
@@ -52,6 +53,8 @@ public partial class App : Application
     private string? _manualLockPassword;
     private bool _skipSessionClearOnExit;
     private int _lastSyncedMemberUsedSeconds;
+    private int? _lastMemberRemainingMinutes;
+    private readonly HashSet<int> _memberRemainingWarningSent = new();
     private readonly SemaphoreSlim _memberUsageSyncLock = new(1, 1);
     private readonly DispatcherTimer _readyAutoShutdownTimer = new();
     private DateTime? _readyIdleSinceUtc;
@@ -64,6 +67,7 @@ public partial class App : Application
     private string _currentMachineState = "LOCKED";
     private readonly DispatcherTimer _webFilterSyncTimer = new();
     private bool _isWebFilterSyncRunning;
+    private bool _isMemberAutoLockInProgress;
     private DateTime _lastWebFilterFetchUtc = DateTime.MinValue;
     private string _lastWebFilterSignature = string.Empty;
     private readonly DispatcherTimer _websiteLogSyncTimer = new();
@@ -78,6 +82,9 @@ public partial class App : Application
     private DateTime _lastWebsiteHistoryScanUtc = DateTime.MinValue;
     private readonly Dictionary<string, DateTime> _websiteDomainLastSentAt =
         new(StringComparer.OrdinalIgnoreCase);
+    private static readonly int[] MemberRemainingWarningThresholds = [5, 3, 1];
+    private static readonly object MemberWarningAudioPlaybackSync = new();
+    private static MediaPlayer? _memberWarningAudioPlayer;
     private static readonly DateTime WebKitEpochUtc = new(
         1601, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -247,7 +254,8 @@ public partial class App : Application
                 }
 
                 Dispatcher.Invoke(ResumeGuestSessionFromServer);
-            });
+            },
+            OnMemberAccountChangedFromServer);
 
         _socketService.GetRunningAppsHandler = HandleGetRunningAppsRequestedAsync;
         _socketService.KillProcessHandler = HandleKillProcessRequestedAsync;
@@ -533,6 +541,7 @@ public partial class App : Application
             _activeMemberSession = null;
             _isPostpaidGuestSession = false;
             _lastSyncedMemberUsedSeconds = 0;
+            ResetMemberRemainingWarnings();
             Dispatcher.Invoke(() =>
             {
                 _mainWindow?.ConfigureBilling(
@@ -611,6 +620,7 @@ public partial class App : Application
             _isAdminSession = false;
             _isPostpaidGuestSession = false;
             _lastSyncedMemberUsedSeconds = 60;
+            ResetMemberRemainingWarnings();
 
             var presenceResult = await ReportMemberPresenceAsync(
                 _activeMemberSession,
@@ -621,6 +631,7 @@ public partial class App : Application
                 _isPostpaidGuestSession = false;
                 _isAdminSession = false;
                 _lastSyncedMemberUsedSeconds = 0;
+                ResetMemberRemainingWarnings();
                 return new LoginAttemptResult(false, presenceResult.Message);
             }
 
@@ -639,6 +650,8 @@ public partial class App : Application
                 _mainWindow?.SetLastCommand(
                     $"MEMBER LOGIN {member.Username} @ {DateTime.Now:HH:mm:ss}");
             });
+            EvaluateMemberRemainingTimeWarnings();
+            _ = EnforceMemberAutoLockIfNoRemainingTimeAsync("MEMBER_LOGIN");
 
             return new LoginAttemptResult(
                 true,
@@ -720,6 +733,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             _isAdminSession = false;
             _isPostpaidGuestSession = true;
             _lastSyncedMemberUsedSeconds = 0;
+            ResetMemberRemainingWarnings();
 
             var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
             if (payload.TryGetProperty("pc", out var pcElement) &&
@@ -780,6 +794,45 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
         var minutes = (int)Math.Floor((balance / hourlyRate) * 60m);
         return Math.Max(0, minutes);
+    }
+
+    private static int ComputeMinutesFromPlaySeconds(int playSeconds)
+    {
+        if (playSeconds <= 0)
+        {
+            return 0;
+        }
+
+        return Math.Max(0, (int)Math.Floor(playSeconds / 60d));
+    }
+
+    private static int ComputeUsedMinutesFromSeconds(int usedSeconds)
+    {
+        if (usedSeconds <= 0)
+        {
+            return 0;
+        }
+
+        return Math.Max(1, (int)Math.Ceiling(usedSeconds / 60d));
+    }
+
+    private int ComputeRemainingMinutesFromMemberSnapshot(MemberLoginItem member)
+    {
+        var balanceMinutes = ComputeMinutesFromBalance(member.Balance, _currentHourlyRate);
+        var playSecondsMinutes = ComputeMinutesFromPlaySeconds(member.PlaySeconds);
+        return Math.Max(0, balanceMinutes + playSecondsMinutes);
+    }
+
+    private void SynchronizeMemberBillingFromServer(MemberLoginItem member, int usedSecondsNow)
+    {
+        var remainingMinutes = ComputeRemainingMinutesFromMemberSnapshot(member);
+        var usedMinutes = ComputeUsedMinutesFromSeconds(usedSecondsNow);
+        var totalMinutes = Math.Max(1, remainingMinutes + usedMinutes);
+
+        Dispatcher.Invoke(() =>
+        {
+            _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false);
+        });
     }
 
     private static bool TryReadDecimal(JsonElement element, out decimal value)
@@ -2222,6 +2275,8 @@ public async void OpenLoyaltyPanelFromClientUi()
     private async void MemberUsageSyncTimer_Tick(object? sender, EventArgs e)
     {
         await SyncActiveMemberUsageAsync("PERIODIC", false);
+        EvaluateMemberRemainingTimeWarnings();
+        await EnforceMemberAutoLockIfNoRemainingTimeAsync("PERIODIC");
     }
 
     private async void ServiceCostSyncTimer_Tick(object? sender, EventArgs e)
@@ -3286,6 +3341,7 @@ LIMIT $limit;";
         _isPostpaidGuestSession = false;
         _isAdminSession = false;
         _lastSyncedMemberUsedSeconds = 0;
+        ResetMemberRemainingWarnings();
         TrackMachineState(_currentMachineState);
         
         Dispatcher.Invoke(() =>
@@ -3422,6 +3478,307 @@ LIMIT $limit;";
         return Dispatcher.Invoke(() => _mainWindow?.GetUsedSeconds() ?? 0);
     }
 
+    private int GetRemainingMinutesOnUiThread()
+    {
+        if (_mainWindow is null)
+        {
+            return 0;
+        }
+
+        if (Dispatcher.CheckAccess())
+        {
+            return _mainWindow.GetRemainingMinutes();
+        }
+
+        return Dispatcher.Invoke(() => _mainWindow?.GetRemainingMinutes() ?? 0);
+    }
+
+    private void ResetMemberRemainingWarnings()
+    {
+        _lastMemberRemainingMinutes = null;
+        _memberRemainingWarningSent.Clear();
+    }
+
+    private void EvaluateMemberRemainingTimeWarnings()
+    {
+        if (_activeMemberSession is null || _isAdminSession || _isPostpaidGuestSession)
+        {
+            ResetMemberRemainingWarnings();
+            return;
+        }
+
+        var remainingMinutes = Math.Max(0, GetRemainingMinutesOnUiThread());
+        var previousRemainingMinutes = _lastMemberRemainingMinutes ?? (remainingMinutes + 1);
+        _lastMemberRemainingMinutes = remainingMinutes;
+
+        foreach (var threshold in MemberRemainingWarningThresholds)
+        {
+            if (remainingMinutes > threshold)
+            {
+                continue;
+            }
+
+            if (_memberRemainingWarningSent.Contains(threshold))
+            {
+                continue;
+            }
+
+            if (previousRemainingMinutes <= threshold)
+            {
+                continue;
+            }
+
+            _memberRemainingWarningSent.Add(threshold);
+            ShowMemberRemainingTimeWarning(threshold);
+            break;
+        }
+    }
+
+    private void ShowMemberRemainingTimeWarning(int thresholdMinutes)
+    {
+        _ = SpeakMemberRemainingWarningAsync(thresholdMinutes);
+
+        Dispatcher.Invoke(() =>
+        {
+            _mainWindow?.SetLastCommand(
+                $"MEMBER TIME WARNING {thresholdMinutes}m @ {DateTime.Now:HH:mm:ss}");
+        });
+
+        if (_logger is not null)
+        {
+            _ = _logger.InfoAsync($"Member remaining time warning: threshold={thresholdMinutes}m");
+        }
+    }
+
+    private async Task EnforceMemberAutoLockIfNoRemainingTimeAsync(string source)
+    {
+        if (_isMemberAutoLockInProgress)
+        {
+            return;
+        }
+
+        if (_activeMemberSession is null || _isAdminSession || _isPostpaidGuestSession)
+        {
+            return;
+        }
+
+        var remainingMinutes = Math.Max(0, GetRemainingMinutesOnUiThread());
+        if (remainingMinutes > 0)
+        {
+            return;
+        }
+
+        _isMemberAutoLockInProgress = true;
+        try
+        {
+            await TrackAndClearMemberSessionAsync($"MEMBER_EXPIRED:{source}");
+            Dispatcher.Invoke(() =>
+            {
+                LockMachine(force: true);
+                _mainWindow?.SetLastCommand(
+                    $"MEMBER EXPIRED AUTO LOCK @ {DateTime.Now:HH:mm:ss}");
+            });
+
+            if (_logger is not null)
+            {
+                await _logger.InfoAsync(
+                    $"Auto-locked member session because remaining time reached 0 (source={source})");
+            }
+        }
+        catch (Exception ex)
+        {
+            if (_logger is not null)
+            {
+                await _logger.ErrorAsync("Auto-lock for expired member session failed", ex);
+            }
+        }
+        finally
+        {
+            _isMemberAutoLockInProgress = false;
+        }
+    }
+
+    private async Task SpeakMemberRemainingWarningAsync(int thresholdMinutes)
+    {
+        if (TryPlayCustomMemberRemainingWarningAudio(thresholdMinutes, out var customAudioPath))
+        {
+            if (_logger is not null)
+            {
+                await _logger.InfoAsync(
+                    $"Played custom member warning audio ({thresholdMinutes}m): {customAudioPath}");
+            }
+
+            return;
+        }
+
+        var speechText = $"Con {thresholdMinutes} phut.";
+
+        try
+        {
+            await Task.Run(() =>
+            {
+                using var synthesizer = new SpeechSynthesizer();
+                synthesizer.SetOutputToDefaultAudioDevice();
+                synthesizer.Rate = -1;
+                synthesizer.Volume = 100;
+
+                try
+                {
+                    synthesizer.SelectVoiceByHints(
+                        VoiceGender.NotSet,
+                        VoiceAge.NotSet,
+                        0,
+                        new CultureInfo("vi-VN"));
+                }
+                catch
+                {
+                    // Fall back to the default installed voice.
+                }
+
+                synthesizer.Speak(speechText);
+            });
+        }
+        catch
+        {
+            try
+            {
+                System.Media.SystemSounds.Exclamation.Play();
+            }
+            catch
+            {
+                // Keep warning flow resilient even when audio output is unavailable.
+            }
+        }
+    }
+
+    private static bool TryPlayCustomMemberRemainingWarningAudio(
+        int thresholdMinutes,
+        out string selectedPath)
+    {
+        selectedPath = string.Empty;
+        if (thresholdMinutes <= 0)
+        {
+            return false;
+        }
+
+        var candidates = ResolveMemberRemainingWarningAudioCandidates(thresholdMinutes);
+        foreach (var candidate in candidates)
+        {
+            if (string.IsNullOrWhiteSpace(candidate) || !File.Exists(candidate))
+            {
+                continue;
+            }
+
+            if (!TryPlayAudioFile(candidate))
+            {
+                continue;
+            }
+
+            selectedPath = candidate;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static IReadOnlyList<string> ResolveMemberRemainingWarningAudioCandidates(
+        int thresholdMinutes)
+    {
+        var fileNames = new[]
+        {
+            $"con-{thresholdMinutes}-phut.mp3",
+            $"con-{thresholdMinutes}-phut.wav",
+            $"member-warning-{thresholdMinutes}m.mp3",
+            $"member-warning-{thresholdMinutes}m.wav",
+        };
+
+        var roots = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "audio"),
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "ServerManagerBilling",
+                "audio"),
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Downloads",
+                "Music"),
+        };
+
+        var result = new List<string>();
+        foreach (var root in roots)
+        {
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                continue;
+            }
+
+            foreach (var fileName in fileNames)
+            {
+                var path = Path.Combine(root, fileName);
+                if (!result.Contains(path, StringComparer.OrdinalIgnoreCase))
+                {
+                    result.Add(path);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static bool TryPlayAudioFile(string filePath)
+    {
+        try
+        {
+            var absolutePath = Path.GetFullPath(filePath);
+            if (!File.Exists(absolutePath))
+            {
+                return false;
+            }
+
+            var dispatcher = Current?.Dispatcher;
+            if (dispatcher is null)
+            {
+                return false;
+            }
+
+            dispatcher.Invoke(() =>
+            {
+                lock (MemberWarningAudioPlaybackSync)
+                {
+                    _memberWarningAudioPlayer?.Stop();
+                    _memberWarningAudioPlayer?.Close();
+
+                    var player = new MediaPlayer
+                    {
+                        Volume = 1.0,
+                    };
+                    player.MediaFailed += (_, _) =>
+                    {
+                        try
+                        {
+                            player.Stop();
+                            player.Close();
+                        }
+                        catch
+                        {
+                            // Keep warning flow resilient when media playback fails.
+                        }
+                    };
+
+                    player.Open(new Uri(absolutePath, UriKind.Absolute));
+                    player.Play();
+                    _memberWarningAudioPlayer = player;
+                }
+            });
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
     private async Task SyncActiveMemberUsageAsync(string reason, bool force)
     {
         var activeSession = _activeMemberSession;
@@ -3476,6 +3833,27 @@ LIMIT $limit;";
             }
 
             _lastSyncedMemberUsedSeconds = usedSeconds;
+            try
+            {
+                var usagePayload = await response.Content.ReadFromJsonAsync<MemberUsageSyncResponse>(
+                    new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true,
+                    });
+                if (usagePayload?.Member is not null)
+                {
+                    SynchronizeMemberBillingFromServer(usagePayload.Member, usedSeconds);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (_logger is not null)
+                {
+                    await _logger.ErrorAsync(
+                        $"Parse member usage sync payload failed ({reason})",
+                        ex);
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -3756,9 +4134,7 @@ LIMIT $limit;";
                     Dispatcher.Invoke(() =>
                     {
                         var usedSecondsNow = _mainWindow?.GetUsedSeconds() ?? 0;
-                        var totalSeconds = payload.Member.PlaySeconds + usedSecondsNow;
-                        var totalMinutes = Math.Max(1, (int)Math.Ceiling(totalSeconds / 60.0));
-                        _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false);
+                        SynchronizeMemberBillingFromServer(payload.Member, usedSecondsNow);
                         _mainWindow?.SetLastCommand(
                             $"Đổi điểm {redeemPoints} @ {DateTime.Now:HH:mm:ss}");
                         _lastSyncedMemberUsedSeconds = usedSecondsNow;
@@ -4111,9 +4487,7 @@ LIMIT $limit;";
                     Dispatcher.Invoke(() =>
                     {
                         var usedSecondsNow = _mainWindow?.GetUsedSeconds() ?? 0;
-                        var totalSeconds = payload.Member.PlaySeconds + usedSecondsNow;
-                        var totalMinutes = Math.Max(1, (int)Math.Ceiling(totalSeconds / 60.0));
-                        _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false);
+                        SynchronizeMemberBillingFromServer(payload.Member, usedSecondsNow);
                         _mainWindow?.SetLastCommand($"QUAY THƯỞNG: +{payload.WonMinutes}m @ {DateTime.Now:HH:mm:ss}");
                         _lastSyncedMemberUsedSeconds = usedSecondsNow;
                     });
@@ -4587,9 +4961,7 @@ LIMIT $limit;";
                     Dispatcher.Invoke(() =>
                     {
                         var usedSecondsNow = _mainWindow?.GetUsedSeconds() ?? 0;
-                        var totalSeconds = payload.Member.PlaySeconds + usedSecondsNow;
-                        var totalMinutes = Math.Max(1, (int)Math.Ceiling(totalSeconds / 60.0));
-                        _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false);
+                        SynchronizeMemberBillingFromServer(payload.Member, usedSecondsNow);
                         _mainWindow?.SetLastCommand($"QUAY THƯỞNG: +{payload.WonMinutes}m @ {DateTime.Now:HH:mm:ss}");
                         _lastSyncedMemberUsedSeconds = usedSecondsNow;
                     });
@@ -5210,6 +5582,63 @@ LIMIT $limit;";
                 MessageBoxImage.Information);
             _mainWindow?.SetLastCommand($"NOTIFY @ {DateTime.Now:HH:mm:ss}");
         });
+    }
+
+    private void OnMemberAccountChangedFromServer(MemberAccountChangedPayload payload)
+    {
+        if (payload is null || string.IsNullOrWhiteSpace(payload.MemberId))
+        {
+            return;
+        }
+
+        var activeSession = _activeMemberSession;
+        if (activeSession is null || _isAdminSession || _isPostpaidGuestSession)
+        {
+            return;
+        }
+
+        if (!payload.MemberId.Equals(activeSession.MemberId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var snapshot = payload.Member;
+        if (snapshot is null)
+        {
+            return;
+        }
+
+        var updatedMember = new MemberLoginItem
+        {
+            Id = string.IsNullOrWhiteSpace(snapshot.Id) ? activeSession.MemberId : snapshot.Id,
+            Username = string.IsNullOrWhiteSpace(snapshot.Username) ? activeSession.Username : snapshot.Username,
+            FullName = activeSession.FullName,
+            Balance = snapshot.Balance,
+            PlaySeconds = Math.Max(0, snapshot.PlaySeconds),
+            Rank = string.IsNullOrWhiteSpace(snapshot.Rank) ? activeSession.Rank : snapshot.Rank,
+        };
+
+        activeSession.Username = updatedMember.Username;
+        activeSession.Rank = updatedMember.Rank;
+
+        var usedSecondsNow = GetUsedSecondsOnUiThread();
+        SynchronizeMemberBillingFromServer(updatedMember, usedSecondsNow);
+        EvaluateMemberRemainingTimeWarnings();
+        _ = EnforceMemberAutoLockIfNoRemainingTimeAsync("REALTIME_ACCOUNT_CHANGED");
+
+        var reasonText = string.IsNullOrWhiteSpace(payload.Reason) ? "SYNC" : payload.Reason;
+        Dispatcher.Invoke(() =>
+        {
+            _mainWindow?.SetMemberInfo(activeSession.Username, activeSession.Rank);
+            _mainWindow?.SetLastCommand(
+                $"MEMBER ACCOUNT {reasonText} @ {DateTime.Now:HH:mm:ss}");
+        });
+
+        if (_logger is not null)
+        {
+            _ = _logger.InfoAsync(
+                $"Applied member.account.changed memberId={payload.MemberId} reason={reasonText}");
+        }
     }
 
     private async Task HandleGetRunningAppsRequestedAsync(AdminGetRunningAppsPayload payload)
@@ -5991,6 +6420,15 @@ public sealed class MemberLoyaltySpinResponse
     public string? SpunAt { get; set; }
 }
 
+public sealed class MemberUsageSyncResponse
+{
+    public MemberLoginItem? Member { get; set; }
+
+    public int ConsumedSeconds { get; set; }
+
+    public int RequestedSeconds { get; set; }
+}
+
 public sealed class MemberTransferBalanceResponse
 {
     public MemberLoginItem? SourceMember { get; set; }
@@ -6186,4 +6624,3 @@ public sealed class ClientServiceOrderSelectionRow : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanDecrease)));
     }
 }
-

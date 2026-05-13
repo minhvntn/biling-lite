@@ -9,6 +9,9 @@
       "Server.Admin.App/1.0.0": {
         "dependencies": {
           "Microsoft.Web.WebView2": "1.0.2849.39",
+          "SharpVectors.Wpf": "1.8.5",
+          "SocketIOClient": "3.1.2",
+          "System.Speech": "10.0.7",
           "Microsoft.Web.WebView2.Core": "1.0.2849.39",
           "Microsoft.Web.WebView2.WinForms": "1.0.2849.39",
           "Microsoft.Web.WebView2.Wpf": "1.0.2849.39"
@@ -33,6 +36,97 @@
             "rid": "win-x86",
             "assetType": "native",
             "fileVersion": "1.0.2849.39"
+          }
+        }
+      },
+      "SharpVectors.Wpf/1.8.5": {
+        "runtime": {
+          "lib/net9.0-windows7.0/SharpVectors.Converters.Wpf.dll": {
+            "assemblyVersion": "1.8.5.0",
+            "fileVersion": "1.8.5.0"
+          },
+          "lib/net9.0-windows7.0/SharpVectors.Core.dll": {
+            "assemblyVersion": "1.8.5.0",
+            "fileVersion": "1.8.5.0"
+          },
+          "lib/net9.0-windows7.0/SharpVectors.Css.dll": {
+            "assemblyVersion": "1.8.5.0",
+            "fileVersion": "1.8.5.0"
+          },
+          "lib/net9.0-windows7.0/SharpVectors.Dom.dll": {
+            "assemblyVersion": "1.8.5.0",
+            "fileVersion": "1.8.5.0"
+          },
+          "lib/net9.0-windows7.0/SharpVectors.Model.dll": {
+            "assemblyVersion": "1.8.5.0",
+            "fileVersion": "1.8.5.0"
+          },
+          "lib/net9.0-windows7.0/SharpVectors.Rendering.Wpf.dll": {
+            "assemblyVersion": "1.8.5.0",
+            "fileVersion": "1.8.5.0"
+          },
+          "lib/net9.0-windows7.0/SharpVectors.Runtime.Wpf.dll": {
+            "assemblyVersion": "1.8.5.0",
+            "fileVersion": "1.8.5.0"
+          }
+        }
+      },
+      "SocketIO.Core/3.1.2": {
+        "runtime": {
+          "lib/netstandard2.0/SocketIO.Core.dll": {
+            "assemblyVersion": "3.1.2.0",
+            "fileVersion": "3.1.2.0"
+          }
+        }
+      },
+      "SocketIO.Serializer.Core/3.1.2": {
+        "dependencies": {
+          "SocketIO.Core": "3.1.2"
+        },
+        "runtime": {
+          "lib/netstandard2.0/SocketIO.Serializer.Core.dll": {
+            "assemblyVersion": "3.1.2.0",
+            "fileVersion": "3.1.2.0"
+          }
+        }
+      },
+      "SocketIO.Serializer.SystemTextJson/3.1.2": {
+        "dependencies": {
+          "SocketIO.Core": "3.1.2",
+          "SocketIO.Serializer.Core": "3.1.2"
+        },
+        "runtime": {
+          "lib/netstandard2.0/SocketIO.Serializer.SystemTextJson.dll": {
+            "assemblyVersion": "3.1.2.0",
+            "fileVersion": "3.1.2.0"
+          }
+        }
+      },
+      "SocketIOClient/3.1.2": {
+        "dependencies": {
+          "SocketIO.Serializer.Core": "3.1.2",
+          "SocketIO.Serializer.SystemTextJson": "3.1.2"
+        },
+        "runtime": {
+          "lib/net6.0/SocketIOClient.dll": {
+            "assemblyVersion": "3.1.2.0",
+            "fileVersion": "3.1.2.0"
+          }
+        }
+      },
+      "System.Speech/10.0.7": {
+        "runtime": {
+          "lib/net10.0/System.Speech.dll": {
+            "assemblyVersion": "10.0.0.7",
+            "fileVersion": "10.0.726.21808"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net10.0/System.Speech.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.7",
+            "fileVersion": "10.0.726.21808"
           }
         }
       },
@@ -74,6 +168,48 @@
       "sha512": "sha512-mWyurCfuOGF2odk+Orflzpk017oBmLy11qiQTXpcc9ZWqhx2SfYDr2izplyxy2bCkWDSXCQpBDhU5u9+mhHlDQ==",
       "path": "microsoft.web.webview2/1.0.2849.39",
       "hashPath": "microsoft.web.webview2.1.0.2849.39.nupkg.sha512"
+    },
+    "SharpVectors.Wpf/1.8.5": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-WURdBDq5AE8RjKV9pFS7lNkJe81gxja9SaMGE4URq9GJUZ6M+5DGUL0Lm3B0iYW2/Meyowaz4ffGsyW+RBSTtg==",
+      "path": "sharpvectors.wpf/1.8.5",
+      "hashPath": "sharpvectors.wpf.1.8.5.nupkg.sha512"
+    },
+    "SocketIO.Core/3.1.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-tb6vZ7DYhZooRGLHTPK7/Gifbu+kHbkQRbsee0LAnI28pWc5+Br+juh4pvid3kfIrGTl5dzAfy5huLELVU4svA==",
+      "path": "socketio.core/3.1.2",
+      "hashPath": "socketio.core.3.1.2.nupkg.sha512"
+    },
+    "SocketIO.Serializer.Core/3.1.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-/cJtU3JVzjqP/Jh3BpMMR0aNzYua6s9e3+hjZ6OnYprFHrGYyg/n9OcST1dBjmOvvgyJ3GwJlyq0NjnPETAHsA==",
+      "path": "socketio.serializer.core/3.1.2",
+      "hashPath": "socketio.serializer.core.3.1.2.nupkg.sha512"
+    },
+    "SocketIO.Serializer.SystemTextJson/3.1.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-AA8w3Y4JldC3FaL1D4WuyG4zLPdrzjf8AQx1LCKtzlMlTLOcbEW0UGt+BhKxkUnxYAD5O5fsqRrTNCGXu6VeWA==",
+      "path": "socketio.serializer.systemtextjson/3.1.2",
+      "hashPath": "socketio.serializer.systemtextjson.3.1.2.nupkg.sha512"
+    },
+    "SocketIOClient/3.1.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-CMmnmhvG1Qf8k6BPh3RLqc/9MNvGUlCOyptjoP8a62bowPQkHTWvN25yy+gQqx5Ry/NgzkQHBJNpmRJhZNZrVQ==",
+      "path": "socketioclient/3.1.2",
+      "hashPath": "socketioclient.3.1.2.nupkg.sha512"
+    },
+    "System.Speech/10.0.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-NuWzqrK33827U2DBwoHTuFGpAIKZSodhlOxPdAKM17DkyUcTT3NUZgqvwkw1XyLR+WGcINpA2BdB7fVTv8vaaQ==",
+      "path": "system.speech/10.0.7",
+      "hashPath": "system.speech.10.0.7.nupkg.sha512"
     },
     "Microsoft.Web.WebView2.Core/1.0.2849.39": {
       "type": "reference",

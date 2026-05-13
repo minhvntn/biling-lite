@@ -192,7 +192,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (username.Length < 3)
+        if (username.Length < 1)
         {
             MemberModalErrorTextBlock.Text = I18n.MemberUsernameTooShort;
             return;

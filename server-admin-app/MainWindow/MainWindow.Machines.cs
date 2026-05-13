@@ -105,11 +105,13 @@ public partial class MainWindow : Window
         var activeGuest = item.ActiveGuest;
 
         var statusIconBrush = Brushes.Gray;
+        var statusIconPath = "/Assets/pc-default.svg";
         var statusIconToolTip = "Ngoại tuyến";
 
         if (item.Status == "ONLINE")
         {
             statusIconBrush = Brushes.LimeGreen;
+            statusIconPath = "/Assets/pc-available.svg";
             statusIconToolTip = "Sẵn sàng";
         }
         else if (item.Status == "IN_USE")
@@ -117,33 +119,39 @@ public partial class MainWindow : Window
             if (isAdminSession)
             {
                 statusIconBrush = Brushes.Gold;
+                statusIconPath = "/Assets/pc-admin.svg";
                 statusIconToolTip = "Admin đang sử dụng";
             }
             else if (activeMember != null)
             {
                 statusIconBrush = Brushes.DodgerBlue;
+                statusIconPath = "/Assets/pc-blue-user.svg";
                 statusIconToolTip = "Hội viên đang sử dụng";
             }
             else
             {
                 statusIconBrush = Brushes.Orange;
+                statusIconPath = "/Assets/pc-guest.svg";
                 statusIconToolTip = "Khách đang sử dụng";
             }
         }
         else if (item.Status == "LOCKED")
         {
             statusIconBrush = Brushes.Crimson;
+            statusIconPath = "/Assets/pc-offline.svg";
             statusIconToolTip = "Đang bị khóa";
         }
         else if (item.Status == "OFFLINE")
         {
             statusIconBrush = Brushes.Crimson;
+            statusIconPath = "/Assets/pc-offline.svg";
             statusIconToolTip = "Đang tắt";
         }
-        var guestDisplayName = string.IsNullOrWhiteSpace(activeGuest?.DisplayName)
-            ? "Khách vãng lai"
-            : activeGuest!.DisplayName;
         var isGuestSession = activeMember is null && activeGuest is not null;
+        var guestMachineLabel = string.IsNullOrWhiteSpace(item.Name)
+            ? item.AgentId
+            : item.Name;
+        var guestDisplayName = $"Khách {guestMachineLabel}";
         var remainingText = "-";
         if (activeMember is not null && item.HourlyRate > 0)
         {
@@ -170,6 +178,7 @@ public partial class MainWindow : Window
             StatusText = statusText,
             StatusBrush = statusBrush,
             StatusIconBrush = statusIconBrush,
+            StatusIconPath = statusIconPath,
             StatusIconToolTip = statusIconToolTip,
             UserName = userName,
             StartedAtText = startedAt?.ToString("HH:mm:ss") ?? "-",
@@ -871,10 +880,18 @@ public partial class MainWindow : Window
         var isInUse = status == "IN_USE";
         var isPaused = status == "PAUSED";
         var isLocked = status == "LOCKED";
+        var isGuestInUse = IsGuestInUseMachine(selectedMachine);
         var hasActiveMember =
             !string.IsNullOrWhiteSpace(selectedMachine.ActiveMemberId) ||
             !string.IsNullOrWhiteSpace(selectedMachine.ActiveMemberUsername);
         var hasReadyMachines = _allMachineRows.Any(IsReadyMachineStatus);
+
+        if (ContextLockMachineMenuItem is not null)
+        {
+            ContextLockMachineMenuItem.Visibility = isGuestInUse
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+        }
 
         if (isOffline)
         {
@@ -905,7 +922,7 @@ public partial class MainWindow : Window
             open: !isInUse && !isLocked,
             openGuest: isReady,
             adminLogin: !isInUse && !isOffline,
-            lockMachine: !isLocked,
+            lockMachine: !isLocked && !isGuestInUse,
             topupMember: isInUse && hasActiveMember,
             restart: true,
             shutdownSelected: true,
@@ -921,6 +938,12 @@ public partial class MainWindow : Window
             selectService: true,
             payService: isInUse && selectedMachine.ServiceAmountRaw > 0,
             notify: true);
+    }
+
+    private static bool IsGuestInUseMachine(MachineRow machine)
+    {
+        var status = machine.StatusCode?.Trim().ToUpperInvariant() ?? string.Empty;
+        return status == "IN_USE" && machine.IsGuestSession;
     }
 
     private void SetMachineContextMenuEnabled(
@@ -1104,7 +1127,15 @@ public partial class MainWindow : Window
 
     private async void ContextAdminLoginMachineMenuItem_Click(object sender, RoutedEventArgs e) => await SendCommandAsync("admin-login");
 
-    private async void ContextLockMachineMenuItem_Click(object sender, RoutedEventArgs e) => await SendCommandAsync("lock");
+    private async void ContextLockMachineMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (MachinesDataGrid.SelectedItem is MachineRow selected && IsGuestInUseMachine(selected))
+        {
+            return;
+        }
+
+        await SendCommandAsync("lock");
+    }
 
     private async void ContextTopupMachineMemberMenuItem_Click(object sender, RoutedEventArgs e) => await TopupActiveMemberFromMachineAsync();
 

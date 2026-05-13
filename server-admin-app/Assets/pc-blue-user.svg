@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="dodgerblue-user computer icon">
+  <title>dodgerblue-user computer icon</title>
+  <!-- Transparent background by design: no background rect is used. -->
+  <rect x="96" y="82" width="320" height="268" rx="36" fill="#1E90FF"/>
+  <rect x="120" y="106" width="272" height="186" rx="24" fill="#1E90FF"/>
+  <path d="M96 292H416V314C416 334 400 350 380 350H132C112 350 96 334 96 314V292Z" fill="#63B6FF"/>
+  <circle cx="256" cy="322" r="11" fill="#0B72D9"/>
+  <path d="M214 350H298L312 424H200L214 350Z" fill="#0B72D9"/>
+  <rect x="166" y="408" width="180" height="36" rx="18" fill="#63B6FF"/>
+  
+  <g fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="256" cy="182" r="42"/>
+    <path d="M184 286v-5c0-44 32-80 72-80s72 36 72 80v5H184z"/>
+  </g>
+</svg>

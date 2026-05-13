@@ -95,6 +95,7 @@ public sealed class MachineRow
     public string StatusText { get; set; } = string.Empty;
     public Brush StatusBrush { get; set; } = Brushes.Gray;
     public Brush StatusIconBrush { get; set; } = Brushes.Gray;
+    public string StatusIconPath { get; set; } = "/Assets/pc-default.svg";
     public string StatusIconToolTip { get; set; } = string.Empty;
     public string UserName { get; set; } = "-";
     public string StartedAtText { get; set; } = "-";

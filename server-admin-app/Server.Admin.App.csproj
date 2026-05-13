@@ -11,13 +11,31 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2849.39" />
+    <PackageReference Include="SharpVectors.Wpf" Version="1.8.5" />
     <PackageReference Include="SocketIOClient" Version="3.1.2" />
+    <PackageReference Include="System.Speech" Version="10.0.7" />
   </ItemGroup>
 
   <ItemGroup>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Assets\pc-default.svg" />
+    <None Remove="Assets\pc-available.svg" />
+    <None Remove="Assets\pc-blue-user.svg" />
+    <None Remove="Assets\pc-guest.svg" />
+    <None Remove="Assets\pc-admin.svg" />
+    <None Remove="Assets\pc-offline.svg" />
+
+    <Resource Include="Assets\pc-default.svg" />
+    <Resource Include="Assets\pc-available.svg" />
+    <Resource Include="Assets\pc-blue-user.svg" />
+    <Resource Include="Assets\pc-guest.svg" />
+    <Resource Include="Assets\pc-admin.svg" />
+    <Resource Include="Assets\pc-offline.svg" />
   </ItemGroup>
 
 </Project>

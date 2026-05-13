@@ -20,6 +20,7 @@ public sealed class AgentSocketService : IAsyncDisposable
     private readonly Action<bool>? _guestLoginEnabledHandler;
     private readonly Action<int>? _elapsedSecondsHandler;
     private readonly Action<bool>? _resumeGuestSessionHandler;
+    private readonly Action<MemberAccountChangedPayload>? _memberAccountChangedHandler;
 
     private global::SocketIOClient.SocketIO? _socket;
     private CancellationTokenSource? _heartbeatCts;
@@ -39,7 +40,8 @@ public sealed class AgentSocketService : IAsyncDisposable
         Action<decimal>? hourlyRateHandler = null,
         Action<bool>? guestLoginEnabledHandler = null,
         Action<int>? elapsedSecondsHandler = null,
-        Action<bool>? resumeGuestSessionHandler = null)
+        Action<bool>? resumeGuestSessionHandler = null,
+        Action<MemberAccountChangedPayload>? memberAccountChangedHandler = null)
     {
         _settings = settings;
         _logger = logger;
@@ -53,6 +55,7 @@ public sealed class AgentSocketService : IAsyncDisposable
         _guestLoginEnabledHandler = guestLoginEnabledHandler;
         _elapsedSecondsHandler = elapsedSecondsHandler;
         _resumeGuestSessionHandler = resumeGuestSessionHandler;
+        _memberAccountChangedHandler = memberAccountChangedHandler;
     }
 
     public async Task StartAsync()
@@ -206,6 +209,26 @@ public sealed class AgentSocketService : IAsyncDisposable
             if (element.TryGetProperty("elapsedSeconds", out var elapsed))
             {
                 _elapsedSecondsHandler?.Invoke(elapsed.GetInt32());
+            }
+        });
+
+        _socket.On("member.account.changed", async response =>
+        {
+            try
+            {
+                var payload = response.GetValue<MemberAccountChangedPayload>();
+                if (string.IsNullOrWhiteSpace(payload.MemberId))
+                {
+                    return;
+                }
+
+                await _logger.InfoAsync(
+                    $"Received member.account.changed memberId={payload.MemberId} reason={payload.Reason ?? "UNKNOWN"}");
+                _memberAccountChangedHandler?.Invoke(payload);
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync("Failed to parse member.account.changed payload", ex);
             }
         });
 
@@ -537,4 +560,40 @@ public sealed class AdminKillProcessPayload
 
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
+}
+
+public sealed class MemberAccountChangedPayload
+{
+    [JsonPropertyName("memberId")]
+    public string MemberId { get; set; } = string.Empty;
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("changedBy")]
+    public string? ChangedBy { get; set; }
+
+    [JsonPropertyName("at")]
+    public string? At { get; set; }
+
+    [JsonPropertyName("member")]
+    public MemberAccountSnapshot? Member { get; set; }
+}
+
+public sealed class MemberAccountSnapshot
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("username")]
+    public string Username { get; set; } = string.Empty;
+
+    [JsonPropertyName("balance")]
+    public decimal Balance { get; set; }
+
+    [JsonPropertyName("playSeconds")]
+    public int PlaySeconds { get; set; }
+
+    [JsonPropertyName("rank")]
+    public string? Rank { get; set; }
 }

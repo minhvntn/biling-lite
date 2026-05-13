@@ -886,6 +886,7 @@ export class CommandsService {
         status: 'ACTIVE',
       },
     });
+    const hasActivePresence = await this.hasAnyActivePresence(targetPcId);
 
     if (type === CommandType.OPEN && activeSession && pc.status === PcStatus.IN_USE) {
       const noOp = await this.prisma.command.create({
@@ -912,7 +913,7 @@ export class CommandsService {
       return noOp;
     }
 
-    if (type === CommandType.LOCK && !activeSession) {
+    if (type === CommandType.LOCK && !activeSession && !hasActivePresence) {
       const noOp = await this.prisma.$transaction(async (tx) => {
         const command = await tx.command.create({
           data: {
@@ -1528,6 +1529,21 @@ export class CommandsService {
 
     const value = payload as Record<string, unknown>;
     return value.isActive === true;
+  }
+
+  private async hasAnyActivePresence(pcId: string): Promise<boolean> {
+    const latestPresence = await this.prisma.eventLog.findFirst({
+      where: {
+        pcId,
+        eventType: {
+          in: ['member.pc.presence', 'guest.pc.presence', 'admin.pc.presence'],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { payload: true },
+    });
+
+    return this.isActivePresencePayload(latestPresence?.payload);
   }
 
   private appendAdminLoginMarker(requestedBy?: string): string {

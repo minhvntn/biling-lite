@@ -118,8 +118,21 @@ export class MembersService {
 
   async createMember(payload: CreateMemberDto) {
     const normalizedUsername = payload.username?.trim() ?? '';
-    if (normalizedUsername.length < 3) {
-      throw new BadRequestException('Username phai co it nhat 3 ky tu');
+    if (normalizedUsername.length < 1) {
+      throw new BadRequestException('Username phai co it nhat 1 ky tu');
+    }
+
+    const existingMember = await this.prisma.member.findFirst({
+      where: {
+        username: {
+          equals: normalizedUsername,
+          mode: 'insensitive',
+        },
+      },
+      select: { id: true },
+    });
+    if (existingMember) {
+      throw new ConflictException('Username da ton tai');
     }
 
     try {
@@ -213,6 +226,10 @@ export class MembersService {
       );
     }
 
+    const isUsageAlreadyActiveOnCurrentPc = currentPc
+      ? await this.isMemberUsageActiveOnPc(member.id, currentPc.id)
+      : false;
+
     const [rankConfigs] = await Promise.all([
       this.prisma.loyaltyRankConfig.findMany({
         orderBy: { minTopup: 'desc' },
@@ -239,6 +256,18 @@ export class MembersService {
         // Since I cannot easily refactor everything now, I'll use a private method or duplicate.
         hourlyRate = await this.getEffectiveHourlyRate(baseRate);
       }
+    }
+
+    const upfrontLoginCharge = this.computeUpfrontLoginCharge(hourlyRate);
+    const currentBalance = Number(member.balance);
+    if (
+      !isUsageAlreadyActiveOnCurrentPc &&
+      upfrontLoginCharge > 0 &&
+      currentBalance < upfrontLoginCharge
+    ) {
+      throw new BadRequestException(
+        'Số dư tài khoản không đủ.',
+      );
     }
 
     return {
@@ -290,6 +319,30 @@ export class MembersService {
       }
     }
 
+    let pricePerMinute = 0;
+    let upfrontLoginCharge = 0;
+    if (isActive) {
+      const defaultGroup = await this.prisma.pcGroup.findFirst({
+        where: { isDefault: true },
+      });
+      const baseRate = Number(
+        pc.groupId
+          ? (await this.prisma.pcGroup.findUnique({ where: { id: pc.groupId } }))
+              ?.hourlyRate ?? defaultGroup?.hourlyRate ?? 12000
+          : defaultGroup?.hourlyRate ?? 12000,
+      );
+      const hourlyRate = await this.getEffectiveHourlyRate(baseRate);
+      pricePerMinute = Number(hourlyRate) / 60;
+      upfrontLoginCharge = this.computeUpfrontLoginCharge(hourlyRate);
+
+      const currentBalance = Number(member.balance);
+      if (upfrontLoginCharge > 0 && currentBalance < upfrontLoginCharge) {
+        throw new BadRequestException(
+          'Số dư tài khoản không đủ.',
+        );
+      }
+    }
+
     await this.prisma.eventLog.create({
       data: {
         source: EventSource.CLIENT,
@@ -315,27 +368,12 @@ export class MembersService {
         },
       });
 
-      const defaultGroup = await this.prisma.pcGroup.findFirst({
-        where: { isDefault: true },
-      });
-      const baseRate = Number(
-        pc.groupId
-          ? (await this.prisma.pcGroup.findUnique({ where: { id: pc.groupId } }))?.hourlyRate ?? defaultGroup?.hourlyRate ?? 12000
-          : defaultGroup?.hourlyRate ?? 12000,
-      );
-      const hourlyRate = await this.getEffectiveHourlyRate(baseRate);
-      const pricePerMinute = Number(hourlyRate) / 60;
-
-      // Upfront 1 minute cash deduction for member login
-      const costAmount = Number(pricePerMinute.toFixed(2));
-      const currentBalance = Number(member.balance);
-
-      if (costAmount > 0 && currentBalance >= costAmount) {
+      if (upfrontLoginCharge > 0) {
         await this.prisma.member.update({
           where: { id: member.id },
           data: {
             balance: {
-              decrement: costAmount,
+              decrement: upfrontLoginCharge,
             },
           },
         });
@@ -344,7 +382,7 @@ export class MembersService {
           data: {
             memberId: member.id,
             type: 'ADJUSTMENT',
-            amountDelta: -costAmount,
+            amountDelta: -upfrontLoginCharge,
             playSecondsDelta: 0,
             note: 'UPFRONT_LOGIN_CHARGE',
             createdBy: 'client.session',
@@ -1004,11 +1042,14 @@ export class MembersService {
       return [{ updatedMember, transaction }, configs] as const;
     });
 
+    const member = this.toMemberItem(
+      result.updatedMember,
+      this.calculateRankName(Number(result.updatedMember.totalTopup), rankConfigs),
+    );
+    await this.emitMemberAccountChanged(member, 'TOPUP', createdBy);
+
     return {
-      member: this.toMemberItem(
-        result.updatedMember,
-        this.calculateRankName(Number(result.updatedMember.totalTopup), rankConfigs),
-      ),
+      member,
       transaction: this.toTransactionItem(result.transaction),
     };
   }
@@ -1067,11 +1108,14 @@ export class MembersService {
       return [{ updatedMember, transaction, cost, hours, ratePerHour }, configs] as const;
     });
 
+    const member = this.toMemberItem(
+      result.updatedMember,
+      this.calculateRankName(Number(result.updatedMember.totalTopup), rankConfigs),
+    );
+    await this.emitMemberAccountChanged(member, 'BUY_PLAYTIME', createdBy);
+
     return {
-      member: this.toMemberItem(
-        result.updatedMember,
-        this.calculateRankName(Number(result.updatedMember.totalTopup), rankConfigs),
-      ),
+      member,
       transaction: this.toTransactionItem(result.transaction),
       purchase: {
         hours: result.hours,
@@ -1144,17 +1188,20 @@ export class MembersService {
       return [{ updatedMember, transaction }, configs] as const;
     });
 
+    const member = this.toMemberItem(
+      result.updatedMember,
+      this.calculateRankName(Number(result.updatedMember.totalTopup), rankConfigs),
+    );
+    await this.emitMemberAccountChanged(member, 'ADJUST_BALANCE', createdBy);
+
     return {
-      member: this.toMemberItem(
-        result.updatedMember,
-        this.calculateRankName(Number(result.updatedMember.totalTopup), rankConfigs),
-      ),
+      member,
       transaction: this.toTransactionItem(result.transaction),
     };
   }
 
   async updateMember(memberId: string, payload: UpdateMemberDto) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const existing = await tx.member.findUnique({ where: { id: memberId } });
       if (!existing) {
         throw new NotFoundException('Khong tim thay hoi vien');
@@ -1280,6 +1327,14 @@ export class MembersService {
         ),
       };
     });
+
+    await this.emitMemberAccountChanged(
+      result.member,
+      'UPDATE_MEMBER',
+      payload.updatedBy?.trim() || 'admin.desktop',
+    );
+
+    return result;
   }
 
   async transferBalance(memberId: string, payload: TransferBalanceDto) {
@@ -1379,6 +1434,8 @@ export class MembersService {
     });
 
     await this.logMemberTransferEvent(result, payload, createdBy);
+    await this.emitMemberAccountChanged(result.sourceMember, 'TRANSFER_OUT', createdBy);
+    await this.emitMemberAccountChanged(result.targetMember, 'TRANSFER_IN', createdBy);
     return result;
   }
 
@@ -1877,8 +1934,77 @@ export class MembersService {
     return memberId.length > 0 ? memberId : null;
   }
 
+  private async isMemberUsageActiveOnPc(
+    memberId: string,
+    pcId: string,
+  ): Promise<boolean> {
+    const [activeSession, latestPresence] = await Promise.all([
+      this.prisma.session.findFirst({
+        where: {
+          pcId,
+          status: 'ACTIVE',
+        },
+        select: {
+          id: true,
+        },
+      }),
+      this.prisma.eventLog.findFirst({
+        where: {
+          pcId,
+          eventType: 'member.pc.presence',
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        select: {
+          payload: true,
+        },
+      }),
+    ]);
+
+    if (!activeSession) {
+      return false;
+    }
+
+    const activeMemberId = this.extractActiveMemberId(latestPresence?.payload);
+    return activeMemberId === memberId;
+  }
+
+  private computeUpfrontLoginCharge(hourlyRate: number): number {
+    if (!Number.isFinite(hourlyRate) || hourlyRate <= 0) {
+      return 0;
+    }
+
+    return Number((hourlyRate / 60).toFixed(2));
+  }
+
   private buildMemberAlreadyInUseMessage(pcName: string, agentId: string): string {
     return `Tai khoan dang duoc su dung tren may ${pcName} (${agentId}). Vui long dang xuat o may do truoc.`;
+  }
+
+  private async emitMemberAccountChanged(
+    member: ReturnType<MembersService['toMemberItem']>,
+    reason: string,
+    changedBy: string,
+  ): Promise<void> {
+    const activePc = await this.findMemberActivePc(member.id);
+    if (!activePc) {
+      return;
+    }
+
+    this.realtime.emitToAgent(activePc.agentId, 'member.account.changed', {
+      memberId: member.id,
+      reason,
+      changedBy,
+      at: new Date().toISOString(),
+      member: {
+        id: member.id,
+        username: member.username,
+        balance: member.balance,
+        playSeconds: member.playSeconds,
+        rank: member.rank,
+      },
+    });
   }
 
   private async logMemberTransferEvent(

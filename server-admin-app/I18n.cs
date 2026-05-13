@@ -35,7 +35,7 @@ public static class I18n
     public const string MemberPlayHoursPrefix = "Gi\u1edd ch\u01a1i";
 
     public const string MemberUsernameRequired = "Username kh\u00f4ng \u0111\u01b0\u1ee3c \u0111\u1ec3 tr\u1ed1ng";
-    public const string MemberUsernameTooShort = "Username t\u1ed1i thi\u1ec3u 3 k\u00fd t\u1ef1";
+    public const string MemberUsernameTooShort = "Username t\u1ed1i thi\u1ec3u 1 k\u00fd t\u1ef1";
     public const string MemberPasswordTooShort = "Password t\u1ed1i thi\u1ec3u 1 k\u00fd t\u1ef1";
     public const string MemberCreateFailed = "T\u1ea1o h\u1ed9i vi\u00ean th\u1ea5t b\u1ea1i";
 
