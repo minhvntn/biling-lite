@@ -208,6 +208,12 @@
                                   ContextMenuOpening="MachinesDataGrid_ContextMenuOpening"
                                   MouseDoubleClick="MachinesDataGrid_MouseDoubleClick"
                                   SelectionChanged="MachinesDataGrid_SelectionChanged">
+                            <DataGrid.CellStyle>
+                                <Style TargetType="DataGridCell">
+                                    <Setter Property="VerticalContentAlignment" Value="Center" />
+                                    <Setter Property="Padding" Value="8,0" />
+                                </Style>
+                            </DataGrid.CellStyle>
                             <DataGrid.RowStyle>
                                 <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
                                     <EventSetter Event="PreviewMouseRightButtonDown" Handler="MachinesDataGridRow_PreviewMouseRightButtonDown" />
@@ -356,8 +362,28 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Người sử dụng" Binding="{Binding UserName}" Width="1.1*" />
-                                <DataGridTextColumn Header="Bắt đầu" Binding="{Binding StartedAtText}" Width="0.95*" />
+                                <DataGridTemplateColumn Header="Người sử dụng" Width="1.1*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding UserName}"
+                                                       VerticalAlignment="Center"
+                                                       HorizontalAlignment="Center"
+                                                       TextAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Bắt đầu" Width="0.95*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding StartedAtText}"
+                                                       VerticalAlignment="Center"
+                                                       HorizontalAlignment="Center"
+                                                       TextAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTemplateColumn Header="Đã sử dụng" Width="0.95*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
@@ -426,11 +452,61 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="Tiền" Binding="{Binding MoneyText}" Width="0.8*" />
-                                <DataGridTextColumn Header="Tiền dịch vụ" Binding="{Binding ServiceAmountText}" Width="0.9*" />
-                                <DataGridTextColumn Header="Ngày" Binding="{Binding DateText}" Width="0.95*" />
-                                <DataGridTextColumn Header="IP" Binding="{Binding IpAddress}" Width="1*" />
-                                <DataGridTextColumn Header="Nhóm" Binding="{Binding GroupName}" Width="1*" />
+                                <DataGridTemplateColumn Header="Tiền" Width="0.8*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding MoneyText}"
+                                                       VerticalAlignment="Center"
+                                                       HorizontalAlignment="Center"
+                                                       TextAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Tiền dịch vụ" Width="0.9*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding ServiceAmountText}"
+                                                       VerticalAlignment="Center"
+                                                       HorizontalAlignment="Center"
+                                                       TextAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Ngày" Width="0.95*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DateText}"
+                                                       VerticalAlignment="Center"
+                                                       HorizontalAlignment="Center"
+                                                       TextAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="IP" Width="1*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding IpAddress}"
+                                                       VerticalAlignment="Center"
+                                                       HorizontalAlignment="Center"
+                                                       TextAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Nhóm" Width="1*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding GroupName}"
+                                                       VerticalAlignment="Center"
+                                                       HorizontalAlignment="Center"
+                                                       TextAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
 
@@ -1656,17 +1732,13 @@
                             <TextBlock Text="Cài đặt" />
                         </StackPanel>
                     </TabItem.Header>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <Grid Margin="12">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="12" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="12" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="12" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="10" />
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
@@ -1680,250 +1752,404 @@
                                     <TextBlock FontSize="20" FontWeight="SemiBold" Foreground="#0F172A" Text="Cài đặt hệ thống" />
                                     <TextBlock Margin="0,4,0,0"
                                                Foreground="#64748B"
-                                               Text="Tối ưu giao diện và cấu hình máy trạm. Các thay đổi sẽ áp dụng khi bấm Lưu cài đặt." />
+                                               Text="Đã chia theo nhóm để gọn hơn: Giao diện, Máy trạm, Tích lũy, Backup." />
                                 </StackPanel>
                             </Border>
 
-                            <Border Grid.Row="2"
-                                    Background="White"
-                                    BorderBrush="#E2E8F0"
-                                    BorderThickness="1"
-                                    CornerRadius="10"
-                                    Padding="14,12">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
+                            <TabControl Grid.Row="2">
+                                <TabItem Header="Giao diện">
+                                    <Border Margin="0,8,0,0"
+                                            Background="White"
+                                            BorderBrush="#E2E8F0"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="14,12">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
 
-                                    <TextBlock Grid.Row="0" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B" Text="Giao diện và tự động hóa" />
+                                            <TextBlock Grid.Row="0" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B" Text="Giao diện và menu thao tác" />
 
-                                    <Grid Grid.Row="1" Margin="0,12,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="340" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Cỡ chữ toàn bộ app server admin:" />
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Slider x:Name="FontSizeSlider"
-                                                    Width="260"
-                                                    Minimum="10"
-                                                    Maximum="22"
-                                                    TickFrequency="1"
-                                                    IsSnapToTickEnabled="True"
-                                                    ValueChanged="FontSizeSlider_ValueChanged" />
-                                            <Border Margin="10,0,0,0" Padding="8,3" Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="6">
-                                                <TextBlock x:Name="FontSizeValueTextBlock" VerticalAlignment="Center" Foreground="#3730A3" FontWeight="SemiBold" Text="13" />
-                                            </Border>
+                                            <Grid Grid.Row="1" Margin="0,12,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="340" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Cỡ chữ toàn bộ app server admin:" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Slider x:Name="FontSizeSlider"
+                                                            Width="260"
+                                                            Minimum="10"
+                                                            Maximum="22"
+                                                            TickFrequency="1"
+                                                            IsSnapToTickEnabled="True"
+                                                            ValueChanged="FontSizeSlider_ValueChanged" />
+                                                    <Border Margin="10,0,0,0" Padding="8,3" Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="6">
+                                                        <TextBlock x:Name="FontSizeValueTextBlock" VerticalAlignment="Center" Foreground="#3730A3" FontWeight="SemiBold" Text="13" />
+                                                    </Border>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <Grid Grid.Row="2" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="340" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Cỡ chữ bảng Máy trạm:" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Slider x:Name="MachineTableFontSizeSlider"
+                                                            Width="260"
+                                                            Minimum="11"
+                                                            Maximum="30"
+                                                            TickFrequency="1"
+                                                            IsSnapToTickEnabled="True"
+                                                            ValueChanged="MachineTableFontSizeSlider_ValueChanged" />
+                                                    <Border Margin="10,0,0,0" Padding="8,3" Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="6">
+                                                        <TextBlock x:Name="MachineTableFontSizeValueTextBlock" VerticalAlignment="Center" Foreground="#3730A3" FontWeight="SemiBold" Text="14" />
+                                                    </Border>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <Grid Grid.Row="3" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="340" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Padding menu chuột phải bảng Máy trạm:" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Slider x:Name="MachineContextMenuPaddingSlider"
+                                                            Width="220"
+                                                            Minimum="6"
+                                                            Maximum="24"
+                                                            TickFrequency="1"
+                                                            IsSnapToTickEnabled="True"
+                                                            ValueChanged="MachineContextMenuPaddingSlider_ValueChanged" />
+                                                    <Border Margin="10,0,0,0" Padding="8,3" Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="6">
+                                                        <TextBlock x:Name="MachineContextMenuPaddingValueTextBlock" VerticalAlignment="Center" Foreground="#3730A3" FontWeight="SemiBold" Text="12" />
+                                                    </Border>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <Grid Grid.Row="4" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="340" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Cỡ chữ menu chuột phải bảng Máy trạm:" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Slider x:Name="MachineContextMenuFontSizeSlider"
+                                                            Width="220"
+                                                            Minimum="10"
+                                                            Maximum="30"
+                                                            TickFrequency="1"
+                                                            IsSnapToTickEnabled="True"
+                                                            ValueChanged="MachineContextMenuFontSizeSlider_ValueChanged" />
+                                                    <Border Margin="10,0,0,0" Padding="8,3" Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="6">
+                                                        <TextBlock x:Name="MachineContextMenuFontSizeValueTextBlock" VerticalAlignment="Center" Foreground="#3730A3" FontWeight="SemiBold" Text="14" />
+                                                    </Border>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Grid>
+                                    </Border>
+                                </TabItem>
+
+                                <TabItem Header="Máy trạm">
+                                    <Border Margin="0,8,0,0"
+                                            Background="White"
+                                            BorderBrush="#E2E8F0"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="14,12">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock Grid.Row="0" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B" Text="Cài đặt máy trạm" />
+
+                                            <Grid Grid.Row="1" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="260" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Tự tắt máy trạm khi Sẵn sàng quá (phút):" />
+                                                <TextBox x:Name="ReadyAutoShutdownMinutesTextBox"
+                                                         Grid.Column="1"
+                                                         Width="110"
+                                                         Height="30"
+                                                         HorizontalAlignment="Left"
+                                                         VerticalContentAlignment="Center"
+                                                         Text="3"
+                                                         TextChanged="ReadyAutoShutdownMinutesTextBox_TextChanged" />
+                                            </Grid>
+
+                                            <TextBlock x:Name="ReadyAutoShutdownStatusTextBlock"
+                                                       Grid.Row="2"
+                                                       Margin="0,8,0,0"
+                                                       Foreground="#64748B"
+                                                       Text="Đang tải cài đặt tự tắt máy trạm..." />
+
+                                            <CheckBox x:Name="GuestLoginEnabledCheckBox"
+                                                      Grid.Row="3"
+                                                      Margin="0,12,0,0"
+                                                      Content="Cho phép đăng nhập Khách vãng lai"
+                                                      Checked="GuestLoginEnabledCheckBox_Changed"
+                                                      Unchecked="GuestLoginEnabledCheckBox_Changed" />
+
+                                            <Grid Grid.Row="4" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="260" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Bước giá tính tiền giờ (VND):" />
+                                                <TextBox x:Name="PricingStepTextBox"
+                                                         Grid.Column="1"
+                                                         Width="130"
+                                                         Height="30"
+                                                         HorizontalAlignment="Left"
+                                                         VerticalContentAlignment="Center"
+                                                         Text="1000" />
+                                            </Grid>
+
+                                            <Grid Grid.Row="5" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="260" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Phí mở máy tối thiểu (VND):" />
+                                                <TextBox x:Name="MinimumChargeTextBox"
+                                                         Grid.Column="1"
+                                                         Width="130"
+                                                         Height="30"
+                                                         HorizontalAlignment="Left"
+                                                         VerticalContentAlignment="Center"
+                                                         Text="1000" />
+                                            </Grid>
+
+                                            <TextBlock Grid.Row="6" Margin="0,14,0,0" FontWeight="SemiBold" Foreground="#1E293B" Text="Nền lock screen máy trạm" />
+
+                                            <Grid Grid.Row="7" Margin="0,8,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="260" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Loại nền:" />
+                                                <ComboBox x:Name="LockScreenBackgroundModeComboBox"
+                                                          Grid.Column="1"
+                                                          Width="220"
+                                                          HorizontalAlignment="Left"
+                                                          SelectionChanged="LockScreenBackgroundModeComboBox_SelectionChanged">
+                                                    <ComboBoxItem Content="Không dùng" Tag="none" />
+                                                    <ComboBoxItem Content="Ảnh (file local)" Tag="image" />
+                                                    <ComboBoxItem Content="Video (file local)" Tag="video" />
+                                                </ComboBox>
+                                            </Grid>
+
+                                            <StackPanel Grid.Row="8" Margin="0,8,0,0">
+                                                <TextBlock Margin="0,0,0,4" Foreground="#334155" Text="Đường dẫn file image/video (local/UNC):" />
+                                                <TextBox x:Name="LockScreenBackgroundUrlTextBox"
+                                                         Height="30"
+                                                         VerticalContentAlignment="Center"
+                                                         TextChanged="LockScreenBackgroundUrlTextBox_TextChanged" />
+                                                <Button Margin="0,6,0,0"
+                                                        Width="130"
+                                                        HorizontalAlignment="Left"
+                                                        Content="Chọn file..."
+                                                        Click="BrowseLockScreenBackgroundFileButton_Click" />
+                                                <TextBlock x:Name="LockScreenBackgroundStatusTextBlock"
+                                                           Margin="0,8,0,0"
+                                                           Foreground="#64748B"
+                                                           Text="Chọn loại nền và nhập đường dẫn file local, sau đó bấm Lưu cài đặt." />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </TabItem>
+
+                                <TabItem Header="Tích lũy">
+                                    <Border Margin="0,8,0,0"
+                                            Background="White"
+                                            BorderBrush="#E2E8F0"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="14,12">
+                                        <StackPanel>
+                                            <TextBlock FontSize="17" FontWeight="SemiBold" Foreground="#1E293B" Text="Điểm tích lũy hội viên" />
+                                            <CheckBox x:Name="LoyaltyPointsEnabledCheckBox"
+                                                      Margin="0,10,0,0"
+                                                      Content="Bật tính năng điểm tích lũy (15 phút = 1 điểm, 1 điểm = 1 phút chơi)"
+                                                      VerticalAlignment="Center"
+                                                      Checked="LoyaltyPointsEnabledCheckBox_Checked"
+                                                      Unchecked="LoyaltyPointsEnabledCheckBox_Unchecked" />
+                                            <TextBlock x:Name="LoyaltySettingsStatusTextBlock"
+                                                       Margin="0,8,0,0"
+                                                       Foreground="#64748B"
+                                                       Text="Đang tải cài đặt điểm tích lũy..." />
                                         </StackPanel>
-                                    </Grid>
+                                    </Border>
+                                </TabItem>
 
-                                    <Grid Grid.Row="2" Margin="0,10,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="340" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Cỡ chữ bảng Máy trạm:" />
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Slider x:Name="MachineTableFontSizeSlider"
-                                                    Width="260"
-                                                    Minimum="11"
-                                                    Maximum="30"
-                                                    TickFrequency="1"
-                                                    IsSnapToTickEnabled="True"
-                                                    ValueChanged="MachineTableFontSizeSlider_ValueChanged" />
-                                            <Border Margin="10,0,0,0" Padding="8,3" Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="6">
-                                                <TextBlock x:Name="MachineTableFontSizeValueTextBlock" VerticalAlignment="Center" Foreground="#3730A3" FontWeight="SemiBold" Text="14" />
-                                            </Border>
-                                        </StackPanel>
-                                    </Grid>
+                                <TabItem Header="Backup">
+                                    <Border Margin="0,8,0,0"
+                                            Background="White"
+                                            BorderBrush="#E2E8F0"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="14,12">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="270" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
 
-                                    <Grid Grid.Row="3" Margin="0,10,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="340" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Padding menu chuột phải bảng Máy trạm:" />
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Slider x:Name="MachineContextMenuPaddingSlider"
-                                                    Width="220"
-                                                    Minimum="6"
-                                                    Maximum="24"
-                                                    TickFrequency="1"
-                                                    IsSnapToTickEnabled="True"
-                                                    ValueChanged="MachineContextMenuPaddingSlider_ValueChanged" />
-                                            <Border Margin="10,0,0,0" Padding="8,3" Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="6">
-                                                <TextBlock x:Name="MachineContextMenuPaddingValueTextBlock" VerticalAlignment="Center" Foreground="#3730A3" FontWeight="SemiBold" Text="12" />
-                                            </Border>
-                                        </StackPanel>
-                                    </Grid>
+                                            <TextBlock Grid.Row="0"
+                                                       Grid.ColumnSpan="2"
+                                                       FontSize="17"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#1E293B"
+                                                       Text="Sao lưu dữ liệu tự động" />
 
-                                    <Grid Grid.Row="4" Margin="0,10,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="340" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Cỡ chữ menu chuột phải bảng Máy trạm:" />
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <Slider x:Name="MachineContextMenuFontSizeSlider"
-                                                    Width="220"
-                                                    Minimum="10"
-                                                    Maximum="30"
-                                                    TickFrequency="1"
-                                                    IsSnapToTickEnabled="True"
-                                                    ValueChanged="MachineContextMenuFontSizeSlider_ValueChanged" />
-                                            <Border Margin="10,0,0,0" Padding="8,3" Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="6">
-                                                <TextBlock x:Name="MachineContextMenuFontSizeValueTextBlock" VerticalAlignment="Center" Foreground="#3730A3" FontWeight="SemiBold" Text="14" />
-                                            </Border>
-                                        </StackPanel>
-                                    </Grid>
+                                            <CheckBox x:Name="AutoBackupEnabledCheckBox"
+                                                      Grid.Row="1"
+                                                      Grid.ColumnSpan="2"
+                                                      Margin="0,10,0,0"
+                                                      Content="Bật backup tự động từ backend"
+                                                      Checked="AutoBackupConfigControl_Changed"
+                                                      Unchecked="AutoBackupConfigControl_Changed" />
 
-                                    <Grid Grid.Row="5" Margin="0,10,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="340" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Tự tắt máy trạm khi Sẵn sàng quá (phút):" />
-                                        <TextBox x:Name="ReadyAutoShutdownMinutesTextBox"
-                                                 Grid.Column="1"
-                                                 Width="110"
-                                                 Height="30"
-                                                 HorizontalAlignment="Left"
-                                                 VerticalContentAlignment="Center"
-                                                 Text="3"
-                                                 TextChanged="ReadyAutoShutdownMinutesTextBox_TextChanged" />
-                                    </Grid>
-                                </Grid>
-                            </Border>
+                                            <Grid Grid.Row="2" Grid.ColumnSpan="2" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="270" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Lịch backup:" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <ComboBox x:Name="AutoBackupScheduleTypeComboBox"
+                                                              Width="120"
+                                                              SelectionChanged="AutoBackupConfigControl_Changed">
+                                                        <ComboBoxItem Content="Hàng ngày" Tag="daily" />
+                                                        <ComboBoxItem Content="Hàng tuần" Tag="weekly" />
+                                                    </ComboBox>
+                                                    <TextBlock Margin="12,0,6,0" VerticalAlignment="Center" Foreground="#334155" Text="Thứ:" />
+                                                    <ComboBox x:Name="AutoBackupWeekdayComboBox"
+                                                              Width="120"
+                                                              SelectionChanged="AutoBackupConfigControl_Changed">
+                                                        <ComboBoxItem Content="Thứ 2" Tag="1" />
+                                                        <ComboBoxItem Content="Thứ 3" Tag="2" />
+                                                        <ComboBoxItem Content="Thứ 4" Tag="3" />
+                                                        <ComboBoxItem Content="Thứ 5" Tag="4" />
+                                                        <ComboBoxItem Content="Thứ 6" Tag="5" />
+                                                        <ComboBoxItem Content="Thứ 7" Tag="6" />
+                                                        <ComboBoxItem Content="Chủ nhật" Tag="7" />
+                                                    </ComboBox>
+                                                </StackPanel>
+                                            </Grid>
 
-                            <Border Grid.Row="4"
-                                    Background="White"
-                                    BorderBrush="#E2E8F0"
-                                    BorderThickness="1"
-                                    CornerRadius="10"
-                                    Padding="14,12">
-                                <StackPanel>
-                                    <TextBlock FontSize="17" FontWeight="SemiBold" Foreground="#1E293B" Text="Điểm tích lũy hội viên" />
-                                    <CheckBox x:Name="LoyaltyPointsEnabledCheckBox"
-                                              Margin="0,10,0,0"
-                                              Content="Bật tính năng điểm tích lũy (15 phút = 1 điểm, 1 điểm = 1 phút chơi)"
-                                              VerticalAlignment="Center"
-                                              Checked="LoyaltyPointsEnabledCheckBox_Checked"
-                                              Unchecked="LoyaltyPointsEnabledCheckBox_Unchecked" />
-                                    <TextBlock x:Name="LoyaltySettingsStatusTextBlock"
-                                               Margin="0,8,0,0"
-                                               Foreground="#64748B"
-                                               Text="Đang tải cài đặt điểm tích lũy..." />
-                                </StackPanel>
-                            </Border>
+                                            <Grid Grid.Row="3" Grid.ColumnSpan="2" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="270" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Giờ chạy backup (HH:mm):" />
+                                                <TextBox x:Name="AutoBackupTimeTextBox"
+                                                         Grid.Column="1"
+                                                         Width="110"
+                                                         Height="30"
+                                                         HorizontalAlignment="Left"
+                                                         VerticalContentAlignment="Center"
+                                                         Text="02:00"
+                                                         TextChanged="AutoBackupConfigTextChanged" />
+                                            </Grid>
 
-                            <Border Grid.Row="6"
-                                    Background="White"
-                                    BorderBrush="#E2E8F0"
-                                    BorderThickness="1"
-                                    CornerRadius="10"
-                                    Padding="14,12">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
+                                            <Grid Grid.Row="4" Grid.ColumnSpan="2" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="270" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Thư mục lưu backup:" />
+                                                <TextBox x:Name="AutoBackupDirectoryTextBox"
+                                                         Grid.Column="1"
+                                                         Height="30"
+                                                         VerticalContentAlignment="Center"
+                                                         TextChanged="AutoBackupConfigTextChanged" />
+                                            </Grid>
 
-                                    <TextBlock Grid.Row="0" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B" Text="Cài đặt máy trạm" />
+                                            <Grid Grid.Row="5" Grid.ColumnSpan="2" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="270" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Giữ file backup (ngày):" />
+                                                <TextBox x:Name="AutoBackupRetentionDaysTextBox"
+                                                         Grid.Column="1"
+                                                         Width="110"
+                                                         Height="30"
+                                                         HorizontalAlignment="Left"
+                                                         VerticalContentAlignment="Center"
+                                                         Text="30"
+                                                         TextChanged="AutoBackupConfigTextChanged" />
+                                            </Grid>
 
-                                    <CheckBox x:Name="GuestLoginEnabledCheckBox"
-                                              Grid.Row="1"
-                                              Margin="0,10,0,0"
-                                              Content="Cho phép đăng nhập Khách vãng lai"
-                                              Checked="GuestLoginEnabledCheckBox_Changed"
-                                              Unchecked="GuestLoginEnabledCheckBox_Changed" />
+                                            <StackPanel Grid.Row="6"
+                                                        Grid.ColumnSpan="2"
+                                                        Orientation="Horizontal"
+                                                        Margin="0,12,0,0">
+                                                <Button Padding="14,7"
+                                                        Margin="0,0,8,0"
+                                                        Content="Lưu lịch backup"
+                                                        Click="SaveBackupSettingsButton_Click" />
+                                                <Button x:Name="RunBackupNowButton"
+                                                        Padding="14,7"
+                                                        Margin="0,0,8,0"
+                                                        Content="Backup ngay"
+                                                        Click="RunBackupNowButton_Click" />
+                                                <Button x:Name="ImportBackupFileButton"
+                                                        Padding="14,7"
+                                                        Content="Import backup..."
+                                                        Click="ImportBackupFileButton_Click" />
+                                            </StackPanel>
 
-                                    <Grid Grid.Row="2" Margin="0,10,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="260" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Bước giá tính tiền giờ (VND):" />
-                                        <TextBox x:Name="PricingStepTextBox"
-                                                 Grid.Column="1"
-                                                 Width="130"
-                                                 Height="30"
-                                                 HorizontalAlignment="Left"
-                                                 VerticalContentAlignment="Center"
-                                                 Text="1000" />
-                                    </Grid>
+                                            <TextBlock x:Name="AutoBackupStatusTextBlock"
+                                                       Grid.Row="7"
+                                                       Grid.ColumnSpan="2"
+                                                       Margin="0,8,0,0"
+                                                       Foreground="#64748B"
+                                                       Text="Đang tải cài đặt backup..." />
+                                            <TextBlock x:Name="AutoBackupLastRunTextBlock"
+                                                       Grid.Row="8"
+                                                       Grid.ColumnSpan="2"
+                                                       Margin="0,8,0,0"
+                                                       Foreground="#64748B"
+                                                       Text="Lần backup gần nhất: -" />
+                                        </Grid>
+                                    </Border>
+                                </TabItem>
+                            </TabControl>
 
-                                    <Grid Grid.Row="3" Margin="0,10,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="260" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Phí mở máy tối thiểu (VND):" />
-                                        <TextBox x:Name="MinimumChargeTextBox"
-                                                 Grid.Column="1"
-                                                 Width="130"
-                                                 Height="30"
-                                                 HorizontalAlignment="Left"
-                                                 VerticalContentAlignment="Center"
-                                                 Text="1000" />
-                                    </Grid>
-
-                                    <TextBlock Grid.Row="4" Margin="0,14,0,0" FontWeight="SemiBold" Foreground="#1E293B" Text="Nền lock screen máy trạm" />
-
-                                    <Grid Grid.Row="5" Margin="0,8,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="260" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Loại nền:" />
-                                        <ComboBox x:Name="LockScreenBackgroundModeComboBox"
-                                                  Grid.Column="1"
-                                                  Width="220"
-                                                  HorizontalAlignment="Left"
-                                                  SelectionChanged="LockScreenBackgroundModeComboBox_SelectionChanged">
-                                            <ComboBoxItem Content="Không dùng" Tag="none" />
-                                            <ComboBoxItem Content="Ảnh (file local)" Tag="image" />
-                                            <ComboBoxItem Content="Video (file local)" Tag="video" />
-                                        </ComboBox>
-                                    </Grid>
-
-                                    <StackPanel Grid.Row="6" Margin="0,8,0,0">
-                                        <TextBlock Margin="0,0,0,4" Foreground="#334155" Text="Đường dẫn file image/video (local/UNC):" />
-                                        <TextBox x:Name="LockScreenBackgroundUrlTextBox"
-                                                 Height="30"
-                                                 VerticalContentAlignment="Center"
-                                                 TextChanged="LockScreenBackgroundUrlTextBox_TextChanged" />
-                                        <Button Margin="0,6,0,0"
-                                                Width="130"
-                                                HorizontalAlignment="Left"
-                                                Content="Chọn file..."
-                                                Click="BrowseLockScreenBackgroundFileButton_Click" />
-                                    </StackPanel>
-
-                                    <TextBlock x:Name="LockScreenBackgroundStatusTextBlock"
-                                               Grid.Row="7"
-                                               Margin="0,8,0,0"
-                                               Foreground="#64748B"
-                                               Text="Chọn loại nền và nhập đường dẫn file local, sau đó bấm Lưu cài đặt." />
-                                </Grid>
-                            </Border>
-
-                            <StackPanel Grid.Row="8">
-                                <TextBlock x:Name="ReadyAutoShutdownStatusTextBlock"
-                                           Margin="0,0,0,8"
-                                           Foreground="#64748B"
-                                           Text="Đang tải cài đặt tự tắt máy trạm..." />
-
+                            <StackPanel Grid.Row="4">
                                 <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                                     <Button Padding="14,7" Margin="0,0,8,0" Click="SaveFontSizeButton_Click" Content="Lưu cài đặt" />
                                     <Button Padding="14,7" Click="ResetFontSizeButton_Click" Content="Đặt lại mặc định" />

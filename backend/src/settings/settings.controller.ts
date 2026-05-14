@@ -3,11 +3,20 @@ import {
   Body,
   Controller,
   Get,
+  Param,
+  Patch,
   Post,
+  Res,
   UnauthorizedException,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
+import { UpdateBackupSettingsDto } from './dto/update-backup-settings.dto';
+import { SettingsBackupService } from './settings-backup.service';
 
 const AGENT_ADMIN_USERNAME_KEY = 'AGENT_ADMIN_USERNAME';
 const AGENT_ADMIN_PASSWORD_HASH_KEY = 'AGENT_ADMIN_PASSWORD_HASH';
@@ -16,7 +25,10 @@ const DEFAULT_ADMIN_PASSWORD = 'admin';
 
 @Controller('settings')
 export class SettingsController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly backupService: SettingsBackupService,
+  ) {}
 
   @Get()
   async getSettings() {
@@ -194,5 +206,58 @@ export class SettingsController {
     ]);
 
     return { ok: true, username };
+  }
+
+  @Get('backup')
+  async getBackupSettings() {
+    return this.backupService.getBackupSettings();
+  }
+
+  @Patch('backup')
+  async updateBackupSettings(@Body() payload: UpdateBackupSettingsDto) {
+    return this.backupService.updateBackupSettings(payload);
+  }
+
+  @Post('backup/run')
+  async runBackupNow(@Body() body: { requestedBy?: string }) {
+    return this.backupService.runBackupNow(body?.requestedBy ?? 'admin.desktop');
+  }
+
+  @Get('backup/files')
+  async listBackupFiles() {
+    return this.backupService.listBackupFiles();
+  }
+
+  @Get('backup/files/:fileName')
+  async downloadBackupFile(
+    @Param('fileName') fileName: string,
+    @Res() response: Response,
+  ) {
+    const file = await this.backupService.getBackupFileForDownload(fileName);
+    response.setHeader('Content-Type', 'application/json; charset=utf-8');
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${file.fileName}"`,
+    );
+    return response.sendFile(file.fileName, {
+      root: file.directory,
+    });
+  }
+
+  @Post('backup/import')
+  @UseInterceptors(FileInterceptor('file'))
+  async importBackup(
+    @UploadedFile() file: any,
+    @Body('requestedBy') requestedBy: string,
+  ) {
+    if (!file || !file.buffer) {
+      throw new BadRequestException('Missing backup file');
+    }
+
+    return this.backupService.importBackupFromBuffer(
+      file.originalname ?? 'backup.json',
+      file.buffer,
+      requestedBy ?? 'admin.desktop',
+    );
   }
 }

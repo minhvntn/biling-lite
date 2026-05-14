@@ -71,6 +71,8 @@ public partial class MainWindow : Window
     private bool _isUpdatingWebsiteLogMachineFilters;
     private bool _guestLoginSettingsInitialized;
     private bool _isLoadingGuestLoginSettings;
+    private bool _backupSettingsInitialized;
+    private bool _isLoadingBackupSettings;
     private bool _transactionReportInitialized;
     private TaskCompletionSource<decimal?>? _topupModalTcs;
     private readonly Stack<decimal> _topupModalHistory = new();
@@ -174,6 +176,7 @@ public partial class MainWindow : Window
         _websiteLogSettingsInitialized = true;
         _websiteLogFiltersInitialized = true;
         _loyaltySpinSettingsInitialized = true;
+        _backupSettingsInitialized = true;
     }
 
     private void MainWindow_Closed(object? sender, EventArgs e)
@@ -289,6 +292,7 @@ public partial class MainWindow : Window
         await LoadLoyaltySettingsAsync();
         await LoadClientRuntimeSettingsAsync();
         await LoadGuestLoginSettingsAsync();
+        await LoadBackupSettingsAsync();
         await RefreshWebFilterSettingsAsync();
         await LoadWebsiteLogSettingsAsync();
         await RefreshWebsiteLogsAsync();

@@ -194,7 +194,7 @@ public partial class MainWindow : Window
     {
         var clamped = ClampMachineTableFontSize(value);
         MachinesDataGrid.FontSize = clamped;
-        MachinesDataGrid.RowHeight = Math.Max(24, clamped * 2.1);
+        MachinesDataGrid.RowHeight = Math.Max(44, clamped * 2.1);
         _settings.MachineTableFontSize = clamped;
         if (MachineTableFontSizeValueTextBlock is not null)
         {
@@ -828,6 +828,419 @@ public partial class MainWindow : Window
         AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Tr\u1ea1ng th\u00e1i Kh\u00e1ch v\u00e3ng lai thay \u0111\u1edbi. B\u1ea5m \"L\u01b0u c\u00e0i \u0111\u1eb7t\" \u0111\u1ec3 \u00e1p d\u1ee5ng.");
     }
 
+    private async Task LoadBackupSettingsAsync()
+    {
+        try
+        {
+            _isLoadingBackupSettings = true;
+            var response = await _httpClient.GetFromJsonAsync<BackupSettingsResponse>(
+                BuildApiUrl("/settings/backup"),
+                JsonOptions());
+
+            if (response is null)
+            {
+                AutoBackupStatusTextBlock.Text = "Khong tai duoc cai dat backup.";
+                AutoBackupStatusTextBlock.Foreground = Brushes.Firebrick;
+                AutoBackupLastRunTextBlock.Text = "Lan backup gan nhat: -";
+                AutoBackupLastRunTextBlock.Foreground = Brushes.DimGray;
+                return;
+            }
+
+            AutoBackupEnabledCheckBox.IsChecked = response.Enabled;
+            SetBackupScheduleTypeUi(response.ScheduleType);
+            SetBackupWeekdayUi(response.WeeklyDay);
+            AutoBackupTimeTextBox.Text = NormalizeBackupTime(response.Time);
+            AutoBackupDirectoryTextBox.Text = response.Directory ?? string.Empty;
+            AutoBackupRetentionDaysTextBox.Text = Math.Max(1, response.RetentionDays).ToString(CultureInfo.InvariantCulture);
+
+            UpdateBackupWeekdayEnableState();
+            RenderBackupStatus(response);
+        }
+        catch (Exception ex)
+        {
+            AutoBackupStatusTextBlock.Text = $"Khong ket noi duoc backend khi doc cai dat backup: {ex.Message}";
+            AutoBackupStatusTextBlock.Foreground = Brushes.Firebrick;
+            AutoBackupLastRunTextBlock.Text = "Lan backup gan nhat: -";
+            AutoBackupLastRunTextBlock.Foreground = Brushes.DimGray;
+        }
+        finally
+        {
+            _isLoadingBackupSettings = false;
+            _backupSettingsInitialized = true;
+        }
+    }
+
+    private async Task<bool> SaveBackupSettingsAsync(bool appendSuccessLog = true)
+    {
+        if (!TryReadBackupForm(
+                out var enabled,
+                out var scheduleType,
+                out var time,
+                out var weeklyDay,
+                out var directory,
+                out var retentionDays,
+                out var error))
+        {
+            AutoBackupStatusTextBlock.Text = error;
+            AutoBackupStatusTextBlock.Foreground = Brushes.Firebrick;
+            return false;
+        }
+
+        try
+        {
+            using var response = await _httpClient.PatchAsJsonAsync(
+                BuildApiUrl("/settings/backup"),
+                new
+                {
+                    enabled,
+                    scheduleType,
+                    time,
+                    weeklyDay,
+                    directory,
+                    retentionDays,
+                });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                AutoBackupStatusTextBlock.Text = string.IsNullOrWhiteSpace(body)
+                    ? $"Luu lich backup that bai ({(int)response.StatusCode})."
+                    : $"Luu lich backup that bai: {body}";
+                AutoBackupStatusTextBlock.Foreground = Brushes.Firebrick;
+                return false;
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<BackupSettingsResponse>(JsonOptions());
+            if (payload is null)
+            {
+                AutoBackupStatusTextBlock.Text = "Luu lich backup xong, nhung khong doc duoc phan hoi.";
+                AutoBackupStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+                return false;
+            }
+
+            RenderBackupStatus(payload, forceSavedMessage: true);
+            if (appendSuccessLog)
+            {
+                AppendServiceLog(
+                    $"[{DateTime.Now:HH:mm:ss}] Da luu lich backup: {(payload.Enabled ? "BAT" : "TAT")} | {payload.ScheduleType} | {payload.Time}");
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AutoBackupStatusTextBlock.Text = $"Khong ket noi duoc backend khi luu backup: {ex.Message}";
+            AutoBackupStatusTextBlock.Foreground = Brushes.Firebrick;
+            return false;
+        }
+    }
+
+    private async void SaveBackupSettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        await SaveBackupSettingsAsync();
+    }
+
+    private async void RunBackupNowButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            RunBackupNowButton.IsEnabled = false;
+            ImportBackupFileButton.IsEnabled = false;
+            AutoBackupStatusTextBlock.Text = "Dang tao file backup...";
+            AutoBackupStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+
+            using var response = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl("/settings/backup/run"),
+                new
+                {
+                    requestedBy = "admin.desktop",
+                });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                AutoBackupStatusTextBlock.Text = string.IsNullOrWhiteSpace(body)
+                    ? $"Backup that bai ({(int)response.StatusCode})."
+                    : $"Backup that bai: {body}";
+                AutoBackupStatusTextBlock.Foreground = Brushes.Firebrick;
+                return;
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<BackupRunResponse>(JsonOptions());
+            var createdText = payload?.CreatedAt ?? DateTime.Now.ToString("o", CultureInfo.InvariantCulture);
+            var fileName = payload?.FileName ?? "(unknown)";
+            AutoBackupStatusTextBlock.Text = $"Da backup thanh cong: {fileName}";
+            AutoBackupStatusTextBlock.Foreground = Brushes.DarkGreen;
+            AutoBackupLastRunTextBlock.Text = $"Lan backup gan nhat: {FormatDateTime(createdText)} | success | {fileName}";
+            AutoBackupLastRunTextBlock.Foreground = Brushes.DarkGreen;
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Da tao backup: {fileName}");
+
+            await LoadBackupSettingsAsync();
+        }
+        catch (Exception ex)
+        {
+            AutoBackupStatusTextBlock.Text = $"Loi khi backup ngay: {ex.Message}";
+            AutoBackupStatusTextBlock.Foreground = Brushes.Firebrick;
+        }
+        finally
+        {
+            RunBackupNowButton.IsEnabled = true;
+            ImportBackupFileButton.IsEnabled = true;
+        }
+    }
+
+    private async void ImportBackupFileButton_Click(object sender, RoutedEventArgs e)
+    {
+        var confirmed = MessageBox.Show(
+            "Import backup se ghi de du lieu hien tai tren server. Ban co chac chan tiep tuc?",
+            "Xac nhan import backup",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (confirmed != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var dialog = new OpenFileDialog
+        {
+            CheckFileExists = true,
+            Multiselect = false,
+            Filter = "Backup JSON (*.json)|*.json|All files|*.*",
+            Title = "Chon file backup de import",
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        try
+        {
+            RunBackupNowButton.IsEnabled = false;
+            ImportBackupFileButton.IsEnabled = false;
+            AutoBackupStatusTextBlock.Text = "Dang import backup. Vui long cho...";
+            AutoBackupStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+
+            using var content = new MultipartFormDataContent();
+            using var stream = File.OpenRead(dialog.FileName);
+            using var streamContent = new StreamContent(stream);
+            content.Add(streamContent, "file", Path.GetFileName(dialog.FileName));
+            content.Add(new StringContent("admin.desktop"), "requestedBy");
+
+            using var response = await _httpClient.PostAsync(
+                BuildApiUrl("/settings/backup/import"),
+                content);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                AutoBackupStatusTextBlock.Text = string.IsNullOrWhiteSpace(body)
+                    ? $"Import backup that bai ({(int)response.StatusCode})."
+                    : $"Import backup that bai: {body}";
+                AutoBackupStatusTextBlock.Foreground = Brushes.Firebrick;
+                return;
+            }
+
+            AutoBackupStatusTextBlock.Text = "Import backup thanh cong. Dang tai lai du lieu...";
+            AutoBackupStatusTextBlock.Foreground = Brushes.DarkGreen;
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Da import backup: {Path.GetFileName(dialog.FileName)}");
+            await RefreshAllDataAsync();
+            await LoadBackupSettingsAsync();
+            AutoBackupStatusTextBlock.Text = "Import backup thanh cong.";
+            AutoBackupStatusTextBlock.Foreground = Brushes.DarkGreen;
+        }
+        catch (Exception ex)
+        {
+            AutoBackupStatusTextBlock.Text = $"Loi khi import backup: {ex.Message}";
+            AutoBackupStatusTextBlock.Foreground = Brushes.Firebrick;
+        }
+        finally
+        {
+            RunBackupNowButton.IsEnabled = true;
+            ImportBackupFileButton.IsEnabled = true;
+        }
+    }
+
+    private void AutoBackupConfigControl_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_backupSettingsInitialized || _isLoadingBackupSettings)
+        {
+            return;
+        }
+
+        UpdateBackupWeekdayEnableState();
+        AutoBackupStatusTextBlock.Text = "Da thay doi cau hinh backup. Bam \"Luu lich backup\" de ap dung.";
+        AutoBackupStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+    }
+
+    private void AutoBackupConfigTextChanged(object sender, TextChangedEventArgs e)
+    {
+        AutoBackupConfigControl_Changed(sender, e);
+    }
+
+    private void UpdateBackupWeekdayEnableState()
+    {
+        var scheduleType = GetBackupScheduleTypeFromUi();
+        if (AutoBackupWeekdayComboBox is not null)
+        {
+            AutoBackupWeekdayComboBox.IsEnabled = string.Equals(
+                scheduleType,
+                "weekly",
+                StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private void SetBackupScheduleTypeUi(string scheduleType)
+    {
+        SelectComboItemByTag(
+            AutoBackupScheduleTypeComboBox,
+            string.Equals(scheduleType, "weekly", StringComparison.OrdinalIgnoreCase)
+                ? "weekly"
+                : "daily");
+    }
+
+    private void SetBackupWeekdayUi(int weeklyDay)
+    {
+        var day = weeklyDay is >= 1 and <= 7 ? weeklyDay : 1;
+        SelectComboItemByTag(AutoBackupWeekdayComboBox, day.ToString(CultureInfo.InvariantCulture));
+    }
+
+    private static void SelectComboItemByTag(ComboBox comboBox, string expectedTag)
+    {
+        foreach (var item in comboBox.Items)
+        {
+            if (item is ComboBoxItem comboItem)
+            {
+                var tag = comboItem.Tag?.ToString() ?? string.Empty;
+                if (string.Equals(tag, expectedTag, StringComparison.OrdinalIgnoreCase))
+                {
+                    comboBox.SelectedItem = comboItem;
+                    return;
+                }
+            }
+        }
+
+        if (comboBox.Items.Count > 0 && comboBox.SelectedIndex < 0)
+        {
+            comboBox.SelectedIndex = 0;
+        }
+    }
+
+    private string GetBackupScheduleTypeFromUi()
+    {
+        if (AutoBackupScheduleTypeComboBox.SelectedItem is ComboBoxItem selected)
+        {
+            var tag = (selected.Tag?.ToString() ?? string.Empty).Trim().ToLowerInvariant();
+            return tag == "weekly" ? "weekly" : "daily";
+        }
+
+        return "daily";
+    }
+
+    private int GetBackupWeekdayFromUi()
+    {
+        if (AutoBackupWeekdayComboBox.SelectedItem is ComboBoxItem selected &&
+            int.TryParse(selected.Tag?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var day) &&
+            day is >= 1 and <= 7)
+        {
+            return day;
+        }
+
+        return 1;
+    }
+
+    private static string NormalizeBackupTime(string raw)
+    {
+        var value = (raw ?? string.Empty).Trim();
+        var parts = value.Split(':');
+        if (parts.Length != 2)
+        {
+            return "02:00";
+        }
+
+        if (!int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var hh) ||
+            !int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var mm))
+        {
+            return "02:00";
+        }
+
+        if (hh is < 0 or > 23 || mm is < 0 or > 59)
+        {
+            return "02:00";
+        }
+
+        return $"{hh:00}:{mm:00}";
+    }
+
+    private bool TryReadBackupForm(
+        out bool enabled,
+        out string scheduleType,
+        out string time,
+        out int weeklyDay,
+        out string directory,
+        out int retentionDays,
+        out string error)
+    {
+        enabled = AutoBackupEnabledCheckBox.IsChecked == true;
+        scheduleType = GetBackupScheduleTypeFromUi();
+        weeklyDay = GetBackupWeekdayFromUi();
+        directory = (AutoBackupDirectoryTextBox.Text ?? string.Empty).Trim();
+        error = string.Empty;
+
+        var timeRaw = (AutoBackupTimeTextBox.Text ?? string.Empty).Trim();
+        time = NormalizeBackupTime(timeRaw);
+        if (!string.Equals(timeRaw, time, StringComparison.Ordinal))
+        {
+            error = "Gio backup khong hop le. Dung dinh dang HH:mm (vi du 02:30).";
+            retentionDays = 0;
+            return false;
+        }
+
+        var retentionRaw = (AutoBackupRetentionDaysTextBox.Text ?? string.Empty).Trim();
+        if (!int.TryParse(retentionRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out retentionDays) &&
+            !int.TryParse(retentionRaw, NumberStyles.Integer, CultureInfo.CurrentCulture, out retentionDays))
+        {
+            error = "So ngay giu backup khong hop le.";
+            return false;
+        }
+
+        if (retentionDays is < 1 or > 3650)
+        {
+            error = "So ngay giu backup phai trong khoang 1 - 3650.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private void RenderBackupStatus(BackupSettingsResponse response, bool forceSavedMessage = false)
+    {
+        var scheduleLabel = string.Equals(response.ScheduleType, "weekly", StringComparison.OrdinalIgnoreCase)
+            ? $"hang tuan (thu {response.WeeklyDay})"
+            : "hang ngay";
+
+        AutoBackupStatusTextBlock.Text = forceSavedMessage
+            ? $"Da luu lich backup: {(response.Enabled ? "BAT" : "TAT")} | {scheduleLabel} luc {NormalizeBackupTime(response.Time)}"
+            : $"Backup tu dong: {(response.Enabled ? "DANG BAT" : "DANG TAT")} | {scheduleLabel} luc {NormalizeBackupTime(response.Time)}";
+        AutoBackupStatusTextBlock.Foreground = response.Enabled ? Brushes.DarkGreen : Brushes.DimGray;
+
+        if (!string.IsNullOrWhiteSpace(response.LastRunAt))
+        {
+            var status = string.IsNullOrWhiteSpace(response.LastStatus) ? "-" : response.LastStatus;
+            var fileName = string.IsNullOrWhiteSpace(response.LastFileName) ? "-" : response.LastFileName;
+            AutoBackupLastRunTextBlock.Text =
+                $"Lan backup gan nhat: {FormatDateTime(response.LastRunAt)} | {status} | {fileName}";
+            AutoBackupLastRunTextBlock.Foreground = status.Equals("failed", StringComparison.OrdinalIgnoreCase)
+                ? Brushes.Firebrick
+                : Brushes.DarkGreen;
+        }
+        else
+        {
+            AutoBackupLastRunTextBlock.Text = "Lan backup gan nhat: chua co";
+            AutoBackupLastRunTextBlock.Foreground = Brushes.DimGray;
+        }
+    }
+
     private void AppendServiceLog(string message)
     {
         var existing = ServiceOutputTextBox.Text;
@@ -913,6 +1326,7 @@ public partial class MainWindow : Window
         await SaveClientRuntimeSettingsAsync();
         await SaveLoyaltySettingsAsync();
         await SaveGuestLoginSettingsAsync();
+        await SaveBackupSettingsAsync(appendSuccessLog: false);
         AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 l\u01b0u: c\u1ee1 ch\u1eef app = {_settings.UiFontSize:0}, b\u1ea3ng m\u00e1y = {_settings.MachineTableFontSize:0}, padding menu = {_settings.MachineContextMenuItemPadding:0}, ch\u1eef menu = {_settings.MachineContextMenuFontSize:0}, t\u1ef1 t\u1eaft = {_readyAutoShutdownMinutes} ph\u00fat");
     }
 

@@ -178,6 +178,30 @@ public sealed class ClientRuntimeSettingsResponse
     public string ServerTime { get; set; } = string.Empty;
 }
 
+public sealed class BackupSettingsResponse
+{
+    public bool Enabled { get; set; }
+    public string ScheduleType { get; set; } = "daily";
+    public string Time { get; set; } = "02:00";
+    public int WeeklyDay { get; set; } = 1;
+    public string Directory { get; set; } = string.Empty;
+    public int RetentionDays { get; set; } = 30;
+    public string LastRunAt { get; set; } = string.Empty;
+    public string LastStatus { get; set; } = string.Empty;
+    public string LastError { get; set; } = string.Empty;
+    public string LastFileName { get; set; } = string.Empty;
+    public string LastFilePath { get; set; } = string.Empty;
+}
+
+public sealed class BackupRunResponse
+{
+    public bool Ok { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string FilePath { get; set; } = string.Empty;
+    public string CreatedAt { get; set; } = string.Empty;
+    public string Trigger { get; set; } = string.Empty;
+}
+
 public sealed class WebFilterSettingsResponse
 {
     public bool Enabled { get; set; }
