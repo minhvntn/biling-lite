@@ -1,4 +1,14 @@
-import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class SetClientRuntimeSettingsDto {
   @IsOptional()
@@ -16,4 +26,14 @@ export class SetClientRuntimeSettingsDto {
   @IsString()
   @MaxLength(2048)
   lockScreenBackgroundUrl?: string;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  allowMemberWithdraw?: boolean;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  allowMemberTopupRequest?: boolean;
 }

@@ -256,6 +256,20 @@
                         </StackPanel>
                     </Button>
 
+                    <Button x:Name="WithdrawActionButton" Style="{StaticResource ActionButtonStyle}" Click="WithdrawBalanceButton_Click">
+                        <StackPanel>
+                            <TextBlock x:Name="WithdrawIconTextBlock" Text="ðŸ’µ" FontSize="20" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="WithdrawLabelTextBlock" Text="Rút tiền" FontSize="12" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="TopupRequestActionButton" Style="{StaticResource ActionButtonStyle}" Click="TopupRequestButton_Click">
+                        <StackPanel>
+                            <TextBlock x:Name="TopupRequestIconTextBlock" Text="ðŸ’³" FontSize="20" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="TopupRequestLabelTextBlock" Text="Nạp tiền" FontSize="12" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />
+                        </StackPanel>
+                    </Button>
+
                     <Button Style="{StaticResource ActionButtonStyle}" Click="PasswordButton_Click">
                         <StackPanel>
                             <TextBlock x:Name="PasswordIconTextBlock" Text="ðŸ”‘" FontSize="20" HorizontalAlignment="Center" />

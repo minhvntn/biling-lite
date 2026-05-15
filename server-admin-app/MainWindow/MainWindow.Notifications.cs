@@ -89,9 +89,9 @@ public partial class MainWindow : Window
     {
         var machineLabel = string.IsNullOrWhiteSpace(row.Name) ? row.AgentId : row.Name;
         var guestLabel = string.IsNullOrWhiteSpace(row.ActiveGuestDisplayName)
-            ? "khach vang lai"
+            ? "khách vãng lai"
             : row.ActiveGuestDisplayName.Trim();
-        var message = $"May tram {machineLabel} co {guestLabel} dang su dung.";
+        var message = $"Máy trạm {machineLabel} có {guestLabel} đang sử dụng.";
 
         ShowGuestLoginToast(message);
         _ = SpeakGuestLoginNotificationAsync(machineLabel);
@@ -118,7 +118,7 @@ public partial class MainWindow : Window
                 TrySelectPreferredVietnameseVoice(synthesizer);
 
                 var normalizedMachineLabel = string.IsNullOrWhiteSpace(machineLabel)
-                    ? "khong ro"
+                    ? "không rõ"
                     : machineLabel.Trim();
 
                 try
@@ -142,7 +142,7 @@ public partial class MainWindow : Window
                     prompt.EndStyle();
                     prompt.AppendBreak(TimeSpan.FromMilliseconds(260));
                     prompt.StartStyle(detailStyle);
-                    prompt.AppendText($"May tram {normalizedMachineLabel} dang co khach su dung");
+                    prompt.AppendText($"Máy trạm {normalizedMachineLabel} đang có khách sử dụng");
                     prompt.EndStyle();
 
                     synthesizer.Speak(prompt);
@@ -150,7 +150,7 @@ public partial class MainWindow : Window
                 catch
                 {
                     // Fall back to plain speech when style prompt is unsupported.
-                    synthesizer.Speak($"May tram {normalizedMachineLabel} dang co khach su dung.");
+                    synthesizer.Speak($"Máy trạm {normalizedMachineLabel} đang có khách sử dụng.");
                 }
             });
         }

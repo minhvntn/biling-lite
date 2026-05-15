@@ -255,6 +255,8 @@ public partial class MainWindow : Window
             _readyAutoShutdownMinutes = Math.Clamp(response.ReadyAutoShutdownMinutes, 1, 240);
             _lockScreenBackgroundMode = NormalizeLockScreenBackgroundMode(response.LockScreenBackgroundMode);
             _lockScreenBackgroundUrl = (response.LockScreenBackgroundUrl ?? string.Empty).Trim();
+            MemberWithdrawEnabledCheckBox.IsChecked = response.AllowMemberWithdraw;
+            MemberTopupRequestEnabledCheckBox.IsChecked = response.AllowMemberTopupRequest;
 
             ReadyAutoShutdownMinutesTextBox.Text = _readyAutoShutdownMinutes.ToString(CultureInfo.InvariantCulture);
             SetLockScreenBackgroundModeUi(_lockScreenBackgroundMode);
@@ -313,6 +315,8 @@ public partial class MainWindow : Window
                     readyAutoShutdownMinutes = minutes,
                     lockScreenBackgroundMode = mode,
                     lockScreenBackgroundUrl = effectiveUrl,
+                    allowMemberWithdraw = MemberWithdrawEnabledCheckBox.IsChecked == true,
+                    allowMemberTopupRequest = MemberTopupRequestEnabledCheckBox.IsChecked == true,
                 });
 
             if (!response.IsSuccessStatusCode)
@@ -331,6 +335,8 @@ public partial class MainWindow : Window
             _readyAutoShutdownMinutes = Math.Clamp(payload?.ReadyAutoShutdownMinutes ?? minutes, 1, 240);
             _lockScreenBackgroundMode = NormalizeLockScreenBackgroundMode(payload?.LockScreenBackgroundMode ?? mode);
             _lockScreenBackgroundUrl = (payload?.LockScreenBackgroundUrl ?? effectiveUrl).Trim();
+            MemberWithdrawEnabledCheckBox.IsChecked = payload?.AllowMemberWithdraw ?? (MemberWithdrawEnabledCheckBox.IsChecked == true);
+            MemberTopupRequestEnabledCheckBox.IsChecked = payload?.AllowMemberTopupRequest ?? (MemberTopupRequestEnabledCheckBox.IsChecked == true);
 
             ReadyAutoShutdownMinutesTextBox.Text = _readyAutoShutdownMinutes.ToString(CultureInfo.InvariantCulture);
             SetLockScreenBackgroundModeUi(_lockScreenBackgroundMode);
@@ -342,7 +348,8 @@ public partial class MainWindow : Window
             LockScreenBackgroundStatusTextBlock.Text =
                 $"Da luu: {DescribeLockScreenBackground(_lockScreenBackgroundMode, _lockScreenBackgroundUrl)}";
             LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGreen;
-            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Da luu runtime client: auto-shutdown={_readyAutoShutdownMinutes}m, lockscreen={_lockScreenBackgroundMode}");
+            AppendServiceLog(
+                $"[{DateTime.Now:HH:mm:ss}] Da luu runtime client: auto-shutdown={_readyAutoShutdownMinutes}m, lockscreen={_lockScreenBackgroundMode}, member-withdraw={(MemberWithdrawEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}, member-topup-request={(MemberTopupRequestEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}");
         }
         catch
         {
@@ -409,6 +416,30 @@ public partial class MainWindow : Window
 
         LockScreenBackgroundStatusTextBlock.Text = "Da thay doi duong dan nen lock screen. Bam \"Luu cai dat\" de ap dung.";
         LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+    }
+
+    private void MemberWithdrawEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_readyShutdownSettingsInitialized || _isLoadingReadyShutdownSettings)
+        {
+            return;
+        }
+
+        var isEnabled = MemberWithdrawEnabledCheckBox.IsChecked == true;
+        AppendServiceLog(
+            $"[{DateTime.Now:HH:mm:ss}] Tinh nang rut tien hoi vien da thay doi: {(isEnabled ? "BAT" : "TAT")}. Bam \"Luu cai dat\" de ap dung.");
+    }
+
+    private void MemberTopupRequestEnabledCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_readyShutdownSettingsInitialized || _isLoadingReadyShutdownSettings)
+        {
+            return;
+        }
+
+        var isEnabled = MemberTopupRequestEnabledCheckBox.IsChecked == true;
+        AppendServiceLog(
+            $"[{DateTime.Now:HH:mm:ss}] Tinh nang nap tien nhanh hoi vien da thay doi: {(isEnabled ? "BAT" : "TAT")}. Bam \"Luu cai dat\" de ap dung.");
     }
 
     private void BrowseLockScreenBackgroundFileButton_Click(object sender, RoutedEventArgs e)

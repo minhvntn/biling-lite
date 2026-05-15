@@ -15,6 +15,10 @@ using System.Windows.Threading;
 namespace Server.Admin.App;
 public partial class MainWindow : Window
 {
+    private const decimal DefaultTopupRatePerHour = 15000m;
+    private decimal _topupModalRatePerHour = DefaultTopupRatePerHour;
+    private bool _isTopupModalInputSync;
+
     private async Task RefreshMembersAsync(bool forceRefresh = false)
     {
         try
@@ -54,6 +58,14 @@ public partial class MainWindow : Window
                 .Select(ToMemberRow)
                 .OrderBy(x => x.Username)
                 .ToList();
+
+            if (string.IsNullOrWhiteSpace(search))
+            {
+                _cachedMachineSummaryMemberCount =
+                    response.Total > 0 ? response.Total : response.Items.Count;
+                _cachedMachineSummaryMemberCountAtUtc = DateTime.UtcNow;
+                UpdateMachineSummary(_machineRows);
+            }
 
             _memberRows.Clear();
             foreach (var row in mapped)
@@ -253,7 +265,7 @@ public partial class MainWindow : Window
         await TopupMemberByRowAsync(selectedMember);
     }
 
-    private async Task TopupMemberByRowAsync(MemberRow? selectedMember)
+    private async Task TopupMemberByRowAsync(MemberRow? selectedMember, decimal? ratePerHour = null)
     {
         if (selectedMember is null)
         {
@@ -262,7 +274,7 @@ public partial class MainWindow : Window
         }
 
         _selectedMemberId = selectedMember.Id;
-        var amount = await ShowTopupModalAsync(selectedMember);
+        var amount = await ShowTopupModalAsync(selectedMember, ratePerHour: ratePerHour);
         if (!amount.HasValue)
         {
             return;
@@ -270,9 +282,9 @@ public partial class MainWindow : Window
 
         TopupAmountTextBox.Text = amount.Value.ToString("0", CultureInfo.InvariantCulture);
 
-        if (Math.Abs(amount.Value) < 1000)
+        if (Math.Abs(amount.Value) <= 0)
         {
-            MessageBox.Show("Số tiền thao tác tối thiểu là 1.000 VND.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("Số tiền thao tác phải lớn hơn 0 VND.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -320,7 +332,8 @@ public partial class MainWindow : Window
         string? title = null,
         string? memberPrompt = null,
         string? currentBalanceText = null,
-        bool allowDeduct = true)
+        bool allowDeduct = true,
+        decimal? ratePerHour = null)
     {
         if (_topupModalTcs is not null)
         {
@@ -331,6 +344,7 @@ public partial class MainWindow : Window
         _topupModalHistory.Clear();
         _topupModalAllowDeduct = allowDeduct;
         _topupModalIsDeduct = false;
+        _topupModalRatePerHour = ResolveTopupRatePerHour(ratePerHour);
 
         TopupModalTitleTextBlock.Text =
             !string.IsNullOrWhiteSpace(title)
@@ -351,7 +365,9 @@ public partial class MainWindow : Window
                     ? "Số dư hiện tại: - VND"
                     : $"Số dư hiện tại: {member.BalanceRaw:N0} VND - Điểm: {member.AvailablePoints}";
         TopupCustomAmountTextBox.Text = string.Empty;
+        TopupMinutesTextBox.Text = string.Empty;
         TopupModalErrorTextBlock.Text = string.Empty;
+        UpdateTopupMinutesRateHint();
         TopupModalOverlay.Visibility = Visibility.Visible;
 
         _topupModalTcs = new TaskCompletionSource<decimal?>();
@@ -404,7 +420,7 @@ public partial class MainWindow : Window
 
         TopupUndoButton.IsEnabled = _topupModalHistory.Count > 0;
         TopupClearButton.IsEnabled = _topupModalAmount > 0;
-        TopupSubmitButton.IsEnabled = _topupModalAmount >= 1000m;
+        TopupSubmitButton.IsEnabled = _topupModalAmount > 0m;
     }
 
     private void CloseTopupModal(decimal? amount)
@@ -477,9 +493,9 @@ public partial class MainWindow : Window
 
     private void TopupSubmitButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_topupModalAmount < 1000m)
+        if (_topupModalAmount <= 0m)
         {
-            TopupModalErrorTextBlock.Text = "Vui lòng chọn số tiền tối thiểu 1.000 VND.";
+            TopupModalErrorTextBlock.Text = "Vui lòng nhập số tiền lớn hơn 0 VND.";
             return;
         }
 
@@ -487,9 +503,24 @@ public partial class MainWindow : Window
         CloseTopupModal(signedAmount);
     }
 
-    private void TopupApplyCustomAmountButton_Click(object sender, RoutedEventArgs e)
+    private void TopupCustomAmountTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
-        ApplyCustomTopupAmount();
+        if (_isTopupModalInputSync || _topupModalTcs is null)
+        {
+            return;
+        }
+
+        ApplyCustomTopupAmount(showValidationMessage: false, clearMinutesInput: true);
+    }
+
+    private void TopupMinutesTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_isTopupModalInputSync || _topupModalTcs is null)
+        {
+            return;
+        }
+
+        ApplyTopupAmountFromMinutes(showValidationMessage: false);
     }
 
     private void TopupCustomAmountTextBox_KeyDown(object sender, KeyEventArgs e)
@@ -503,7 +534,20 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void ApplyCustomTopupAmount()
+    private void TopupMinutesTextBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter)
+        {
+            return;
+        }
+
+        ApplyTopupAmountFromMinutes();
+        e.Handled = true;
+    }
+
+    private void ApplyCustomTopupAmount(
+        bool showValidationMessage = true,
+        bool clearMinutesInput = false)
     {
         if (_topupModalTcs is null)
         {
@@ -511,16 +555,132 @@ public partial class MainWindow : Window
         }
 
         var raw = TopupCustomAmountTextBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            _topupModalAmount = 0m;
+            _topupModalHistory.Clear();
+            TopupModalErrorTextBlock.Text = string.Empty;
+
+            if (clearMinutesInput && !string.IsNullOrWhiteSpace(TopupMinutesTextBox.Text))
+            {
+                _isTopupModalInputSync = true;
+                TopupMinutesTextBox.Text = string.Empty;
+                _isTopupModalInputSync = false;
+            }
+
+            UpdateTopupModalUi();
+            return;
+        }
+
         if (!TryParsePositiveMoney(raw, out var customAmount))
         {
-            TopupModalErrorTextBlock.Text = "Số tiền nhập không hợp lệ.";
+            if (showValidationMessage)
+            {
+                TopupModalErrorTextBlock.Text = "Số tiền nhập không hợp lệ.";
+            }
             return;
+        }
+
+        if (clearMinutesInput && !string.IsNullOrWhiteSpace(TopupMinutesTextBox.Text))
+        {
+            _isTopupModalInputSync = true;
+            TopupMinutesTextBox.Text = string.Empty;
+            _isTopupModalInputSync = false;
         }
 
         _topupModalAmount = customAmount;
         _topupModalHistory.Clear();
         TopupModalErrorTextBlock.Text = string.Empty;
         UpdateTopupModalUi();
+    }
+
+    private void ApplyTopupAmountFromMinutes(bool showValidationMessage = true)
+    {
+        if (_topupModalTcs is null)
+        {
+            return;
+        }
+
+        var rawMinutes = TopupMinutesTextBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(rawMinutes))
+        {
+            _topupModalAmount = 0m;
+            _topupModalHistory.Clear();
+            TopupModalErrorTextBlock.Text = string.Empty;
+
+            _isTopupModalInputSync = true;
+            TopupCustomAmountTextBox.Text = string.Empty;
+            _isTopupModalInputSync = false;
+
+            UpdateTopupModalUi();
+            return;
+        }
+
+        if (!TryParseNonNegativeDouble(rawMinutes, out var minutes) || minutes <= 0)
+        {
+            if (showValidationMessage)
+            {
+                TopupModalErrorTextBlock.Text = "Số phút nhập không hợp lệ.";
+            }
+            return;
+        }
+
+        if (_topupModalRatePerHour <= 0)
+        {
+            if (showValidationMessage)
+            {
+                TopupModalErrorTextBlock.Text = "Không xác định được đơn giá giờ để quy đổi.";
+            }
+            return;
+        }
+
+        var convertedAmount = ConvertMinutesToTopupAmount((decimal)minutes, _topupModalRatePerHour);
+
+        _topupModalAmount = convertedAmount;
+        _topupModalHistory.Clear();
+        _isTopupModalInputSync = true;
+        TopupCustomAmountTextBox.Text = convertedAmount.ToString("0", CultureInfo.InvariantCulture);
+        _isTopupModalInputSync = false;
+        TopupModalErrorTextBlock.Text = string.Empty;
+        UpdateTopupModalUi();
+    }
+
+    private decimal ResolveTopupRatePerHour(decimal? preferredRatePerHour)
+    {
+        if (preferredRatePerHour.HasValue && preferredRatePerHour.Value > 0)
+        {
+            return preferredRatePerHour.Value;
+        }
+
+        if (TryParsePositiveMoney(RatePerHourTextBox.Text.Trim(), out var rateFromInput) && rateFromInput > 0)
+        {
+            return rateFromInput;
+        }
+
+        if (_pricingSettings?.DefaultRatePerHour > 0)
+        {
+            return _pricingSettings.DefaultRatePerHour;
+        }
+
+        return DefaultTopupRatePerHour;
+    }
+
+    private static decimal ConvertMinutesToTopupAmount(decimal minutes, decimal ratePerHour)
+    {
+        if (minutes <= 0 || ratePerHour <= 0)
+        {
+            return 0;
+        }
+
+        var rawAmount = (minutes / 60m) * ratePerHour;
+        return Math.Max(1m, Math.Ceiling(rawAmount));
+    }
+
+    private void UpdateTopupMinutesRateHint()
+    {
+        var ratePerMinute = _topupModalRatePerHour / 60m;
+        TopupMinutesRateHintTextBlock.Text =
+            $"Đơn giá quy đổi: {_topupModalRatePerHour:N0} VND/giờ (~{ratePerMinute:N2} VND/phút).";
     }
 
     private void TopupModeAddButton_Click(object sender, RoutedEventArgs e)

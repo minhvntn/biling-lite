@@ -50,6 +50,8 @@ public partial class App : Application
     private ActiveMemberSession? _activeMemberSession;
     private bool _isPostpaidGuestSession;
     private bool _isAdminSession;
+    private bool _isMemberWithdrawEnabled = true;
+    private bool _isMemberTopupRequestEnabled = true;
     private string? _manualLockPassword;
     private bool _skipSessionClearOnExit;
     private int _lastSyncedMemberUsedSeconds;
@@ -130,6 +132,8 @@ public partial class App : Application
         _mainWindow = new MainWindow();
         _mainWindow.SetAgentId(_settings.AgentId);
         _mainWindow.ConfigureBilling(_settings.TotalSessionMinutes, _currentHourlyRate, true);
+        _mainWindow.SetWithdrawActionVisible(_isMemberWithdrawEnabled);
+        _mainWindow.SetTopupRequestActionVisible(_isMemberTopupRequestEnabled);
         _mainWindow.SetConnectionStatus("Connecting...");
         _mainWindow.SetMachineState("LOCKED");
         _mainWindow.SetLastCommand("Boot sequence");
@@ -1619,6 +1623,106 @@ public async void OpenLoyaltyPanelFromClientUi()
         }
     }
 
+    public async void OpenWithdrawBalancePanelFromClientUi()
+    {
+        if (!_isMemberWithdrawEnabled)
+        {
+            MessageBox.Show(
+                "Tính năng rút tiền hội viên đang tắt từ app server.",
+                "Rút tiền hội viên",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var activeSession = _activeMemberSession;
+        if (activeSession is null)
+        {
+            MessageBox.Show(
+                "Vui lòng đăng nhập bằng tài khoản hội viên để rút tiền.",
+                "Rút tiền hội viên",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        if (!await PromptForPasswordAsync(activeSession.Username))
+        {
+            return;
+        }
+
+        try
+        {
+            var loyalty = await GetMemberLoyaltyAsync(activeSession.MemberId);
+            var sourceMember = loyalty?.Member ?? new MemberLoginItem
+            {
+                Id = activeSession.MemberId,
+                Username = activeSession.Username,
+                FullName = activeSession.FullName,
+            };
+
+            ShowWithdrawBalanceDialog(activeSession, sourceMember);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Không thể mở màn hình rút tiền: {ex.Message}",
+                "Rút tiền hội viên",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
+    public async void OpenTopupRequestPanelFromClientUi()
+    {
+        if (!_isMemberTopupRequestEnabled)
+        {
+            MessageBox.Show(
+                "Tính năng nạp tiền nhanh hội viên đang tắt từ app server.",
+                "Nạp tiền hội viên",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var activeSession = _activeMemberSession;
+        if (activeSession is null)
+        {
+            MessageBox.Show(
+                "Vui lòng đăng nhập bằng tài khoản hội viên để nạp tiền.",
+                "Nạp tiền hội viên",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        if (!await PromptForPasswordAsync(activeSession.Username))
+        {
+            return;
+        }
+
+        try
+        {
+            var loyalty = await GetMemberLoyaltyAsync(activeSession.MemberId);
+            var sourceMember = loyalty?.Member ?? new MemberLoginItem
+            {
+                Id = activeSession.MemberId,
+                Username = activeSession.Username,
+                FullName = activeSession.FullName,
+            };
+
+            ShowTopupRequestDialog(activeSession, sourceMember);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Không thể mở màn hình nạp tiền: {ex.Message}",
+                "Nạp tiền hội viên",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
     public async void OpenChangePasswordPanelFromClientUi()
     {
         var activeSession = _activeMemberSession;
@@ -1894,7 +1998,7 @@ public async void OpenLoyaltyPanelFromClientUi()
         string? result = null;
         var dialog = new Window
         {
-            Title = "Khoa may thu cong",
+            Title = "Khóa máy thủ công",
             Width = 390,
             Height = 210,
             ResizeMode = ResizeMode.NoResize,
@@ -1912,7 +2016,7 @@ public async void OpenLoyaltyPanelFromClientUi()
 
         var title = new TextBlock
         {
-            Text = "Nhap mat ma de khoa may tam thoi:",
+            Text = "Nhập mật mã để khóa máy tạm thời:",
             FontWeight = FontWeights.SemiBold,
             Margin = new Thickness(0, 0, 0, 10),
             TextWrapping = TextWrapping.Wrap,
@@ -1946,14 +2050,14 @@ public async void OpenLoyaltyPanelFromClientUi()
         };
         var cancelButton = new Button
         {
-            Content = "Huy",
+            Content = "Hủy",
             Width = 80,
             Margin = new Thickness(0, 0, 8, 0),
             IsCancel = true,
         };
         var confirmButton = new Button
         {
-            Content = "Khoa may",
+            Content = "Khóa máy",
             Width = 90,
             IsDefault = true,
             Background = new SolidColorBrush(Color.FromRgb(220, 38, 38)),
@@ -1971,7 +2075,7 @@ public async void OpenLoyaltyPanelFromClientUi()
 
             if (string.IsNullOrEmpty(password))
             {
-                errorText.Text = "Vui long nhap mat ma.";
+                errorText.Text = "Vui lòng nhập mật mã.";
                 return;
             }
 
@@ -2237,6 +2341,450 @@ public async void OpenLoyaltyPanelFromClientUi()
         dialog.ShowDialog();
     }
 
+    private void ShowWithdrawBalanceDialog(
+        ActiveMemberSession activeSession,
+        MemberLoginItem sourceMember)
+    {
+        var dialog = new Window
+        {
+            Title = $"Rút tiền - {activeSession.Username}",
+            Width = 430,
+            Height = 360,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = _mainWindow,
+            ShowInTaskbar = false,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+        };
+
+        var root = new Grid
+        {
+            Margin = new Thickness(16),
+        };
+        for (var i = 0; i < 9; i++)
+        {
+            root.RowDefinitions.Add(new RowDefinition
+            {
+                Height = GridLength.Auto,
+            });
+        }
+        root.RowDefinitions.Add(new RowDefinition
+        {
+            Height = new GridLength(1, GridUnitType.Star),
+        });
+        root.RowDefinitions.Add(new RowDefinition
+        {
+            Height = GridLength.Auto,
+        });
+
+        var titleBlock = new TextBlock
+        {
+            Text = "Rút tiền từ tài khoản hội viên",
+            FontSize = 18,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        Grid.SetRow(titleBlock, 0);
+        root.Children.Add(titleBlock);
+
+        var sourceBlock = new TextBlock
+        {
+            Text = $"Tài khoản: {sourceMember.Username}",
+            Foreground = Brushes.DimGray,
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+        Grid.SetRow(sourceBlock, 1);
+        root.Children.Add(sourceBlock);
+
+        var balanceBlock = new TextBlock
+        {
+            Text = $"Số dư hiện tại: {sourceMember.Balance:N0} VND",
+            Foreground = Brushes.DimGray,
+            Margin = new Thickness(0, 0, 0, 10),
+        };
+        Grid.SetRow(balanceBlock, 2);
+        root.Children.Add(balanceBlock);
+
+        var amountLabel = new TextBlock
+        {
+            Text = "Số tiền rút (VND):",
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+        Grid.SetRow(amountLabel, 3);
+        root.Children.Add(amountLabel);
+
+        var amountBox = new TextBox
+        {
+            Height = 32,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Text = "1000",
+        };
+        Grid.SetRow(amountBox, 4);
+        root.Children.Add(amountBox);
+
+        var noteLabel = new TextBlock
+        {
+            Text = "Ghi chú (không bắt buộc):",
+            Margin = new Thickness(0, 10, 0, 4),
+        };
+        Grid.SetRow(noteLabel, 5);
+        root.Children.Add(noteLabel);
+
+        var noteBox = new TextBox
+        {
+            Height = 32,
+            VerticalContentAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetRow(noteBox, 6);
+        root.Children.Add(noteBox);
+
+        var hintBlock = new TextBlock
+        {
+            Text = "Tối thiểu 1.000 VND cho mỗi lần rút.",
+            Foreground = Brushes.DimGray,
+            Margin = new Thickness(0, 8, 0, 0),
+        };
+        Grid.SetRow(hintBlock, 7);
+        root.Children.Add(hintBlock);
+
+        var errorTextBlock = new TextBlock
+        {
+            Foreground = Brushes.Firebrick,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 6, 0, 0),
+        };
+        Grid.SetRow(errorTextBlock, 8);
+        root.Children.Add(errorTextBlock);
+
+        var actionPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 14, 0, 0),
+        };
+
+        var cancelButton = new Button
+        {
+            Content = "Hủy",
+            Width = 90,
+            Margin = new Thickness(0, 0, 8, 0),
+            IsCancel = true,
+        };
+        cancelButton.Click += (_, _) => dialog.Close();
+
+        var withdrawButton = new Button
+        {
+            Content = "Rút tiền",
+            Width = 100,
+            IsDefault = true,
+            Background = new SolidColorBrush(Color.FromRgb(121, 201, 89)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(63, 138, 46)),
+        };
+
+        withdrawButton.Click += async (_, _) =>
+        {
+            errorTextBlock.Text = string.Empty;
+
+            if (!TryParsePositiveMoney(amountBox.Text.Trim(), out var amount))
+            {
+                errorTextBlock.Text = "Số tiền rút không hợp lệ.";
+                return;
+            }
+
+            if (amount < 1000)
+            {
+                errorTextBlock.Text = "Số tiền rút tối thiểu là 1.000 VND.";
+                return;
+            }
+
+            if (amount > sourceMember.Balance)
+            {
+                errorTextBlock.Text = "Số dư hiện tại không đủ để rút.";
+                return;
+            }
+
+            withdrawButton.IsEnabled = false;
+            try
+            {
+                using var response = await _httpClient.PostAsJsonAsync(
+                    BuildApiUrl($"/members/{activeSession.MemberId}/withdraw"),
+                    new
+                    {
+                        amount = Convert.ToDouble(amount, CultureInfo.InvariantCulture),
+                        note = string.IsNullOrWhiteSpace(noteBox.Text) ? null : noteBox.Text.Trim(),
+                        createdBy = "client.member.withdraw",
+                        agentId = _settings.AgentId,
+                    });
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var message = await ReadErrorMessageAsync(response);
+                    errorTextBlock.Text = string.IsNullOrWhiteSpace(message)
+                        ? $"Rút tiền thất bại ({(int)response.StatusCode})"
+                        : message;
+                    return;
+                }
+
+                var payload = await response.Content.ReadFromJsonAsync<MemberWithdrawRequestResponse>(
+                    new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true,
+                    });
+
+                var requestId = payload?.Request?.RequestId ?? "-";
+
+                _mainWindow?.SetLastCommand(
+                    $"GUI YEU CAU RUT TIEN {amount:N0} @ {DateTime.Now:HH:mm:ss}");
+
+                MessageBox.Show(
+                    $"Đã gửi yêu cầu rút tiền.\n\nSố tiền: {amount:N0} VND\nMã yêu cầu: {requestId}\nBên app server sẽ hiện popup có nút Chấp nhận/Hủy.",
+                    "Rút tiền hội viên",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+
+                dialog.DialogResult = true;
+                dialog.Close();
+            }
+            finally
+            {
+                withdrawButton.IsEnabled = true;
+            }
+        };
+
+        actionPanel.Children.Add(cancelButton);
+        actionPanel.Children.Add(withdrawButton);
+        Grid.SetRow(actionPanel, 10);
+        root.Children.Add(actionPanel);
+
+        dialog.Content = root;
+        dialog.Loaded += (_, _) =>
+        {
+            amountBox.Focus();
+            amountBox.SelectAll();
+        };
+
+        dialog.ShowDialog();
+    }
+
+    private void ShowTopupRequestDialog(
+        ActiveMemberSession activeSession,
+        MemberLoginItem sourceMember)
+    {
+        var dialog = new Window
+        {
+            Title = $"Nạp tiền - {activeSession.Username}",
+            Width = 430,
+            Height = 360,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = _mainWindow,
+            ShowInTaskbar = false,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+        };
+
+        var root = new Grid
+        {
+            Margin = new Thickness(16),
+        };
+        for (var i = 0; i < 9; i++)
+        {
+            root.RowDefinitions.Add(new RowDefinition
+            {
+                Height = GridLength.Auto,
+            });
+        }
+        root.RowDefinitions.Add(new RowDefinition
+        {
+            Height = new GridLength(1, GridUnitType.Star),
+        });
+        root.RowDefinitions.Add(new RowDefinition
+        {
+            Height = GridLength.Auto,
+        });
+
+        var titleBlock = new TextBlock
+        {
+            Text = "Gửi yêu cầu nạp tiền hội viên",
+            FontSize = 18,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        Grid.SetRow(titleBlock, 0);
+        root.Children.Add(titleBlock);
+
+        var sourceBlock = new TextBlock
+        {
+            Text = $"Tài khoản: {sourceMember.Username}",
+            Foreground = Brushes.DimGray,
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+        Grid.SetRow(sourceBlock, 1);
+        root.Children.Add(sourceBlock);
+
+        var balanceBlock = new TextBlock
+        {
+            Text = $"Số dư hiện tại: {sourceMember.Balance:N0} VND",
+            Foreground = Brushes.DimGray,
+            Margin = new Thickness(0, 0, 0, 10),
+        };
+        Grid.SetRow(balanceBlock, 2);
+        root.Children.Add(balanceBlock);
+
+        var amountLabel = new TextBlock
+        {
+            Text = "Số tiền cần nạp (VND):",
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+        Grid.SetRow(amountLabel, 3);
+        root.Children.Add(amountLabel);
+
+        var amountBox = new TextBox
+        {
+            Height = 32,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Text = "1000",
+        };
+        Grid.SetRow(amountBox, 4);
+        root.Children.Add(amountBox);
+
+        var noteLabel = new TextBlock
+        {
+            Text = "Ghi chú (không bắt buộc):",
+            Margin = new Thickness(0, 10, 0, 4),
+        };
+        Grid.SetRow(noteLabel, 5);
+        root.Children.Add(noteLabel);
+
+        var noteBox = new TextBox
+        {
+            Height = 32,
+            VerticalContentAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetRow(noteBox, 6);
+        root.Children.Add(noteBox);
+
+        var hintBlock = new TextBlock
+        {
+            Text = "Tối thiểu 1.000 VND cho mỗi yêu cầu.",
+            Foreground = Brushes.DimGray,
+            Margin = new Thickness(0, 8, 0, 0),
+        };
+        Grid.SetRow(hintBlock, 7);
+        root.Children.Add(hintBlock);
+
+        var errorTextBlock = new TextBlock
+        {
+            Foreground = Brushes.Firebrick,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 6, 0, 0),
+        };
+        Grid.SetRow(errorTextBlock, 8);
+        root.Children.Add(errorTextBlock);
+
+        var actionPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 14, 0, 0),
+        };
+
+        var cancelButton = new Button
+        {
+            Content = "Hủy",
+            Width = 90,
+            Margin = new Thickness(0, 0, 8, 0),
+            IsCancel = true,
+        };
+        cancelButton.Click += (_, _) => dialog.Close();
+
+        var requestButton = new Button
+        {
+            Content = "Gửi yêu cầu",
+            Width = 100,
+            IsDefault = true,
+            Background = new SolidColorBrush(Color.FromRgb(121, 201, 89)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(63, 138, 46)),
+        };
+
+        requestButton.Click += async (_, _) =>
+        {
+            errorTextBlock.Text = string.Empty;
+
+            if (!TryParsePositiveMoney(amountBox.Text.Trim(), out var amount))
+            {
+                errorTextBlock.Text = "Số tiền nạp không hợp lệ.";
+                return;
+            }
+
+            if (amount < 1000)
+            {
+                errorTextBlock.Text = "Số tiền nạp tối thiểu là 1.000 VND.";
+                return;
+            }
+
+            requestButton.IsEnabled = false;
+            try
+            {
+                using var response = await _httpClient.PostAsJsonAsync(
+                    BuildApiUrl($"/members/{activeSession.MemberId}/topup-request"),
+                    new
+                    {
+                        amount = Convert.ToDouble(amount, CultureInfo.InvariantCulture),
+                        note = string.IsNullOrWhiteSpace(noteBox.Text) ? null : noteBox.Text.Trim(),
+                        createdBy = "client.member.topup.request",
+                        agentId = _settings.AgentId,
+                    });
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var message = await ReadErrorMessageAsync(response);
+                    errorTextBlock.Text = string.IsNullOrWhiteSpace(message)
+                        ? $"Gửi yêu cầu thất bại ({(int)response.StatusCode})"
+                        : message;
+                    return;
+                }
+
+                var payload = await response.Content.ReadFromJsonAsync<MemberTopupRequestResponse>(
+                    new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true,
+                    });
+
+                var requestId = payload?.Request?.RequestId ?? "-";
+
+                _mainWindow?.SetLastCommand(
+                    $"GUI YEU CAU NAP TIEN {amount:N0} @ {DateTime.Now:HH:mm:ss}");
+
+                MessageBox.Show(
+                    $"Đã gửi yêu cầu nạp tiền.\n\nSố tiền: {amount:N0} VND\nMã yêu cầu: {requestId}\nBên app server sẽ hiện popup có nút Chấp nhận/Hủy.",
+                    "Nạp tiền hội viên",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+
+                dialog.DialogResult = true;
+                dialog.Close();
+            }
+            finally
+            {
+                requestButton.IsEnabled = true;
+            }
+        };
+
+        actionPanel.Children.Add(cancelButton);
+        actionPanel.Children.Add(requestButton);
+        Grid.SetRow(actionPanel, 10);
+        root.Children.Add(actionPanel);
+
+        dialog.Content = root;
+        dialog.Loaded += (_, _) =>
+        {
+            amountBox.Focus();
+            amountBox.SelectAll();
+        };
+
+        dialog.ShowDialog();
+    }
+
     private static bool TryParsePositiveMoney(string value, out decimal amount)
     {
         if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out amount) && amount > 0)
@@ -2320,6 +2868,8 @@ public async void OpenLoyaltyPanelFromClientUi()
             _readyAutoShutdownMinutes = Math.Clamp(payload.ReadyAutoShutdownMinutes, 1, 240);
             _lockScreenBackgroundMode = NormalizeLockScreenBackgroundMode(payload.LockScreenBackgroundMode);
             _lockScreenBackgroundUrl = (payload.LockScreenBackgroundUrl ?? string.Empty).Trim();
+            _isMemberWithdrawEnabled = payload.AllowMemberWithdraw;
+            _isMemberTopupRequestEnabled = payload.AllowMemberTopupRequest;
             Client.Agent.Wpf.MainWindow.PricingStep = payload.PricingStep;
             Client.Agent.Wpf.MainWindow.MinimumCharge = payload.MinimumCharge;
             Dispatcher.Invoke(() =>
@@ -2327,6 +2877,8 @@ public async void OpenLoyaltyPanelFromClientUi()
                 _lockScreenWindow?.ApplyBackgroundConfiguration(
                     _lockScreenBackgroundMode,
                     _lockScreenBackgroundUrl);
+                _mainWindow?.SetWithdrawActionVisible(_isMemberWithdrawEnabled);
+                _mainWindow?.SetTopupRequestActionVisible(_isMemberTopupRequestEnabled);
             });
         }
         catch (Exception ex)
@@ -5299,7 +5851,7 @@ LIMIT $limit;";
 
         var closeButton = new Button
         {
-            Content = "Dong",
+            Content = "Đóng",
             Width = 90,
             Height = 32,
         };
@@ -6363,6 +6915,8 @@ public sealed class ClientRuntimeSettingsResponse
     public string LockScreenBackgroundUrl { get; set; } = string.Empty;
     public decimal PricingStep { get; set; } = 1000m;
     public decimal MinimumCharge { get; set; } = 1000m;
+    public bool AllowMemberWithdraw { get; set; } = true;
+    public bool AllowMemberTopupRequest { get; set; } = true;
 
     public string ServerTime { get; set; } = string.Empty;
 }
@@ -6438,6 +6992,62 @@ public sealed class MemberTransferBalanceResponse
     public decimal Amount { get; set; }
 
     public string? TransferredAt { get; set; }
+}
+
+public sealed class MemberWithdrawRequestResponse
+{
+    public MemberWithdrawRequestItem? Request { get; set; }
+
+    public string Status { get; set; } = string.Empty;
+
+    public string? Message { get; set; }
+}
+
+public sealed class MemberWithdrawRequestItem
+{
+    public string RequestId { get; set; } = string.Empty;
+
+    public string MemberId { get; set; } = string.Empty;
+
+    public string Username { get; set; } = string.Empty;
+
+    public string FullName { get; set; } = string.Empty;
+
+    public decimal Amount { get; set; }
+
+    public string? Note { get; set; }
+
+    public string Status { get; set; } = string.Empty;
+
+    public string RequestedAt { get; set; } = string.Empty;
+}
+
+public sealed class MemberTopupRequestResponse
+{
+    public MemberTopupRequestItem? Request { get; set; }
+
+    public string Status { get; set; } = string.Empty;
+
+    public string? Message { get; set; }
+}
+
+public sealed class MemberTopupRequestItem
+{
+    public string RequestId { get; set; } = string.Empty;
+
+    public string MemberId { get; set; } = string.Empty;
+
+    public string Username { get; set; } = string.Empty;
+
+    public string FullName { get; set; } = string.Empty;
+
+    public decimal Amount { get; set; }
+
+    public string? Note { get; set; }
+
+    public string Status { get; set; } = string.Empty;
+
+    public string RequestedAt { get; set; } = string.Empty;
 }
 
 public sealed class MemberLoyaltyItem

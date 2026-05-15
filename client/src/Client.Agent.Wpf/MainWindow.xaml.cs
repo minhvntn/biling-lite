@@ -71,6 +71,10 @@ public partial class MainWindow : Window
         LoyaltyLabelTextBlock.Text = ClientI18n.Get("main.actions.loyalty.label", "\u0110\u1ed5i \u0111i\u1ec3m");
         TransferIconTextBlock.Text = ClientI18n.Get("main.actions.transfer.icon", "💸");
         TransferLabelTextBlock.Text = ClientI18n.Get("main.actions.transfer.label", "Chuyển tiền");
+        WithdrawIconTextBlock.Text = ClientI18n.Get("main.actions.withdraw.icon", "💵");
+        WithdrawLabelTextBlock.Text = ClientI18n.Get("main.actions.withdraw.label", "Rút tiền");
+        TopupRequestIconTextBlock.Text = ClientI18n.Get("main.actions.topup_request.icon", "💳");
+        TopupRequestLabelTextBlock.Text = ClientI18n.Get("main.actions.topup_request.label", "Nạp tiền");
         PasswordIconTextBlock.Text = ClientI18n.Get("main.actions.password.icon", "🔑");
         PasswordLabelTextBlock.Text = ClientI18n.Get("main.actions.password.label", "Đổi mật mã");
         LogoutIconTextBlock.Text = ClientI18n.Get("main.actions.logout.icon", "🚪");
@@ -413,6 +417,26 @@ public partial class MainWindow : Window
         LogoutActionButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    public void SetWithdrawActionVisible(bool visible)
+    {
+        if (WithdrawActionButton is null)
+        {
+            return;
+        }
+
+        WithdrawActionButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public void SetTopupRequestActionVisible(bool visible)
+    {
+        if (TopupRequestActionButton is null)
+        {
+            return;
+        }
+
+        TopupRequestActionButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     public void AllowShutdown()
     {
         _allowClose = true;
@@ -622,6 +646,36 @@ public partial class MainWindow : Window
             MessageBoxImage.Information);
     }
 
+    private void WithdrawBalanceButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (Application.Current is App app)
+        {
+            app.OpenWithdrawBalancePanelFromClientUi();
+            return;
+        }
+
+        MessageBox.Show(
+            "Ứng dụng chưa sẵn sàng để rút tiền hội viên.",
+            "Rút tiền",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
+
+    private void TopupRequestButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (Application.Current is App app)
+        {
+            app.OpenTopupRequestPanelFromClientUi();
+            return;
+        }
+
+        MessageBox.Show(
+            "Ứng dụng chưa sẵn sàng để gửi yêu cầu nạp tiền.",
+            "Nạp tiền",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
+
     private void LogoutButton_Click(object sender, RoutedEventArgs e)
     {
         if (Application.Current is App app)
@@ -659,5 +713,6 @@ public partial class MainWindow : Window
         SetMachineState("LOCKED");
     }
 }
+
 
 

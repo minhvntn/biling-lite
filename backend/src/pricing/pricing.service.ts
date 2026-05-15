@@ -21,7 +21,11 @@ const CLIENT_READY_AUTO_SHUTDOWN_KEY = '__CLIENT_READY_AUTO_SHUTDOWN_MINUTES__';
 const DEFAULT_READY_AUTO_SHUTDOWN_MINUTES = 3;
 const CLIENT_LOCK_SCREEN_BACKGROUND_MODE_KEY = '__CLIENT_LOCK_SCREEN_BACKGROUND_MODE__';
 const CLIENT_LOCK_SCREEN_BACKGROUND_URL_KEY = '__CLIENT_LOCK_SCREEN_BACKGROUND_URL__';
+const CLIENT_MEMBER_WITHDRAW_ENABLED_KEY = '__CLIENT_MEMBER_WITHDRAW_ENABLED__';
+const CLIENT_MEMBER_TOPUP_REQUEST_ENABLED_KEY = '__CLIENT_MEMBER_TOPUP_REQUEST_ENABLED__';
 const DEFAULT_LOCK_SCREEN_BACKGROUND_MODE = 'none';
+const DEFAULT_MEMBER_WITHDRAW_ENABLED = true;
+const DEFAULT_MEMBER_TOPUP_REQUEST_ENABLED = true;
 const LOCK_SCREEN_MEDIA_DIR = path.join(
   process.cwd(),
   'storage',
@@ -59,7 +63,15 @@ export class PricingService {
   }
 
   async getClientRuntimeSettings() {
-    const [config, modeSetting, urlSetting, pricingStepSetting, minimumChargeSetting] = await Promise.all([
+    const [
+      config,
+      modeSetting,
+      urlSetting,
+      pricingStepSetting,
+      minimumChargeSetting,
+      memberWithdrawSetting,
+      memberTopupRequestSetting,
+    ] = await Promise.all([
       this.ensureClientRuntimeSettings(),
       this.prisma.appSetting.findUnique({
         where: { key: CLIENT_LOCK_SCREEN_BACKGROUND_MODE_KEY },
@@ -73,6 +85,8 @@ export class PricingService {
       this.prisma.appSetting.findUnique({
         where: { key: 'MINIMUM_CHARGE' },
       }),
+      this.ensureMemberWithdrawSetting(),
+      this.ensureMemberTopupRequestSetting(),
     ]);
 
     return {
@@ -88,6 +102,14 @@ export class PricingService {
       lockScreenBackgroundUrl: (urlSetting?.value ?? '').trim(),
       pricingStep: pricingStepSetting ? Number(pricingStepSetting.value) : 1000,
       minimumCharge: minimumChargeSetting ? Number(minimumChargeSetting.value) : 1000,
+      allowMemberWithdraw: this.parseBooleanSetting(
+        memberWithdrawSetting?.value,
+        DEFAULT_MEMBER_WITHDRAW_ENABLED,
+      ),
+      allowMemberTopupRequest: this.parseBooleanSetting(
+        memberTopupRequestSetting?.value,
+        DEFAULT_MEMBER_TOPUP_REQUEST_ENABLED,
+      ),
       serverTime: new Date().toISOString(),
     };
   }
@@ -96,8 +118,16 @@ export class PricingService {
     const hasReadyMinutes = payload.readyAutoShutdownMinutes !== undefined;
     const hasLockScreenMode = payload.lockScreenBackgroundMode !== undefined;
     const hasLockScreenUrl = payload.lockScreenBackgroundUrl !== undefined;
+    const hasAllowMemberWithdraw = payload.allowMemberWithdraw !== undefined;
+    const hasAllowMemberTopupRequest = payload.allowMemberTopupRequest !== undefined;
 
-    if (!hasReadyMinutes && !hasLockScreenMode && !hasLockScreenUrl) {
+    if (
+      !hasReadyMinutes &&
+      !hasLockScreenMode &&
+      !hasLockScreenUrl &&
+      !hasAllowMemberWithdraw &&
+      !hasAllowMemberTopupRequest
+    ) {
       throw new BadRequestException('Khong co du lieu cai dat de cap nhat');
     }
 
@@ -137,6 +167,30 @@ export class PricingService {
         where: { key: CLIENT_LOCK_SCREEN_BACKGROUND_URL_KEY },
         update: { value: url },
         create: { key: CLIENT_LOCK_SCREEN_BACKGROUND_URL_KEY, value: url },
+      });
+    }
+
+    if (hasAllowMemberWithdraw) {
+      const allowMemberWithdraw = payload.allowMemberWithdraw === true;
+      await this.prisma.appSetting.upsert({
+        where: { key: CLIENT_MEMBER_WITHDRAW_ENABLED_KEY },
+        update: { value: allowMemberWithdraw ? 'true' : 'false' },
+        create: {
+          key: CLIENT_MEMBER_WITHDRAW_ENABLED_KEY,
+          value: allowMemberWithdraw ? 'true' : 'false',
+        },
+      });
+    }
+
+    if (hasAllowMemberTopupRequest) {
+      const allowMemberTopupRequest = payload.allowMemberTopupRequest === true;
+      await this.prisma.appSetting.upsert({
+        where: { key: CLIENT_MEMBER_TOPUP_REQUEST_ENABLED_KEY },
+        update: { value: allowMemberTopupRequest ? 'true' : 'false' },
+        create: {
+          key: CLIENT_MEMBER_TOPUP_REQUEST_ENABLED_KEY,
+          value: allowMemberTopupRequest ? 'true' : 'false',
+        },
       });
     }
 
@@ -461,6 +515,41 @@ export class PricingService {
         isActive: true,
       },
     });
+  }
+
+  private async ensureMemberWithdrawSetting() {
+    return this.prisma.appSetting.upsert({
+      where: { key: CLIENT_MEMBER_WITHDRAW_ENABLED_KEY },
+      update: {},
+      create: {
+        key: CLIENT_MEMBER_WITHDRAW_ENABLED_KEY,
+        value: DEFAULT_MEMBER_WITHDRAW_ENABLED ? 'true' : 'false',
+      },
+    });
+  }
+
+  private async ensureMemberTopupRequestSetting() {
+    return this.prisma.appSetting.upsert({
+      where: { key: CLIENT_MEMBER_TOPUP_REQUEST_ENABLED_KEY },
+      update: {},
+      create: {
+        key: CLIENT_MEMBER_TOPUP_REQUEST_ENABLED_KEY,
+        value: DEFAULT_MEMBER_TOPUP_REQUEST_ENABLED ? 'true' : 'false',
+      },
+    });
+  }
+
+  private parseBooleanSetting(value: string | null | undefined, fallback: boolean): boolean {
+    const normalized = (value ?? '').trim().toLowerCase();
+    if (normalized === 'true') {
+      return true;
+    }
+
+    if (normalized === 'false') {
+      return false;
+    }
+
+    return fallback;
   }
 
   private async ensureDefaultGroup() {

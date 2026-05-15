@@ -171,28 +171,6 @@
                             <TextBlock Grid.Column="11" VerticalAlignment="Center" x:Name="LastSyncTextBlock" Text="Đồng bộ: -" />
                         </Grid>
 
-                        <Grid Grid.Row="1" Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-
-                            <Border Grid.Column="0" Margin="0,0,8,0" Padding="10,6" Background="#EEF2FF" CornerRadius="8">
-                                <TextBlock x:Name="SummaryTotalTextBlock" FontWeight="SemiBold" Text="Tổng máy: 0" />
-                            </Border>
-                            <Border Grid.Column="1" Margin="0,0,8,0" Padding="10,6" Background="#ECFDF3" CornerRadius="8">
-                                <TextBlock x:Name="SummaryUsingTextBlock" FontWeight="SemiBold" Text="Đang sử dụng: 0" />
-                            </Border>
-                            <Border Grid.Column="2" Margin="0,0,8,0" Padding="10,6" Background="#FEF2F2" CornerRadius="8">
-                                <TextBlock x:Name="SummaryLockedTextBlock" FontWeight="SemiBold" Text="Đang tắt: 0" />
-                            </Border>
-                            <Border Grid.Column="3" Padding="10,6" Background="#FFF7ED" CornerRadius="8">
-                                <TextBlock x:Name="SummaryMoneyTextBlock" FontWeight="SemiBold" Text="Tiền tạm tính: 0" />
-                            </Border>
-                        </Grid>
-
                         <DataGrid x:Name="MachinesDataGrid"
                                   Grid.Row="2"
                                   AutoGenerateColumns="False"
@@ -510,7 +488,38 @@
                             </DataGrid.Columns>
                         </DataGrid>
 
-                        <TextBlock Grid.Row="3" Margin="0,8,0,0" x:Name="SelectionTextBlock" Text="Chưa chọn máy" />
+                        <Grid Grid.Row="3" Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0"
+                                       x:Name="SelectionTextBlock"
+                                       VerticalAlignment="Center"
+                                       Text="Chưa chọn máy" />
+
+                            <StackPanel Grid.Column="1"
+                                        Orientation="Horizontal"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center">
+                                <Border Margin="0,0,6,0" Padding="8,4" Background="#EEF2FF" CornerRadius="6">
+                                    <TextBlock x:Name="SummaryTotalTextBlock" FontWeight="SemiBold" FontSize="13" Text="Tổng máy: 0" />
+                                </Border>
+                                <Border Margin="0,0,6,0" Padding="8,4" Background="#EEF6FF" CornerRadius="6">
+                                    <TextBlock x:Name="SummaryMemberCountTextBlock" FontWeight="SemiBold" FontSize="12.5" Text="Tổng hội viên: 0" />
+                                </Border>
+                                <Border Margin="0,0,6,0" Padding="8,4" Background="#ECFDF3" CornerRadius="6">
+                                    <TextBlock x:Name="SummaryUsingTextBlock" FontWeight="SemiBold" FontSize="13" Text="Đang sử dụng: 0" />
+                                </Border>
+                                <Border Margin="0,0,6,0" Padding="8,4" Background="#FEF2F2" CornerRadius="6">
+                                    <TextBlock x:Name="SummaryLockedTextBlock" FontWeight="SemiBold" FontSize="13" Text="Đang tắt: 0" />
+                                </Border>
+                                <Border Padding="8,4" Background="#FFF7ED" CornerRadius="6">
+                                    <TextBlock x:Name="SummaryMoneyTextBlock" FontWeight="SemiBold" FontSize="13" Text="Tiền tạm tính: 0" />
+                                </Border>
+                            </StackPanel>
+                        </Grid>
                     </Grid>
                 </TabItem>
 
@@ -1771,6 +1780,7 @@
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
 
                                             <TextBlock Grid.Row="0" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B" Text="Giao diện và menu thao tác" />
@@ -1876,6 +1886,8 @@
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
 
                                             <TextBlock Grid.Row="0" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B" Text="Cài đặt máy trạm" />
@@ -1909,7 +1921,23 @@
                                                       Checked="GuestLoginEnabledCheckBox_Changed"
                                                       Unchecked="GuestLoginEnabledCheckBox_Changed" />
 
-                                            <Grid Grid.Row="4" Margin="0,10,0,0">
+                                            <CheckBox x:Name="MemberWithdrawEnabledCheckBox"
+                                                      Grid.Row="4"
+                                                      Margin="0,10,0,0"
+                                                      IsChecked="True"
+                                                      Content="Cho phép hội viên tự rút tiền ở app client"
+                                                      Checked="MemberWithdrawEnabledCheckBox_Changed"
+                                                      Unchecked="MemberWithdrawEnabledCheckBox_Changed" />
+
+                                            <CheckBox x:Name="MemberTopupRequestEnabledCheckBox"
+                                                      Grid.Row="5"
+                                                      Margin="0,10,0,0"
+                                                      IsChecked="True"
+                                                      Content="Cho phép hội viên gửi yêu cầu nạp tiền nhanh ở app client"
+                                                      Checked="MemberTopupRequestEnabledCheckBox_Changed"
+                                                      Unchecked="MemberTopupRequestEnabledCheckBox_Changed" />
+
+                                            <Grid Grid.Row="6" Margin="0,10,0,0">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="260" />
                                                     <ColumnDefinition Width="*" />
@@ -1924,7 +1952,7 @@
                                                          Text="1000" />
                                             </Grid>
 
-                                            <Grid Grid.Row="5" Margin="0,10,0,0">
+                                            <Grid Grid.Row="7" Margin="0,10,0,0">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="260" />
                                                     <ColumnDefinition Width="*" />
@@ -1939,9 +1967,9 @@
                                                          Text="1000" />
                                             </Grid>
 
-                                            <TextBlock Grid.Row="6" Margin="0,14,0,0" FontWeight="SemiBold" Foreground="#1E293B" Text="Nền lock screen máy trạm" />
+                                            <TextBlock Grid.Row="8" Margin="0,14,0,0" FontWeight="SemiBold" Foreground="#1E293B" Text="Nền lock screen máy trạm" />
 
-                                            <Grid Grid.Row="7" Margin="0,8,0,0">
+                                            <Grid Grid.Row="9" Margin="0,8,0,0">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="260" />
                                                     <ColumnDefinition Width="*" />
@@ -1958,7 +1986,7 @@
                                                 </ComboBox>
                                             </Grid>
 
-                                            <StackPanel Grid.Row="8" Margin="0,8,0,0">
+                                            <StackPanel Grid.Row="10" Margin="0,8,0,0">
                                                 <TextBlock Margin="0,0,0,4" Foreground="#334155" Text="Đường dẫn file image/video (local/UNC):" />
                                                 <TextBox x:Name="LockScreenBackgroundUrlTextBox"
                                                          Height="30"
@@ -2314,30 +2342,53 @@
                                 Click="TopupModeSubtractButton_Click" />
                     </StackPanel>
 
-                    <Grid Grid.Row="5" Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="200" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Row="5" Margin="0,0,0,10">
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="200" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
 
-                        <TextBlock Grid.Column="0"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,8,0"
-                                   Text="Nhập số tiền:" />
-                        <TextBox x:Name="TopupCustomAmountTextBox"
-                                 Grid.Column="1"
-                                 Height="32"
-                                 VerticalContentAlignment="Center"
-                                 Margin="0,0,8,0"
-                                 KeyDown="TopupCustomAmountTextBox_KeyDown" />
-                        <Button Grid.Column="2"
-                                Content="Áp dụng"
-                                Width="90"
-                                Height="32"
-                                Click="TopupApplyCustomAmountButton_Click" />
-                    </Grid>
+                            <TextBlock Grid.Column="0"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,8,0"
+                                       Text="Nhập số tiền:" />
+                            <TextBox x:Name="TopupCustomAmountTextBox"
+                                     Grid.Column="1"
+                                     Height="32"
+                                     VerticalContentAlignment="Center"
+                                     Margin="0,0,8,0"
+                                     TextChanged="TopupCustomAmountTextBox_TextChanged"
+                                     KeyDown="TopupCustomAmountTextBox_KeyDown" />
+                        </Grid>
+
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="200" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,8,0"
+                                       Text="Nhập số phút:" />
+                            <TextBox x:Name="TopupMinutesTextBox"
+                                     Grid.Column="1"
+                                     Height="32"
+                                     VerticalContentAlignment="Center"
+                                     Margin="0,0,8,0"
+                                     TextChanged="TopupMinutesTextBox_TextChanged"
+                                     KeyDown="TopupMinutesTextBox_KeyDown" />
+                        </Grid>
+
+                        <TextBlock x:Name="TopupMinutesRateHintTextBlock"
+                                   Foreground="#64748B"
+                                   FontSize="12"
+                                   Text="Đơn giá quy đổi: -"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
 
                     <StackPanel Grid.Row="6" Margin="0,0,0,10">
                         <UniformGrid Columns="3" Margin="0,0,0,8">
@@ -2426,7 +2477,7 @@
                                FontWeight="SemiBold"
                                Foreground="#1D4ED8" />
                     <Button DockPanel.Dock="Right"
-                            Content="Dong"
+                            Content="Đóng"
                             Padding="8,2"
                             FontSize="12"
                             Margin="10,0,0,0"
@@ -2436,7 +2487,7 @@
                            Margin="0,4,0,0"
                            TextWrapping="Wrap"
                            Foreground="#0F172A"
-                           Text="May tram vua co khach dang nhap." />
+                           Text="Máy trạm vừa có khách đăng nhập." />
             </StackPanel>
         </Border>
     </Grid>

@@ -1,15 +1,16 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
-export class TopupMemberDto {
+export class RequestTopupDto {
+  @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(1)
+  @Min(1000)
   @Max(100000000)
   amount!: number;
 
   @IsOptional()
   @IsString()
-  @MaxLength(200)
+  @MaxLength(300)
   @Transform(({ value }: { value?: string }) => value?.trim() || undefined)
   note?: string;
 
@@ -18,4 +19,10 @@ export class TopupMemberDto {
   @MaxLength(100)
   @Transform(({ value }: { value?: string }) => value?.trim() || undefined)
   createdBy?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  @Transform(({ value }: { value?: string }) => value?.trim() || undefined)
+  agentId?: string;
 }

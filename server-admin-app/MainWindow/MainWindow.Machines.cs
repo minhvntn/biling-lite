@@ -18,7 +18,11 @@ namespace Server.Admin.App;
 public partial class MainWindow : Window
 {
     private const int ServiceAmountCacheTtlSeconds = 8;
+    private const int MachineSummaryMemberCountCacheTtlSeconds = 20;
     private readonly Dictionary<string, (decimal Amount, DateTime CachedAtUtc)> _serviceAmountBySessionCache = new(StringComparer.OrdinalIgnoreCase);
+    private int _cachedMachineSummaryMemberCount;
+    private DateTime _cachedMachineSummaryMemberCountAtUtc = DateTime.MinValue;
+    private bool _isRefreshingMachineSummaryMemberCount;
 
     private async Task RefreshMachinesAsync()
     {
@@ -38,6 +42,7 @@ public partial class MainWindow : Window
             TrackGuestSessionNotifications(allRows);
             _allMachineRows.Clear();
             _allMachineRows.AddRange(allRows);
+            await RefreshMachineSummaryMemberCountAsync();
             RefreshWebsiteLogMachineFilterOptions();
             ApplyMachineFiltersToGrid(selectedPcIds);
             await RefreshGroupsAsync();
@@ -75,6 +80,44 @@ public partial class MainWindow : Window
 
         RestoreMachineSelections(selectedPcIds ?? GetSelectedMachineIdsSnapshot());
         UpdateMachineSummary(filteredRows);
+    }
+
+    private async Task RefreshMachineSummaryMemberCountAsync(bool forceRefresh = false)
+    {
+        if (_isRefreshingMachineSummaryMemberCount)
+        {
+            return;
+        }
+
+        if (!forceRefresh && IsCacheValid(_cachedMachineSummaryMemberCountAtUtc, MachineSummaryMemberCountCacheTtlSeconds))
+        {
+            return;
+        }
+
+        _isRefreshingMachineSummaryMemberCount = true;
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<MemberListResponse>(
+                BuildApiUrl("/members"),
+                JsonOptions());
+
+            if (response is null)
+            {
+                return;
+            }
+
+            _cachedMachineSummaryMemberCount =
+                response.Total > 0 ? response.Total : response.Items.Count;
+            _cachedMachineSummaryMemberCountAtUtc = DateTime.UtcNow;
+        }
+        catch
+        {
+            // Keep machines flow resilient if members endpoint is unavailable.
+        }
+        finally
+        {
+            _isRefreshingMachineSummaryMemberCount = false;
+        }
     }
     private static MachineRow ToMachineRow(PcListItem item)
     {
@@ -434,6 +477,7 @@ public partial class MainWindow : Window
     private void UpdateMachineSummary(IReadOnlyCollection<MachineRow> rows)
     {
         if (SummaryTotalTextBlock is null ||
+            SummaryMemberCountTextBlock is null ||
             SummaryUsingTextBlock is null ||
             SummaryLockedTextBlock is null ||
             SummaryMoneyTextBlock is null)
@@ -447,6 +491,7 @@ public partial class MainWindow : Window
         var runningMoney = rows.Sum(r => ParseMoney(r.MoneyText) + r.ServiceAmountRaw);
 
         SummaryTotalTextBlock.Text = $"{I18n.TotalPcPrefix}: {total}";
+        SummaryMemberCountTextBlock.Text = $"Tổng hội viên: {_cachedMachineSummaryMemberCount}";
         SummaryUsingTextBlock.Text = $"{I18n.InUsePcPrefix}: {usingCount}";
         SummaryLockedTextBlock.Text = $"{I18n.LockedPcPrefix}: {lockedCount}";
         SummaryMoneyTextBlock.Text = $"{I18n.TempMoneyPrefix}: {runningMoney:N0}";
@@ -2582,7 +2627,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        await TopupMemberByRowAsync(member);
+        await TopupMemberByRowAsync(member, selected.HourlyRate);
     }
 
     private async Task PopulateMachineServiceAmountsAsync(IReadOnlyList<MachineRow> rows)
@@ -3374,8 +3419,6 @@ public class LatestRunningAppsResponse
     public List<RunningAppItem>? Apps { get; set; }
     public string? Reason { get; set; }
 }
-
-
 
 
 

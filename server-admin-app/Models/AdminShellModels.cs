@@ -122,6 +122,7 @@ public sealed class MachineRow
 public sealed class MemberListResponse
 {
     public List<MemberItem> Items { get; set; } = new();
+    public int Total { get; set; }
 }
 
 public sealed class MemberItem
@@ -175,7 +176,69 @@ public sealed class ClientRuntimeSettingsResponse
     public int ReadyAutoShutdownMinutes { get; set; }
     public string LockScreenBackgroundMode { get; set; } = "none";
     public string LockScreenBackgroundUrl { get; set; } = string.Empty;
+    public bool AllowMemberWithdraw { get; set; } = true;
+    public bool AllowMemberTopupRequest { get; set; } = true;
     public string ServerTime { get; set; } = string.Empty;
+}
+
+public sealed class MemberWithdrawRequestItem
+{
+    public string RequestId { get; set; } = string.Empty;
+    public string MemberId { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public string? Note { get; set; }
+    public string CreatedBy { get; set; } = string.Empty;
+    public string? AgentId { get; set; }
+    public string? PcId { get; set; }
+    public string? PcName { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string RequestedAt { get; set; } = string.Empty;
+}
+
+public sealed class MemberWithdrawPendingListResponse
+{
+    public List<MemberWithdrawRequestItem> Items { get; set; } = new();
+    public int Total { get; set; }
+    public string ServerTime { get; set; } = string.Empty;
+}
+
+public sealed class MemberWithdrawRequestResponse
+{
+    public MemberWithdrawRequestItem? Request { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string? Message { get; set; }
+}
+
+public sealed class MemberTopupRequestItem
+{
+    public string RequestId { get; set; } = string.Empty;
+    public string MemberId { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public string? Note { get; set; }
+    public string CreatedBy { get; set; } = string.Empty;
+    public string? AgentId { get; set; }
+    public string? PcId { get; set; }
+    public string? PcName { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string RequestedAt { get; set; } = string.Empty;
+}
+
+public sealed class MemberTopupPendingListResponse
+{
+    public List<MemberTopupRequestItem> Items { get; set; } = new();
+    public int Total { get; set; }
+    public string ServerTime { get; set; } = string.Empty;
+}
+
+public sealed class MemberTopupRequestResponse
+{
+    public MemberTopupRequestItem? Request { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string? Message { get; set; }
 }
 
 public sealed class BackupSettingsResponse

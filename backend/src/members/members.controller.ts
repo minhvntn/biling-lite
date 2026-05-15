@@ -6,6 +6,12 @@ import { AdjustBalanceDto } from './dto/adjust-balance.dto';
 import { MemberLoginDto } from './dto/member-login.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { TransferBalanceDto } from './dto/transfer-balance.dto';
+import { WithdrawBalanceDto } from './dto/withdraw-balance.dto';
+import { ApproveWithdrawRequestDto } from './dto/approve-withdraw-request.dto';
+import { RejectWithdrawRequestDto } from './dto/reject-withdraw-request.dto';
+import { RequestTopupDto } from './dto/request-topup.dto';
+import { ApproveTopupRequestDto } from './dto/approve-topup-request.dto';
+import { RejectTopupRequestDto } from './dto/reject-topup-request.dto';
 import { UpdateLoyaltySettingsDto } from './dto/update-loyalty-settings.dto';
 import { RecordMemberUsageDto } from './dto/record-member-usage.dto';
 import { RedeemLoyaltyPointsDto } from './dto/redeem-loyalty-points.dto';
@@ -68,6 +74,48 @@ export class MembersController {
   @Get('loyalty/spin-settings')
   async getLoyaltySpinSettings() {
     return this.membersService.getLoyaltySpinSettings();
+  }
+
+  @Get('withdraw-requests/pending')
+  async getPendingWithdrawRequests() {
+    return this.membersService.getPendingWithdrawRequests();
+  }
+
+  @Post('withdraw-requests/:requestId/approve')
+  async approveWithdrawRequest(
+    @Param('requestId') requestId: string,
+    @Body() payload: ApproveWithdrawRequestDto,
+  ) {
+    return this.membersService.approveWithdrawRequest(requestId, payload);
+  }
+
+  @Post('withdraw-requests/:requestId/reject')
+  async rejectWithdrawRequest(
+    @Param('requestId') requestId: string,
+    @Body() payload: RejectWithdrawRequestDto,
+  ) {
+    return this.membersService.rejectWithdrawRequest(requestId, payload);
+  }
+
+  @Get('topup-requests/pending')
+  async getPendingTopupRequests() {
+    return this.membersService.getPendingTopupRequests();
+  }
+
+  @Post('topup-requests/:requestId/approve')
+  async approveTopupRequest(
+    @Param('requestId') requestId: string,
+    @Body() payload: ApproveTopupRequestDto,
+  ) {
+    return this.membersService.approveTopupRequest(requestId, payload);
+  }
+
+  @Post('topup-requests/:requestId/reject')
+  async rejectTopupRequest(
+    @Param('requestId') requestId: string,
+    @Body() payload: RejectTopupRequestDto,
+  ) {
+    return this.membersService.rejectTopupRequest(requestId, payload);
   }
 
   @Patch('loyalty/spin-settings')
@@ -165,6 +213,22 @@ export class MembersController {
     @Body() payload: TransferBalanceDto,
   ) {
     return this.membersService.transferBalance(memberId, payload);
+  }
+
+  @Post(':memberId/withdraw')
+  async withdrawBalance(
+    @Param('memberId') memberId: string,
+    @Body() payload: WithdrawBalanceDto,
+  ) {
+    return this.membersService.withdrawBalance(memberId, payload);
+  }
+
+  @Post(':memberId/topup-request')
+  async requestTopup(
+    @Param('memberId') memberId: string,
+    @Body() payload: RequestTopupDto,
+  ) {
+    return this.membersService.requestTopup(memberId, payload);
   }
 
   @Post('loyalty/ranks/rebuild')

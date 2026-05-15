@@ -25,6 +25,8 @@ import { AdjustBalanceDto } from './dto/adjust-balance.dto';
 import { MemberLoginDto } from './dto/member-login.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { TransferBalanceDto } from './dto/transfer-balance.dto';
+import { WithdrawBalanceDto } from './dto/withdraw-balance.dto';
+import { RequestTopupDto } from './dto/request-topup.dto';
 import { UpdateLoyaltySettingsDto } from './dto/update-loyalty-settings.dto';
 import { RecordMemberUsageDto } from './dto/record-member-usage.dto';
 import { RedeemLoyaltyPointsDto } from './dto/redeem-loyalty-points.dto';
@@ -44,12 +46,66 @@ const LOYALTY_REDEEM_NOTE_PREFIX = 'LOYALTY_REDEEM';
 const LOYALTY_PET_REWARD_NOTE_PREFIX = 'PET_REWARD';
 const LOYALTY_PET_SPEND_NOTE_PREFIX = `${LOYALTY_REDEEM_NOTE_PREFIX}_PET`;
 const LOYALTY_SPIN_CONFIG_KEY = '__LOYALTY_SPIN_CONFIG__';
+const CLIENT_MEMBER_WITHDRAW_ENABLED_KEY = '__CLIENT_MEMBER_WITHDRAW_ENABLED__';
+const DEFAULT_MEMBER_WITHDRAW_ENABLED = true;
+const CLIENT_MEMBER_TOPUP_REQUEST_ENABLED_KEY = '__CLIENT_MEMBER_TOPUP_REQUEST_ENABLED__';
+const DEFAULT_MEMBER_TOPUP_REQUEST_ENABLED = true;
+const MEMBER_WITHDRAW_REQUEST_EVENT_TYPE = 'member.withdraw.requested';
+const MEMBER_TOPUP_REQUEST_EVENT_TYPE = 'member.topup.requested';
 const MEMBER_PASSWORD_BCRYPT_ROUNDS = 10;
 const ACTIVE_PRESENCE_EVENT_TYPES = [
   'member.pc.presence',
   'guest.pc.presence',
   'admin.pc.presence',
 ] as const;
+
+type MemberWithdrawRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+type MemberWithdrawRequestPayload = {
+  memberId: string;
+  username: string;
+  fullName: string;
+  amount: number;
+  note: string | null;
+  createdBy: string;
+  agentId: string | null;
+  pcId: string | null;
+  pcName: string | null;
+  status: MemberWithdrawRequestStatus;
+  requestedAt: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  rejectedAt?: string;
+  rejectedBy?: string;
+  rejectNote?: string | null;
+  processedAmount?: number;
+  remainingBalance?: number;
+  transactionId?: string;
+};
+
+type MemberTopupRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+type MemberTopupRequestPayload = {
+  memberId: string;
+  username: string;
+  fullName: string;
+  amount: number;
+  note: string | null;
+  createdBy: string;
+  agentId: string | null;
+  pcId: string | null;
+  pcName: string | null;
+  status: MemberTopupRequestStatus;
+  requestedAt: string;
+  approvedAt?: string;
+  approvedBy?: string;
+  rejectedAt?: string;
+  rejectedBy?: string;
+  rejectNote?: string | null;
+  processedAmount?: number;
+  balanceAfterTopup?: number;
+  transactionId?: string;
+};
 
 type SpinPrizeItem = {
   minutes: number;
@@ -80,21 +136,25 @@ export class MembersService {
 
   async getMembers(search?: string) {
     const keyword = search?.trim();
+    const where: Prisma.MemberWhereInput | undefined = keyword
+      ? {
+          OR: [
+            { username: { contains: keyword, mode: 'insensitive' } },
+            { fullName: { contains: keyword, mode: 'insensitive' } },
+            { phone: { contains: keyword, mode: 'insensitive' } },
+            { identityNumber: { contains: keyword, mode: 'insensitive' } },
+          ],
+        }
+      : undefined;
 
-    const [members, rankConfigs] = await Promise.all([
+    const [members, total, rankConfigs] = await Promise.all([
       this.prisma.member.findMany({
-        where: keyword
-          ? {
-              OR: [
-                { username: { contains: keyword, mode: 'insensitive' } },
-                { fullName: { contains: keyword, mode: 'insensitive' } },
-                { phone: { contains: keyword, mode: 'insensitive' } },
-                { identityNumber: { contains: keyword, mode: 'insensitive' } },
-              ],
-            }
-          : undefined,
+        where,
         orderBy: [{ createdAt: 'desc' }],
         take: 200,
+      }),
+      this.prisma.member.count({
+        where,
       }),
       this.prisma.loyaltyRankConfig.findMany({
         orderBy: { minTopup: 'desc' },
@@ -111,7 +171,7 @@ export class MembersService {
     
     return {
       items,
-      total: members.length,
+      total,
       serverTime: new Date().toISOString(),
     };
   }
@@ -299,7 +359,7 @@ export class MembersService {
     }
 
     if (!member) {
-      throw new NotFoundException('Khong tim thay hoi vien');
+      throw new NotFoundException('Không tìm thấy hội viên');
     }
 
     const username = payload.username?.trim() || member.username;
@@ -633,7 +693,7 @@ export class MembersService {
   async getMemberLoyalty(memberId: string) {
     const member = await this.prisma.member.findUnique({ where: { id: memberId } });
     if (!member) {
-      throw new NotFoundException('Khong tim thay hoi vien');
+      throw new NotFoundException('Không tìm thấy hội viên');
     }
 
     const enabled = await this.getLoyaltyFeatureEnabled();
@@ -1439,6 +1499,513 @@ export class MembersService {
     return result;
   }
 
+  async requestTopup(memberId: string, payload: RequestTopupDto) {
+    const topupRequestEnabled = await this.getMemberTopupRequestEnabled();
+    if (!topupRequestEnabled) {
+      throw new BadRequestException('Tinh nang nap tien nhanh hoi vien dang tam tat');
+    }
+
+    const amount = this.roundMoney(payload.amount);
+    const createdBy = payload.createdBy?.trim() || 'client.member.topup.request';
+    const note = payload.note?.trim() || null;
+    const normalizedAgentId = payload.agentId?.trim() || null;
+
+    const [member, pc] = await Promise.all([
+      this.prisma.member.findUnique({ where: { id: memberId } }),
+      normalizedAgentId
+        ? this.prisma.pc.findFirst({
+            where: {
+              agentId: {
+                equals: normalizedAgentId,
+                mode: 'insensitive',
+              },
+            },
+            select: {
+              id: true,
+              name: true,
+            },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    if (!member) {
+      throw new NotFoundException('Không tìm thấy hội viên');
+    }
+
+    if (!member.isActive) {
+      throw new BadRequestException('Tài khoản hội viên không hoạt động');
+    }
+
+    const requestPayload: MemberTopupRequestPayload = {
+      memberId: member.id,
+      username: member.username,
+      fullName: member.fullName,
+      amount,
+      note,
+      createdBy,
+      agentId: normalizedAgentId,
+      pcId: pc?.id ?? null,
+      pcName: pc?.name ?? null,
+      status: 'PENDING',
+      requestedAt: new Date().toISOString(),
+    };
+
+    const requestEvent = await this.prisma.eventLog.create({
+      data: {
+        source: createdBy.startsWith('client.') ? EventSource.CLIENT : EventSource.ADMIN,
+        eventType: MEMBER_TOPUP_REQUEST_EVENT_TYPE,
+        pcId: pc?.id,
+        payload: requestPayload,
+      },
+    });
+
+    const requestItem = this.toTopupRequestItem(requestEvent.id, requestPayload);
+    this.realtime.emitToAll('member.topup.requested', requestItem);
+
+    return {
+      request: requestItem,
+      status: 'PENDING',
+      message: 'Yêu cầu nạp tiền đã được gửi, chờ admin xác nhận',
+    };
+  }
+
+  async getPendingTopupRequests() {
+    const events = await this.prisma.eventLog.findMany({
+      where: {
+        eventType: MEMBER_TOPUP_REQUEST_EVENT_TYPE,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 200,
+    });
+
+    const items: Array<ReturnType<MembersService['toTopupRequestItem']>> = [];
+    for (const event of events) {
+      const payload = this.parseMemberTopupRequestPayload(event.payload);
+      if (!payload || payload.status !== 'PENDING') {
+        continue;
+      }
+
+      items.push(this.toTopupRequestItem(event.id, payload));
+    }
+
+    return {
+      items,
+      total: items.length,
+      serverTime: new Date().toISOString(),
+    };
+  }
+
+  async approveTopupRequest(
+    requestId: string,
+    payload: { approvedBy?: string },
+  ) {
+    const approvedBy = payload.approvedBy?.trim() || 'admin.desktop';
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const requestEvent = await tx.eventLog.findUnique({
+        where: { id: requestId },
+      });
+
+      if (!requestEvent || requestEvent.eventType !== MEMBER_TOPUP_REQUEST_EVENT_TYPE) {
+        throw new NotFoundException('Không tìm thấy yêu cầu nạp tiền');
+      }
+
+      const requestPayload = this.parseMemberTopupRequestPayload(requestEvent.payload);
+      if (!requestPayload) {
+        throw new BadRequestException('Nội dung yêu cầu nạp tiền không hợp lệ');
+      }
+
+      if (requestPayload.status !== 'PENDING') {
+        throw new ConflictException('Yêu cầu nạp tiền đã được xử lý');
+      }
+
+      const member = await tx.member.findUnique({
+        where: { id: requestPayload.memberId },
+      });
+      if (!member) {
+        throw new NotFoundException('Không tìm thấy hội viên của yêu cầu');
+      }
+
+      if (!member.isActive) {
+        throw new BadRequestException('Tài khoản hội viên không hoạt động');
+      }
+
+      const updatedMember = await tx.member.update({
+        where: { id: member.id },
+        data: {
+          balance: {
+            increment: requestPayload.amount,
+          },
+          totalTopup: {
+            increment: requestPayload.amount,
+          },
+        },
+      });
+
+      const transaction = await tx.memberTransaction.create({
+        data: {
+          memberId: member.id,
+          type: MemberTransactionType.TOPUP,
+          amountDelta: requestPayload.amount,
+          playSecondsDelta: 0,
+          note: requestPayload.note || 'Hội viên yêu cầu nạp tiền (được duyệt)',
+          createdBy: approvedBy,
+        },
+      });
+
+      const resolvedPayload: MemberTopupRequestPayload = {
+        ...requestPayload,
+        status: 'APPROVED',
+        approvedAt: new Date().toISOString(),
+        approvedBy,
+        processedAmount: requestPayload.amount,
+        balanceAfterTopup: Number(updatedMember.balance),
+        transactionId: transaction.id,
+      };
+
+      await tx.eventLog.update({
+        where: { id: requestId },
+        data: {
+          payload: resolvedPayload,
+        },
+      });
+
+      const rankConfigs = await tx.loyaltyRankConfig.findMany({
+        orderBy: { minTopup: 'desc' },
+      });
+
+      const memberItem = this.toMemberItem(
+        updatedMember,
+        this.calculateRankName(Number(updatedMember.totalTopup), rankConfigs),
+      );
+
+      return {
+        request: this.toTopupRequestItem(requestId, resolvedPayload),
+        member: memberItem,
+        transaction: this.toTransactionItem(transaction),
+      };
+    });
+
+    await this.emitMemberAccountChanged(result.member, 'TOPUP_APPROVED', approvedBy);
+    this.realtime.emitToAll('member.topup.resolved', {
+      ...result.request,
+      status: 'APPROVED',
+    });
+
+    return {
+      ...result.request,
+      member: result.member,
+      transaction: result.transaction,
+    };
+  }
+
+  async rejectTopupRequest(
+    requestId: string,
+    payload: { rejectedBy?: string; note?: string },
+  ) {
+    const rejectedBy = payload.rejectedBy?.trim() || 'admin.desktop';
+    const rejectNote = payload.note?.trim() || null;
+
+    const requestEvent = await this.prisma.eventLog.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!requestEvent || requestEvent.eventType !== MEMBER_TOPUP_REQUEST_EVENT_TYPE) {
+      throw new NotFoundException('Không tìm thấy yêu cầu nạp tiền');
+    }
+
+    const requestPayload = this.parseMemberTopupRequestPayload(requestEvent.payload);
+    if (!requestPayload) {
+      throw new BadRequestException('Nội dung yêu cầu nạp tiền không hợp lệ');
+    }
+
+    if (requestPayload.status !== 'PENDING') {
+      throw new ConflictException('Yêu cầu nạp tiền đã được xử lý');
+    }
+
+    const resolvedPayload: MemberTopupRequestPayload = {
+      ...requestPayload,
+      status: 'REJECTED',
+      rejectedAt: new Date().toISOString(),
+      rejectedBy,
+      rejectNote,
+    };
+
+    await this.prisma.eventLog.update({
+      where: { id: requestId },
+      data: {
+        payload: resolvedPayload,
+      },
+    });
+
+    const request = this.toTopupRequestItem(requestId, resolvedPayload);
+    this.realtime.emitToAll('member.topup.resolved', {
+      ...request,
+      status: 'REJECTED',
+    });
+
+    return request;
+  }
+
+  async withdrawBalance(memberId: string, payload: WithdrawBalanceDto) {
+    const withdrawEnabled = await this.getMemberWithdrawEnabled();
+    if (!withdrawEnabled) {
+      throw new BadRequestException('Tính năng rút tiền hội viên đang tạm tắt');
+    }
+
+    const amount = this.roundMoney(payload.amount);
+    const createdBy = payload.createdBy?.trim() || 'client.member.withdraw';
+    const note = payload.note?.trim() || null;
+    const normalizedAgentId = payload.agentId?.trim() || null;
+
+    const [member, pc] = await Promise.all([
+      this.prisma.member.findUnique({ where: { id: memberId } }),
+      normalizedAgentId
+        ? this.prisma.pc.findFirst({
+            where: {
+              agentId: {
+                equals: normalizedAgentId,
+                mode: 'insensitive',
+              },
+            },
+            select: {
+              id: true,
+              name: true,
+            },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    if (!member) {
+      throw new NotFoundException('Không tìm thấy hội viên');
+    }
+
+    if (!member.isActive) {
+      throw new BadRequestException('Tài khoản hội viên không hoạt động');
+    }
+
+    const currentBalance = Number(member.balance);
+    if (currentBalance < amount) {
+      throw new BadRequestException('Số dư không đủ để rút tiền');
+    }
+
+    const requestPayload: MemberWithdrawRequestPayload = {
+      memberId: member.id,
+      username: member.username,
+      fullName: member.fullName,
+      amount,
+      note,
+      createdBy,
+      agentId: normalizedAgentId,
+      pcId: pc?.id ?? null,
+      pcName: pc?.name ?? null,
+      status: 'PENDING',
+      requestedAt: new Date().toISOString(),
+    };
+
+    const requestEvent = await this.prisma.eventLog.create({
+      data: {
+        source: createdBy.startsWith('client.') ? EventSource.CLIENT : EventSource.ADMIN,
+        eventType: MEMBER_WITHDRAW_REQUEST_EVENT_TYPE,
+        pcId: pc?.id,
+        payload: requestPayload,
+      },
+    });
+
+    const requestItem = this.toWithdrawRequestItem(requestEvent.id, requestPayload);
+    this.realtime.emitToAll('member.withdraw.requested', requestItem);
+
+    return {
+      request: requestItem,
+      status: 'PENDING',
+      message: 'Yêu cầu rút tiền đã được gửi, chờ admin xác nhận',
+    };
+  }
+
+  async getPendingWithdrawRequests() {
+    const events = await this.prisma.eventLog.findMany({
+      where: {
+        eventType: MEMBER_WITHDRAW_REQUEST_EVENT_TYPE,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 200,
+    });
+
+    const items: Array<ReturnType<MembersService['toWithdrawRequestItem']>> = [];
+    for (const event of events) {
+      const payload = this.parseMemberWithdrawRequestPayload(event.payload);
+      if (!payload || payload.status !== 'PENDING') {
+        continue;
+      }
+
+      items.push(this.toWithdrawRequestItem(event.id, payload));
+    }
+
+    return {
+      items,
+      total: items.length,
+      serverTime: new Date().toISOString(),
+    };
+  }
+
+  async approveWithdrawRequest(
+    requestId: string,
+    payload: { approvedBy?: string },
+  ) {
+    const approvedBy = payload.approvedBy?.trim() || 'admin.desktop';
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const requestEvent = await tx.eventLog.findUnique({
+        where: { id: requestId },
+      });
+
+      if (!requestEvent || requestEvent.eventType !== MEMBER_WITHDRAW_REQUEST_EVENT_TYPE) {
+        throw new NotFoundException('Không tìm thấy yêu cầu rút tiền');
+      }
+
+      const requestPayload = this.parseMemberWithdrawRequestPayload(requestEvent.payload);
+      if (!requestPayload) {
+        throw new BadRequestException('Nội dung yêu cầu rút tiền không hợp lệ');
+      }
+
+      if (requestPayload.status !== 'PENDING') {
+        throw new ConflictException('Yêu cầu rút tiền đã được xử lý');
+      }
+
+      const member = await tx.member.findUnique({
+        where: { id: requestPayload.memberId },
+      });
+      if (!member) {
+        throw new NotFoundException('Không tìm thấy hội viên của yêu cầu');
+      }
+
+      if (!member.isActive) {
+        throw new BadRequestException('Tài khoản hội viên không hoạt động');
+      }
+
+      const currentBalance = Number(member.balance);
+      if (currentBalance < requestPayload.amount) {
+        throw new BadRequestException('Số dư không đủ để rút tiền');
+      }
+
+      const updatedMember = await tx.member.update({
+        where: { id: member.id },
+        data: {
+          balance: {
+            decrement: requestPayload.amount,
+          },
+        },
+      });
+
+      const transaction = await tx.memberTransaction.create({
+        data: {
+          memberId: member.id,
+          type: MemberTransactionType.ADJUSTMENT,
+          amountDelta: -requestPayload.amount,
+          playSecondsDelta: 0,
+          note: requestPayload.note || 'Hội viên rút tiền (được duyệt)',
+          createdBy: approvedBy,
+        },
+      });
+
+      const resolvedPayload: MemberWithdrawRequestPayload = {
+        ...requestPayload,
+        status: 'APPROVED',
+        approvedAt: new Date().toISOString(),
+        approvedBy,
+        processedAmount: requestPayload.amount,
+        remainingBalance: Number(updatedMember.balance),
+        transactionId: transaction.id,
+      };
+
+      await tx.eventLog.update({
+        where: { id: requestId },
+        data: {
+          payload: resolvedPayload,
+        },
+      });
+
+      const rankConfigs = await tx.loyaltyRankConfig.findMany({
+        orderBy: { minTopup: 'desc' },
+      });
+
+      const memberItem = this.toMemberItem(
+        updatedMember,
+        this.calculateRankName(Number(updatedMember.totalTopup), rankConfigs),
+      );
+
+      return {
+        request: this.toWithdrawRequestItem(requestId, resolvedPayload),
+        member: memberItem,
+        transaction: this.toTransactionItem(transaction),
+      };
+    });
+
+    await this.emitMemberAccountChanged(result.member, 'WITHDRAW_APPROVED', approvedBy);
+    this.realtime.emitToAll('member.withdraw.resolved', {
+      ...result.request,
+      status: 'APPROVED',
+    });
+
+    return {
+      ...result.request,
+      member: result.member,
+      transaction: result.transaction,
+    };
+  }
+
+  async rejectWithdrawRequest(
+    requestId: string,
+    payload: { rejectedBy?: string; note?: string },
+  ) {
+    const rejectedBy = payload.rejectedBy?.trim() || 'admin.desktop';
+    const rejectNote = payload.note?.trim() || null;
+
+    const requestEvent = await this.prisma.eventLog.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!requestEvent || requestEvent.eventType !== MEMBER_WITHDRAW_REQUEST_EVENT_TYPE) {
+      throw new NotFoundException('Không tìm thấy yêu cầu rút tiền');
+    }
+
+    const requestPayload = this.parseMemberWithdrawRequestPayload(requestEvent.payload);
+    if (!requestPayload) {
+      throw new BadRequestException('Nội dung yêu cầu rút tiền không hợp lệ');
+    }
+
+    if (requestPayload.status !== 'PENDING') {
+      throw new ConflictException('Yêu cầu rút tiền đã được xử lý');
+    }
+
+    const resolvedPayload: MemberWithdrawRequestPayload = {
+      ...requestPayload,
+      status: 'REJECTED',
+      rejectedAt: new Date().toISOString(),
+      rejectedBy,
+      rejectNote,
+    };
+
+    await this.prisma.eventLog.update({
+      where: { id: requestId },
+      data: {
+        payload: resolvedPayload,
+      },
+    });
+
+    const request = this.toWithdrawRequestItem(requestId, resolvedPayload);
+    this.realtime.emitToAll('member.withdraw.resolved', {
+      ...request,
+      status: 'REJECTED',
+    });
+
+    return request;
+  }
+
   private toMemberItem(member: Member, rankName?: string, availablePoints?: number) {
     return {
       id: member.id,
@@ -2061,5 +2628,233 @@ export class MembersService {
     } catch {
       // Transfer already completed, skip logging failure.
     }
+  }
+
+  private parseMemberTopupRequestPayload(
+    payload?: Prisma.JsonValue | null,
+  ): MemberTopupRequestPayload | null {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return null;
+    }
+
+    const value = payload as Record<string, unknown>;
+    const memberId = typeof value.memberId === 'string' ? value.memberId.trim() : '';
+    const username = typeof value.username === 'string' ? value.username.trim() : '';
+    const fullName = typeof value.fullName === 'string' ? value.fullName.trim() : '';
+    const requestedAt = typeof value.requestedAt === 'string' ? value.requestedAt.trim() : '';
+    const createdBy = typeof value.createdBy === 'string' ? value.createdBy.trim() : '';
+    const amount = Number(value.amount);
+    const statusRaw = typeof value.status === 'string' ? value.status.trim().toUpperCase() : '';
+    const processedAmountRaw =
+      value.processedAmount !== undefined ? Number(value.processedAmount) : undefined;
+    const balanceAfterTopupRaw =
+      value.balanceAfterTopup !== undefined ? Number(value.balanceAfterTopup) : undefined;
+
+    if (
+      !memberId ||
+      !username ||
+      !fullName ||
+      !requestedAt ||
+      !createdBy ||
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
+      return null;
+    }
+
+    const status: MemberTopupRequestStatus =
+      statusRaw === 'APPROVED' || statusRaw === 'REJECTED' || statusRaw === 'PENDING'
+        ? statusRaw
+        : 'PENDING';
+
+    return {
+      memberId,
+      username,
+      fullName,
+      amount: this.roundMoneyAllowZero(amount),
+      note: typeof value.note === 'string' ? value.note : null,
+      createdBy,
+      agentId: typeof value.agentId === 'string' ? value.agentId : null,
+      pcId: typeof value.pcId === 'string' ? value.pcId : null,
+      pcName: typeof value.pcName === 'string' ? value.pcName : null,
+      status,
+      requestedAt,
+      approvedAt: typeof value.approvedAt === 'string' ? value.approvedAt : undefined,
+      approvedBy: typeof value.approvedBy === 'string' ? value.approvedBy : undefined,
+      rejectedAt: typeof value.rejectedAt === 'string' ? value.rejectedAt : undefined,
+      rejectedBy: typeof value.rejectedBy === 'string' ? value.rejectedBy : undefined,
+      rejectNote: typeof value.rejectNote === 'string' ? value.rejectNote : null,
+      processedAmount: Number.isFinite(processedAmountRaw ?? NaN)
+        ? processedAmountRaw
+        : undefined,
+      balanceAfterTopup: Number.isFinite(balanceAfterTopupRaw ?? NaN)
+        ? balanceAfterTopupRaw
+        : undefined,
+      transactionId: typeof value.transactionId === 'string' ? value.transactionId : undefined,
+    };
+  }
+
+  private toTopupRequestItem(
+    requestId: string,
+    payload: MemberTopupRequestPayload,
+  ) {
+    return {
+      requestId,
+      memberId: payload.memberId,
+      username: payload.username,
+      fullName: payload.fullName,
+      amount: payload.amount,
+      note: payload.note,
+      createdBy: payload.createdBy,
+      agentId: payload.agentId,
+      pcId: payload.pcId,
+      pcName: payload.pcName,
+      status: payload.status,
+      requestedAt: payload.requestedAt,
+      approvedAt: payload.approvedAt ?? null,
+      approvedBy: payload.approvedBy ?? null,
+      rejectedAt: payload.rejectedAt ?? null,
+      rejectedBy: payload.rejectedBy ?? null,
+      rejectNote: payload.rejectNote ?? null,
+      processedAmount: payload.processedAmount ?? null,
+      balanceAfterTopup: payload.balanceAfterTopup ?? null,
+      transactionId: payload.transactionId ?? null,
+    };
+  }
+
+  private parseMemberWithdrawRequestPayload(
+    payload?: Prisma.JsonValue | null,
+  ): MemberWithdrawRequestPayload | null {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return null;
+    }
+
+    const value = payload as Record<string, unknown>;
+    const memberId = typeof value.memberId === 'string' ? value.memberId.trim() : '';
+    const username = typeof value.username === 'string' ? value.username.trim() : '';
+    const fullName = typeof value.fullName === 'string' ? value.fullName.trim() : '';
+    const requestedAt = typeof value.requestedAt === 'string' ? value.requestedAt.trim() : '';
+    const createdBy = typeof value.createdBy === 'string' ? value.createdBy.trim() : '';
+    const amount = Number(value.amount);
+    const statusRaw = typeof value.status === 'string' ? value.status.trim().toUpperCase() : '';
+    const processedAmountRaw =
+      value.processedAmount !== undefined ? Number(value.processedAmount) : undefined;
+    const remainingBalanceRaw =
+      value.remainingBalance !== undefined ? Number(value.remainingBalance) : undefined;
+
+    if (
+      !memberId ||
+      !username ||
+      !fullName ||
+      !requestedAt ||
+      !createdBy ||
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
+      return null;
+    }
+
+    const status: MemberWithdrawRequestStatus =
+      statusRaw === 'APPROVED' || statusRaw === 'REJECTED' || statusRaw === 'PENDING'
+        ? statusRaw
+        : 'PENDING';
+
+    return {
+      memberId,
+      username,
+      fullName,
+      amount: this.roundMoneyAllowZero(amount),
+      note: typeof value.note === 'string' ? value.note : null,
+      createdBy,
+      agentId: typeof value.agentId === 'string' ? value.agentId : null,
+      pcId: typeof value.pcId === 'string' ? value.pcId : null,
+      pcName: typeof value.pcName === 'string' ? value.pcName : null,
+      status,
+      requestedAt,
+      approvedAt: typeof value.approvedAt === 'string' ? value.approvedAt : undefined,
+      approvedBy: typeof value.approvedBy === 'string' ? value.approvedBy : undefined,
+      rejectedAt: typeof value.rejectedAt === 'string' ? value.rejectedAt : undefined,
+      rejectedBy: typeof value.rejectedBy === 'string' ? value.rejectedBy : undefined,
+      rejectNote: typeof value.rejectNote === 'string' ? value.rejectNote : null,
+      processedAmount: Number.isFinite(processedAmountRaw ?? NaN)
+        ? processedAmountRaw
+        : undefined,
+      remainingBalance: Number.isFinite(remainingBalanceRaw ?? NaN)
+        ? remainingBalanceRaw
+        : undefined,
+      transactionId: typeof value.transactionId === 'string' ? value.transactionId : undefined,
+    };
+  }
+
+  private toWithdrawRequestItem(
+    requestId: string,
+    payload: MemberWithdrawRequestPayload,
+  ) {
+    return {
+      requestId,
+      memberId: payload.memberId,
+      username: payload.username,
+      fullName: payload.fullName,
+      amount: payload.amount,
+      note: payload.note,
+      createdBy: payload.createdBy,
+      agentId: payload.agentId,
+      pcId: payload.pcId,
+      pcName: payload.pcName,
+      status: payload.status,
+      requestedAt: payload.requestedAt,
+      approvedAt: payload.approvedAt ?? null,
+      approvedBy: payload.approvedBy ?? null,
+      rejectedAt: payload.rejectedAt ?? null,
+      rejectedBy: payload.rejectedBy ?? null,
+      rejectNote: payload.rejectNote ?? null,
+      processedAmount: payload.processedAmount ?? null,
+      remainingBalance: payload.remainingBalance ?? null,
+      transactionId: payload.transactionId ?? null,
+    };
+  }
+
+  private async getMemberWithdrawEnabled(): Promise<boolean> {
+    const setting = await this.prisma.appSetting.findUnique({
+      where: { key: CLIENT_MEMBER_WITHDRAW_ENABLED_KEY },
+      select: { value: true },
+    });
+
+    if (!setting?.value) {
+      return DEFAULT_MEMBER_WITHDRAW_ENABLED;
+    }
+
+    const normalized = setting.value.trim().toLowerCase();
+    if (normalized === 'true') {
+      return true;
+    }
+
+    if (normalized === 'false') {
+      return false;
+    }
+
+    return DEFAULT_MEMBER_WITHDRAW_ENABLED;
+  }
+
+  private async getMemberTopupRequestEnabled(): Promise<boolean> {
+    const setting = await this.prisma.appSetting.findUnique({
+      where: { key: CLIENT_MEMBER_TOPUP_REQUEST_ENABLED_KEY },
+      select: { value: true },
+    });
+
+    if (!setting?.value) {
+      return DEFAULT_MEMBER_TOPUP_REQUEST_ENABLED;
+    }
+
+    const normalized = setting.value.trim().toLowerCase();
+    if (normalized === 'true') {
+      return true;
+    }
+
+    if (normalized === 'false') {
+      return false;
+    }
+
+    return DEFAULT_MEMBER_TOPUP_REQUEST_ENABLED;
   }
 }
