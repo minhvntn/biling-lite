@@ -1,11 +1,13 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Text;
 using Client.Agent.Wpf.Localization;
 using System.Windows;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace Client.Agent.Wpf;
@@ -277,47 +279,61 @@ public partial class MainWindow : Window
         var rankStr = string.IsNullOrWhiteSpace(rank) ? "SAT" : rank;
         var rankUpper = rankStr.ToUpperInvariant();
         var rankNormalized = NormalizeRankKey(rankUpper);
+        var rankCompact = rankNormalized.Replace(" ", string.Empty);
         MemberRankTextBlock.Text = rankUpper;
 
         string bgColor = "#374151";
         string fgColor = "#9CA3AF";
         string rankIcon = "🔰";
+        string? rankIconAsset = null;
         var shouldPulse = false;
 
-        if (rankNormalized.Contains("DONG") || rankUpper.Contains("BRONZE"))
+        if (rankNormalized.Contains("SAT") || rankUpper.Contains("IRON"))
+        {
+            rankIconAsset = "sat.png";
+        }
+        else if (rankNormalized.Contains("DONG") || rankUpper.Contains("BRONZE"))
         {
             bgColor = "#78350F";
             fgColor = "#FCD34D";
+            rankIconAsset = "dong.png";
             rankIcon = "🥉";
         }
         else if (rankNormalized.Contains("BAC") || rankUpper.Contains("SILVER"))
         {
             bgColor = "#4B5563";
             fgColor = "#E5E7EB";
+            rankIconAsset = "bac.png";
             rankIcon = "🥈";
         }
         else if (rankNormalized.Contains("VANG") || rankUpper.Contains("GOLD"))
         {
             bgColor = "#854D0E";
             fgColor = "#FDE047";
+            rankIconAsset = "vang.png";
             rankIcon = "🥇";
         }
         else if (rankNormalized.Contains("BACH KIM") || rankUpper.Contains("PLATINUM"))
         {
             bgColor = "#164E63";
             fgColor = "#22D3EE";
+            rankIconAsset = "back-kim.png";
             rankIcon = "💠";
         }
-        else if (rankNormalized.Contains("LUC BAO") || rankUpper.Contains("EMERALD"))
+        else if (rankNormalized.Contains("TINH ANH") ||
+                 rankNormalized.Contains("LUC BAO") ||
+                 rankUpper.Contains("EMERALD"))
         {
             bgColor = "#064E3B";
             fgColor = "#34D399";
+            rankIconAsset = "tinh-anh.png";
             rankIcon = "💚";
         }
         else if (rankNormalized.Contains("KIM CUONG") || rankUpper.Contains("DIAMOND"))
         {
             bgColor = "#312E81";
             fgColor = "#C7D2FE";
+            rankIconAsset = "kim-cuong.png";
             rankIcon = "💎";
             shouldPulse = true;
         }
@@ -325,6 +341,7 @@ public partial class MainWindow : Window
         {
             bgColor = "#7F1D1D";
             fgColor = "#FCA5A5";
+            rankIconAsset = "dai-cao-thu.png";
             rankIcon = "🛡️";
             shouldPulse = true;
         }
@@ -332,13 +349,17 @@ public partial class MainWindow : Window
         {
             bgColor = "#701A75";
             fgColor = "#F0ABFC";
+            rankIconAsset = "cao-thu.png";
             rankIcon = "👑";
             shouldPulse = true;
         }
-        else if (rankNormalized.Contains("THACH DAU") || rankUpper.Contains("CHALLENGER"))
+        else if (rankNormalized.Contains("THACH DAU") ||
+                 rankCompact.Contains("THACHDAU") ||
+                 rankUpper.Contains("CHALLENGER"))
         {
             bgColor = "#1E3A8A";
             fgColor = "#FDE047";
+            rankIconAsset = "thach-dau.png";
             rankIcon = "🏆";
             shouldPulse = true;
         }
@@ -350,20 +371,82 @@ public partial class MainWindow : Window
         }
 
         var bc = new BrushConverter();
-        var fgBrush = (Brush)bc.ConvertFromString(fgColor)!;
-        MemberRankBorder.Background = (Brush)bc.ConvertFromString(bgColor)!;
-        MemberRankBorder.BorderBrush = fgBrush;
-        MemberRankTextBlock.Foreground = fgBrush;
-        MemberRankIconTextBlock.Foreground = fgBrush;
-        MemberRankIconTextBlock.Text = rankIcon;
+        var rankAccentBrush = (Brush)bc.ConvertFromString(fgColor)!;
+        MemberRankBorder.Background = Brushes.Transparent;
+        MemberRankBorder.BorderBrush = Brushes.Transparent;
+        MemberRankTextBlock.Foreground = rankAccentBrush;
+        MemberRankIconTextBlock.Foreground = rankAccentBrush;
+        MemberRankIconBadgeBorder.Background = Brushes.Transparent;
+        MemberRankIconBadgeBorder.BorderBrush = (Brush)bc.ConvertFromString(bgColor)!;
+        ApplyRankIcon(rankIconAsset, rankIcon);
         if (MemberRankBorder.Effect is DropShadowEffect glow)
         {
             var glowColor = (Color)ColorConverter.ConvertFromString(fgColor);
-            glowColor.A = 180;
+            glowColor.A = 120;
             glow.Color = glowColor;
         }
         ApplyRankPulseAnimation(shouldPulse);
         UpdateUsageUi();
+    }
+
+    private void ApplyRankIcon(string? iconAssetName, string fallbackIcon)
+    {
+        MemberRankIconTextBlock.Text = fallbackIcon;
+        MemberRankIconTextBlock.Visibility = Visibility.Visible;
+
+        if (MemberRankIconImage is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(iconAssetName))
+        {
+            MemberRankIconImage.Source = null;
+            MemberRankIconImage.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var iconSource = ResolveRankIconSource(iconAssetName);
+        if (iconSource is null)
+        {
+            MemberRankIconImage.Source = null;
+            MemberRankIconImage.Visibility = Visibility.Collapsed;
+            MemberRankIconTextBlock.Visibility = Visibility.Visible;
+            return;
+        }
+
+        MemberRankIconImage.Source = iconSource;
+        MemberRankIconImage.Visibility = Visibility.Visible;
+        MemberRankIconTextBlock.Visibility = Visibility.Collapsed;
+    }
+
+    private static ImageSource? ResolveRankIconSource(string iconAssetName)
+    {
+        try
+        {
+            var packUri = new Uri($"pack://application:,,,/Assets/{iconAssetName}", UriKind.Absolute);
+            return new BitmapImage(packUri);
+        }
+        catch
+        {
+            // fall through to file-based loading
+        }
+
+        try
+        {
+            var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", iconAssetName);
+            if (!File.Exists(iconPath))
+            {
+                return null;
+            }
+
+            var fileUri = new Uri(iconPath, UriKind.Absolute);
+            return new BitmapImage(fileUri);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private void ApplyRankPulseAnimation(bool shouldPulse)
@@ -404,7 +487,11 @@ public partial class MainWindow : Window
             }
         }
 
-        return sb.ToString().Normalize(NormalizationForm.FormC).ToUpperInvariant();
+        var folded = sb.ToString()
+            .Normalize(NormalizationForm.FormC)
+            .Replace('\u0110', 'D')
+            .Replace('\u0111', 'd');
+        return folded.ToUpperInvariant();
     }
 
     private void SetLogoutActionVisible(bool visible)

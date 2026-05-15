@@ -10,7 +10,7 @@ async function run() {
 
     const categories = [
         'Sắt', 'Đồng', 'Bạc', 'Vàng', 'Bạch Kim', 
-        'Lục Bảo', 'Kim Cương', 'Cao Thủ', 'Đại Cao Thủ', 'Thách Đấu'
+        'Tinh Anh', 'Kim Cương', 'Cao Thủ', 'Đại Cao Thủ', 'Thách Đấu'
     ];
     const tiersPerCategory = 10;
     const totalRanks = categories.length * tiersPerCategory; // 100
