@@ -200,12 +200,12 @@ public partial class App : Application
         _readyAutoShutdownTimer.Start();
         _ = RefreshClientRuntimeSettingsAsync();
 
-        _webFilterSyncTimer.Interval = TimeSpan.FromSeconds(90);
+        _webFilterSyncTimer.Interval = TimeSpan.FromSeconds(180);
         _webFilterSyncTimer.Tick += WebFilterSyncTimer_Tick;
         _webFilterSyncTimer.Start();
         _ = RefreshAndApplyWebFilterAsync(true);
 
-        _websiteLogSyncTimer.Interval = TimeSpan.FromSeconds(60);
+        _websiteLogSyncTimer.Interval = TimeSpan.FromSeconds(180);
         _websiteLogSyncTimer.Tick += WebsiteLogSyncTimer_Tick;
         _websiteLogSyncTimer.Start();
         _ = SyncWebsiteLogsAsync(true);
@@ -214,7 +214,7 @@ public partial class App : Application
         _memberUsageSyncTimer.Tick += MemberUsageSyncTimer_Tick;
         _memberUsageSyncTimer.Start();
 
-        _serviceCostSyncTimer.Interval = TimeSpan.FromSeconds(12);
+        _serviceCostSyncTimer.Interval = TimeSpan.FromSeconds(30);
         _serviceCostSyncTimer.Tick += ServiceCostSyncTimer_Tick;
         _serviceCostSyncTimer.Start();
         _ = RefreshServiceCostUiAsync(force: true);
@@ -1035,7 +1035,17 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             return;
         }
 
-        if (!force && (DateTime.UtcNow - _lastServiceCostRefreshUtc).TotalSeconds < 8)
+        if (!force)
+        {
+            var stateCode = (_currentMachineState ?? string.Empty).Trim().ToUpperInvariant();
+            var hasActiveUsageSession = _activeMemberSession is not null || _isPostpaidGuestSession;
+            if (stateCode is not "IN_USE" || !hasActiveUsageSession)
+            {
+                return;
+            }
+        }
+
+        if (!force && (DateTime.UtcNow - _lastServiceCostRefreshUtc).TotalSeconds < 25)
         {
             return;
         }
@@ -3229,6 +3239,9 @@ public async void OpenLoyaltyPanelFromClientUi()
             }
 
             _websiteLogEnabled = settings.Enabled;
+            _websiteLogSyncTimer.Interval = _websiteLogEnabled
+                ? TimeSpan.FromSeconds(180)
+                : TimeSpan.FromMinutes(5);
             if (!_websiteLogEnabled)
             {
                 return;
@@ -3322,7 +3335,7 @@ public async void OpenLoyaltyPanelFromClientUi()
         bool force = false)
     {
         var now = DateTime.UtcNow;
-        if (!force && (now - _lastWebsiteLogSettingsFetchUtc).TotalSeconds < 60)
+        if (!force && (now - _lastWebsiteLogSettingsFetchUtc).TotalSeconds < 300)
         {
             return new WebsiteLogSettingsResponse
             {
