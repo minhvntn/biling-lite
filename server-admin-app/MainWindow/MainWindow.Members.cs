@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -147,9 +147,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            var response = await _httpClient.GetFromJsonAsync<MemberTransactionsResponse>(
-                BuildApiUrl($"/members/{memberId}/transactions"),
-                JsonOptions());
+            var response = await GetMemberTransactionsAsync(memberId);
 
             if (response is null)
             {
@@ -157,7 +155,11 @@ public partial class MainWindow : Window
             }
 
             _memberTransactionRows.Clear();
-            foreach (var tx in response.Items.Select(ToMemberTransactionRow))
+            var filteredItems = response.Items
+                .Where(x => string.IsNullOrEmpty(x.Note) || !x.Note.StartsWith("SESSION_USAGE"))
+                .Select(ToMemberTransactionRow);
+
+            foreach (var tx in filteredItems)
             {
                 _memberTransactionRows.Add(tx);
             }
@@ -171,28 +173,20 @@ public partial class MainWindow : Window
         }
     }
 
-    private static MemberTransactionRow ToMemberTransactionRow(MemberTransactionItem item)
+    private async Task<MemberTransactionsResponse?> GetMemberTransactionsAsync(string memberId)
     {
-        var typeText = item.Type switch
-        {
-            "TOPUP" => "N\u1ea1p ti\u1ec1n",
-            "BUY_PLAYTIME" => "Mua gi\u1edd",
-            _ => "\u0110i\u1ec1u ch\u1ec9nh",
-        };
-
-        return new MemberTransactionRow
-        {
-            CreatedAtText = FormatDateTime(item.CreatedAt),
-            TypeText = typeText,
-            AmountDeltaText = item.AmountDelta.ToString("N0", CultureInfo.InvariantCulture),
-            PlayHoursDeltaText = (item.PlaySecondsDelta / 3600.0).ToString("0.##", CultureInfo.InvariantCulture),
-            CreatedBy = item.CreatedBy,
-            Note = string.IsNullOrWhiteSpace(item.Note) ? "-" : item.Note,
-        };
+        return await _httpClient.GetFromJsonAsync<MemberTransactionsResponse>(
+            BuildApiUrl($"/members/{memberId}/transactions"),
+            JsonOptions());
     }
 
-    private async Task CreateMemberAsync()
+    private async Task<SystemEventsResponse?> GetSystemEventsAsync(int limit = 500)
     {
+        var safeLimit = Math.Clamp(limit, 20, 500);
+        return await _httpClient.GetFromJsonAsync<SystemEventsResponse>(
+            BuildApiUrl($"/reports/events/system?limit={safeLimit}"),
+            JsonOptions());
+    }
         var username = MemberUsernameTextBox.Text.Trim();
         var password = MemberPasswordBox.Password;
         var phone = MemberPhoneTextBox.Text.Trim();
@@ -894,10 +888,416 @@ public partial class MainWindow : Window
     private async void ContextRefundMemberMenuItem_Click(object sender, RoutedEventArgs e) => await AdjustMemberBalanceAsync(true);
     private async void ContextGiftMemberMenuItem_Click(object sender, RoutedEventArgs e) => await AdjustMemberBalanceAsync(false);
     private async void ContextTransferMemberMenuItem_Click(object sender, RoutedEventArgs e) => await TransferMemberBalanceAsync();
+    private async void ContextMemberTransactionsMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var selectedMember =
+            MembersDataGrid.SelectedItem as MemberRow ??
+            _memberRows.FirstOrDefault(x => string.Equals(x.Id, _selectedMemberId, StringComparison.OrdinalIgnoreCase));
+
+        if (selectedMember is null)
+        {
+            MessageBox.Show(I18n.PleaseSelectMember, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        await OpenMemberTransactionsDialogAsync(selectedMember);
+    }
+
+    private async void ContextMemberUsageLogsMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var selectedMember =
+            MembersDataGrid.SelectedItem as MemberRow ??
+            _memberRows.FirstOrDefault(x => string.Equals(x.Id, _selectedMemberId, StringComparison.OrdinalIgnoreCase));
+
+        if (selectedMember is null)
+        {
+            MessageBox.Show(I18n.PleaseSelectMember, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        await OpenMemberUsageLogsDialogAsync(selectedMember);
+    }
 
     private async void CreateMemberConfirmButton_Click(object sender, RoutedEventArgs e) => await CreateMemberAsync();
 
     private void CancelMemberModalButton_Click(object sender, RoutedEventArgs e) => HideAddMemberModal();
+
+    private async Task OpenMemberTransactionsDialogAsync(MemberRow member)
+    {
+        MemberTransactionsResponse? response;
+        try
+        {
+            response = await GetMemberTransactionsAsync(member.Id);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Không thể tải nhật ký giao dịch: {ex.Message}",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        if (response is null)
+        {
+            MessageBox.Show(
+                "Không tải được dữ liệu giao dịch của hội viên.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var transactionRows = response.Items
+            .Where(x => string.IsNullOrEmpty(x.Note) || !x.Note.StartsWith("SESSION_USAGE"))
+            .Select(ToMemberTransactionRow)
+            .ToList();
+
+        var dialog = new Window
+        {
+            Title = $"Nhật ký giao dịch - {member.Username}",
+            Width = 920,
+            Height = 580,
+            MinWidth = 760,
+            MinHeight = 420,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ResizeMode = ResizeMode.CanResize,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+            ShowInTaskbar = false,
+            Owner = this,
+        };
+
+        var root = new Grid { Margin = new Thickness(12) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var headerTextBlock = new TextBlock
+        {
+            Text = $"Hội viên: {response.Member.Username} | Số dư: {response.Member.Balance:N0} VND | Giờ chơi: {response.Member.PlayHours:0.##} | Điểm: {response.Member.AvailablePoints}",
+            FontWeight = FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 6),
+        };
+        Grid.SetRow(headerTextBlock, 0);
+        root.Children.Add(headerTextBlock);
+
+        var summaryTextBlock = new TextBlock
+        {
+            Text = $"Tổng giao dịch: {transactionRows.Count}",
+            Foreground = Brushes.DimGray,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        Grid.SetRow(summaryTextBlock, 1);
+        root.Children.Add(summaryTextBlock);
+
+        var transactionsGrid = new DataGrid
+        {
+            AutoGenerateColumns = false,
+            IsReadOnly = true,
+            CanUserAddRows = false,
+            HeadersVisibility = DataGridHeadersVisibility.Column,
+            GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+            RowHeaderWidth = 0,
+            AlternationCount = 2,
+            ItemsSource = transactionRows,
+        };
+        transactionsGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Thời gian",
+            Width = 170,
+            Binding = new System.Windows.Data.Binding(nameof(MemberTransactionRow.CreatedAtText)),
+        });
+        transactionsGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Loại",
+            Width = 120,
+            Binding = new System.Windows.Data.Binding(nameof(MemberTransactionRow.TypeText)),
+        });
+        transactionsGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Tiền thay đổi",
+            Width = 140,
+            Binding = new System.Windows.Data.Binding(nameof(MemberTransactionRow.AmountDeltaText)),
+        });
+        transactionsGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Giờ thay đổi",
+            Width = 120,
+            Binding = new System.Windows.Data.Binding(nameof(MemberTransactionRow.PlayHoursDeltaText)),
+        });
+        transactionsGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Người tạo",
+            Width = 130,
+            Binding = new System.Windows.Data.Binding(nameof(MemberTransactionRow.CreatedBy)),
+        });
+        transactionsGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Ghi chú",
+            Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+            Binding = new System.Windows.Data.Binding(nameof(MemberTransactionRow.Note)),
+        });
+        Grid.SetRow(transactionsGrid, 2);
+        root.Children.Add(transactionsGrid);
+
+        var closeButton = new Button
+        {
+            Content = "Đóng",
+            Width = 96,
+            Height = 34,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            IsDefault = true,
+            Margin = new Thickness(0, 10, 0, 0),
+        };
+        closeButton.Click += (_, _) => dialog.Close();
+        Grid.SetRow(closeButton, 3);
+        root.Children.Add(closeButton);
+
+        dialog.Content = root;
+        _ = dialog.ShowDialog();
+    }
+
+    private async Task OpenMemberUsageLogsDialogAsync(MemberRow member)
+    {
+        SystemEventsResponse? response;
+        try
+        {
+            response = await GetSystemEventsAsync(500);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Không thể tải nhật ký sử dụng máy: {ex.Message}",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        if (response is null)
+        {
+            MessageBox.Show(
+                "Không tải được dữ liệu nhật ký sử dụng máy.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var usageRows = response.Items
+            .Select(item => TryMapMemberUsageLogRow(item, member))
+            .Where(x => x is not null)
+            .Select(x => x!)
+            .OrderByDescending(x => x.SortAt)
+            .ToList();
+
+        var dialog = new Window
+        {
+            Title = $"Nhật ký sử dụng máy - {member.Username}",
+            Width = 980,
+            Height = 600,
+            MinWidth = 820,
+            MinHeight = 440,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ResizeMode = ResizeMode.CanResize,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+            ShowInTaskbar = false,
+            Owner = this,
+        };
+
+        var root = new Grid { Margin = new Thickness(12) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var headerTextBlock = new TextBlock
+        {
+            Text = $"Hội viên: {member.Username} | Số dư: {member.BalanceRaw:N0} VND | Giờ chơi còn: {member.PlayHoursRaw:0.##}",
+            FontWeight = FontWeights.SemiBold,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 6),
+        };
+        Grid.SetRow(headerTextBlock, 0);
+        root.Children.Add(headerTextBlock);
+
+        var summaryTextBlock = new TextBlock
+        {
+            Text = $"Tổng sự kiện sử dụng máy: {usageRows.Count} (lọc từ tối đa 500 log gần nhất)",
+            Foreground = Brushes.DimGray,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        Grid.SetRow(summaryTextBlock, 1);
+        root.Children.Add(summaryTextBlock);
+
+        var usageGrid = new DataGrid
+        {
+            AutoGenerateColumns = false,
+            IsReadOnly = true,
+            CanUserAddRows = false,
+            HeadersVisibility = DataGridHeadersVisibility.Column,
+            GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+            RowHeaderWidth = 0,
+            AlternationCount = 2,
+            ItemsSource = usageRows,
+        };
+        usageGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Thời gian",
+            Width = 170,
+            Binding = new System.Windows.Data.Binding(nameof(MemberUsageLogRow.CreatedAtText)),
+        });
+        usageGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Trạng thái",
+            Width = 110,
+            Binding = new System.Windows.Data.Binding(nameof(MemberUsageLogRow.StatusText)),
+        });
+        usageGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Máy",
+            Width = 220,
+            Binding = new System.Windows.Data.Binding(nameof(MemberUsageLogRow.PcText)),
+        });
+        usageGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Nguồn",
+            Width = 100,
+            Binding = new System.Windows.Data.Binding(nameof(MemberUsageLogRow.SourceText)),
+        });
+        usageGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Chi tiết",
+            Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+            Binding = new System.Windows.Data.Binding(nameof(MemberUsageLogRow.Details)),
+        });
+        Grid.SetRow(usageGrid, 2);
+        root.Children.Add(usageGrid);
+
+        var closeButton = new Button
+        {
+            Content = "Đóng",
+            Width = 96,
+            Height = 34,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            IsDefault = true,
+            Margin = new Thickness(0, 10, 0, 0),
+        };
+        closeButton.Click += (_, _) => dialog.Close();
+        Grid.SetRow(closeButton, 3);
+        root.Children.Add(closeButton);
+
+        dialog.Content = root;
+        _ = dialog.ShowDialog();
+    }
+
+    private static MemberUsageLogRow? TryMapMemberUsageLogRow(SystemEventItem item, MemberRow member)
+    {
+        if (!string.Equals(item.EventType, "member.pc.presence", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (item.Payload is not JsonElement json || json.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var payloadMemberId = ReadUsageJsonString(json, "memberId");
+        var payloadUsername = ReadUsageJsonString(json, "username");
+        var matchedByMemberId = !string.IsNullOrWhiteSpace(payloadMemberId) &&
+            string.Equals(payloadMemberId, member.Id, StringComparison.OrdinalIgnoreCase);
+        var matchedByUsername = !string.IsNullOrWhiteSpace(payloadUsername) &&
+            string.Equals(payloadUsername, member.Username, StringComparison.OrdinalIgnoreCase);
+        if (!matchedByMemberId && !matchedByUsername)
+        {
+            return null;
+        }
+
+        var fullName = ReadUsageJsonString(json, "fullName");
+        var transferredFromPcId = ReadUsageJsonString(json, "transferredFromPcId");
+        var transferredToPcId = ReadUsageJsonString(json, "transferredToPcId");
+        var isActive = ReadUsageJsonBool(json, "isActive");
+
+        var detailsParts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(fullName))
+        {
+            detailsParts.Add($"Tên đầy đủ: {fullName}");
+        }
+        if (!string.IsNullOrWhiteSpace(transferredFromPcId))
+        {
+            detailsParts.Add($"Chuyển từ máy ID: {transferredFromPcId}");
+        }
+        if (!string.IsNullOrWhiteSpace(transferredToPcId))
+        {
+            detailsParts.Add($"Chuyển sang máy ID: {transferredToPcId}");
+        }
+
+        var details = detailsParts.Count == 0 ? "-" : string.Join(" | ", detailsParts);
+
+        return new MemberUsageLogRow
+        {
+            SortAt = ParseDateLocal(item.CreatedAt) ?? DateTime.MinValue,
+            CreatedAtText = FormatDateTime(item.CreatedAt),
+            StatusText = isActive ? "Đăng nhập" : "Đăng xuất",
+            PcText = BuildMemberUsagePcText(item),
+            SourceText = string.IsNullOrWhiteSpace(item.Source) ? "-" : item.Source,
+            Details = details,
+        };
+    }
+
+    private static string BuildMemberUsagePcText(SystemEventItem item)
+    {
+        if (string.IsNullOrWhiteSpace(item.PcName) && string.IsNullOrWhiteSpace(item.AgentId))
+        {
+            return "-";
+        }
+
+        if (string.IsNullOrWhiteSpace(item.AgentId))
+        {
+            return item.PcName ?? "-";
+        }
+
+        if (string.IsNullOrWhiteSpace(item.PcName))
+        {
+            return item.AgentId ?? "-";
+        }
+
+        return $"{item.PcName} ({item.AgentId})";
+    }
+
+    private static string ReadUsageJsonString(JsonElement json, string key)
+    {
+        if (!json.TryGetProperty(key, out var prop) || prop.ValueKind != JsonValueKind.String)
+        {
+            return string.Empty;
+        }
+
+        return prop.GetString()?.Trim() ?? string.Empty;
+    }
+
+    private static bool ReadUsageJsonBool(JsonElement json, string key)
+    {
+        if (!json.TryGetProperty(key, out var prop))
+        {
+            return false;
+        }
+
+        if (prop.ValueKind == JsonValueKind.True || prop.ValueKind == JsonValueKind.False)
+        {
+            return prop.GetBoolean();
+        }
+
+        if (prop.ValueKind == JsonValueKind.String && bool.TryParse(prop.GetString(), out var parsed))
+        {
+            return parsed;
+        }
+
+        return false;
+    }
 
     private async Task OpenEditMemberDialogAsync(MemberRow member)
     {
@@ -1623,6 +2023,16 @@ public partial class MainWindow : Window
 
         amount = 0;
         return false;
+    }
+
+    private sealed class MemberUsageLogRow
+    {
+        public DateTime SortAt { get; init; } = DateTime.MinValue;
+        public string CreatedAtText { get; init; } = "-";
+        public string StatusText { get; init; } = "-";
+        public string PcText { get; init; } = "-";
+        public string SourceText { get; init; } = "-";
+        public string Details { get; init; } = "-";
     }
 }
 

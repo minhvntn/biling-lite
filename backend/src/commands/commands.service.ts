@@ -966,6 +966,103 @@ export class CommandsService {
       return noOp;
     }
 
+    if (type === CommandType.LOCK && connectedSockets <= 0 && activeSession) {
+      const offlineCheckout = await this.prisma.$transaction(async (tx) => {
+        const existingPc = await tx.pc.findUnique({ where: { id: targetPcId } });
+        const command = await tx.command.create({
+          data: {
+            pcId: targetPcId,
+            type,
+            status: CommandStatus.ACK_SUCCESS,
+            requestedBy: requestedBy?.trim() || 'admin.local',
+            ackAt: new Date(),
+          },
+          include: { pc: true },
+        });
+
+        const closedSession = await this.closeActiveSessionTx(
+          tx,
+          targetPcId,
+          'ADMIN_LOCK',
+          true,
+        );
+
+        if (!existingPc || existingPc.status === PcStatus.LOCKED) {
+          return {
+            command,
+            closedSession,
+            statusTransition: null as
+              | { pcId: string; agentId: string; previousStatus: PcStatus; status: PcStatus }
+              | null,
+          };
+        }
+
+        const updatedPc = await tx.pc.update({
+          where: { id: existingPc.id },
+          data: { status: PcStatus.LOCKED },
+        });
+
+        return {
+          command,
+          closedSession,
+          statusTransition: {
+            pcId: updatedPc.id,
+            agentId: updatedPc.agentId,
+            previousStatus: existingPc.status,
+            status: updatedPc.status,
+          },
+        };
+      });
+
+      this.broadcastCommandUpdated(offlineCheckout.command);
+      await this.logEvent(
+        EventSource.SERVER,
+        'command.noop.lock_offline_checkout',
+        targetPcId,
+        {
+          commandId: offlineCheckout.command.id,
+          requestedPcId: requestedPc.id,
+          targetPcId,
+        },
+      );
+
+      if (offlineCheckout.statusTransition) {
+        this.realtime.emitToAll('pc.status.changed', {
+          ...offlineCheckout.statusTransition,
+          at: new Date().toISOString(),
+          sourceEvent: 'command.lock.offline_checkout',
+        });
+        await this.logEvent(EventSource.SERVER, 'pc.status.changed', targetPcId, {
+          previousStatus: offlineCheckout.statusTransition.previousStatus,
+          status: offlineCheckout.statusTransition.status,
+          sourceEvent: 'command.lock.offline_checkout',
+        });
+      }
+
+      if (offlineCheckout.closedSession) {
+        await this.logEvent(EventSource.SERVER, 'session.closed', targetPcId, {
+          sessionId: offlineCheckout.closedSession.sessionId,
+          amount: offlineCheckout.closedSession.amount,
+          billableMinutes: offlineCheckout.closedSession.billableMinutes,
+          sourceEvent: 'command.lock.offline_checkout',
+        });
+      }
+
+      await this.logEvent(EventSource.SERVER, 'guest.pc.presence', targetPcId, {
+        isActive: false,
+        at: new Date().toISOString(),
+      });
+      await this.logEvent(EventSource.SERVER, 'admin.pc.presence', targetPcId, {
+        isActive: false,
+        at: new Date().toISOString(),
+      });
+      await this.logEvent(EventSource.SERVER, 'member.pc.presence', targetPcId, {
+        isActive: false,
+        at: new Date().toISOString(),
+      });
+      return offlineCheckout.command;
+    }
+
     const command = await this.prisma.command.create({
       data: {
         pcId: targetPcId,
@@ -1440,6 +1537,14 @@ export class CommandsService {
         pcId,
         status: 'ACTIVE',
       },
+      include: {
+        pc: {
+          select: {
+            status: true,
+            lastSeenAt: true,
+          },
+        },
+      },
       orderBy: { startedAt: 'desc' },
     });
 
@@ -1456,7 +1561,16 @@ export class CommandsService {
     const pricingStep = pricingStepSetting ? Number(pricingStepSetting.value) : 1000;
     const minimumCharge = minimumChargeSetting ? Number(minimumChargeSetting.value) : 1000;
 
-    const endedAt = new Date();
+    const now = new Date();
+    const endedAt =
+      activeSession.pc.status === PcStatus.OFFLINE && activeSession.pc.lastSeenAt
+        ? new Date(
+            Math.max(
+              activeSession.startedAt.getTime(),
+              Math.min(now.getTime(), activeSession.pc.lastSeenAt.getTime()),
+            ),
+          )
+        : now;
     const durationSeconds = Math.max(
       0,
       Math.floor((endedAt.getTime() - activeSession.startedAt.getTime()) / 1000),

@@ -253,7 +253,7 @@
                                         <MenuItem Header="Đang tải nhóm máy..." IsEnabled="False" />
                                     </MenuItem>
                                     <Separator />
-                                    <MenuItem x:Name="ContextViewMachineBillingMenuItem" Header="Xem thanh toán..." Click="ContextViewMachineBillingMenuItem_Click" />
+                                    <MenuItem x:Name="ContextViewMachineBillingMenuItem" Header="Thanh toán..." Click="ContextViewMachineBillingMenuItem_Click" />
                                     <Separator />
                                     <MenuItem x:Name="ContextSelectServiceMenuItem" Header="Chọn dịch vụ..." Click="ContextSelectServiceMenuItem_Click" />
                                     <MenuItem x:Name="ContextPayServiceMenuItem" Header="Thanh toán dịch vụ..." Click="ContextPayServiceMenuItem_Click" />
@@ -541,7 +541,7 @@
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#x1F464;" Margin="0,0,6,0" />
-                            <TextBlock Text="Tài khoản" />
+                            <TextBlock Text="Hội viên" />
                         </StackPanel>
                     </TabItem.Header>
                     <Grid Margin="8">
@@ -604,6 +604,8 @@
                                     <MenuItem Header="Nạp tiền" Click="ContextTopupMemberMenuItem_Click" />
                                     <MenuItem Header="Mua giờ" Click="ContextBuyHoursMenuItem_Click" />
                                     <MenuItem Header="Chuyển tiền cho hội viên..." Click="ContextTransferMemberMenuItem_Click" />
+                                    <MenuItem Header="Nhật ký giao dịch..." Click="ContextMemberTransactionsMenuItem_Click" />
+                                    <MenuItem Header="Nhật ký sử dụng máy..." Click="ContextMemberUsageLogsMenuItem_Click" />
                                     <Separator />
                                     <MenuItem Header="Tiền trả lại" Click="ContextRefundMemberMenuItem_Click" />
                                     <MenuItem Header="Tặng tiền miễn phí" Click="ContextGiftMemberMenuItem_Click" />
@@ -1010,10 +1012,9 @@
                     <Grid Margin="8">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="190" />
+                            <RowDefinition Height="0" />
                         </Grid.RowDefinitions>
 
                         <Grid Grid.Row="0" Margin="0,0,0,8">
@@ -1083,6 +1084,7 @@
 
                         <TextBox x:Name="ServiceOutputTextBox"
                                  Grid.Row="3"
+                                 Visibility="Collapsed"
                                  IsReadOnly="True"
                                  VerticalScrollBarVisibility="Auto"
                                  HorizontalScrollBarVisibility="Auto"

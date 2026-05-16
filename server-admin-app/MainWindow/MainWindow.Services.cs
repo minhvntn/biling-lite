@@ -404,10 +404,52 @@ public partial class MainWindow : Window
             return;
         }
 
-        var failedItems = new List<string>();
-        var successCount = 0;
+        var adjustmentLines = orderInput.Lines
+            .Where(x => x.Quantity != 0)
+            .ToList();
+        if (adjustmentLines.Count == 0)
+        {
+            return;
+        }
 
-        foreach (var line in orderInput.Lines)
+        var sessionId = string.IsNullOrWhiteSpace(selectedMachine.ActiveSessionId)
+            ? null
+            : selectedMachine.ActiveSessionId;
+
+        var failedItems = new List<string>();
+        var successActionCount = 0;
+        var totalActionCount = adjustmentLines.Count;
+
+        foreach (var line in adjustmentLines.Where(x => x.Quantity < 0))
+        {
+            var cancelQuantity = Math.Abs(line.Quantity);
+            using var response = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl($"/services/pcs/{selectedMachine.Id}/orders/cancel"),
+                new
+                {
+                    serviceItemId = line.ServiceItemId,
+                    quantity = cancelQuantity,
+                    sessionId,
+                    note = orderInput.Note,
+                    requestedBy = "admin.desktop",
+                });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                failedItems.Add(
+                    string.IsNullOrWhiteSpace(errorBody)
+                        ? $"Hủy {line.ServiceName} ({(int)response.StatusCode})"
+                        : $"Hủy {line.ServiceName}: {errorBody}");
+                continue;
+            }
+
+            successActionCount++;
+            AppendServiceLog(
+                $"[{DateTime.Now:HH:mm:ss}] {selectedMachine.Name}: -{cancelQuantity} x {line.ServiceName} = {Math.Abs(line.LineTotal):N0} VND");
+        }
+
+        foreach (var line in adjustmentLines.Where(x => x.Quantity > 0))
         {
             using var response = await _httpClient.PostAsJsonAsync(
                 BuildApiUrl($"/services/pcs/{selectedMachine.Id}/orders"),
@@ -429,12 +471,12 @@ public partial class MainWindow : Window
                 continue;
             }
 
-            successCount++;
+            successActionCount++;
             AppendServiceLog(
                 $"[{DateTime.Now:HH:mm:ss}] {selectedMachine.Name}: +{line.Quantity} x {line.ServiceName} = {line.LineTotal:N0} VND");
         }
 
-        if (successCount > 0)
+        if (successActionCount > 0)
         {
             InvalidateServiceAmountCacheForMachine(selectedMachine);
             await RefreshMachinesAsync();
@@ -447,7 +489,7 @@ public partial class MainWindow : Window
                 failedItems.Take(8).Select(x => $"- {x}"));
             var hasMore = failedItems.Count > 8 ? $"{Environment.NewLine}... và {failedItems.Count - 8} lỗi khác" : string.Empty;
             MessageBox.Show(
-                $"Thêm dịch vụ thành công {successCount}/{orderInput.Lines.Count}.{Environment.NewLine}{errorPreview}{hasMore}",
+                $"Cập nhật dịch vụ thành công {successActionCount}/{totalActionCount}.{Environment.NewLine}{errorPreview}{hasMore}",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
@@ -963,7 +1005,7 @@ public partial class MainWindow : Window
 
         var instructionText = new TextBlock
         {
-            Text = "Bấm nút - / + để chỉnh số lượng từng dịch vụ (0-999). Thông tin dịch vụ đã gọi trước hiển thị ở panel bên trái.",
+            Text = "Bấm + để thêm mới và bấm - để hủy dịch vụ đã gọi trước (tối đa bằng số đã gọi chưa thanh toán).",
             Foreground = Brushes.DimGray,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 8),
@@ -1192,7 +1234,7 @@ public partial class MainWindow : Window
         };
         var addButton = new Button
         {
-            Content = "Thêm vào máy",
+            Content = "Cập nhật máy",
             Width = 140,
             Height = 34,
             FontWeight = FontWeights.SemiBold,
@@ -1223,13 +1265,17 @@ public partial class MainWindow : Window
 
         void RefreshSummary()
         {
-            var selectedRows = selectionRows.Where(x => x.Quantity > 0).ToList();
-            var selectedItemCount = selectedRows.Count;
-            var totalQuantity = selectedRows.Sum(x => x.Quantity);
-            var totalAmount = selectedRows.Sum(x => x.LineTotal);
+            var selectedRows = selectionRows.Where(x => x.Quantity != 0).ToList();
+            var addedRows = selectedRows.Where(x => x.Quantity > 0).ToList();
+            var canceledRows = selectedRows.Where(x => x.Quantity < 0).ToList();
+            var addedQuantity = addedRows.Sum(x => x.Quantity);
+            var canceledQuantity = canceledRows.Sum(x => Math.Abs(x.Quantity));
+            var addedAmount = addedRows.Sum(x => x.LineTotal);
+            var canceledAmount = canceledRows.Sum(x => Math.Abs(x.LineTotal));
+            var netAmount = addedAmount - canceledAmount;
 
             summaryTextBlock.Text =
-                $"Đã chọn {selectedItemCount} món | Tổng SL: {totalQuantity} | Tổng tạm tính: {totalAmount:N0} VND";
+                $"Thêm: {addedRows.Count} món/{addedQuantity} SL/{addedAmount:N0} VND | Hủy: {canceledRows.Count} món/{canceledQuantity} SL/{canceledAmount:N0} VND | Chênh lệch: {netAmount:N0} VND";
         }
 
         void RowPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -1250,7 +1296,7 @@ public partial class MainWindow : Window
             errorTextBlock.Text = string.Empty;
 
             var selectedRows = selectionRows
-                .Where(x => x.Quantity > 0)
+                .Where(x => x.Quantity != 0)
                 .Select(x => new ServiceOrderLineInput
                 {
                     ServiceItemId = x.ServiceItemId,
@@ -1263,7 +1309,7 @@ public partial class MainWindow : Window
 
             if (selectedRows.Count == 0)
             {
-                errorTextBlock.Text = "Vui lòng bấm + để chọn ít nhất 1 dịch vụ.";
+                errorTextBlock.Text = "Vui lòng bấm + hoặc - để thêm/hủy ít nhất 1 dịch vụ.";
                 return;
             }
 
@@ -1347,6 +1393,7 @@ public partial class MainWindow : Window
     private sealed class ServiceOrderSelectionRow : INotifyPropertyChanged
     {
         private int _quantity;
+        private int MinQuantity => -Math.Max(0, PreviouslyOrderedQuantity);
 
         public string ServiceItemId { get; init; } = string.Empty;
         public string ServiceName { get; init; } = string.Empty;
@@ -1365,7 +1412,7 @@ public partial class MainWindow : Window
             get => _quantity;
             set
             {
-                var clamped = Math.Clamp(value, 0, 999);
+                var clamped = Math.Clamp(value, MinQuantity, 999);
                 if (_quantity == clamped)
                 {
                     return;
@@ -1407,7 +1454,7 @@ public partial class MainWindow : Window
 
         public void DecreaseQuantity()
         {
-            Quantity = Math.Max(0, Quantity - 1);
+            Quantity = Math.Max(MinQuantity, Quantity - 1);
         }
 
         private void NotifyQuantityChanged()

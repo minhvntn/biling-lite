@@ -129,10 +129,16 @@ export class PcsService {
           activeUser?.kind === 'GUEST' ? activeUser.guest : null;
         const activeAdmin =
           activeUser?.kind === 'ADMIN' ? activeUser.admin : null;
+        const sessionClockAtMs =
+          pc.status === PcStatus.OFFLINE && pc.lastSeenAt
+            ? Math.min(now, pc.lastSeenAt.getTime())
+            : now;
         const elapsedSeconds = activeSession
           ? Math.max(
               0,
-              Math.floor((now - activeSession.startedAt.getTime()) / 1000),
+              Math.floor(
+                (sessionClockAtMs - activeSession.startedAt.getTime()) / 1000,
+              ),
             )
           : 0;
         const billableMinutes = activeSession

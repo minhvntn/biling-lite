@@ -123,13 +123,19 @@ public partial class MainWindow : Window
     {
         var now = DateTime.Now;
         var activeAdmin = item.ActiveAdmin;
+        var activeMember = item.ActiveMember;
+        var activeGuest = item.ActiveGuest;
         var isAdminSession = item.Status == "IN_USE" && activeAdmin is not null;
+        var hasUnpaidGuestSession =
+            item.Status == "OFFLINE" &&
+            item.ActiveSession is not null &&
+            activeMember is null;
         var statusText = item.Status switch
         {
             "IN_USE" => isAdminSession ? "Admin đăng nhập" : I18n.StatusInUse,
             "LOCKED" => I18n.StatusLocked,
             "ONLINE" => I18n.StatusReady,
-            "OFFLINE" => I18n.StatusLocked,
+            "OFFLINE" => hasUnpaidGuestSession ? "Chưa thanh toán" : I18n.StatusLocked,
             _ => "Offline",
         };
 
@@ -144,8 +150,6 @@ public partial class MainWindow : Window
 
         var startedAt = ParseDateLocal(item.ActiveSession?.StartedAt);
         var usedText = item.ActiveSession is null ? "-" : FormatUsed(item.ActiveSession.ElapsedSeconds);
-        var activeMember = item.ActiveMember;
-        var activeGuest = item.ActiveGuest;
 
         var statusIconBrush = Brushes.Gray;
         var statusIconPath = "/Assets/pc-default.svg";
@@ -188,7 +192,7 @@ public partial class MainWindow : Window
         {
             statusIconBrush = Brushes.Crimson;
             statusIconPath = "/Assets/pc-offline.svg";
-            statusIconToolTip = "Đang tắt";
+            statusIconToolTip = hasUnpaidGuestSession ? "Chưa thanh toán" : "Đang tắt";
         }
         var isGuestSession = activeMember is null && activeGuest is not null;
         var guestMachineLabel = string.IsNullOrWhiteSpace(item.Name)
@@ -799,6 +803,13 @@ public partial class MainWindow : Window
 
                 await ShowMachineBillingDetailsAsync(selected);
                 return;
+
+            case "OFFLINE":
+                if (IsGuestBillingEligibleMachine(selected))
+                {
+                    await ShowMachineBillingDetailsAsync(selected);
+                }
+                return;
         }
     }
 
@@ -930,6 +941,10 @@ public partial class MainWindow : Window
             !string.IsNullOrWhiteSpace(selectedMachine.ActiveMemberId) ||
             !string.IsNullOrWhiteSpace(selectedMachine.ActiveMemberUsername);
         var hasReadyMachines = _allMachineRows.Any(IsReadyMachineStatus);
+        var hasTransferTargets = _allMachineRows.Any(x =>
+            IsReadyMachineStatus(x) &&
+            !string.Equals(x.Id, selectedMachine.Id, StringComparison.OrdinalIgnoreCase));
+        var canViewGuestBilling = IsGuestBillingEligibleMachine(selectedMachine);
 
         if (ContextLockMachineMenuItem is not null)
         {
@@ -956,7 +971,7 @@ public partial class MainWindow : Window
                 resume: false,
                 transfer: false,
                 assignGroup: true,
-                viewBilling: false,
+                viewBilling: canViewGuestBilling,
                 selectService: false,
                 payService: false,
                 notify: false);
@@ -977,9 +992,9 @@ public partial class MainWindow : Window
             captureScreenshot: true,
             pause: isInUse,
             resume: isPaused,
-            transfer: isInUse,
+            transfer: isInUse && hasTransferTargets,
             assignGroup: true,
-            viewBilling: isInUse && !hasActiveMember,
+            viewBilling: canViewGuestBilling,
             selectService: true,
             payService: isInUse && selectedMachine.ServiceAmountRaw > 0,
             notify: true);
@@ -2162,7 +2177,7 @@ public partial class MainWindow : Window
         if (eligibleMachines.Count == 0)
         {
             MessageBox.Show(
-                "Chỉ tính tiền cho máy đang Đang sử dụng bởi khách vãng lai (không phải hội viên).",
+                "Chỉ thanh toán cho máy khách vãng lai (đang sử dụng hoặc đã tắt nhưng chưa thanh toán).",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -2172,7 +2187,7 @@ public partial class MainWindow : Window
         if (skippedCount > 0)
         {
             MessageBox.Show(
-                $"Đã bỏ qua {skippedCount} máy hội viên hoặc chưa ở trạng thái Đang sử dụng.\n" +
+                $"Đã bỏ qua {skippedCount} máy hội viên hoặc không thuộc trạng thái cần thanh toán.\n" +
                 $"Sẽ tính tiền cho {eligibleMachines.Count} máy khách vãng lai.",
                 "Server Admin",
                 MessageBoxButton.OK,
@@ -2207,7 +2222,12 @@ public partial class MainWindow : Window
     private static bool IsGuestBillingEligibleMachine(MachineRow machine)
     {
         var status = machine.StatusCode?.Trim().ToUpperInvariant();
-        if (status != "IN_USE")
+        if (status is not ("IN_USE" or "OFFLINE"))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(machine.ActiveSessionId))
         {
             return false;
         }
@@ -2488,7 +2508,7 @@ public partial class MainWindow : Window
         {
             var checkoutButton = new Button
             {
-                Content = "Tính tiền & Khóa máy",
+                Content = "Thanh toán & Khóa máy",
                 Width = 160,
                 Height = 34,
                 Background = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
@@ -2499,7 +2519,7 @@ public partial class MainWindow : Window
             checkoutButton.Click += async (_, _) =>
             {
                 dialog.Close();
-                await SendCommandAsync("lock");
+                await SendCommandAsync("lock", machine);
             };
             buttonPanel.Children.Add(checkoutButton);
         }
@@ -2822,12 +2842,23 @@ public partial class MainWindow : Window
             return;
         }
 
-        var targetPcId = PromptText(
-            "Chuy\u1ec3n m\u00e1y",
-            "Nh\u1eadp PC ID m\u00e1y \u0111\u00edch (id trong h\u1ec7 th\u1ed1ng):",
-            string.Empty);
+        var targetMachines = _allMachineRows
+            .Where(IsReadyMachineStatus)
+            .Where(x => !string.Equals(x.Id, selected.Id, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (targetMachines.Count == 0)
+        {
+            MessageBox.Show(
+                "Kh\u00f4ng c\u00f3 m\u00e1y n\u00e0o \u1edf tr\u1ea1ng th\u00e1i S\u1eb5n s\u00e0ng \u0111\u1ec3 chuy\u1ec3n phi\u00ean.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
 
-        if (string.IsNullOrWhiteSpace(targetPcId))
+        var selectedTarget = ShowTransferMachinePicker(selected, targetMachines);
+        if (selectedTarget is null)
         {
             return;
         }
@@ -2836,7 +2867,7 @@ public partial class MainWindow : Window
         {
             using var response = await _httpClient.PostAsJsonAsync(
                 BuildApiUrl($"/sessions/transfer/{selected.Id}"),
-                new { targetPcId = targetPcId.Trim(), requestedBy = "admin.desktop" });
+                new { targetPcId = selectedTarget.Id, requestedBy = "admin.desktop" });
 
             if (!response.IsSuccessStatusCode)
             {
@@ -2844,7 +2875,8 @@ public partial class MainWindow : Window
                 return;
             }
 
-            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 chuy\u1ec3n phi\u00ean t\u1eeb {selected.Name} sang PC ID {targetPcId}");
+            AppendServiceLog(
+                $"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 chuy\u1ec3n phi\u00ean t\u1eeb {selected.Name} sang {selectedTarget.Name} ({selectedTarget.Id})");
             await RefreshMachinesAsync();
             await RefreshTransactionLogsAsync();
         }
@@ -2852,6 +2884,113 @@ public partial class MainWindow : Window
         {
             MessageBox.Show($"Chuy\u1ec3n m\u00e1y l\u1ed7i: {ex.Message}", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private MachineRow? ShowTransferMachinePicker(
+        MachineRow sourceMachine,
+        IReadOnlyList<MachineRow> targetMachines)
+    {
+        var dialog = new Window
+        {
+            Title = "Chuy\u1ec3n m\u00e1y",
+            Width = 560,
+            Height = 230,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+            ShowInTaskbar = false,
+            Owner = this,
+        };
+
+        var root = new Grid { Margin = new Thickness(12) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var sourceText = new TextBlock
+        {
+            Text = $"M\u00e1y ngu\u1ed3n: {sourceMachine.Name}",
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        Grid.SetRow(sourceText, 0);
+        root.Children.Add(sourceText);
+
+        var label = new TextBlock
+        {
+            Text = "Ch\u1ecdn m\u00e1y \u0111\u00edch (S\u1eb5n s\u00e0ng/Available):",
+            Margin = new Thickness(0, 0, 0, 8),
+        };
+        Grid.SetRow(label, 1);
+        root.Children.Add(label);
+
+        var targetComboBox = new ComboBox
+        {
+            Height = 34,
+            Margin = new Thickness(0, 0, 0, 10),
+            IsTextSearchEnabled = true,
+        };
+
+        foreach (var machine in targetMachines)
+        {
+            targetComboBox.Items.Add(new ComboBoxItem
+            {
+                Content = $"{machine.Name} | {machine.IpAddress} | {machine.GroupName}",
+                Tag = machine,
+            });
+        }
+
+        targetComboBox.SelectedIndex = 0;
+        Grid.SetRow(targetComboBox, 2);
+        root.Children.Add(targetComboBox);
+
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 8, 0, 0),
+        };
+        var saveButton = new Button
+        {
+            Content = "L\u01b0u",
+            Width = 88,
+            Margin = new Thickness(0, 0, 8, 0),
+            IsDefault = true,
+        };
+        var cancelButton = new Button
+        {
+            Content = "H\u1ee7y",
+            Width = 88,
+            IsCancel = true,
+        };
+        buttonPanel.Children.Add(saveButton);
+        buttonPanel.Children.Add(cancelButton);
+        Grid.SetRow(buttonPanel, 3);
+        root.Children.Add(buttonPanel);
+
+        MachineRow? selectedMachine = null;
+        saveButton.Click += (_, _) =>
+        {
+            if (targetComboBox.SelectedItem is not ComboBoxItem selectedItem ||
+                selectedItem.Tag is not MachineRow machine)
+            {
+                MessageBox.Show(
+                    "Vui l\u00f2ng ch\u1ecdn m\u00e1y \u0111\u00edch.",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            selectedMachine = machine;
+            dialog.DialogResult = true;
+            dialog.Close();
+        };
+
+        dialog.Content = root;
+        _ = dialog.ShowDialog();
+        return selectedMachine;
     }
 
     private void PopulateGroupContextMenuForMachine(MachineRow selectedMachine)
@@ -3419,8 +3558,4 @@ public class LatestRunningAppsResponse
     public List<RunningAppItem>? Apps { get; set; }
     public string? Reason { get; set; }
 }
-
-
-
-
 

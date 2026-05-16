@@ -1,4 +1,4 @@
-<Window x:Class="Client.Agent.Wpf.LockScreenWindow"
+﻿<Window x:Class="Client.Agent.Wpf.LockScreenWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Machine Locked"
@@ -151,9 +151,6 @@
                               IsMuted="True"
                               MediaEnded="BackgroundVideoElement_MediaEnded"
                               MediaFailed="BackgroundVideoElement_MediaFailed" />
-                <Grid.Effect>
-                    <BlurEffect Radius="20" />
-                </Grid.Effect>
             </Grid>
             
             <!-- Dark Overlay -->
@@ -162,12 +159,6 @@
 
         <!-- Centered Content Card -->
         <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
-            <!-- Subtle Glow Effect Behind Card - Reduced and auto-sizing -->
-            <Border Width="450" Background="#4F46E5" Opacity="0.1" CornerRadius="100">
-                <Border.Effect>
-                    <BlurEffect Radius="80" />
-                </Border.Effect>
-            </Border>
 
             <Border x:Name="MainContentCard"
                     Width="380"

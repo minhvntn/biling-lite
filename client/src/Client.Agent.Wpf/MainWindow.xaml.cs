@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -50,7 +50,7 @@ public partial class MainWindow : Window
     {
         ConnectionStatusTextBlock.Text = ClientI18n.Get(
             "main.connection.connecting",
-            "Đang kết nối...");
+            "\u0110ang k\u1ebft n\u1ed1i...");
 
         StatusIconTextBlock.Text = ClientI18n.Get("main.status.icon", "⚡");
         StatusTitleTextBlock.Text = ClientI18n.Get("main.status.title", "Trạng thái máy");
@@ -72,22 +72,22 @@ public partial class MainWindow : Window
         LoyaltyIconTextBlock.Text = ClientI18n.Get("main.actions.loyalty.icon", "🎡");
         LoyaltyLabelTextBlock.Text = ClientI18n.Get("main.actions.loyalty.label", "\u0110\u1ed5i \u0111i\u1ec3m");
         TransferIconTextBlock.Text = ClientI18n.Get("main.actions.transfer.icon", "💸");
-        TransferLabelTextBlock.Text = ClientI18n.Get("main.actions.transfer.label", "Chuyển tiền");
+        TransferLabelTextBlock.Text = ClientI18n.Get("main.actions.transfer.label", "Chuy\u1ec3n ti\u1ec1n");
         WithdrawIconTextBlock.Text = ClientI18n.Get("main.actions.withdraw.icon", "💵");
-        WithdrawLabelTextBlock.Text = ClientI18n.Get("main.actions.withdraw.label", "Rút tiền");
+        WithdrawLabelTextBlock.Text = ClientI18n.Get("main.actions.withdraw.label", "R\u00fat ti\u1ec1n");
         TopupRequestIconTextBlock.Text = ClientI18n.Get("main.actions.topup_request.icon", "💳");
-        TopupRequestLabelTextBlock.Text = ClientI18n.Get("main.actions.topup_request.label", "Nạp tiền");
+        TopupRequestLabelTextBlock.Text = ClientI18n.Get("main.actions.topup_request.label", "N\u1ea1p ti\u1ec1n");
         PasswordIconTextBlock.Text = ClientI18n.Get("main.actions.password.icon", "🔑");
-        PasswordLabelTextBlock.Text = ClientI18n.Get("main.actions.password.label", "Đổi mật mã");
+        PasswordLabelTextBlock.Text = ClientI18n.Get("main.actions.password.label", "\u0110\u1ed5i m\u1eadt m\u00e3");
         LogoutIconTextBlock.Text = ClientI18n.Get("main.actions.logout.icon", "🚪");
-        LogoutLabelTextBlock.Text = ClientI18n.Get("main.actions.logout.label", "Đăng xuất");
+        LogoutLabelTextBlock.Text = ClientI18n.Get("main.actions.logout.label", "\u0110\u0103ng xu\u1ea5t");
         LockIconTextBlock.Text = ClientI18n.Get("main.actions.lock.icon", "🔒");
-        LockLabelTextBlock.Text = ClientI18n.Get("main.actions.lock.label", "Khóa máy");
+        LockLabelTextBlock.Text = ClientI18n.Get("main.actions.lock.label", "Kh\u00f3a m\u00e1y");
 
         FooterTitleTextBlock.Text = ClientI18n.Get("main.footer.title", "Loyalty Program");
         FooterDescriptionTextBlock.Text = ClientI18n.Get(
             "main.footer.description",
-            "Tích lũy điểm khi chơi để đổi giờ hoặc quay thưởng hấp dẫn!");
+            "T\u00edch l\u0169y \u0111i\u1ec3m khi ch\u01a1i \u0111\u1ec3 \u0111\u1ed5i gi\u1edd ho\u1eb7c quay th\u01b0\u1edfng h\u1ea5p d\u1eabn!");
         FooterIconTextBlock.Text = ClientI18n.Get("main.footer.icon", "💎");
     }
 
@@ -191,7 +191,7 @@ public partial class MainWindow : Window
 
         if (normalized.StartsWith("Connected", StringComparison.OrdinalIgnoreCase))
         {
-            ConnectionStatusTextBlock.Text = "Đã kết nối";
+            ConnectionStatusTextBlock.Text = "\u0110\u00e3 k\u1ebft n\u1ed1i";
             ConnectionIndicator.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#22C55E"));
             return;
         }
@@ -203,7 +203,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        ConnectionStatusTextBlock.Text = "Mất kết nối";
+        ConnectionStatusTextBlock.Text = "M\u1ea5t k\u1ebft n\u1ed1i";
         ConnectionIndicator.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"));
     }
 
@@ -216,37 +216,37 @@ public partial class MainWindow : Window
         {
             case "IN_USE":
                 ResumeSession();
-                MachineStateTextBlock.Text = "Đang sử dụng";
+                MachineStateTextBlock.Text = "\u0110ang s\u1eed d\u1ee5ng";
                 MachineStateTextBlock.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#059669"));
-                LastCommandTextBlock.Text = $"Lệnh gần nhất: Mở máy ({now})";
+                LastCommandTextBlock.Text = $"L\u1ec7nh g\u1ea7n nh\u1ea5t: M\u1edf m\u00e1y ({now})";
                 break;
 
             case "PAUSED":
                 PauseSession();
-                MachineStateTextBlock.Text = "Tạm nghỉ";
+                MachineStateTextBlock.Text = "T\u1ea1m ngh\u1ec9";
                 MachineStateTextBlock.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#D97706"));
-                LastCommandTextBlock.Text = $"Lệnh gần nhất: Tạm nghỉ ({now})";
+                LastCommandTextBlock.Text = $"L\u1ec7nh g\u1ea7n nh\u1ea5t: T\u1ea1m ngh\u1ec9 ({now})";
                 break;
 
             case "ONLINE":
                 EndSession(resetUsage: true);
-                MachineStateTextBlock.Text = "Sẵn sàng";
+                MachineStateTextBlock.Text = "S\u1eb5n s\u00e0ng";
                 MachineStateTextBlock.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1D4ED8"));
-                LastCommandTextBlock.Text = $"Lệnh gần nhất: Sẵn sàng ({now})";
+                LastCommandTextBlock.Text = $"L\u1ec7nh g\u1ea7n nh\u1ea5t: S\u1eb5n s\u00e0ng ({now})";
                 break;
 
             case "LOCKED":
                 EndSession(resetUsage: true);
-                MachineStateTextBlock.Text = "Đã khóa";
+                MachineStateTextBlock.Text = "\u0110\u00e3 kh\u00f3a";
                 MachineStateTextBlock.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC2626"));
-                LastCommandTextBlock.Text = $"Lệnh gần nhất: Khóa máy ({now})";
+                LastCommandTextBlock.Text = $"L\u1ec7nh g\u1ea7n nh\u1ea5t: Kh\u00f3a m\u00e1y ({now})";
                 break;
 
             default:
                 EndSession(resetUsage: false);
-                MachineStateTextBlock.Text = "Ngoại tuyến";
+                MachineStateTextBlock.Text = "Ngo\u1ea1i tuy\u1ebfn";
                 MachineStateTextBlock.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B7280"));
-                LastCommandTextBlock.Text = $"Lệnh gần nhất: {code} ({now})";
+                LastCommandTextBlock.Text = $"L\u1ec7nh g\u1ea7n nh\u1ea5t: {code} ({now})";
                 break;
         }
 
@@ -256,7 +256,7 @@ public partial class MainWindow : Window
     public void SetLastCommand(string command)
     {
         var value = string.IsNullOrWhiteSpace(command) ? "-" : command;
-        LastCommandTextBlock.Text = $"Lệnh gần nhất: {value}";
+        LastCommandTextBlock.Text = $"L\u1ec7nh g\u1ea7n nh\u1ea5t: {value}";
     }
 
     public void SetMemberInfo(string? username, string? rank)
@@ -684,8 +684,8 @@ public partial class MainWindow : Window
     private void MessagesButton_Click(object sender, RoutedEventArgs e)
     {
         MessageBox.Show(
-            "Hiện chưa có tin nhắn mới từ quản trị.",
-            "Tin nhắn",
+            "Hi\u1ec7n ch\u01b0a c\u00f3 tin nh\u1eafn m\u1edbi t\u1eeb qu\u1ea3n tr\u1ecb.",
+            "Tin nh\u1eafn",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }
@@ -699,8 +699,8 @@ public partial class MainWindow : Window
         }
 
         MessageBox.Show(
-            "Ứng dụng chưa sẵn sàng để gọi dịch vụ.",
-            "Dịch vụ",
+            "\u1ee8ng d\u1ee5ng ch\u01b0a s\u1eb5n s\u00e0ng \u0111\u1ec3 g\u1ecdi d\u1ecbch v\u1ee5.",
+            "D\u1ecbch v\u1ee5",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }
@@ -714,8 +714,8 @@ public partial class MainWindow : Window
         }
 
         MessageBox.Show(
-            "Ứng dụng chưa sẵn sàng để kiểm tra điểm tích lũy.",
-            "Điểm tích lũy",
+            "\u1ee8ng d\u1ee5ng ch\u01b0a s\u1eb5n s\u00e0ng \u0111\u1ec3 ki\u1ec3m tra \u0111i\u1ec3m t\u00edch l\u0169y.",
+            "\u0110i\u1ec3m t\u00edch l\u0169y",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }
@@ -729,8 +729,8 @@ public partial class MainWindow : Window
         }
 
         MessageBox.Show(
-            "Ứng dụng chưa sẵn sàng để chuyển tiền hội viên.",
-            "Chuyển tiền",
+            "\u1ee8ng d\u1ee5ng ch\u01b0a s\u1eb5n s\u00e0ng \u0111\u1ec3 chuy\u1ec3n ti\u1ec1n h\u1ed9i vi\u00ean.",
+            "Chuy\u1ec3n ti\u1ec1n",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }
@@ -744,8 +744,8 @@ public partial class MainWindow : Window
         }
 
         MessageBox.Show(
-            "Ứng dụng chưa sẵn sàng để rút tiền hội viên.",
-            "Rút tiền",
+            "\u1ee8ng d\u1ee5ng ch\u01b0a s\u1eb5n s\u00e0ng \u0111\u1ec3 r\u00fat ti\u1ec1n h\u1ed9i vi\u00ean.",
+            "R\u00fat ti\u1ec1n",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }
@@ -759,8 +759,8 @@ public partial class MainWindow : Window
         }
 
         MessageBox.Show(
-            "Ứng dụng chưa sẵn sàng để gửi yêu cầu nạp tiền.",
-            "Nạp tiền",
+            "\u1ee8ng d\u1ee5ng ch\u01b0a s\u1eb5n s\u00e0ng \u0111\u1ec3 g\u1eedi y\u00eau c\u1ea7u n\u1ea1p ti\u1ec1n.",
+            "N\u1ea1p ti\u1ec1n",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }
@@ -798,10 +798,5 @@ public partial class MainWindow : Window
             app.RequestManualLockFromClientUi();
             return;
         }
-
-        SetMachineState("LOCKED");
     }
 }
-
-
-

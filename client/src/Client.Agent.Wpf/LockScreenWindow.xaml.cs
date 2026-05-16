@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
@@ -31,7 +31,7 @@ public partial class LockScreenWindow : Window
     public void SetManualUnlockMode(bool enabled)
     {
         _manualUnlockMode = enabled;
-        TitleTextBlock.Text = enabled ? "Khóa máy tạm thời" : "Đăng nhập máy trạm";
+        TitleTextBlock.Text = enabled ? "Kh\u00f3a m\u00e1y t\u1ea1m th\u1eddi" : "\u0110\u0103ng nh\u1eadp m\u00e1y tr\u1ea1m";
         ManualUnlockPanel.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
         LoginModeTabControl.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
 
@@ -80,10 +80,10 @@ public partial class LockScreenWindow : Window
         GuestLoginButton.IsEnabled = true;
         SaveServerButton.IsEnabled = true;
         ServerIpTextBox.IsEnabled = true;
-        LoginButton.Content = "ĐĂNG NHẬP";
-        ManualUnlockButton.Content = "Mở khóa máy";
-        GuestLoginButton.Content = "Bắt đầu phiên Khách";
-        SaveServerButton.Content = "Cập nhật & Kết nối lại";
+        LoginButton.Content = "\u0110\u0102NG NH\u1eacP";
+        ManualUnlockButton.Content = "M\u1edf kh\u00f3a m\u00e1y";
+        GuestLoginButton.Content = "B\u1eaft \u0111\u1ea7u phi\u00ean Kh\u00e1ch";
+        SaveServerButton.Content = "C\u1eadp nh\u1eadt & K\u1ebft n\u1ed1i l\u1ea1i";
         if (_manualUnlockMode)
         {
             TitleTextBlock.Text = "Khóa máy tạm thời";
@@ -116,6 +116,13 @@ public partial class LockScreenWindow : Window
             {
             }
         }
+        
+        ApplyBackgroundConfiguration(_backgroundMode, _backgroundSource);
+
+        // Force GC to clear unused assets and reduce RAM usage
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
 
         Show();
         Activate();
@@ -129,12 +136,25 @@ public partial class LockScreenWindow : Window
         }
     }
 
+    public new void Hide()
+    {
+        base.Hide();
+        
+        // Clear background media to save resources
+        ClearBackgroundMedia();
+        
+        // Force GC after hiding to release memory
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+    }
+
     public void AllowShutdown()
     {
         _allowClose = true;
     }
 
-    protected override void OnClosing(CancelEventArgs e)
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
         if (_allowClose)
         {
@@ -161,7 +181,7 @@ public partial class LockScreenWindow : Window
 
         if (Application.Current is not App app)
         {
-            ErrorTextBlock.Text = "Ứng dụng chưa sẵn sàng.";
+            ErrorTextBlock.Text = "\u1ee8ng d\u1ee5ng ch\u01b0a s\u1eb5n s\u00e0ng.";
             return;
         }
 
@@ -179,11 +199,11 @@ public partial class LockScreenWindow : Window
                 return;
             }
 
-            ErrorTextBlock.Text = result.Message ?? "Không thể đăng nhập khách vãng lai.";
+            ErrorTextBlock.Text = result.Message ?? "Kh\u00f4ng th\u1ec3 \u0111\u0103ng nh\u1eadp kh\u00e1ch v\u00e3ng lai.";
         }
-        catch (Exception ex)
+        catch (System.Exception ex)
         {
-            ErrorTextBlock.Text = $"Lỗi hệ thống: {ex.Message}";
+            ErrorTextBlock.Text = $"L\u1ec7i h\u1ec7 th\u1ed1ng: {ex.Message}";
         }
         finally
         {
@@ -191,7 +211,7 @@ public partial class LockScreenWindow : Window
         }
     }
 
-    private async void Input_KeyDown(object sender, KeyEventArgs e)
+    private async void Input_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key != Key.Enter)
         {
@@ -202,7 +222,7 @@ public partial class LockScreenWindow : Window
         await SubmitLoginAsync();
     }
 
-    private void ManualUnlockPasswordBox_KeyDown(object sender, KeyEventArgs e)
+    private void ManualUnlockPasswordBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key != Key.Enter)
         {
@@ -229,7 +249,7 @@ public partial class LockScreenWindow : Window
         {
             ServerSetupStatusTextBlock.Foreground =
                 new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Firebrick);
-            ServerSetupStatusTextBlock.Text = "Ứng dụng chưa sẵn sàng.";
+            ServerSetupStatusTextBlock.Text = "\u1ee8ng d\u1ee5ng ch\u01b0a s\u1eb5n s\u00e0ng.";
             return;
         }
 
@@ -250,13 +270,13 @@ public partial class LockScreenWindow : Window
 
             ServerSetupStatusTextBlock.Foreground =
                 new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Firebrick);
-            ServerSetupStatusTextBlock.Text = result.Message ?? "Cập nhật server thất bại.";
+            ServerSetupStatusTextBlock.Text = result.Message ?? "C\u1eadp nh\u1eadt server th\u1ea5t b\u1ea1i.";
         }
-        catch (Exception ex)
+        catch (System.Exception ex)
         {
             ServerSetupStatusTextBlock.Foreground =
                 new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Firebrick);
-            ServerSetupStatusTextBlock.Text = $"Lỗi hệ thống: {ex.Message}";
+            ServerSetupStatusTextBlock.Text = $"L\u1ec7i h\u1ec7 th\u1ed1ng: {ex.Message}";
         }
         finally
         {
@@ -264,7 +284,7 @@ public partial class LockScreenWindow : Window
         }
     }
 
-    private async Task SubmitLoginAsync()
+    private async System.Threading.Tasks.Task SubmitLoginAsync()
     {
         if (_isAuthenticating)
         {
@@ -282,7 +302,7 @@ public partial class LockScreenWindow : Window
 
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
         {
-            ErrorTextBlock.Text = "Vui lòng nhập tên đăng nhập và mật khẩu.";
+            ErrorTextBlock.Text = "Vui l\u00f2ng nh\u1eadp t\u00ean \u0111\u0103ng nh\u1eadp v\u00e0 m\u1eadt kh\u1ea9u.";
             return;
         }
 
@@ -306,11 +326,11 @@ public partial class LockScreenWindow : Window
                 return;
             }
 
-            ErrorTextBlock.Text = result.Message ?? "Tên đăng nhập hoặc mật khẩu không đúng.";
+            ErrorTextBlock.Text = result.Message ?? "T\u00ean \u0111\u0103ng nh\u1eadp ho\u1eb7c m\u1eadt kh\u1ea9u kh\u00f4ng \u0111\u00fang.";
         }
-        catch (Exception ex)
+        catch (System.Exception ex)
         {
-            ErrorTextBlock.Text = $"Lỗi kết nối: {ex.Message}";
+            ErrorTextBlock.Text = $"L\u1ec7i k\u1ebft n\u1ed1i: {ex.Message}";
         }
         finally
         {
@@ -328,7 +348,7 @@ public partial class LockScreenWindow : Window
         var password = ManualUnlockPasswordBox.Password;
         if (string.IsNullOrEmpty(password))
         {
-            ErrorTextBlock.Text = "Vui lòng nhập mật mã đã đặt.";
+            ErrorTextBlock.Text = "Vui l\u00f2ng nh\u1eadp m\u1eadt m\u00e3 \u0111\u00e3 \u0111\u1eb7t.";
             return;
         }
 
@@ -351,7 +371,7 @@ public partial class LockScreenWindow : Window
                 return;
             }
 
-            ErrorTextBlock.Text = result.Message ?? "Mật mã không đúng.";
+            ErrorTextBlock.Text = result.Message ?? "M\u1eadt m\u00e3 kh\u00f4ng \u0111\u00fang.";
         }
         finally
         {
@@ -375,18 +395,18 @@ public partial class LockScreenWindow : Window
         {
             if (isGuest)
             {
-                GuestLoginButton.Content = "Đang xử lý...";
+                GuestLoginButton.Content = "\u0110ang x\u1eed l\u00fd...";
             }
             else if (_manualUnlockMode)
             {
-                ManualUnlockButton.Content = "Đang kiểm tra...";
+                ManualUnlockButton.Content = "\u0110ang ki\u1ec3m tra...";
             }
             else
             {
-                LoginButton.Content = "Đang kiểm tra...";
+                LoginButton.Content = "\u0110ang ki\u1ec3m tra...";
             }
 
-            SaveServerButton.Content = "Đang cập nhật...";
+            SaveServerButton.Content = "\u0110ang c\u1eadp nh\u1eadt...";
         }
         else
         {
@@ -432,6 +452,7 @@ public partial class LockScreenWindow : Window
             image.UriSource = uri;
             image.CacheOption = BitmapCacheOption.OnLoad;
             image.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+            image.DecodePixelWidth = 1024;
             image.EndInit();
             
             if (image.CanFreeze) image.Freeze();
@@ -459,7 +480,7 @@ public partial class LockScreenWindow : Window
 
             BackgroundVideoElement.Source = uri;
             BackgroundVideoElement.Visibility = Visibility.Visible;
-            BackgroundVideoElement.Position = TimeSpan.Zero;
+            BackgroundVideoElement.Position = System.TimeSpan.Zero;
             BackgroundVideoElement.Play();
         }
         catch
@@ -468,33 +489,34 @@ public partial class LockScreenWindow : Window
         }
     }
 
-    private static Uri BuildBackgroundUri(string source)
+
+    private static System.Uri BuildBackgroundUri(string source)
     {
         var raw = (source ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(raw))
         {
-            throw new ArgumentException("Background source is empty.", nameof(source));
+            throw new System.ArgumentException("Background source is empty.", nameof(source));
         }
 
-        if (Uri.TryCreate(raw, UriKind.Absolute, out var absolute))
+        if (System.Uri.TryCreate(raw, System.UriKind.Absolute, out var absolute))
         {
             return absolute;
         }
 
-        var expanded = Environment.ExpandEnvironmentVariables(raw);
-        if (!Path.IsPathRooted(expanded))
+        var expanded = System.Environment.ExpandEnvironmentVariables(raw);
+        if (!System.IO.Path.IsPathRooted(expanded))
         {
-            expanded = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, expanded));
+            expanded = System.IO.Path.GetFullPath(System.IO.Path.Combine(System.AppContext.BaseDirectory, expanded));
         }
 
-        return new Uri(expanded, UriKind.Absolute);
+        return new System.Uri(expanded, System.UriKind.Absolute);
     }
 
     private void BackgroundVideoElement_MediaEnded(object sender, RoutedEventArgs e)
     {
         try
         {
-            BackgroundVideoElement.Position = TimeSpan.Zero;
+            BackgroundVideoElement.Position = System.TimeSpan.Zero;
             BackgroundVideoElement.Play();
         }
         catch
@@ -502,10 +524,8 @@ public partial class LockScreenWindow : Window
         }
     }
 
-    private void BackgroundVideoElement_MediaFailed(object sender, ExceptionRoutedEventArgs e)
+    private void BackgroundVideoElement_MediaFailed(object sender, System.Windows.ExceptionRoutedEventArgs e)
     {
         ClearBackgroundMedia();
     }
 }
-
-

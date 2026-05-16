@@ -165,10 +165,104 @@ public partial class MainWindow : Window
                     eventName = "Chuyển tiền hội viên";
                     details = $"Từ {ReadJsonString(json, "sourceUsername")} sang {ReadJsonString(json, "targetUsername")} - Số tiền: {ReadJsonDecimal(json, "amount"):N0} VND";
                     break;
+                case "service.order.created":
+                    eventName = "Goi dich vu";
+                    details =
+                        $"Mon: {ReadJsonStringOrDefault(json, "serviceName", "Dich vu")} - " +
+                        $"SL: {ReadJsonInt(json, "quantity")} - " +
+                        $"Thanh tien: {ReadJsonDecimal(json, "lineTotal"):N0} VND";
+                    break;
+                case "service.order.canceled":
+                    eventName = "Huy dich vu";
+                    details =
+                        $"SL huy: {ReadJsonInt(json, "canceledQuantity")} - " +
+                        $"Tien huy: {ReadJsonDecimal(json, "canceledAmount"):N0} VND - " +
+                        $"Dong xoa: {ReadJsonArrayCount(json, "canceledOrderIds")} - " +
+                        $"Dong giam SL: {ReadJsonArrayCount(json, "updatedOrders")}";
+                    break;
+                case "service.order.paid":
+                    eventName = "Thanh toan dich vu";
+                    details =
+                        $"So dong: {ReadJsonInt(json, "paidOrderCount")} - " +
+                        $"Tien thu: {ReadJsonDecimal(json, "paidAmount"):N0} VND - " +
+                        $"Con no: {ReadJsonDecimal(json, "unpaidAmount"):N0} VND";
+                    break;
+                case "command.created":
+                    eventName = "Tao lenh";
+                    details = $"Lenh: {TranslateCommandType(ReadJsonString(json, "type"))} - Ma lenh: {ShortId(ReadJsonString(json, "commandId"))}";
+                    break;
+                case "command.dispatched":
+                    eventName = "Da gui lenh";
+                    details =
+                        $"Lenh: {TranslateCommandType(ReadJsonString(json, "type"))} - " +
+                        $"Socket: {ReadJsonInt(json, "sockets")} - " +
+                        $"Ma lenh: {ShortId(ReadJsonString(json, "commandId"))}";
+                    break;
+                case "command.redispatched.inflight":
+                    eventName = "Gui lai lenh";
+                    details =
+                        $"Lenh: {TranslateCommandType(ReadJsonString(json, "type"))} - " +
+                        $"Socket: {ReadJsonInt(json, "sockets")} - " +
+                        $"Ma lenh: {ShortId(ReadJsonString(json, "commandId"))}";
+                    break;
+                case "command.timeout.ack_missing":
+                    eventName = "Lenh qua han phan hoi";
+                    details = $"Ma lenh: {ShortId(ReadJsonString(json, "commandId"))}";
+                    break;
+                case "command.timeout.agent_offline":
+                case "command.timeout.agent_offline.inflight":
+                    eventName = "Lenh that bai (may offline)";
+                    details =
+                        $"Lenh: {TranslateCommandType(ReadJsonString(json, "type"))} - " +
+                        $"Ma lenh: {ShortId(ReadJsonString(json, "commandId"))}";
+                    break;
+                case "command.noop.open_already_in_use":
+                    eventName = "Bo qua lenh mo may";
+                    details = "May dang su dung, khong gui lenh mo them.";
+                    break;
+                case "command.dispatch.remapped_pc":
+                    eventName = "Chuyen huong lenh";
+                    details = $"Lenh: {TranslateCommandType(ReadJsonString(json, "commandType"))} - Muc tieu moi: {ShortId(ReadJsonString(json, "targetPcId"))}";
+                    break;
+                case "command.ack.not_found":
+                    eventName = "Phan hoi lenh khong ton tai";
+                    details = $"Ma lenh: {ShortId(ReadJsonString(json, "commandId"))}";
+                    break;
+                case "command.ack.agent_mismatch":
+                    eventName = "Phan hoi sai may tram";
+                    details = $"Ma lenh: {ShortId(ReadJsonString(json, "commandId"))}";
+                    break;
+                case "session.transferred":
+                    eventName = "Chuyen phien may";
+                    details = $"Ma phien: {ShortId(ReadJsonString(json, "sessionId"))} - Tu may: {ShortId(ReadJsonString(json, "fromPcId"))}";
+                    break;
+                case "session.preserved.offline_guest":
+                    eventName = "Giu phien khach (offline)";
+                    details = $"Ma phien: {ShortId(ReadJsonString(json, "sessionId"))}";
+                    break;
+                case "pc.registered":
+                    eventName = "Dang ky may tram";
+                    details =
+                        $"Agent: {ReadJsonStringOrDefault(json, "agentId", "-")} - " +
+                        $"Trang thai: {TranslateStatus(ReadJsonString(json, "status"))}";
+                    break;
+                case "pc.screenshot.requested":
+                    eventName = "Yeu cau chup man hinh";
+                    details = $"Request: {ShortId(ReadJsonString(json, "requestId"))}";
+                    break;
+                case "pc.screenshot.captured":
+                    eventName = "Da nhan anh man hinh";
+                    details =
+                        $"Request: {ShortId(ReadJsonString(json, "requestId"))} - " +
+                        $"Kich thuoc: {ReadJsonInt(json, "width")}x{ReadJsonInt(json, "height")}";
+                    break;
+                case "admin.notify.sent":
+                    eventName = "Gui thong bao";
+                    details = $"Noi dung: {ReadJsonStringOrDefault(json, "message", "-")}";
+                    break;
                 default:
                     eventName = eventType;
-                    var rawJson = JsonSerializer.Serialize(item.Payload);
-                    details = rawJson.Length > 220 ? rawJson[..220] + "..." : rawJson;
+                    details = BuildCompactPayloadSummary(json);
                     break;
             }
         }
@@ -194,6 +288,13 @@ public partial class MainWindow : Window
     }
 
     private static string ReadJsonString(JsonElement json, string key) => json.TryGetProperty(key, out var prop) ? prop.GetString() ?? "" : "";
+
+    private static string ReadJsonStringOrDefault(JsonElement json, string key, string fallback)
+    {
+        var value = ReadJsonString(json, key).Trim();
+        return string.IsNullOrWhiteSpace(value) ? fallback : value;
+    }
+
     private static decimal ReadJsonDecimal(JsonElement json, string key)
     {
         if (!json.TryGetProperty(key, out var prop)) return 0;
@@ -201,13 +302,104 @@ public partial class MainWindow : Window
         if (prop.ValueKind == JsonValueKind.String && decimal.TryParse(prop.GetString(), out var parsed)) return parsed;
         return 0;
     }
+
     private static bool ReadJsonBool(JsonElement json, string key) => json.TryGetProperty(key, out var prop) && (prop.ValueKind == JsonValueKind.True || prop.ValueKind == JsonValueKind.False) ? prop.GetBoolean() : false;
+
+    private static int ReadJsonArrayCount(JsonElement json, string key)
+    {
+        if (!json.TryGetProperty(key, out var prop) || prop.ValueKind != JsonValueKind.Array)
+        {
+            return 0;
+        }
+
+        return prop.GetArrayLength();
+    }
+
     private static int ReadJsonInt(JsonElement json, string key)
     {
         if (!json.TryGetProperty(key, out var prop)) return 0;
         if (prop.ValueKind == JsonValueKind.Number && prop.TryGetInt32(out var val)) return val;
         if (prop.ValueKind == JsonValueKind.String && int.TryParse(prop.GetString(), out var parsed)) return parsed;
         return 0;
+    }
+
+    private static string TranslateCommandType(string commandType)
+    {
+        return commandType.ToUpperInvariant() switch
+        {
+            "OPEN" => "Mo may",
+            "LOCK" => "Khoa may",
+            "SHUTDOWN" => "Tat may",
+            "RESTART" => "Khoi dong lai",
+            "PAUSE" => "Tam dung",
+            "RESUME" => "Tiep tuc",
+            "CLOSE_APPS" => "Dong ung dung",
+            _ => string.IsNullOrWhiteSpace(commandType) ? "-" : commandType
+        };
+    }
+
+    private static string ShortId(string value)
+    {
+        var trimmed = value.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return "-";
+        }
+
+        return trimmed.Length <= 8 ? trimmed : trimmed[..8];
+    }
+
+    private static string BuildCompactPayloadSummary(JsonElement json)
+    {
+        var parts = new List<string>();
+        var propertyCount = 0;
+
+        foreach (var prop in json.EnumerateObject())
+        {
+            propertyCount++;
+            if (parts.Count >= 5)
+            {
+                continue;
+            }
+
+            var valueText = prop.Value.ValueKind switch
+            {
+                JsonValueKind.String => TrimPayloadText(prop.Value.GetString() ?? string.Empty, 40),
+                JsonValueKind.Number => prop.Value.GetRawText(),
+                JsonValueKind.True => "true",
+                JsonValueKind.False => "false",
+                JsonValueKind.Null => "null",
+                JsonValueKind.Array => $"{prop.Value.GetArrayLength()} muc",
+                JsonValueKind.Object => "{...}",
+                _ => prop.Value.GetRawText(),
+            };
+
+            parts.Add($"{prop.Name}: {valueText}");
+        }
+
+        if (parts.Count == 0)
+        {
+            return "-";
+        }
+
+        var summary = string.Join(" | ", parts);
+        if (propertyCount > 5)
+        {
+            summary += " | ...";
+        }
+
+        return summary.Length > 260 ? summary[..260] + "..." : summary;
+    }
+
+    private static string TrimPayloadText(string value, int maxLength)
+    {
+        var trimmed = value.Trim();
+        if (trimmed.Length <= maxLength)
+        {
+            return trimmed;
+        }
+
+        return trimmed[..maxLength] + "...";
     }
 
     private void ProcessMemberTransferNotifications(IReadOnlyList<SystemEventItem> items)
