@@ -260,3 +260,21 @@ enum MemberTransactionType {
   BUY_PLAYTIME
   ADJUSTMENT
 }
+
+enum AdminRole {
+  ADMIN
+  STAFF
+}
+
+model AdminUser {
+  id           String    @id @default(uuid()) @db.Uuid
+  username     String    @unique @db.VarChar(50)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  fullName     String    @map("full_name") @db.VarChar(120)
+  role         AdminRole @default(STAFF)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("admin_users")
+}

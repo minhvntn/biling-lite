@@ -22,6 +22,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        _ = PlayMemberTopupNotificationAudioAsync();
         _ = ShowMemberTopupApprovalDialogAsync(request);
     }
 

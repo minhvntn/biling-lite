@@ -1,8 +1,8 @@
-﻿<Window x:Class="Client.Agent.Wpf.MainWindow"
+<Window x:Class="Client.Agent.Wpf.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Server Manager Client"
-        Height="608"
+        SizeToContent="Height"
         Width="256"
         MinWidth="240"
         WindowStyle="None"
@@ -95,59 +95,6 @@
 
                 <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,6,0" x:Name="UserInfoPanel" Visibility="Collapsed">
                     <TextBlock x:Name="MemberUsernameTextBlock" Foreground="White" FontSize="17" FontWeight="Bold" HorizontalAlignment="Right" />
-                    <Border x:Name="MemberRankBorder"
-                            Background="Transparent"
-                            BorderBrush="Transparent"
-                            BorderThickness="0"
-                            CornerRadius="16"
-                            Padding="8,4,8,4"
-                            MinWidth="0"
-                            Height="54"
-                            HorizontalAlignment="Right"
-                            Margin="0,4,0,0">
-                        <Grid HorizontalAlignment="Right">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-
-                            <Border x:Name="MemberRankIconBadgeBorder"
-                                    Width="48"
-                                    Height="48"
-                                    CornerRadius="24"
-                                    Background="Transparent"
-                                    BorderBrush="Transparent"
-                                    BorderThickness="0"
-                                    VerticalAlignment="Center">
-                                <Grid>
-                                    <Image x:Name="MemberRankIconImage"
-                                           Width="44"
-                                           Height="44"
-                                           Visibility="Collapsed"
-                                           Stretch="Uniform"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center" />
-                                    <TextBlock x:Name="MemberRankIconTextBlock"
-                                           Foreground="#CFE3FF"
-                                           FontSize="18"
-                                           FontWeight="Black"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"
-                                           Text="R" />
-                                </Grid>
-                            </Border>
-
-                            <TextBlock x:Name="MemberRankTextBlock"
-                                       Grid.Column="1"
-                                       Foreground="#EAF3FF"
-                                       FontSize="12"
-                                       FontWeight="SemiBold"
-                                       VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis"
-                                       TextWrapping="NoWrap"
-                                       Margin="6,0,0,0" />
-                        </Grid>
-                    </Border>
                 </StackPanel>
 
                 <Button Grid.Column="2"
@@ -170,25 +117,66 @@
 
         <ScrollViewer VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Margin="16,12">
-                <Border Margin="0,0,0,8" Background="White" CornerRadius="12" Padding="12" BorderBrush="#E5E7EB" BorderThickness="1">
-                    <Grid>
+                <Border x:Name="MemberRankBorder"
+                        Margin="0,0,0,8"
+                        Background="#0D1B3D"
+                        BorderBrush="#2F6FE3"
+                        BorderThickness="1.4"
+                        CornerRadius="12"
+                        Padding="10,6"
+                        Visibility="Collapsed">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#2F6FE3" BlurRadius="14" ShadowDepth="0" Opacity="0.55" />
+                    </Border.Effect>
+                    <Grid HorizontalAlignment="Right">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <Border Width="40" Height="40" Background="#DBEAFE" CornerRadius="20" HorizontalAlignment="Left">
-                            <TextBlock x:Name="StatusIconTextBlock" Text="⚡" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+                        <Border x:Name="MemberRankIconBadgeBorder"
+                                Width="44"
+                                Height="44"
+                                CornerRadius="22"
+                                Background="#152B59"
+                                BorderBrush="#3C7CF0"
+                                BorderThickness="1.1"
+                                VerticalAlignment="Center">
+                            <Grid>
+                                <Image x:Name="MemberRankIconImage"
+                                       Width="38"
+                                       Height="38"
+                                       Visibility="Collapsed"
+                                       Stretch="Uniform"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                                <TextBlock x:Name="MemberRankIconTextBlock"
+                                       Foreground="#CFE3FF"
+                                       FontSize="16"
+                                       FontWeight="Black"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Text="R" />
+                            </Grid>
                         </Border>
-                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                            <TextBlock x:Name="StatusTitleTextBlock" Text="Trạng thái máy" FontSize="13" Foreground="#6B7280" />
-                            <TextBlock x:Name="MachineStateTextBlock"
-                                       Text="Đang sử dụng"
-                                       FontSize="18"
-                                       FontWeight="Bold"
-                                       Foreground="#1D4ED8" />
-                        </StackPanel>
+
+                        <TextBlock x:Name="MemberRankTextBlock"
+                                   Grid.Column="1"
+                                   Foreground="#EAF3FF"
+                                   FontSize="13"
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   TextWrapping="NoWrap"
+                                   Margin="8,0,0,0" />
                     </Grid>
                 </Border>
+
+                <Grid Visibility="Collapsed" Height="0">
+                    <TextBlock x:Name="StatusIconTextBlock" Text="⚡" />
+                    <TextBlock x:Name="StatusTitleTextBlock" Text="Trạng thái máy" />
+                    <TextBlock x:Name="MachineStateTextBlock" Text="Đang sử dụng" />
+                </Grid>
 
                 <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="12" Padding="10" Margin="0,0,0,8">
                     <StackPanel>

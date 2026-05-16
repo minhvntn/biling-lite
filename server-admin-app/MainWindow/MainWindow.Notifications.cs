@@ -171,6 +171,45 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task PlayMemberTopupNotificationAudioAsync()
+    {
+        await _guestLoginSpeechLock.WaitAsync();
+        try
+        {
+            var fileNames = new[] { "member-top-up.mp3", "member-top-up.wav" };
+            var roots = new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, "audio"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ServerManagerBilling", "audio"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "Music"),
+            };
+
+            foreach (var root in roots)
+            {
+                if (string.IsNullOrWhiteSpace(root)) continue;
+                foreach (var fileName in fileNames)
+                {
+                    var path = Path.Combine(root, fileName);
+                    if (File.Exists(path) && TryPlayAudioFile(path))
+                    {
+                        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Played custom member top-up audio: {path}");
+                        return;
+                    }
+                }
+            }
+
+            System.Media.SystemSounds.Asterisk.Play();
+        }
+        catch
+        {
+            // Fallback
+        }
+        finally
+        {
+            _guestLoginSpeechLock.Release();
+        }
+    }
+
     private bool TryPlayCustomGuestLoginAudio(out string selectedPath)
     {
         selectedPath = string.Empty;
@@ -326,6 +365,12 @@ public partial class MainWindow : Window
 
         GuestLoginToastMessageTextBlock.Text = message;
         GuestLoginToastBorder.Visibility = Visibility.Visible;
+
+        if (WindowState == WindowState.Minimized)
+        {
+            WindowState = WindowState.Normal;
+        }
+        Activate();
     }
 
     private void GuestLoginToastCloseButton_Click(object sender, RoutedEventArgs e)

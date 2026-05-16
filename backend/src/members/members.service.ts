@@ -1095,6 +1095,22 @@ export class MembersService {
         },
       });
 
+      await tx.eventLog.create({
+        data: {
+          source: EventSource.SERVER,
+          eventType: 'member.topup',
+          pcId: null,
+          payload: {
+            memberId: member.id,
+            username: member.username,
+            amount: amount,
+            note: payload.note ?? 'Nap tien',
+            createdBy,
+            at: new Date().toISOString(),
+          },
+        },
+      });
+
       const configs = await tx.loyaltyRankConfig.findMany({
         orderBy: { minTopup: 'desc' },
       });
@@ -1238,6 +1254,22 @@ export class MembersService {
           playSecondsDelta: 0,
           note: payload.note ?? 'Dieu chinh so du',
           createdBy,
+        },
+      });
+
+      await tx.eventLog.create({
+        data: {
+          source: EventSource.SERVER,
+          eventType: 'member.balance.adjusted',
+          pcId: null,
+          payload: {
+            memberId: member.id,
+            username: member.username,
+            amountDelta: amountDelta,
+            note: payload.note ?? 'Dieu chinh so du',
+            createdBy,
+            at: new Date().toISOString(),
+          },
         },
       });
 

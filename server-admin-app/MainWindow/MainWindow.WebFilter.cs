@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -46,6 +46,37 @@ public partial class MainWindow : Window
         "stripchat.com",
         "livejasmin.com",
         "xnxx.tv",
+        "eporner.com",
+        "hqporner.com",
+        "txxx.com",
+        "bravotube.net",
+        "daftsex.com",
+        "nude.com",
+        "jizzbunker.com",
+        "xozilla.com",
+        "pornhat.com",
+        "yespornplease.com",
+        "cliphunter.com",
+        "tuberel.com",
+        "fuq.com",
+        "slutload.com",
+        "anyporn.com",
+        "cumlouder.com",
+        "nuvid.com",
+        "tubev.sex",
+        "vrsmash.com",
+        "porndiq.com",
+        "hentaifox.com",
+        "hitomi.la",
+        "vlxx.tv",
+        "vlxx.com",
+        "phimsex.com",
+        "phimsex.net",
+        "sexvl.com",
+        "sexvl.net",
+        "hayxx.com",
+        "javhd.com",
+        "javtiful.com",
         "xvideos2.com",
     };
 

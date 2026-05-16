@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -268,12 +268,14 @@ public partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(username))
         {
             UserInfoPanel.Visibility = Visibility.Collapsed;
+            MemberRankBorder.Visibility = Visibility.Collapsed;
             ApplyRankPulseAnimation(false);
             UpdateUsageUi();
             return;
         }
 
         UserInfoPanel.Visibility = Visibility.Visible;
+        MemberRankBorder.Visibility = Visibility.Visible;
         MemberUsernameTextBlock.Text = username;
 
         var rankStr = string.IsNullOrWhiteSpace(rank) ? "SAT" : rank;
@@ -372,11 +374,11 @@ public partial class MainWindow : Window
 
         var bc = new BrushConverter();
         var rankAccentBrush = (Brush)bc.ConvertFromString(fgColor)!;
-        MemberRankBorder.Background = Brushes.Transparent;
-        MemberRankBorder.BorderBrush = Brushes.Transparent;
+        MemberRankBorder.Background = (Brush)bc.ConvertFromString("#0D1B3D")!;
+        MemberRankBorder.BorderBrush = rankAccentBrush;
         MemberRankTextBlock.Foreground = rankAccentBrush;
         MemberRankIconTextBlock.Foreground = rankAccentBrush;
-        MemberRankIconBadgeBorder.Background = Brushes.Transparent;
+        MemberRankIconBadgeBorder.Background = (Brush)bc.ConvertFromString(bgColor)!;
         MemberRankIconBadgeBorder.BorderBrush = (Brush)bc.ConvertFromString(bgColor)!;
         ApplyRankIcon(rankIconAsset, rankIcon);
         if (MemberRankBorder.Effect is DropShadowEffect glow)

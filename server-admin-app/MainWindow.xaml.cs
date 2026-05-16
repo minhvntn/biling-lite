@@ -145,6 +145,10 @@ public partial class MainWindow : Window
         _transactionReportInitialized = true;
         InitializeLoyaltyRanksTab();
         InitializeMiniGameTab();
+        
+        ApplyUserRoleRestrictions();
+
+        _ = LoadServerUsersAsync();
 
         _healthTimer.Interval = TimeSpan.FromSeconds(5);
         _healthTimer.Tick += HealthTimer_Tick;
@@ -179,6 +183,25 @@ public partial class MainWindow : Window
         _backupSettingsInitialized = true;
     }
 
+    private void ApplyUserRoleRestrictions()
+    {
+        if (AdminSession.CurrentUserRole == "STAFF")
+        {
+            // Hide tabs not allowed for Staff
+            VipTab.Visibility = Visibility.Collapsed;
+            StatisticsTabItem.Visibility = Visibility.Collapsed;
+            MiniGameTabItem.Visibility = Visibility.Collapsed;
+            SettingsTab.Visibility = Visibility.Collapsed;
+            AdminTab.Visibility = Visibility.Collapsed;
+            
+            // Optionally select the first allowed tab if a hidden one was selected by default
+            if (MainTabControl.SelectedItem is TabItem selectedTab && selectedTab.Visibility == Visibility.Collapsed)
+            {
+                MainTabControl.SelectedItem = WorkstationsTab;
+            }
+        }
+    }
+
     private void MainWindow_Closed(object? sender, EventArgs e)
     {
         _healthTimer.Stop();
@@ -193,7 +216,7 @@ public partial class MainWindow : Window
 
     private async void MachinesTimer_Tick(object? sender, EventArgs e)
     {
-        if (!IsLoaded || MainTabControl.SelectedIndex != MachinesTabIndex || WindowState == WindowState.Minimized)
+        if (!IsLoaded)
         {
             return;
         }
@@ -336,6 +359,24 @@ public partial class MainWindow : Window
         _websiteLogsCacheAtUtc = DateTime.MinValue;
         _websiteLogsCacheKey = string.Empty;
         _websiteLogsCacheResponse = null;
+    }
+
+    private void LogoutButton_Click(object sender, RoutedEventArgs e)
+    {
+        var result = MessageBox.Show("Bạn có chắc chắn muốn đăng xuất không?", "Xác nhận đăng xuất", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (result == MessageBoxResult.Yes)
+        {
+            // Clear session info
+            AdminSession.CurrentUserRole = null;
+            AdminSession.CurrentUserFullName = null;
+
+            // Show login window
+            var loginWindow = new LoginWindow();
+            loginWindow.Show();
+
+            // Close current window
+            this.Close();
+        }
     }
 }
 

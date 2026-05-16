@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -74,12 +74,7 @@ public partial class MainWindow : Window
 
     private static SystemLogRow ToSystemLogRow(SystemEventItem item)
     {
-        var payloadText = "-";
-        if (item.Payload is not null)
-        {
-            var json = JsonSerializer.Serialize(item.Payload);
-            payloadText = json.Length > 220 ? json[..220] + "..." : json;
-        }
+        var (eventName, details) = TranslateSystemEvent(item);
 
         var pcText = item.PcName is null
             ? "-"
@@ -91,10 +86,128 @@ public partial class MainWindow : Window
         {
             CreatedAtText = FormatDateTime(item.CreatedAt),
             Source = item.Source,
-            EventType = item.EventType,
+            EventType = eventName,
             PcText = pcText,
-            PayloadText = payloadText,
+            PayloadText = details,
         };
+    }
+
+    private static (string EventName, string Details) TranslateSystemEvent(SystemEventItem item)
+    {
+        var eventType = item.EventType ?? string.Empty;
+        var eventName = eventType;
+        var details = "-";
+
+        if (item.Payload is not JsonElement json || json.ValueKind != JsonValueKind.Object)
+        {
+            if (item.Payload is not null)
+            {
+                var rawJson = JsonSerializer.Serialize(item.Payload);
+                details = rawJson.Length > 220 ? rawJson[..220] + "..." : rawJson;
+            }
+            return (eventName, details);
+        }
+
+        try
+        {
+            switch (eventType.ToLowerInvariant())
+            {
+                case "member.withdraw.requested":
+                    eventName = "Yêu cầu rút tiền";
+                    details = $"Tài khoản: {ReadJsonString(json, "username")} - Số tiền: {ReadJsonDecimal(json, "amount"):N0} VND";
+                    break;
+                case "member.topup.requested":
+                    eventName = "Yêu cầu nạp tiền";
+                    details = $"Tài khoản: {ReadJsonString(json, "username")} - Số tiền: {ReadJsonDecimal(json, "amount"):N0} VND";
+                    break;
+                case "member.topup":
+                    eventName = "Nạp tiền hội viên";
+                    details = $"Tài khoản: {ReadJsonString(json, "username")} - Số tiền: {ReadJsonDecimal(json, "amount"):N0} VND";
+                    break;
+                case "member.balance.adjusted":
+                    eventName = "Điều chỉnh số dư";
+                    details = $"Tài khoản: {ReadJsonString(json, "username")} - Số tiền: {ReadJsonDecimal(json, "amountDelta"):N0} VND";
+                    break;
+                case "member.pc.presence":
+                    var memberIsActive = ReadJsonBool(json, "isActive");
+                    eventName = memberIsActive ? "Hội viên đăng nhập" : "Hội viên đăng xuất";
+                    details = $"Tài khoản: {ReadJsonString(json, "username")}";
+                    break;
+                case "guest.pc.presence":
+                    var guestIsActive = ReadJsonBool(json, "isActive");
+                    eventName = guestIsActive ? "Khách đăng nhập" : "Khách đăng xuất";
+                    details = $"Tên hiển thị: {ReadJsonString(json, "displayName")}";
+                    break;
+                case "admin.pc.presence":
+                    var adminIsActive = ReadJsonBool(json, "isActive");
+                    eventName = adminIsActive ? "Admin đăng nhập" : "Admin đăng xuất";
+                    details = $"Quản trị viên";
+                    break;
+                case "pc.status.changed":
+                    eventName = "Trạng thái máy";
+                    var prevStatus = ReadJsonString(json, "previousStatus");
+                    var newStatus = ReadJsonString(json, "status");
+                    details = $"Chuyển từ {TranslateStatus(prevStatus)} sang {TranslateStatus(newStatus)}";
+                    break;
+                case "session.closed.auto_offline":
+                    eventName = "Đóng phiên (Mất kết nối)";
+                    details = $"Tiền: {ReadJsonDecimal(json, "amount"):N0} VND - Thời gian: {ReadJsonInt(json, "billableMinutes")} phút";
+                    break;
+                case "session.closed":
+                    eventName = "Đóng phiên";
+                    details = $"Tiền: {ReadJsonDecimal(json, "amount"):N0} VND - Thời gian: {ReadJsonInt(json, "billableMinutes")} phút";
+                    break;
+                case "command.ack.received":
+                    eventName = "Phản hồi lệnh";
+                    details = $"Kết quả: {ReadJsonString(json, "result")} - Lệnh: {ReadJsonString(json, "message")}";
+                    break;
+                case "member.balance.transferred":
+                    eventName = "Chuyển tiền hội viên";
+                    details = $"Từ {ReadJsonString(json, "sourceUsername")} sang {ReadJsonString(json, "targetUsername")} - Số tiền: {ReadJsonDecimal(json, "amount"):N0} VND";
+                    break;
+                default:
+                    eventName = eventType;
+                    var rawJson = JsonSerializer.Serialize(item.Payload);
+                    details = rawJson.Length > 220 ? rawJson[..220] + "..." : rawJson;
+                    break;
+            }
+        }
+        catch
+        {
+            var rawJson = JsonSerializer.Serialize(item.Payload);
+            details = rawJson.Length > 220 ? rawJson[..220] + "..." : rawJson;
+        }
+
+        return (eventName, details);
+    }
+
+    private static string TranslateStatus(string status)
+    {
+        return status switch
+        {
+            "ONLINE" => "Sẵn sàng",
+            "IN_USE" => "Đang sử dụng",
+            "LOCKED" => "Đang khóa",
+            "OFFLINE" => "Ngoại tuyến",
+            _ => status
+        };
+    }
+
+    private static string ReadJsonString(JsonElement json, string key) => json.TryGetProperty(key, out var prop) ? prop.GetString() ?? "" : "";
+    private static decimal ReadJsonDecimal(JsonElement json, string key)
+    {
+        if (!json.TryGetProperty(key, out var prop)) return 0;
+        if (prop.ValueKind == JsonValueKind.Number && prop.TryGetDecimal(out var val)) return val;
+        if (prop.ValueKind == JsonValueKind.String && decimal.TryParse(prop.GetString(), out var parsed)) return parsed;
+        return 0;
+    }
+    private static bool ReadJsonBool(JsonElement json, string key) => json.TryGetProperty(key, out var prop) && (prop.ValueKind == JsonValueKind.True || prop.ValueKind == JsonValueKind.False) ? prop.GetBoolean() : false;
+    private static int ReadJsonInt(JsonElement json, string key)
+    {
+        if (!json.TryGetProperty(key, out var prop)) return 0;
+        if (prop.ValueKind == JsonValueKind.Number && prop.TryGetInt32(out var val)) return val;
+        if (prop.ValueKind == JsonValueKind.String && int.TryParse(prop.GetString(), out var parsed)) return parsed;
+        return 0;
     }
 
     private void ProcessMemberTransferNotifications(IReadOnlyList<SystemEventItem> items)
