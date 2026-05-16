@@ -7,123 +7,261 @@
         ResizeMode="NoResize"
         Topmost="True"
         ShowInTaskbar="False"
-        Background="#101317"
+        Background="#0F172A"
         WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <!-- Modern Button Style -->
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#4F46E5" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Padding" Value="20,10" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}" 
+                                CornerRadius="8" 
+                                BorderThickness="0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#4338CA" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#3730A3" />
+                                <Setter Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.98" ScaleY="0.98" CenterX="50" CenterY="20" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#4F46E5" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="20,10" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#F8FAFC" />
+                                <Setter TargetName="border" Property="BorderBrush" Value="#4F46E5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Custom Tab Style -->
+        <Style TargetType="TabControl">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <Style TargetType="TabItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Border" BorderThickness="0,0,0,2" Margin="0,0,15,0" Padding="5,8">
+                            <ContentPresenter x:Name="ContentSite"
+                                            VerticalAlignment="Center"
+                                            HorizontalAlignment="Center"
+                                            ContentSource="Header"
+                                            Margin="5,2"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#4F46E5" />
+                                <Setter Property="Foreground" Value="#4F46E5" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="False">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="Transparent" />
+                                <Setter Property="Foreground" Value="#64748B" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="#4F46E5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Modern Textbox/Passwordbox Style -->
+        <Style x:Key="ModernFieldBorder" TargetType="Border">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Height" Value="45" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="Border" x:Key="ErrorBorderStyle">
+            <Setter Property="Visibility" Value="Visible" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Text, ElementName=ErrorTextBlock}" Value="">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Text, ElementName=ErrorTextBlock}" Value="{x:Null}">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
     <Grid>
+        <!-- Background Layer -->
         <Grid>
-            <Image x:Name="BackgroundImageElement"
-                   Visibility="Collapsed"
-                   Stretch="UniformToFill" />
-            <MediaElement x:Name="BackgroundVideoElement"
-                          Visibility="Collapsed"
-                          LoadedBehavior="Manual"
-                          UnloadedBehavior="Manual"
-                          Stretch="UniformToFill"
-                          IsMuted="True"
-                          MediaEnded="BackgroundVideoElement_MediaEnded"
-                          MediaFailed="BackgroundVideoElement_MediaFailed" />
-            <Border Background="#66000000" />
+            <!-- Content to be blurred -->
+            <Grid x:Name="BackgroundContainer">
+                <Image x:Name="BackgroundImageElement"
+                       Visibility="Collapsed"
+                       Stretch="UniformToFill" />
+                <MediaElement x:Name="BackgroundVideoElement"
+                              Visibility="Collapsed"
+                              LoadedBehavior="Manual"
+                              UnloadedBehavior="Manual"
+                              Stretch="UniformToFill"
+                              IsMuted="True"
+                              MediaEnded="BackgroundVideoElement_MediaEnded"
+                              MediaFailed="BackgroundVideoElement_MediaFailed" />
+                <Grid.Effect>
+                    <BlurEffect Radius="20" />
+                </Grid.Effect>
+            </Grid>
+            
+            <!-- Dark Overlay -->
+            <Border Background="#AA0F172A" />
         </Grid>
 
-        <StackPanel HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    Margin="20">
-            <Border Margin="0"
-                    Width="460"
-                    Background="#F8FAFC"
-                    BorderBrush="#CBD5E1"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="18">
-                <StackPanel>
-                    <TextBlock x:Name="TitleTextBlock"
-                               Text="Đăng nhập máy trạm"
-                               Foreground="#0F172A"
-                               FontWeight="SemiBold"
-                               FontSize="22" />
+        <!-- Centered Content Card -->
+        <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+            <!-- Subtle Glow Effect Behind Card - Reduced and auto-sizing -->
+            <Border Width="450" Background="#4F46E5" Opacity="0.1" CornerRadius="100">
+                <Border.Effect>
+                    <BlurEffect Radius="80" />
+                </Border.Effect>
+            </Border>
 
+            <Border x:Name="MainContentCard"
+                    Width="380"
+                    Background="White"
+                    CornerRadius="28"
+                    Padding="24,24,24,20">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="40" Color="Black" Opacity="0.2" ShadowDepth="10" />
+                </Border.Effect>
+                
+                <StackPanel>
+                    <!-- Header Section Removed as requested -->
+                    <StackPanel Margin="0,0,0,16" Visibility="Collapsed">
+                        <TextBlock x:Name="TitleTextBlock"
+                                   Text="Đăng nhập máy trạm"
+                                   Foreground="#1E293B"
+                                   FontWeight="Bold"
+                                   FontSize="28"
+                                   HorizontalAlignment="Center" />
+                        <Border Height="4" Width="40" Background="#4F46E5" CornerRadius="2" Margin="0,12,0,0" />
+                    </StackPanel>
+
+                    <!-- Manual Unlock Panel (Temporary Lock) -->
                     <StackPanel x:Name="ManualUnlockPanel"
-                                Margin="0,14,0,0"
                                 Visibility="Collapsed">
-                        <TextBlock Text="Máy đang khóa tạm thời."
+                        <TextBlock Text="Máy đang khóa tạm thời"
                                    Foreground="#334155"
                                    FontWeight="SemiBold"
-                                   FontSize="15" />
-
-                        <TextBlock Text="Vui lòng nhập mật mã đã đặt để tiếp tục sử dụng."
+                                   FontSize="18"
+                                   HorizontalAlignment="Center" />
+                        
+                        <TextBlock Text="Vui lòng nhập mật mã bảo vệ để mở khóa và tiếp tục sử dụng."
                                    Margin="0,8,0,0"
                                    Foreground="#64748B"
                                    FontSize="14"
+                                   TextAlignment="Center"
                                    TextWrapping="Wrap" />
 
-                        <Border Margin="0,12,0,0"
-                                BorderBrush="#CBD5E1"
-                                BorderThickness="1"
-                                CornerRadius="4"
-                                Background="White">
+                        <Border Style="{StaticResource ModernFieldBorder}" Margin="0,24,0,0">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="35" />
+                                    <ColumnDefinition Width="45" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0"
-                                           Text="🔐"
-                                           VerticalAlignment="Center"
-                                           HorizontalAlignment="Center"
-                                           Foreground="#94A3B8"
-                                           FontSize="15" />
+                                <TextBlock Grid.Column="0" Text="🔐" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="18" />
                                 <PasswordBox x:Name="ManualUnlockPasswordBox"
                                              Grid.Column="1"
                                              BorderThickness="0"
                                              Background="Transparent"
                                              VerticalContentAlignment="Center"
-                                             Padding="5,0,8,0"
-                                             FontSize="15"
+                                             Padding="10,0"
+                                             FontSize="16"
                                              KeyDown="ManualUnlockPasswordBox_KeyDown" />
                             </Grid>
                         </Border>
 
                         <Button x:Name="ManualUnlockButton"
-                                Margin="0,14,0,0"
-                                Height="34"
-                                Content="Mở khóa"
-                                FontWeight="SemiBold"
-                                FontSize="15"
-                                Background="#2563EB"
-                                Foreground="White"
-                                BorderThickness="0"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Margin="0,20,0,0"
+                                Height="48"
+                                Content="Mở khóa máy"
+                                FontSize="16"
+                                FontWeight="Bold"
                                 Click="ManualUnlockButton_Click" />
                     </StackPanel>
 
-                    <TabControl x:Name="LoginModeTabControl"
-                                Margin="0,14,0,0"
-                                BorderThickness="1"
-                                Background="White">
-                        <TabItem x:Name="MemberTabItem" Header="Hội viên">
-                            <Grid Margin="12,14">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="12" />
-                                    <ColumnDefinition Width="110" />
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="38" />
-                                    <RowDefinition Height="10" />
-                                    <RowDefinition Height="38" />
-                                </Grid.RowDefinitions>
-
-                                <!-- Row 0, Column 0: Tên đăng nhập with Icon -->
-                                <Border Grid.Row="0" Grid.Column="0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Background="White">
+                    <!-- Main Login Panel -->
+                    <TabControl x:Name="LoginModeTabControl" Visibility="Visible">
+                        <!-- Member Login -->
+                        <TabItem x:Name="MemberTabItem" Header="HỘI VIÊN">
+                            <StackPanel Margin="0,20,0,0">
+                                <!-- Username Field -->
+                                <Border Style="{StaticResource ModernFieldBorder}" Margin="0,0,0,16">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="35" />
+                                            <ColumnDefinition Width="45" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="👤" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#94A3B8" FontSize="15" />
-                                        
+                                        <TextBlock Grid.Column="0" Text="👤" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="18" />
                                         <Grid Grid.Column="1">
-                                            <TextBox x:Name="UsernameTextBox" TabIndex="0" BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center" Padding="5,0,8,0" FontSize="15" KeyDown="Input_KeyDown" />
-                                            <TextBlock Text="Tên đăng nhập" Foreground="#94A3B8" IsHitTestVisible="False" VerticalAlignment="Center" Margin="5,0,0,0" FontSize="15">
+                                            <TextBox x:Name="UsernameTextBox" 
+                                                     TabIndex="0" 
+                                                     BorderThickness="0" 
+                                                     Background="Transparent" 
+                                                     VerticalContentAlignment="Center" 
+                                                     Padding="10,0" 
+                                                     FontSize="16" 
+                                                     KeyDown="Input_KeyDown" />
+                                            <TextBlock Text="Tên đăng nhập" 
+                                                       Foreground="#94A3B8" 
+                                                       IsHitTestVisible="False" 
+                                                       VerticalAlignment="Center" 
+                                                       Margin="10,0" 
+                                                       FontSize="16">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Visibility" Value="Collapsed" />
@@ -139,118 +277,127 @@
                                     </Grid>
                                 </Border>
 
-                                <!-- Row 0, Column 2: Đăng nhập Button -->
-                                <Button Grid.Row="0" Grid.Column="2" x:Name="LoginButton" TabIndex="2"
-                                        Height="38"
-                                        Content="Đăng nhập"
-                                        FontWeight="SemiBold"
-                                        FontSize="15"
-                                        Background="#2563EB"
-                                        Foreground="White"
-                                        BorderThickness="0"
-                                        Click="LoginButton_Click">
-                                    <Button.Resources>
-                                        <Style TargetType="Border">
-                                            <Setter Property="CornerRadius" Value="4" />
-                                        </Style>
-                                    </Button.Resources>
-                                </Button>
-
-                                <!-- Row 2, Column 0: Mật khẩu with Icon -->
-                                <Border Grid.Row="2" Grid.Column="0" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Background="White">
+                                <!-- Password Field -->
+                                <Border Style="{StaticResource ModernFieldBorder}" Margin="0,0,0,24">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="35" />
+                                            <ColumnDefinition Width="45" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="🔑" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#94A3B8" FontSize="15" />
-                                        
+                                        <TextBlock Grid.Column="0" Text="🔑" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="18" />
                                         <Grid Grid.Column="1">
-                                            <PasswordBox x:Name="PasswordBox" TabIndex="1" BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center" Padding="5,0,8,0" FontSize="15" KeyDown="Input_KeyDown" />
+                                            <PasswordBox x:Name="PasswordBox" 
+                                                         TabIndex="1" 
+                                                         BorderThickness="0" 
+                                                         Background="Transparent" 
+                                                         VerticalContentAlignment="Center" 
+                                                         Padding="10,0" 
+                                                         FontSize="16" 
+                                                         KeyDown="Input_KeyDown" />
+                                            <!-- Hint text for PasswordBox is harder to do purely in XAML without more complex template, leaving as is for simplicity -->
                                         </Grid>
                                     </Grid>
                                 </Border>
-                            </Grid>
+
+                                <Button x:Name="LoginButton"
+                                        Style="{StaticResource PrimaryButtonStyle}"
+                                        Height="50"
+                                        Content="ĐĂNG NHẬP"
+                                        FontSize="16"
+                                        FontWeight="Bold"
+                                        Click="LoginButton_Click" />
+                            </StackPanel>
                         </TabItem>
 
-                        <TabItem x:Name="GuestTabItem" Header="Khách">
-                            <StackPanel Margin="10">
-                                <TextBlock Text="Đăng nhập nhanh cho khách vãng lai"
+                        <!-- Guest Login -->
+                        <TabItem x:Name="GuestTabItem" Header="KHÁCH">
+                            <StackPanel Margin="0,20,0,0">
+                                <TextBlock Text="Sử dụng máy không cần tài khoản"
                                            Foreground="#334155"
                                            FontWeight="SemiBold"
-                                           FontSize="15"
-                                           TextWrapping="Wrap" />
-
-                                <TextBlock Text="Dùng tab này cho khách không sử dụng tài khoản hội viên."
-                                           Margin="0,8,0,0"
+                                           FontSize="16"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="Bạn có thể thanh toán trực tiếp tại quầy hoặc nạp tiền vào máy sau khi đăng nhập."
+                                           Margin="0,12,0,24"
                                            Foreground="#64748B"
                                            FontSize="14"
+                                           TextAlignment="Center"
                                            TextWrapping="Wrap" />
 
                                 <Button x:Name="GuestLoginButton"
-                                        Margin="0,14,0,0"
-                                        Height="34"
-                                        Content="Sử dụng Khách vãng lai"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Height="48"
+                                        Content="Bắt đầu phiên Khách"
+                                        FontSize="16"
                                         FontWeight="SemiBold"
-                                        FontSize="15"
-                                        Background="Transparent"
-                                        BorderBrush="#2563EB"
-                                        BorderThickness="1"
-                                        Foreground="#2563EB"
                                         Click="GuestLoginButton_Click" />
                             </StackPanel>
                         </TabItem>
 
-                        <TabItem x:Name="ServerTabItem" Header="Máy chủ">
-                            <StackPanel Margin="10">
-                                <TextBlock Text="Cài đặt lại IP/URL máy chủ"
+                        <!-- Server Settings -->
+                        <TabItem x:Name="ServerTabItem" Header="HỆ THỐNG">
+                            <StackPanel Margin="0,20,0,0">
+                                <TextBlock Text="Địa chỉ Máy chủ (Server IP)"
                                            Foreground="#334155"
                                            FontWeight="SemiBold"
-                                           FontSize="15" />
-
-                                <TextBlock Text="Ví dụ: 192.168.1.50 hoặc 192.168.1.50:9000"
-                                           Margin="0,8,0,0"
-                                           Foreground="#64748B"
                                            FontSize="14"
-                                           TextWrapping="Wrap" />
-
-                                <TextBlock Text="IP/URL Máy chủ"
-                                           Margin="0,12,0,5"
-                                           Foreground="#334155"
-                                           FontWeight="SemiBold"
-                                           FontSize="15" />
-
-                                <TextBox x:Name="ServerIpTextBox"
-                                         Height="32"
-                                         Padding="8,4"
-                                         FontSize="15" />
+                                           Margin="0,0,0,8" />
+                                
+                                <Border Style="{StaticResource ModernFieldBorder}" Margin="0,0,0,16">
+                                    <TextBox x:Name="ServerIpTextBox"
+                                             BorderThickness="0"
+                                             Background="Transparent"
+                                             VerticalContentAlignment="Center"
+                                             Padding="12,0"
+                                             FontSize="16" />
+                                </Border>
 
                                 <Button x:Name="SaveServerButton"
-                                        Margin="0,14,0,0"
-                                        Height="34"
-                                        Content="Lưu và kết nối lại"
-                                        FontWeight="SemiBold"
+                                        Style="{StaticResource PrimaryButtonStyle}"
+                                        Height="45"
+                                        Content="Cập nhật &amp; Kết nối lại"
                                         FontSize="15"
-                                        Background="#2563EB"
-                                        Foreground="White"
+                                        FontWeight="Bold"
                                         Click="SaveServerButton_Click" />
 
                                 <TextBlock x:Name="ServerSetupStatusTextBlock"
-                                           Margin="0,10,0,0"
-                                           Foreground="#166534"
-                                           FontSize="14"
+                                           Margin="0,12,0,0"
+                                           Foreground="#059669"
+                                           FontSize="13"
+                                           TextAlignment="Center"
                                            TextWrapping="Wrap" />
                             </StackPanel>
                         </TabItem>
                     </TabControl>
 
-                    <TextBlock x:Name="ErrorTextBlock"
-                               Margin="0,10,0,0"
-                               Foreground="#DC2626"
-                               FontSize="14"
-                               TextWrapping="Wrap" />
+                    <!-- Error Section -->
+                    <Border x:Name="ErrorBorder" 
+                            Style="{StaticResource ErrorBorderStyle}"
+                            Margin="0,16,0,0" 
+                            Background="#FEF2F2" 
+                            CornerRadius="8" 
+                            Padding="12">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚠️" Margin="0,0,8,0" />
+                            <TextBlock x:Name="ErrorTextBlock"
+                                       Foreground="#B91C1C"
+                                       FontSize="13"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <!-- Trigger visibility for ErrorBorder based on ErrorTextBlock.Text -->
                 </StackPanel>
             </Border>
+        </Grid>
+
+        <!-- Footer / Credits -->
+        <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,32">
+            <TextBlock Text="SERVER MANAGER v2.0" 
+                       Foreground="White" 
+                       Opacity="0.4" 
+                       FontSize="12" 
+                       FontWeight="Bold" />
         </StackPanel>
     </Grid>
 </Window>

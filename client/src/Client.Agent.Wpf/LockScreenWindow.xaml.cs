@@ -60,10 +60,12 @@ public partial class LockScreenWindow : Window
 
         if (_backgroundMode == "image")
         {
+            BackgroundContainer.Visibility = Visibility.Visible;
             TryApplyImageBackground(_backgroundSource);
             return;
         }
 
+        BackgroundContainer.Visibility = Visibility.Visible;
         TryApplyVideoBackground(_backgroundSource);
     }
 
@@ -78,10 +80,10 @@ public partial class LockScreenWindow : Window
         GuestLoginButton.IsEnabled = true;
         SaveServerButton.IsEnabled = true;
         ServerIpTextBox.IsEnabled = true;
-        LoginButton.Content = "Đăng nhập";
-        ManualUnlockButton.Content = "Mở khóa";
-        GuestLoginButton.Content = "Sử dụng Khách vãng lai";
-        SaveServerButton.Content = "Lưu và kết nối lại";
+        LoginButton.Content = "ĐĂNG NHẬP";
+        ManualUnlockButton.Content = "Mở khóa máy";
+        GuestLoginButton.Content = "Bắt đầu phiên Khách";
+        SaveServerButton.Content = "Cập nhật & Kết nối lại";
         if (_manualUnlockMode)
         {
             TitleTextBlock.Text = "Khóa máy tạm thời";
@@ -388,17 +390,19 @@ public partial class LockScreenWindow : Window
         }
         else
         {
-            LoginButton.Content = "Đăng nhập";
-            ManualUnlockButton.Content = "Mở khóa";
-            GuestLoginButton.Content = "Sử dụng Khách vãng lai";
-            SaveServerButton.Content = "Lưu và kết nối lại";
+            LoginButton.Content = "ĐĂNG NHẬP";
+            ManualUnlockButton.Content = "Mở khóa máy";
+            GuestLoginButton.Content = "Bắt đầu phiên Khách";
+            SaveServerButton.Content = "Cập nhật & Kết nối lại";
         }
     }
 
     private static string NormalizeBackgroundMode(string? mode)
     {
         var normalized = (mode ?? string.Empty).Trim().ToLowerInvariant();
-        return normalized is "image" or "video" ? normalized : "none";
+        if (normalized.Contains("image") || normalized.Contains("ảnh")) return "image";
+        if (normalized.Contains("video")) return "video";
+        return "none";
     }
 
     private void ClearBackgroundMedia()
@@ -415,6 +419,7 @@ public partial class LockScreenWindow : Window
         BackgroundVideoElement.Visibility = Visibility.Collapsed;
         BackgroundImageElement.Source = null;
         BackgroundImageElement.Visibility = Visibility.Collapsed;
+        BackgroundContainer.Visibility = Visibility.Collapsed;
     }
 
     private void TryApplyImageBackground(string source)
@@ -426,8 +431,10 @@ public partial class LockScreenWindow : Window
             image.BeginInit();
             image.UriSource = uri;
             image.CacheOption = BitmapCacheOption.OnLoad;
+            image.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
             image.EndInit();
-            image.Freeze();
+            
+            if (image.CanFreeze) image.Freeze();
 
             BackgroundImageElement.Source = image;
             BackgroundImageElement.Visibility = Visibility.Visible;
