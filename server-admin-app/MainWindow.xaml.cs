@@ -145,6 +145,7 @@ public partial class MainWindow : Window
         _transactionReportInitialized = true;
         InitializeLoyaltyRanksTab();
         InitializeMiniGameTab();
+        InitializeAppBlockTab();
         
         ApplyUserRoleRestrictions();
 
@@ -322,6 +323,8 @@ public partial class MainWindow : Window
         await RefreshLoyaltyRanksAsync();
         await RefreshMiniGameSpinSettingsAsync();
         await RefreshStatisticsAsync();
+        await RefreshAppBlockSettingsAsync();
+        _appBlockSettingsInitialized = true;
     }
 
     private bool IsMembersTabActive()
