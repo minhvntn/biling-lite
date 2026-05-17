@@ -21,6 +21,8 @@ public sealed class AgentSocketService : IAsyncDisposable
     private readonly Action<int>? _elapsedSecondsHandler;
     private readonly Action<bool>? _resumeGuestSessionHandler;
     private readonly Action<MemberAccountChangedPayload>? _memberAccountChangedHandler;
+    private readonly Action<ServiceOrdersChangedPayload>? _serviceOrdersChangedHandler;
+    private readonly Action<WebFilterSettingsChangedPayload>? _webFilterSettingsChangedHandler;
 
     private global::SocketIOClient.SocketIO? _socket;
     private CancellationTokenSource? _heartbeatCts;
@@ -41,7 +43,9 @@ public sealed class AgentSocketService : IAsyncDisposable
         Action<bool>? guestLoginEnabledHandler = null,
         Action<int>? elapsedSecondsHandler = null,
         Action<bool>? resumeGuestSessionHandler = null,
-        Action<MemberAccountChangedPayload>? memberAccountChangedHandler = null)
+        Action<MemberAccountChangedPayload>? memberAccountChangedHandler = null,
+        Action<ServiceOrdersChangedPayload>? serviceOrdersChangedHandler = null,
+        Action<WebFilterSettingsChangedPayload>? webFilterSettingsChangedHandler = null)
     {
         _settings = settings;
         _logger = logger;
@@ -56,6 +60,8 @@ public sealed class AgentSocketService : IAsyncDisposable
         _elapsedSecondsHandler = elapsedSecondsHandler;
         _resumeGuestSessionHandler = resumeGuestSessionHandler;
         _memberAccountChangedHandler = memberAccountChangedHandler;
+        _serviceOrdersChangedHandler = serviceOrdersChangedHandler;
+        _webFilterSettingsChangedHandler = webFilterSettingsChangedHandler;
     }
 
     public async Task StartAsync()
@@ -229,6 +235,36 @@ public sealed class AgentSocketService : IAsyncDisposable
             catch (Exception ex)
             {
                 await _logger.ErrorAsync("Failed to parse member.account.changed payload", ex);
+            }
+        });
+
+        _socket.On("pc.service.orders.changed", async response =>
+        {
+            try
+            {
+                var payload = response.GetValue<ServiceOrdersChangedPayload>();
+                await _logger.InfoAsync(
+                    $"Received pc.service.orders.changed pcId={payload.PcId} reason={payload.Reason ?? "UNKNOWN"}");
+                _serviceOrdersChangedHandler?.Invoke(payload);
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync("Failed to parse pc.service.orders.changed payload", ex);
+            }
+        });
+
+        _socket.On("web.filter.settings.changed", async response =>
+        {
+            try
+            {
+                var payload = response.GetValue<WebFilterSettingsChangedPayload>();
+                await _logger.InfoAsync(
+                    $"Received web.filter.settings.changed updatedBy={payload.UpdatedBy ?? "UNKNOWN"}");
+                _webFilterSettingsChangedHandler?.Invoke(payload);
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync("Failed to parse web.filter.settings.changed payload", ex);
             }
         });
 
@@ -596,4 +632,28 @@ public sealed class MemberAccountSnapshot
 
     [JsonPropertyName("rank")]
     public string? Rank { get; set; }
+}
+
+public sealed class ServiceOrdersChangedPayload
+{
+    [JsonPropertyName("pcId")]
+    public string PcId { get; set; } = string.Empty;
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    [JsonPropertyName("changedBy")]
+    public string? ChangedBy { get; set; }
+
+    [JsonPropertyName("at")]
+    public string? At { get; set; }
+}
+
+public sealed class WebFilterSettingsChangedPayload
+{
+    [JsonPropertyName("updatedBy")]
+    public string? UpdatedBy { get; set; }
+
+    [JsonPropertyName("at")]
+    public string? At { get; set; }
 }

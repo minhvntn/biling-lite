@@ -1,4 +1,4 @@
-import {
+﻿import {
   BadRequestException,
   ConflictException,
   Injectable,
@@ -38,8 +38,9 @@ import { PetLoyaltyPointsDto } from './dto/pet-loyalty-points.dto';
 
 const LOYALTY_CONFIG_KEY = '__LOYALTY_MEMBER_POINTS__';
 const LOYALTY_MINUTES_PER_POINT = 15;
-const LOYALTY_SECONDS_PER_POINT = LOYALTY_MINUTES_PER_POINT * 60;
-const LOYALTY_REDEEM_SECONDS_PER_POINT = 60;
+const LOYALTY_POINTS_TO_MINUTES = 1;
+const LOYALTY_MINUTES_PER_POINT_SETTING_KEY = '__LOYALTY_MINUTES_PER_POINT__';
+const LOYALTY_POINTS_TO_MINUTES_SETTING_KEY = '__LOYALTY_POINTS_TO_MINUTES__';
 const LOYALTY_USAGE_CREATED_BY = 'client.session.loyalty';
 const LOYALTY_REDEEM_CREATED_BY = 'client.loyalty';
 const LOYALTY_REDEEM_NOTE_PREFIX = 'LOYALTY_REDEEM';
@@ -629,14 +630,7 @@ export class MembersService {
   }
 
   async getLoyaltySettings() {
-    const config = await this.prisma.pricingConfig.findUnique({
-      where: { name: LOYALTY_CONFIG_KEY },
-    });
-
-    return {
-      enabled: config?.isActive ?? true,
-      minutesPerPoint: LOYALTY_MINUTES_PER_POINT,
-    };
+    return this.getLoyaltySettingsItem();
   }
 
   async getEffectiveHourlyRate(baseRate: number): Promise<number> {
@@ -672,20 +666,49 @@ export class MembersService {
   }
 
   async updateLoyaltySettings(payload: UpdateLoyaltySettingsDto) {
-    const config = await this.prisma.pricingConfig.upsert({
-      where: { name: LOYALTY_CONFIG_KEY },
-      update: {
-        isActive: payload.enabled,
-      },
-      create: {
-        name: LOYALTY_CONFIG_KEY,
-        pricePerMinute: 0,
-        isActive: payload.enabled,
-      },
+    const sanitizedMinutesPerPoint = payload.minutesPerPoint !== undefined
+      ? Math.max(1, Math.floor(payload.minutesPerPoint))
+      : undefined;
+    const sanitizedPointsToMinutes = payload.pointsToMinutes !== undefined
+      ? Math.max(1, Math.floor(payload.pointsToMinutes))
+      : undefined;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.pricingConfig.upsert({
+        where: { name: LOYALTY_CONFIG_KEY },
+        update: {
+          isActive: payload.enabled,
+        },
+        create: {
+          name: LOYALTY_CONFIG_KEY,
+          pricePerMinute: 0,
+          isActive: payload.enabled,
+        },
+      });
+
+      if (sanitizedMinutesPerPoint !== undefined) {
+        await tx.appSetting.upsert({
+          where: { key: LOYALTY_MINUTES_PER_POINT_SETTING_KEY },
+          update: { value: sanitizedMinutesPerPoint.toString() },
+          create: { key: LOYALTY_MINUTES_PER_POINT_SETTING_KEY, value: sanitizedMinutesPerPoint.toString() },
+        });
+
+        await this.syncLoyaltyRankMinutesPerPoint(tx, sanitizedMinutesPerPoint);
+      }
+
+      if (sanitizedPointsToMinutes !== undefined) {
+        await tx.appSetting.upsert({
+          where: { key: LOYALTY_POINTS_TO_MINUTES_SETTING_KEY },
+          update: { value: sanitizedPointsToMinutes.toString() },
+          create: { key: LOYALTY_POINTS_TO_MINUTES_SETTING_KEY, value: sanitizedPointsToMinutes.toString() },
+        });
+      }
     });
 
+    const settings = await this.getLoyaltySettingsItem();
+
     return {
-      ...this.toLoyaltySettingsItem(config.isActive, config.updatedAt),
+      ...settings,
       updatedBy: payload.updatedBy?.trim() || 'admin.desktop',
     };
   }
@@ -696,16 +719,16 @@ export class MembersService {
       throw new NotFoundException('Không tìm thấy hội viên');
     }
 
-    const enabled = await this.getLoyaltyFeatureEnabled();
+    const settings = await this.getLoyaltySettingsItem();
     const snapshot = await this.buildLoyaltySnapshot(member.id, this.prisma);
 
     return {
-      enabled,
-      config: this.toLoyaltySettingsItem(enabled),
+      enabled: settings.enabled,
+      config: settings,
       member: this.toMemberItem(member),
       loyalty: snapshot,
       exchangeRate: {
-        pointsToMinutes: 1,
+        pointsToMinutes: settings.pointsToMinutes,
       },
     };
   }
@@ -841,7 +864,8 @@ export class MembersService {
         );
       }
 
-      const playSecondsDelta = requestedPoints * LOYALTY_REDEEM_SECONDS_PER_POINT;
+      const loyaltySettings = await this.getLoyaltySettingsItem(tx);
+      const playSecondsDelta = requestedPoints * loyaltySettings.pointsToMinutes * 60;
       const updatedMember = await tx.member.update({
         where: { id: member.id },
         data: {
@@ -868,7 +892,7 @@ export class MembersService {
         member: this.toMemberItem(updatedMember),
         redeemedPoints: requestedPoints,
         grantedSeconds: playSecondsDelta,
-        grantedMinutes: requestedPoints,
+        grantedMinutes: requestedPoints * loyaltySettings.pointsToMinutes,
         loyalty: after,
         redeemedAt: new Date().toISOString(),
       };
@@ -877,7 +901,6 @@ export class MembersService {
 
   async spinLoyaltyPoints(memberId: string, payload: { createdBy?: string; note?: string }) {
     const costPoints = 5;
-    const costSeconds = costPoints * LOYALTY_REDEEM_SECONDS_PER_POINT; // 300 seconds
     const createdBy = payload.createdBy?.trim() || 'client.loyalty.spin';
     const spinNotePrefix = 'LOYALTY_SPIN';
 
@@ -898,6 +921,9 @@ export class MembersService {
           `Khong du diem. Can ${costPoints} diem, ban hien co ${before.availablePoints} diem`,
         );
       }
+
+      const loyaltySettings = await this.getLoyaltySettingsItem(tx);
+      const costSeconds = costPoints * loyaltySettings.pointsToMinutes * 60;
 
       // Roll for prize
       const spinPrizeTable = await this.getSpinPrizeTable(tx);
@@ -997,8 +1023,12 @@ export class MembersService {
         );
       }
 
+      const loyaltySettings = await this.getLoyaltySettingsItem(tx);
+      const spendSecondsPerPoint = loyaltySettings.pointsToMinutes * 60;
+      const earnSecondsPerPoint = loyaltySettings.minutesPerPoint * 60;
+
       if (action === 'SPEND') {
-        const secondsToSpend = points * LOYALTY_REDEEM_SECONDS_PER_POINT;
+        const secondsToSpend = points * spendSecondsPerPoint;
         await tx.memberTransaction.create({
           data: {
             memberId,
@@ -1012,7 +1042,7 @@ export class MembersService {
           },
         });
       } else {
-        const secondsToReward = points * LOYALTY_SECONDS_PER_POINT;
+        const secondsToReward = points * earnSecondsPerPoint;
         await tx.memberTransaction.create({
           data: {
             memberId,
@@ -1221,6 +1251,78 @@ export class MembersService {
     };
   }
 
+  async getMemberUsageSummary(memberId: string) {
+    const member = await this.prisma.member.findUnique({
+      where: { id: memberId },
+      select: {
+        id: true,
+        username: true,
+      },
+    });
+
+    if (!member) {
+      throw new NotFoundException('Khong tim thay hoi vien');
+    }
+
+    const [usageAggregate, latestLoginRows] = await Promise.all([
+      this.prisma.memberTransaction.aggregate({
+        where: {
+          memberId: member.id,
+          playSecondsDelta: {
+            lt: 0,
+          },
+          note: {
+            startsWith: 'SESSION_USAGE',
+          },
+        },
+        _sum: {
+          playSecondsDelta: true,
+        },
+        _count: {
+          _all: true,
+        },
+      }),
+      this.prisma.$queryRaw<
+        Array<{
+          createdAt: Date;
+          pcName: string | null;
+          agentId: string | null;
+        }>
+      >`
+        SELECT
+          e.created_at AS "createdAt",
+          p.name AS "pcName",
+          p.agent_id AS "agentId"
+        FROM events_log e
+        LEFT JOIN pcs p ON p.id = e.pc_id
+        WHERE e.event_type = 'member.pc.presence'
+          AND (
+            COALESCE(e.payload->>'memberId', '') = ${member.id}
+            OR LOWER(COALESCE(e.payload->>'username', '')) = LOWER(${member.username})
+          )
+          AND LOWER(COALESCE(e.payload->>'isActive', 'false')) IN ('true', '1')
+        ORDER BY e.created_at DESC
+        LIMIT 1
+      `,
+    ]);
+
+    const consumedSecondsRaw = usageAggregate._sum.playSecondsDelta ?? 0;
+    const totalUsageSeconds = Math.max(0, Math.abs(consumedSecondsRaw));
+    const latestLogin = latestLoginRows[0];
+
+    return {
+      memberId: member.id,
+      username: member.username,
+      lastLoginAt: latestLogin?.createdAt?.toISOString() ?? null,
+      lastLoginPcName: latestLogin?.pcName ?? null,
+      lastLoginAgentId: latestLogin?.agentId ?? null,
+      totalUsageSeconds,
+      totalUsageHours: Number((totalUsageSeconds / 3600).toFixed(2)),
+      sessionUsageCount: usageAggregate._count._all,
+      serverTime: new Date().toISOString(),
+    };
+  }
+
   async adjustBalance(memberId: string, payload: AdjustBalanceDto) {
     const amountDelta = this.roundMoneyAllowNegative(payload.amountDelta);
     const createdBy = payload.createdBy?.trim() || 'admin.desktop';
@@ -1373,12 +1475,14 @@ export class MembersService {
       // Handle availablePoints adjustment
       if (payload.availablePoints !== undefined) {
         const loyalty = await this.buildLoyaltySnapshot(memberId, tx);
+        const loyaltySettings = await this.getLoyaltySettingsItem(tx);
+        const earnSecondsPerPoint = loyaltySettings.minutesPerPoint * 60;
+        const spendSecondsPerPoint = loyaltySettings.pointsToMinutes * 60;
         const pointsDiff = payload.availablePoints - loyalty.availablePoints;
         if (pointsDiff !== 0) {
           if (pointsDiff > 0) {
             // Add points by adding a "pseudo-usage" transaction (earning)
-            // 1 point = LOYALTY_SECONDS_PER_POINT
-            const secondsToAdd = pointsDiff * LOYALTY_SECONDS_PER_POINT;
+            const secondsToAdd = pointsDiff * earnSecondsPerPoint;
             await tx.memberTransaction.create({
               data: {
                 memberId,
@@ -1392,7 +1496,7 @@ export class MembersService {
           } else {
             // Subtract points by adding a "pseudo-redemption" transaction
             const pointsToSubtract = Math.abs(pointsDiff);
-            const secondsToRedeem = pointsToSubtract * LOYALTY_REDEEM_SECONDS_PER_POINT;
+            const secondsToRedeem = pointsToSubtract * spendSecondsPerPoint;
             await tx.memberTransaction.create({
               data: {
                 memberId,
@@ -2164,8 +2268,11 @@ export class MembersService {
     const tiersPerCategory = 10;
     const totalRanks = categories.length * tiersPerCategory;
 
-    const startMinutes = 150;
-    const endMinutes = 15;
+    const loyaltySettings = await this.getLoyaltySettingsItem();
+    // Highest rank must follow current loyalty setting (e.g. 20 mins = 1 point).
+    const endMinutes = Math.max(1, Math.floor(loyaltySettings.minutesPerPoint));
+    // Keep the original 10x range behavior while making it dynamic.
+    const startMinutes = endMinutes * 10;
     const startBonus = 0;
     const endBonus = 100;
 
@@ -2192,17 +2299,109 @@ export class MembersService {
         });
       }
 
-      return { success: true, count: totalRanks, maxThreshold };
+      return {
+        success: true,
+        count: totalRanks,
+        maxThreshold,
+        startMinutes,
+        endMinutes,
+      };
     });
   }
 
-  private toLoyaltySettingsItem(enabled: boolean, updatedAt?: Date) {
+  private async syncLoyaltyRankMinutesPerPoint(
+    tx: Prisma.TransactionClient,
+    baseMinutesPerPoint: number,
+  ) {
+    const ranks = await tx.loyaltyRankConfig.findMany({
+      orderBy: [
+        { minTopup: 'asc' },
+        { createdAt: 'asc' },
+      ],
+    });
+
+    if (ranks.length === 0) {
+      return;
+    }
+
+    const endMinutes = Math.max(1, Math.floor(baseMinutesPerPoint));
+    const startMinutes = endMinutes * 10;
+    const denominator = Math.max(1, ranks.length - 1);
+
+    for (let i = 0; i < ranks.length; i++) {
+      const factor = i / denominator;
+      const minutesPerPoint = Math.round(
+        startMinutes - (startMinutes - endMinutes) * factor,
+      );
+
+      await tx.loyaltyRankConfig.update({
+        where: { id: ranks[i].id },
+        data: { minutesPerPoint },
+      });
+    }
+  }
+
+  private async getLoyaltySettingsItem(
+    tx?: Prisma.TransactionClient,
+  ): Promise<{
+    enabled: boolean;
+    minutesPerPoint: number;
+    pointsToMinutes: number;
+    updatedAt: string;
+  }> {
+    const prisma = tx ?? this.prisma;
+    const [config, minutesSetting, redeemSetting] = await Promise.all([
+      prisma.pricingConfig.findUnique({
+        where: { name: LOYALTY_CONFIG_KEY },
+      }),
+      prisma.appSetting.findUnique({
+        where: { key: LOYALTY_MINUTES_PER_POINT_SETTING_KEY },
+      }),
+      prisma.appSetting.findUnique({
+        where: { key: LOYALTY_POINTS_TO_MINUTES_SETTING_KEY },
+      }),
+    ]);
+
+    const minutesPerPoint = this.parseLoyaltyRateSetting(
+      minutesSetting?.value,
+      LOYALTY_MINUTES_PER_POINT,
+    );
+    const pointsToMinutes = this.parseLoyaltyRateSetting(
+      redeemSetting?.value,
+      LOYALTY_POINTS_TO_MINUTES,
+    );
+
+    const updatedAtCandidates = [
+      config?.updatedAt,
+      minutesSetting?.updatedAt,
+      redeemSetting?.updatedAt,
+    ].filter((item): item is Date => item instanceof Date);
+
+    const updatedAt = updatedAtCandidates.length === 0
+      ? new Date()
+      : updatedAtCandidates.reduce((latest, current) =>
+          current.getTime() > latest.getTime() ? current : latest,
+      updatedAtCandidates[0]);
+
     return {
-      enabled,
-      minutesPerPoint: LOYALTY_MINUTES_PER_POINT,
-      pointsToMinutes: 1,
-      updatedAt: (updatedAt ?? new Date()).toISOString(),
+      enabled: config?.isActive ?? true,
+      minutesPerPoint,
+      pointsToMinutes,
+      updatedAt: updatedAt.toISOString(),
     };
+  }
+
+  private parseLoyaltyRateSetting(
+    rawValue: string | null | undefined,
+    fallback: number,
+  ): number {
+    const parsed = Number(rawValue);
+    if (!Number.isFinite(parsed)) {
+      return fallback;
+    }
+
+    const rounded = Math.floor(parsed);
+    return rounded >= 1 ? rounded : fallback;
   }
 
   private async getLoyaltyFeatureEnabled(
@@ -2249,22 +2448,15 @@ export class MembersService {
       },
     });
 
-    const member = await tx.member.findUnique({ where: { id: memberId } });
-    const rankConfigs = await tx.loyaltyRankConfig.findMany({
-      orderBy: { minTopup: 'desc' },
-    });
-
-    const memberRank =
-      rankConfigs.find((c) => Number(member!.totalTopup) >= Number(c.minTopup)) ||
-      rankConfigs[rankConfigs.length - 1];
-
-    const currentMinutesPerPoint = memberRank?.minutesPerPoint ?? LOYALTY_MINUTES_PER_POINT;
+    const loyaltySettings = await this.getLoyaltySettingsItem(tx);
+    const currentMinutesPerPoint = loyaltySettings.minutesPerPoint;
     const currentSecondsPerPoint = currentMinutesPerPoint * 60;
+    const redeemSecondsPerPoint = loyaltySettings.pointsToMinutes * 60;
 
     const consumedSeconds = Math.abs(usageAggregate._sum.playSecondsDelta ?? 0);
     const redeemedSeconds = Math.max(0, redeemAggregate._sum.playSecondsDelta ?? 0);
     const earnedPoints = Math.floor(consumedSeconds / currentSecondsPerPoint);
-    const redeemedPoints = Math.floor(redeemedSeconds / LOYALTY_REDEEM_SECONDS_PER_POINT);
+    const redeemedPoints = Math.floor(redeemedSeconds / redeemSecondsPerPoint);
     const availablePoints = Math.max(0, earnedPoints - redeemedPoints);
     const progressSeconds = consumedSeconds % currentSecondsPerPoint;
 
@@ -2312,6 +2504,10 @@ export class MembersService {
       throw new BadRequestException('Cau hinh vong quay khong hop le');
     }
 
+    if (raw.length === 0) {
+      throw new BadRequestException('Cau hinh vong quay khong duoc rong');
+    }
+
     const incomingMap = new Map<number, number>();
     for (const entry of raw) {
       if (!entry || typeof entry !== 'object') {
@@ -2321,7 +2517,7 @@ export class MembersService {
       const minutes = Number((entry as { minutes?: unknown }).minutes);
       const chance = Number((entry as { chance?: unknown }).chance);
 
-      if (!Number.isFinite(minutes) || !Number.isInteger(minutes) || minutes < 0) {
+      if (!Number.isFinite(minutes) || !Number.isInteger(minutes) || minutes < 0 || minutes > 1000) {
         throw new BadRequestException('Gia tri minutes khong hop le');
       }
       if (!Number.isFinite(chance) || chance < 0 || chance > 100) {
@@ -2334,25 +2530,13 @@ export class MembersService {
       incomingMap.set(minutes, Number(chance.toFixed(4)));
     }
 
-    const expectedMinutes = DEFAULT_SPIN_PRIZE_TABLE.map((item) => item.minutes);
-    for (const minutes of expectedMinutes) {
-      if (!incomingMap.has(minutes)) {
-        throw new BadRequestException(
-          `Thieu moc ${minutes}p. Cac moc bat buoc: ${expectedMinutes.join(', ')}`,
-        );
-      }
-    }
-    if (incomingMap.size !== expectedMinutes.length) {
-      throw new BadRequestException(
-        `Chi ho tro dung ${expectedMinutes.length} moc: ${expectedMinutes.join(', ')}`,
-      );
-    }
-
-    return DEFAULT_SPIN_PRIZE_TABLE.map((base) => ({
-      minutes: base.minutes,
-      chance: incomingMap.get(base.minutes) ?? base.chance,
-      label: `${base.minutes}p`,
-    }));
+    return Array.from(incomingMap.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([minutes, chance]) => ({
+        minutes,
+        chance,
+        label: `${minutes}p`,
+      }));
   }
 
   private toTransactionItem(item: MemberTransaction) {
@@ -2890,3 +3074,4 @@ export class MembersService {
     return DEFAULT_MEMBER_TOPUP_REQUEST_ENABLED;
   }
 }
+

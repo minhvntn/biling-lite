@@ -6,6 +6,7 @@ import { GuestOpenDto } from './dto/guest-open.dto';
 import { UploadPcScreenshotDto } from './dto/upload-pc-screenshot.dto';
 import { UploadPcLiveFrameDto } from './dto/upload-pc-live-frame.dto';
 import { RemoteInputDto } from './dto/remote-input.dto';
+import { WakePcDto } from './dto/wake-pc.dto';
 
 @Controller()
 export class CommandsController {
@@ -46,6 +47,16 @@ export class CommandsController {
   @Post('pcs/:pcId/shutdown')
   async shutdownPc(@Param('pcId') pcId: string, @Body() body: RequestCommandDto) {
     return this.commandsService.createShutdownCommand(pcId, body.requestedBy);
+  }
+
+  @Post('pcs/:pcId/wake')
+  async wakePc(@Param('pcId') pcId: string, @Body() body: WakePcDto) {
+    return this.commandsService.wakePc(
+      pcId,
+      body.macAddress,
+      body.broadcastAddress,
+      body.requestedBy,
+    );
   }
 
   @Post('pcs/:pcId/close-apps')

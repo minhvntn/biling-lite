@@ -175,6 +175,11 @@ export class MembersController {
     return this.membersService.getMemberTransactions(memberId);
   }
 
+  @Get(':memberId/usage-summary')
+  async getMemberUsageSummary(@Param('memberId') memberId: string) {
+    return this.membersService.getMemberUsageSummary(memberId);
+  }
+
   @Post(':memberId/topups')
   async topupMember(
     @Param('memberId') memberId: string,

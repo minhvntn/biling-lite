@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -195,6 +195,11 @@ public partial class MainWindow : Window
         var clamped = ClampMachineTableFontSize(value);
         MachinesDataGrid.FontSize = clamped;
         MachinesDataGrid.RowHeight = Math.Max(44, clamped * 2.1);
+        if (MembersDataGrid != null)
+        {
+            MembersDataGrid.FontSize = clamped;
+            MembersDataGrid.RowHeight = Math.Max(44, clamped * 2.1);
+        }
         _settings.MachineTableFontSize = clamped;
         if (MachineTableFontSizeValueTextBlock is not null)
         {
@@ -686,6 +691,8 @@ public partial class MainWindow : Window
             }
 
             LoyaltyPointsEnabledCheckBox.IsChecked = response.Enabled;
+            LoyaltyMinutesPerPointTextBox.Text = Math.Max(1, response.MinutesPerPoint).ToString(CultureInfo.InvariantCulture);
+            LoyaltyPointsToMinutesTextBox.Text = Math.Max(1, response.PointsToMinutes).ToString(CultureInfo.InvariantCulture);
             LoyaltySettingsStatusTextBlock.Text = response.Enabled
                 ? $"Đang bật tích lũy: {response.MinutesPerPoint} phút = 1 điểm, 1 điểm = {response.PointsToMinutes} phút chơi."
                 : "Đang tắt tích lũy điểm cho hội viên.";
@@ -707,6 +714,19 @@ public partial class MainWindow : Window
     private async Task SaveLoyaltySettingsAsync()
     {
         var enabled = LoyaltyPointsEnabledCheckBox.IsChecked == true;
+        if (!TryParsePositiveInt(LoyaltyMinutesPerPointTextBox.Text.Trim(), out var minutesPerPoint))
+        {
+            LoyaltySettingsStatusTextBlock.Text = "Số phút tích lũy / điểm không hợp lệ (phải là số nguyên >= 1).";
+            LoyaltySettingsStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        if (!TryParsePositiveInt(LoyaltyPointsToMinutesTextBox.Text.Trim(), out var pointsToMinutes))
+        {
+            LoyaltySettingsStatusTextBlock.Text = "Số phút đổi từ 1 điểm không hợp lệ (phải là số nguyên >= 1).";
+            LoyaltySettingsStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
 
         try
         {
@@ -715,6 +735,8 @@ public partial class MainWindow : Window
                 new
                 {
                     enabled,
+                    minutesPerPoint,
+                    pointsToMinutes,
                     updatedBy = "admin.desktop",
                 });
 
@@ -727,10 +749,12 @@ public partial class MainWindow : Window
             }
 
             var payload = await response.Content.ReadFromJsonAsync<LoyaltySettingsResponse>(JsonOptions());
-            var minutesPerPoint = payload?.MinutesPerPoint ?? 15;
-            var pointsToMinutes = payload?.PointsToMinutes ?? 1;
+            var effectiveMinutesPerPoint = payload?.MinutesPerPoint ?? minutesPerPoint;
+            var effectivePointsToMinutes = payload?.PointsToMinutes ?? pointsToMinutes;
+            LoyaltyMinutesPerPointTextBox.Text = effectiveMinutesPerPoint.ToString(CultureInfo.InvariantCulture);
+            LoyaltyPointsToMinutesTextBox.Text = effectivePointsToMinutes.ToString(CultureInfo.InvariantCulture);
             LoyaltySettingsStatusTextBlock.Text = enabled
-                ? $"Đã bật tích lũy: {minutesPerPoint} phút = 1 điểm, 1 điểm = {pointsToMinutes} phút chơi."
+                ? $"Đã bật tích lũy: {effectiveMinutesPerPoint} phút = 1 điểm, 1 điểm = {effectivePointsToMinutes} phút chơi."
                 : "Đã tắt tích lũy điểm cho hội viên.";
             LoyaltySettingsStatusTextBlock.Foreground = enabled ? Brushes.DarkGreen : Brushes.DimGray;
             AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã lưu cài đặt điểm tích lũy: {(enabled ? "BẬT" : "TẮT")}");
@@ -765,6 +789,34 @@ public partial class MainWindow : Window
         LoyaltySettingsStatusTextBlock.Text =
             "Đã thay đổi trạng thái tích lũy điểm. Bấm \"Lưu cài đặt\" để áp dụng lên backend.";
         LoyaltySettingsStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+    }
+
+    private void LoyaltyRateTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_loyaltySettingsInitialized || _isLoadingLoyaltySettings)
+        {
+            return;
+        }
+
+        LoyaltySettingsStatusTextBlock.Text =
+            "Đã thay đổi thông số tích lũy. Bấm \"Lưu cài đặt\" để áp dụng lên backend.";
+        LoyaltySettingsStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+    }
+
+    private static bool TryParsePositiveInt(string value, out int parsed)
+    {
+        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out parsed) && parsed >= 1)
+        {
+            return true;
+        }
+
+        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.CurrentCulture, out parsed) && parsed >= 1)
+        {
+            return true;
+        }
+
+        parsed = 0;
+        return false;
     }
 
 

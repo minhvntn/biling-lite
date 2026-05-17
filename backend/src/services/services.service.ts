@@ -11,6 +11,7 @@ import { CreatePcServiceOrderDto } from './dto/create-pc-service-order.dto';
 import { CreateServiceItemDto } from './dto/create-service-item.dto';
 import { PayPcServiceOrdersDto } from './dto/pay-pc-service-orders.dto';
 import { UpdateServiceItemDto } from './dto/update-service-item.dto';
+import { RealtimeService } from '../realtime/realtime.service';
 
 type GetServiceItemsOptions = {
   includeInactive?: boolean;
@@ -18,7 +19,10 @@ type GetServiceItemsOptions = {
 
 @Injectable()
 export class ServicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeService,
+  ) {}
 
   async getServiceItems(options?: GetServiceItemsOptions) {
     const includeInactive = options?.includeInactive ?? false;
@@ -122,7 +126,7 @@ export class ServicesService {
     const note = this.normalizeOptionalText(payload.note);
     const createdBy = payload.requestedBy?.trim() || 'admin.desktop';
 
-    return this.prisma.$transaction(async (tx) => {
+    const createdResult = await this.prisma.$transaction(async (tx) => {
       const [pc, serviceItem, activeSession] = await Promise.all([
         tx.pc.findUnique({ where: { id: pcId } }),
         tx.serviceItem.findUnique({ where: { id: payload.serviceItemId } }),
@@ -183,8 +187,22 @@ export class ServicesService {
         // Ignore audit logging failures.
       }
 
-      return this.toPcServiceOrder(order);
+      return {
+        order: this.toPcServiceOrder(order),
+        agentId: pc.agentId,
+        pcId: pc.id,
+        sessionId: activeSession?.id ?? null,
+      };
     });
+
+    this.emitServiceOrdersChanged(
+      createdResult.agentId,
+      createdResult.pcId,
+      createdResult.sessionId,
+      'created',
+      createdBy,
+    );
+    return createdResult.order;
   }
 
   async getPcServiceOrders(pcId: string, rawLimit?: number) {
@@ -237,7 +255,7 @@ export class ServicesService {
       throw new BadRequestException('Yeu cau huy dich vu khong hop le');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const cancelResult = await this.prisma.$transaction(async (tx) => {
       const [pc, orders, paidEvents] = await Promise.all([
         tx.pc.findUnique({ where: { id: pcId } }),
         tx.pcServiceOrder.findMany({
@@ -418,6 +436,7 @@ export class ServicesService {
       }
 
       return {
+        agentId: pc.agentId,
         pcId,
         sessionId: payload.sessionId ?? null,
         canceledOrderCount: canceledOrderIds.length,
@@ -427,13 +446,24 @@ export class ServicesService {
         serverTime: new Date().toISOString(),
       };
     });
+
+    this.emitServiceOrdersChanged(
+      cancelResult.agentId,
+      cancelResult.pcId,
+      cancelResult.sessionId,
+      'canceled',
+      requestedBy,
+    );
+
+    const { agentId, ...response } = cancelResult;
+    return response;
   }
 
   async payPcServiceOrders(pcId: string, payload: PayPcServiceOrdersDto) {
     const requestedBy = payload.requestedBy?.trim() || 'admin.desktop';
     const note = this.normalizeOptionalText(payload.note);
 
-    return this.prisma.$transaction(async (tx) => {
+    const payResult = await this.prisma.$transaction(async (tx) => {
       const [pc, activeSession] = await Promise.all([
         tx.pc.findUnique({ where: { id: pcId } }),
         tx.session.findFirst({
@@ -467,6 +497,7 @@ export class ServicesService {
 
       if (orders.length === 0) {
         return {
+          agentId: pc.agentId,
           pcId,
           sessionId: activeSession.id,
           paidOrderCount: 0,
@@ -497,6 +528,7 @@ export class ServicesService {
 
       if (targetOrders.length === 0 || paidAmount <= 0) {
         return {
+          agentId: pc.agentId,
           pcId,
           sessionId: activeSession.id,
           paidOrderCount: 0,
@@ -523,6 +555,7 @@ export class ServicesService {
       });
 
       return {
+        agentId: pc.agentId,
         pcId,
         sessionId: activeSession.id,
         paidOrderCount: targetOrders.length,
@@ -530,6 +563,38 @@ export class ServicesService {
         unpaidAmount: remainingUnpaidAmount,
         serverTime: new Date().toISOString(),
       };
+    });
+
+    this.emitServiceOrdersChanged(
+      payResult.agentId,
+      payResult.pcId,
+      payResult.sessionId,
+      'paid',
+      requestedBy,
+    );
+
+    const { agentId, ...response } = payResult;
+    return response;
+  }
+
+  private emitServiceOrdersChanged(
+    agentId: string,
+    pcId: string,
+    sessionId: string | null,
+    reason: string,
+    changedBy: string,
+  ) {
+    if (!agentId) {
+      return;
+    }
+
+    this.realtime.emitToAgent(agentId, 'pc.service.orders.changed', {
+      agentId,
+      pcId,
+      sessionId,
+      reason,
+      changedBy,
+      at: new Date().toISOString(),
     });
   }
 

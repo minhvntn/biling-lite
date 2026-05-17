@@ -34,6 +34,15 @@ public partial class App : Application
 {
     private const string WebFilterStartMarker = "# SMB_WEB_FILTER_START";
     private const string WebFilterEndMarker = "# SMB_WEB_FILTER_END";
+    private static readonly TimeSpan WebsiteLogEnabledSyncInterval = TimeSpan.FromMinutes(20);
+    private static readonly TimeSpan WebsiteLogDisabledSyncInterval = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan WebsiteLogSettingsRefreshInterval = TimeSpan.FromMinutes(20);
+    private static readonly TimeSpan WebsiteLogDomainDedupeWindow = TimeSpan.FromMinutes(20);
+    private const int WebsiteLogInitialLookbackMinutes = 8;
+    private const int WebsiteLogOverlapSeconds = 30;
+    private const int WebsiteLogCollectMaxItems = 120;
+    private const int WebsiteLogPerBrowserLimit = 80;
+    private const int WebsiteLogPayloadMaxItems = 60;
     private static readonly string HostsFilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.System),
         "drivers",
@@ -68,13 +77,11 @@ public partial class App : Application
     private string _lockScreenBackgroundUrl = string.Empty;
     private DateTime _lastRuntimeSettingsFetchUtc = DateTime.MinValue;
     private string _currentMachineState = "LOCKED";
-    private readonly DispatcherTimer _webFilterSyncTimer = new();
     private bool _isWebFilterSyncRunning;
     private bool _isMemberAutoLockInProgress;
     private DateTime _lastWebFilterFetchUtc = DateTime.MinValue;
     private string _lastWebFilterSignature = string.Empty;
     private readonly DispatcherTimer _websiteLogSyncTimer = new();
-    private readonly DispatcherTimer _serviceCostSyncTimer = new();
     private bool _isWebsiteLogSyncRunning;
     private bool _isServiceCostSyncRunning;
     private bool _websiteLogEnabled;
@@ -84,7 +91,8 @@ public partial class App : Application
     private DateTime _lastWebsiteHistoryScanUtc = DateTime.MinValue;
     private readonly Dictionary<string, DateTime> _websiteDomainLastSentAt =
         new(StringComparer.OrdinalIgnoreCase);
-    private static readonly int[] MemberRemainingWarningThresholds = [5];
+    private bool _isBillingServerConnected;
+    private static readonly int[] MemberRemainingWarningThresholds = [];
     private static readonly object MemberWarningAudioPlaybackSync = new();
     private static MediaPlayer? _memberWarningAudioPlayer;
     private static bool _uiDefaultsConfigured;
@@ -214,9 +222,7 @@ public partial class App : Application
         _mainWindow?.AllowShutdown();
         _lockScreenWindow?.AllowShutdown();
         _backgroundSyncTimer.Stop();
-        _webFilterSyncTimer.Stop();
         _websiteLogSyncTimer.Stop();
-        _serviceCostSyncTimer.Stop();
 
         try
         {
@@ -237,24 +243,20 @@ public partial class App : Application
 
     private void StartDeferredStartupTasks()
     {
-        _backgroundSyncTimer.Interval = TimeSpan.FromSeconds(10);
+        _backgroundSyncTimer.Interval = TimeSpan.FromMinutes(1);
         _backgroundSyncTimer.Tick += BackgroundSyncTimer_Tick;
         _backgroundSyncTimer.Start();
         _ = RefreshClientRuntimeSettingsAsync();
 
-        _webFilterSyncTimer.Interval = TimeSpan.FromSeconds(180);
-        _webFilterSyncTimer.Tick += WebFilterSyncTimer_Tick;
-        _webFilterSyncTimer.Start();
+        // Web filter is applied once on startup and then refreshed only by realtime update/reconnect.
         _ = RefreshAndApplyWebFilterAsync(true);
 
-        _websiteLogSyncTimer.Interval = TimeSpan.FromSeconds(600);
+        _websiteLogSyncTimer.Interval = WebsiteLogEnabledSyncInterval;
         _websiteLogSyncTimer.Tick += WebsiteLogSyncTimer_Tick;
         _websiteLogSyncTimer.Start();
         _ = SyncWebsiteLogsAsync(true);
 
-        _serviceCostSyncTimer.Interval = TimeSpan.FromSeconds(60);
-        _serviceCostSyncTimer.Tick += ServiceCostSyncTimer_Tick;
-        _serviceCostSyncTimer.Start();
+        // Service cost is refreshed on demand (local action + realtime event), no periodic polling.
         _ = RefreshServiceCostUiAsync(force: true);
 
         // Clean up stale website-log snapshot files from previous runs
@@ -300,7 +302,9 @@ public partial class App : Application
 
                 Dispatcher.Invoke(ResumeGuestSessionFromServer);
             },
-            OnMemberAccountChangedFromServer);
+            OnMemberAccountChangedFromServer,
+            OnServiceOrdersChangedFromServer,
+            OnWebFilterSettingsChangedFromServer);
 
         _socketService.GetRunningAppsHandler = HandleGetRunningAppsRequestedAsync;
         _socketService.KillProcessHandler = HandleKillProcessRequestedAsync;
@@ -519,13 +523,20 @@ public partial class App : Application
     {
         if (!string.IsNullOrEmpty(_manualLockPassword))
         {
-            return new LoginAttemptResult(false, "Vui lÃ²ng nháº­p máº­t mÃ£ khÃ³a mÃ¡y Ä‘Ã£ Ä‘áº·t.");
+            return new LoginAttemptResult(false, "Vui lòng nhập mật mã khóa máy �'ã �'ặt.");
         }
 
         var normalizedUsername = username.Trim();
         if (string.IsNullOrWhiteSpace(normalizedUsername) || string.IsNullOrEmpty(password))
         {
             return new LoginAttemptResult(false, "Vui long nhap ten dang nhap va mat khau.");
+        }
+
+        // Fast offline admin login when billing server is not connected.
+        if (IsOfflineAdminCredential(normalizedUsername, password) && !_isBillingServerConnected)
+        {
+            await ActivateAdminSessionFromLockScreenAsync(normalizedUsername, "OFFLINE_ADMIN_LOGIN");
+            return new LoginAttemptResult(true, "Dang nhap quan tri offline thanh cong.");
         }
 
         // Check if this is an agent-admin login (verified by server).
@@ -568,7 +579,7 @@ public partial class App : Application
         // or backend is old and does not expose /settings/agent-admin/login.
         if (!isAgentAdmin && (adminCheckException || adminEndpointUnavailable))
         {
-            if (normalizedUsername.Equals("administrator", StringComparison.OrdinalIgnoreCase) && password == "isadmin")
+            if (IsOfflineAdminCredential(normalizedUsername, password))
             {
                 isAgentAdmin = true;
                 if (_logger is not null)
@@ -580,24 +591,7 @@ public partial class App : Application
 
         if (isAgentAdmin)
         {
-            await TrackAndClearMemberSessionAsync("ADMIN_LOCKSCREEN_LOGIN");
-            _isAdminSession = true;
-            await ReportAdminPresenceAsync(true, normalizedUsername);
-            _activeMemberSession = null;
-            _isPostpaidGuestSession = false;
-            _lastSyncedMemberUsedSeconds = 0;
-            ResetMemberRemainingWarnings();
-            Dispatcher.Invoke(() =>
-            {
-                _mainWindow?.ConfigureBilling(
-                    _settings.TotalSessionMinutes,
-                    _currentHourlyRate,
-                    true);
-                _mainWindow?.SetMemberInfo("Admin", "ADMIN");
-                UnlockMachine();
-                _mainWindow?.SetLastCommand($"ADMIN LOGIN @ {DateTime.Now:HH:mm:ss}");
-            });
-
+            await ActivateAdminSessionFromLockScreenAsync(normalizedUsername, "ADMIN_LOCKSCREEN_LOGIN");
             return new LoginAttemptResult(true, "Dang nhap quan tri thanh cong.");
         }
 
@@ -921,8 +915,8 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             if (pcContext is null)
             {
                 MessageBox.Show(
-                    "KhÃ´ng xÃ¡c Ä‘á»‹nh Ä‘Æ°á»£c mÃ¡y tráº¡m hiá»‡n táº¡i Ä‘á»ƒ gá»­i dá»‹ch vá»¥.",
-                    "Dá»‹ch vá»¥",
+                    "Không xác �'�<nh �'ược máy trạm hi�?n tại �'�f gửi d�<ch vụ.",
+                    "D�<ch vụ",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
                 return;
@@ -932,8 +926,8 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             if (string.IsNullOrWhiteSpace(activeSessionId))
             {
                 MessageBox.Show(
-                    "MÃ¡y chÆ°a cÃ³ phiÃªn Ä‘ang sá»­ dá»¥ng Ä‘á»ƒ gá»­i dá»‹ch vá»¥.",
-                    "Dá»‹ch vá»¥",
+                    "Máy chưa có phiên �'ang sử dụng �'�f gửi d�<ch vụ.",
+                    "D�<ch vụ",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
                 return;
@@ -944,8 +938,8 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
         catch (Exception ex)
         {
             MessageBox.Show(
-                $"KhÃ´ng thá»ƒ má»Ÿ mÃ n hÃ¬nh dá»‹ch vá»¥: {ex.Message}",
-                "Dá»‹ch vá»¥",
+                $"Không th�f m�Y màn hình d�<ch vụ: {ex.Message}",
+                "D�<ch vụ",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
@@ -1133,8 +1127,8 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
         if (activeItems.Count == 0)
         {
             MessageBox.Show(
-                "Hiá»‡n chÆ°a cÃ³ dá»‹ch vá»¥ Ä‘ang bÃ¡n.",
-                "Dá»‹ch vá»¥",
+                "Hi�?n chưa có d�<ch vụ �'ang bán.",
+                "D�<ch vụ",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -1168,11 +1162,11 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
                 StringComparer.OrdinalIgnoreCase);
 
         var orderedPreview = existingOrders.Count == 0
-            ? "Chua gá»­i dá»‹ch vá»¥."
+            ? "Chua gửi d�<ch vụ."
             : string.Join(
                 " | ",
                 existingOrders
-                    .GroupBy(x => x.ServiceItem?.Name ?? "Dá»‹ch vá»¥")
+                    .GroupBy(x => x.ServiceItem?.Name ?? "D�<ch vụ")
                     .Select(g =>
                     {
                         var quantity = g.Sum(x => Math.Max(0, x.Quantity));
@@ -1194,7 +1188,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
         var dialog = new Window
         {
-            Title = $"Dá»‹ch vá»¥ - {pcName}",
+            Title = $"D�<ch vụ - {pcName}",
             Width = 920,
             Height = 640,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -1215,7 +1209,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
         var titleText = new TextBlock
         {
-            Text = $"MÃ¡y tráº¡m: {pcName}",
+            Text = $"Máy trạm: {pcName}",
             FontSize = 16,
             FontWeight = FontWeights.SemiBold,
             Margin = new Thickness(0, 0, 0, 6),
@@ -1225,7 +1219,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
         var orderedPreviewText = new TextBlock
         {
-            Text = $"ÄÃ£ gá»i: {orderedPreview}",
+            Text = $"Đã gọi: {orderedPreview}",
             Foreground = Brushes.DimGray,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 8),
@@ -1250,28 +1244,28 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
         serviceGrid.Columns.Add(new DataGridTextColumn
         {
-            Header = "Dá»‹ch vá»¥",
+            Header = "D�<ch vụ",
             Width = new DataGridLength(2.0, DataGridLengthUnitType.Star),
             Binding = new Binding(nameof(ClientServiceOrderSelectionRow.ServiceName)),
             IsReadOnly = true,
         });
         serviceGrid.Columns.Add(new DataGridTextColumn
         {
-            Header = "Danh má»¥c",
+            Header = "Danh mục",
             Width = new DataGridLength(1.2, DataGridLengthUnitType.Star),
             Binding = new Binding(nameof(ClientServiceOrderSelectionRow.Category)),
             IsReadOnly = true,
         });
         serviceGrid.Columns.Add(new DataGridTextColumn
         {
-            Header = "ÄÆ¡n giÃ¡",
+            Header = "Đơn giá",
             Width = 110,
             Binding = new Binding(nameof(ClientServiceOrderSelectionRow.UnitPriceText)),
             IsReadOnly = true,
         });
         serviceGrid.Columns.Add(new DataGridTextColumn
         {
-            Header = "ÄÃ£ gá»i",
+            Header = "Đã gọi",
             Width = 140,
             Binding = new Binding(nameof(ClientServiceOrderSelectionRow.ExistingText)),
             IsReadOnly = true,
@@ -1286,7 +1280,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
         var quantityTemplateColumn = new DataGridTemplateColumn
         {
-            Header = "Sá»‘ lÆ°á»£ng",
+            Header = "S�' lượng",
             Width = 150,
         };
 
@@ -1353,7 +1347,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
         serviceGrid.Columns.Add(new DataGridTextColumn
         {
-            Header = "ThÃ nh tiá»n",
+            Header = "Thành tiền",
             Width = 130,
             Binding = new Binding(nameof(ClientServiceOrderSelectionRow.LineTotalText)),
             IsReadOnly = true,
@@ -1368,7 +1362,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
         };
         notePanel.Children.Add(new TextBlock
         {
-            Text = "Ghi chÃº (khÃ´ng báº¯t buá»™c):",
+            Text = "Ghi chú (không bắt bu�Tc):",
             Margin = new Thickness(0, 0, 0, 4),
         });
         var noteTextBox = new TextBox
@@ -1407,7 +1401,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
         };
         var orderButton = new Button
         {
-            Content = "gá»­i dá»‹ch vá»¥",
+            Content = "gửi d�<ch vụ",
             Width = 130,
             Height = 34,
             FontWeight = FontWeights.SemiBold,
@@ -1419,7 +1413,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
         };
         var cancelButton = new Button
         {
-            Content = "Há»§y",
+            Content = "Hủy",
             Width = 90,
             Height = 34,
             FontWeight = FontWeights.SemiBold,
@@ -1574,8 +1568,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         if (activeSession is null)
         {
             MessageBox.Show(
-                "Vui lÃ²ng Ä‘Äƒng nháº­p báº±ng tÃ i khoáº£n há»™i viÃªn Ä‘á»ƒ dÃ¹ng Ä‘iá»ƒm tÃ­ch lÅ©y.",
-                "Äiá»ƒm tÃ­ch lÅ©y",
+                "Vui lòng �'�fng nhập bằng tài khoản h�Ti viên �'�f dùng �'i�fm tích lũy.",
+                "Đi�fm tích lũy",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -1594,8 +1588,8 @@ public async void OpenLoyaltyPanelFromClientUi()
             if (settings is null)
             {
                 MessageBox.Show(
-                    "KhÃ´ng táº£i Ä‘Æ°á»£c cÃ i Ä‘áº·t Ä‘iá»ƒm tÃ­ch lÅ©y tá»« mÃ¡y chá»§.",
-                    "Äiá»ƒm tÃ­ch lÅ©y",
+                    "Không tải �'ược cài �'ặt �'i�fm tích lũy từ máy chủ.",
+                    "Đi�fm tích lũy",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
                 return;
@@ -1604,8 +1598,8 @@ public async void OpenLoyaltyPanelFromClientUi()
             if (!settings.Enabled)
             {
                 MessageBox.Show(
-                    "TÃ­nh nÄƒng Ä‘iá»ƒm tÃ­ch lÅ©y Ä‘ang táº¯t á»Ÿ mÃ¡y chá»§.",
-                    "Äiá»ƒm tÃ­ch lÅ©y",
+                    "Tính n�fng �'i�fm tích lũy �'ang tắt �Y máy chủ.",
+                    "Đi�fm tích lũy",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
                 return;
@@ -1615,8 +1609,8 @@ public async void OpenLoyaltyPanelFromClientUi()
             if (loyalty is null)
             {
                 MessageBox.Show(
-                    "KhÃ´ng Ä‘á»c Ä‘Æ°á»£c Ä‘iá»ƒm tÃ­ch lÅ©y cá»§a há»™i viÃªn.",
-                    "Äiá»ƒm tÃ­ch lÅ©y",
+                    "Không �'ọc �'ược �'i�fm tích lũy của h�Ti viên.",
+                    "Đi�fm tích lũy",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
                 return;
@@ -1627,8 +1621,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         catch (Exception ex)
         {
             MessageBox.Show(
-                $"Lá»—i khi má»Ÿ Ä‘iá»ƒm tÃ­ch lÅ©y: {ex.Message}",
-                "Äiá»ƒm tÃ­ch lÅ©y",
+                $"L�-i khi m�Y �'i�fm tích lũy: {ex.Message}",
+                "Đi�fm tích lũy",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
@@ -1640,8 +1634,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         if (activeSession is null)
         {
             MessageBox.Show(
-                "Vui lÃ²ng Ä‘Äƒng nháº­p báº±ng tÃ i khoáº£n há»™i viÃªn Ä‘á»ƒ chuyá»ƒn tiá»n.",
-                "Chuyá»ƒn tiá»n há»™i viÃªn",
+                "Vui lòng �'�fng nhập bằng tài khoản h�Ti viên �'�f chuy�fn tiền.",
+                "Chuy�fn tiền h�Ti viên",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -1667,8 +1661,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         catch (Exception ex)
         {
             MessageBox.Show(
-                $"KhÃ´ng thá»ƒ má»Ÿ mÃ n hÃ¬nh chuyá»ƒn tiá»n: {ex.Message}",
-                "Chuyá»ƒn tiá»n há»™i viÃªn",
+                $"Không th�f m�Y màn hình chuy�fn tiền: {ex.Message}",
+                "Chuy�fn tiền h�Ti viên",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
@@ -1679,8 +1673,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         if (!_isMemberWithdrawEnabled)
         {
             MessageBox.Show(
-                "TÃ­nh nÄƒng rÃºt tiá»n há»™i viÃªn Ä‘ang táº¯t tá»« app server.",
-                "RÃºt tiá»n há»™i viÃªn",
+                "Tính n�fng rút tiền h�Ti viên �'ang tắt từ app server.",
+                "Rút tiền h�Ti viên",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -1690,8 +1684,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         if (activeSession is null)
         {
             MessageBox.Show(
-                "Vui lÃ²ng Ä‘Äƒng nháº­p báº±ng tÃ i khoáº£n há»™i viÃªn Ä‘á»ƒ rÃºt tiá»n.",
-                "RÃºt tiá»n há»™i viÃªn",
+                "Vui lòng �'�fng nhập bằng tài khoản h�Ti viên �'�f rút tiền.",
+                "Rút tiền h�Ti viên",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -1717,8 +1711,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         catch (Exception ex)
         {
             MessageBox.Show(
-                $"KhÃ´ng thá»ƒ má»Ÿ mÃ n hÃ¬nh rÃºt tiá»n: {ex.Message}",
-                "RÃºt tiá»n há»™i viÃªn",
+                $"Không th�f m�Y màn hình rút tiền: {ex.Message}",
+                "Rút tiền h�Ti viên",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
@@ -1729,8 +1723,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         if (!_isMemberTopupRequestEnabled)
         {
             MessageBox.Show(
-                "TÃ­nh nÄƒng náº¡p tiá»n nhanh há»™i viÃªn Ä‘ang táº¯t tá»« app server.",
-                "Náº¡p tiá»n há»™i viÃªn",
+                "Tính n�fng nạp tiền nhanh h�Ti viên �'ang tắt từ app server.",
+                "Nạp tiền h�Ti viên",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -1740,8 +1734,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         if (activeSession is null)
         {
             MessageBox.Show(
-                "Vui lÃ²ng Ä‘Äƒng nháº­p báº±ng tÃ i khoáº£n há»™i viÃªn Ä‘á»ƒ náº¡p tiá»n.",
-                "Náº¡p tiá»n há»™i viÃªn",
+                "Vui lòng �'�fng nhập bằng tài khoản h�Ti viên �'�f nạp tiền.",
+                "Nạp tiền h�Ti viên",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -1767,8 +1761,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         catch (Exception ex)
         {
             MessageBox.Show(
-                $"KhÃ´ng thá»ƒ má»Ÿ mÃ n hÃ¬nh náº¡p tiá»n: {ex.Message}",
-                "Náº¡p tiá»n há»™i viÃªn",
+                $"Không th�f m�Y màn hình nạp tiền: {ex.Message}",
+                "Nạp tiền h�Ti viên",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
@@ -1780,8 +1774,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         if (activeSession is null)
         {
             MessageBox.Show(
-                "Vui lÃ²ng Ä‘Äƒng nháº­p Ä‘á»ƒ Ä‘á»•i máº­t kháº©u.",
-                "Äá»•i máº­t kháº©u",
+                "Vui lòng �'�fng nhập �'�f �'�.i mật khẩu.",
+                "Đ�.i mật khẩu",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -1794,7 +1788,7 @@ public async void OpenLoyaltyPanelFromClientUi()
     {
         var dialog = new Window
         {
-            Title = "Äá»•i máº­t kháº©u há»™i viÃªn",
+            Title = "Đ�.i mật khẩu h�Ti viên",
             Width = 400,
             Height = 350,
             ResizeMode = ResizeMode.NoResize,
@@ -1811,7 +1805,7 @@ public async void OpenLoyaltyPanelFromClientUi()
 
         var title = new TextBlock
         {
-            Text = "Äá»”I Máº¬T KHáº¨U",
+            Text = "ĐỔI MẬT KHẨU",
             FontSize = 20,
             FontWeight = FontWeights.Bold,
             Foreground = new SolidColorBrush(Color.FromRgb(30, 90, 168)),
@@ -1822,7 +1816,7 @@ public async void OpenLoyaltyPanelFromClientUi()
         root.Children.Add(title);
 
         // Current Password
-        var curLabel = new TextBlock { Text = "Máº­t kháº©u hiá»‡n táº¡i:", Margin = new Thickness(0, 0, 0, 4), VerticalAlignment = VerticalAlignment.Bottom };
+        var curLabel = new TextBlock { Text = "Mật khẩu hi�?n tại:", Margin = new Thickness(0, 0, 0, 4), VerticalAlignment = VerticalAlignment.Bottom };
         Grid.SetRow(curLabel, 1);
         root.Children.Add(curLabel);
 
@@ -1831,7 +1825,7 @@ public async void OpenLoyaltyPanelFromClientUi()
         root.Children.Add(currentPwdBox);
 
         // New Password
-        var newLabel = new TextBlock { Text = "Máº­t kháº©u má»›i:", Margin = new Thickness(0, 0, 0, 4) };
+        var newLabel = new TextBlock { Text = "Mật khẩu m�>i:", Margin = new Thickness(0, 0, 0, 4) };
         Grid.SetRow(newLabel, 3);
         root.Children.Add(newLabel);
 
@@ -1840,7 +1834,7 @@ public async void OpenLoyaltyPanelFromClientUi()
         root.Children.Add(newPwdBox);
 
         // Confirm New Password
-        var confirmLabel = new TextBlock { Text = "XÃ¡c nháº­n máº­t kháº©u má»›i:", Margin = new Thickness(0, 0, 0, 4) };
+        var confirmLabel = new TextBlock { Text = "Xác nhận mật khẩu m�>i:", Margin = new Thickness(0, 0, 0, 4) };
         Grid.SetRow(confirmLabel, 5);
         root.Children.Add(confirmLabel);
 
@@ -1853,8 +1847,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         root.Children.Add(errorText);
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-        var cancelBtn = new Button { Content = "Há»§y", Width = 80, Margin = new Thickness(0, 0, 10, 0) };
-        var saveBtn = new Button { Content = "Cáº­p nháº­t", Width = 100, IsDefault = true, Background = new SolidColorBrush(Color.FromRgb(30, 90, 168)), Foreground = Brushes.White };
+        var cancelBtn = new Button { Content = "Hủy", Width = 80, Margin = new Thickness(0, 0, 10, 0) };
+        var saveBtn = new Button { Content = "Cập nhật", Width = 100, IsDefault = true, Background = new SolidColorBrush(Color.FromRgb(30, 90, 168)), Foreground = Brushes.White };
         buttons.Children.Add(cancelBtn);
         buttons.Children.Add(saveBtn);
         Grid.SetRow(buttons, 8);
@@ -1868,13 +1862,13 @@ public async void OpenLoyaltyPanelFromClientUi()
             var newPwd = newPwdBox.Password;
             var confirmPwd = confirmPwdBox.Password;
 
-            if (string.IsNullOrEmpty(currentPwd)) { errorText.Text = "Vui lÃ²ng nháº­p máº­t kháº©u hiá»‡n táº¡i."; return; }
-            if (string.IsNullOrEmpty(newPwd)) { errorText.Text = "Vui lÃ²ng nháº­p máº­t kháº©u má»›i."; return; }
-            if (newPwd.Length < 4) { errorText.Text = "Máº­t kháº©u má»›i pháº£i tá»« 4 kÃ½ tá»± trá»Ÿ lÃªn."; return; }
-            if (newPwd != confirmPwd) { errorText.Text = "Máº­t kháº©u xÃ¡c nháº­n khÃ´ng khá»›p."; return; }
+            if (string.IsNullOrEmpty(currentPwd)) { errorText.Text = "Vui lòng nhập mật khẩu hi�?n tại."; return; }
+            if (string.IsNullOrEmpty(newPwd)) { errorText.Text = "Vui lòng nhập mật khẩu m�>i."; return; }
+            if (newPwd.Length < 4) { errorText.Text = "Mật khẩu m�>i phải từ 4 ký tự tr�Y lên."; return; }
+            if (newPwd != confirmPwd) { errorText.Text = "Mật khẩu xác nhận không kh�>p."; return; }
 
             saveBtn.IsEnabled = false;
-            errorText.Text = "Äang kiá»ƒm tra máº­t kháº©u hiá»‡n táº¡i...";
+            errorText.Text = "Đang ki�fm tra mật khẩu hi�?n tại...";
             errorText.Foreground = Brushes.DimGray;
 
             try
@@ -1890,33 +1884,33 @@ public async void OpenLoyaltyPanelFromClientUi()
                     });
                 if (!loginResp.IsSuccessStatusCode)
                 {
-                    errorText.Text = "Máº­t kháº©u hiá»‡n táº¡i khÃ´ng chÃ­nh xÃ¡c.";
+                    errorText.Text = "Mật khẩu hi�?n tại không chính xác.";
                     errorText.Foreground = Brushes.Red;
                     saveBtn.IsEnabled = true;
                     return;
                 }
 
                 // 2. Update to new password
-                errorText.Text = "Äang cáº­p nháº­t máº­t kháº©u má»›i...";
+                errorText.Text = "Đang cập nhật mật khẩu m�>i...";
                 using var updateResp = await _httpClient.PatchAsJsonAsync(BuildApiUrl($"/members/{activeSession.MemberId}"), new { password = newPwd, updatedBy = "client.password.change" });
                 
                 if (updateResp.IsSuccessStatusCode)
                 {
-                    MessageBox.Show("Äá»•i máº­t kháº©u thÃ nh cÃ´ng!", "Máº­t kháº©u", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Đ�.i mật khẩu thành công!", "Mật khẩu", MessageBoxButton.OK, MessageBoxImage.Information);
                     _mainWindow?.SetLastCommand($"CHANGE_PWD @ {DateTime.Now:HH:mm:ss}");
                     dialog.Close();
                 }
                 else
                 {
                     var msg = await ReadErrorMessageAsync(updateResp);
-                    errorText.Text = string.IsNullOrWhiteSpace(msg) ? "Lá»—i khi cáº­p nháº­t máº­t kháº©u." : msg;
+                    errorText.Text = string.IsNullOrWhiteSpace(msg) ? "L�-i khi cập nhật mật khẩu." : msg;
                     errorText.Foreground = Brushes.Red;
                     saveBtn.IsEnabled = true;
                 }
             }
             catch (Exception ex)
             {
-                errorText.Text = "Lá»—i káº¿t ná»‘i: " + ex.Message;
+                errorText.Text = "L�-i kết n�'i: " + ex.Message;
                 errorText.Foreground = Brushes.Red;
                 saveBtn.IsEnabled = true;
             }
@@ -1933,7 +1927,7 @@ public async void OpenLoyaltyPanelFromClientUi()
 
         var dialog = new Window
         {
-            Title = "XÃ¡c nháº­n máº­t kháº©u",
+            Title = "Xác nhận mật khẩu",
             Width = 350,
             Height = 180,
             ResizeMode = ResizeMode.NoResize,
@@ -1951,7 +1945,7 @@ public async void OpenLoyaltyPanelFromClientUi()
 
         var label = new TextBlock
         {
-            Text = $"Nháº­p máº­t kháº©u tÃ i khoáº£n '{username}' Ä‘á»ƒ tiáº¿p tá»¥c:",
+            Text = $"Nhập mật khẩu tài khoản '{username}' �'�f tiếp tục:",
             Margin = new Thickness(0, 0, 0, 10),
             TextWrapping = TextWrapping.Wrap
         };
@@ -1977,8 +1971,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         root.Children.Add(errorLabel);
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-        var cancelBtn = new Button { Content = "Há»§y", Width = 70, Margin = new Thickness(0, 0, 10, 0) };
-        var okBtn = new Button { Content = "XÃ¡c nháº­n", Width = 80, IsDefault = true, Background = new SolidColorBrush(Color.FromRgb(121, 201, 89)), Foreground = Brushes.White };
+        var cancelBtn = new Button { Content = "Hủy", Width = 70, Margin = new Thickness(0, 0, 10, 0) };
+        var okBtn = new Button { Content = "Xác nhận", Width = 80, IsDefault = true, Background = new SolidColorBrush(Color.FromRgb(121, 201, 89)), Foreground = Brushes.White };
         
         buttons.Children.Add(cancelBtn);
         buttons.Children.Add(okBtn);
@@ -1991,12 +1985,12 @@ public async void OpenLoyaltyPanelFromClientUi()
             var pwd = passwordBox.Password;
             if (string.IsNullOrEmpty(pwd))
             {
-                errorLabel.Text = "Vui lÃ²ng nháº­p máº­t kháº©u.";
+                errorLabel.Text = "Vui lòng nhập mật khẩu.";
                 return;
             }
 
             okBtn.IsEnabled = false;
-            errorLabel.Text = "Äang xÃ¡c thá»±c...";
+            errorLabel.Text = "Đang xác thực...";
             errorLabel.Foreground = Brushes.Gray;
 
             try
@@ -2017,14 +2011,14 @@ public async void OpenLoyaltyPanelFromClientUi()
                 }
                 else
                 {
-                    errorLabel.Text = "Máº­t kháº©u khÃ´ng chÃ­nh xÃ¡c.";
+                    errorLabel.Text = "Mật khẩu không chính xác.";
                     errorLabel.Foreground = Brushes.Red;
                     okBtn.IsEnabled = true;
                 }
             }
             catch (Exception ex)
             {
-                errorLabel.Text = "Lá»—i káº¿t ná»‘i: " + ex.Message;
+                errorLabel.Text = "L�-i kết n�'i: " + ex.Message;
                 errorLabel.Foreground = Brushes.Red;
                 okBtn.IsEnabled = true;
             }
@@ -2049,7 +2043,7 @@ public async void OpenLoyaltyPanelFromClientUi()
         string? result = null;
         var dialog = new Window
         {
-            Title = "KhÃ³a mÃ¡y thá»§ cÃ´ng",
+            Title = "Khóa máy thủ công",
             Width = 390,
             Height = 210,
             ResizeMode = ResizeMode.NoResize,
@@ -2067,7 +2061,7 @@ public async void OpenLoyaltyPanelFromClientUi()
 
         var title = new TextBlock
         {
-            Text = "Nháº­p máº­t mÃ£ Ä‘á»ƒ khÃ³a mÃ¡y táº¡m thá»i:",
+            Text = "Nhập mật mã �'�f khóa máy tạm thời:",
             FontWeight = FontWeights.SemiBold,
             Margin = new Thickness(0, 0, 0, 10),
             TextWrapping = TextWrapping.Wrap,
@@ -2101,14 +2095,14 @@ public async void OpenLoyaltyPanelFromClientUi()
         };
         var cancelButton = new Button
         {
-            Content = "Há»§y",
+            Content = "Hủy",
             Width = 80,
             Margin = new Thickness(0, 0, 8, 0),
             IsCancel = true,
         };
         var confirmButton = new Button
         {
-            Content = "KhÃ³a mÃ¡y",
+            Content = "Khóa máy",
             Width = 90,
             IsDefault = true,
             Background = new SolidColorBrush(Color.FromRgb(220, 38, 38)),
@@ -2126,7 +2120,7 @@ public async void OpenLoyaltyPanelFromClientUi()
 
             if (string.IsNullOrEmpty(password))
             {
-                errorText.Text = "Vui lÃ²ng nháº­p máº­t mÃ£.";
+                errorText.Text = "Vui lòng nhập mật mã.";
                 return;
             }
 
@@ -2142,7 +2136,7 @@ public async void OpenLoyaltyPanelFromClientUi()
     }
 
     /// <summary>
-    /// Consolidated background timer (10s): handles auto-shutdown check + member usage sync.
+    /// Consolidated background timer (1 minute): handles auto-shutdown check + member usage sync.
     /// Merging 2 timers into 1 reduces UI thread context switches.
     /// </summary>
     private async void BackgroundSyncTimer_Tick(object? sender, EventArgs e)
@@ -2166,11 +2160,6 @@ public async void OpenLoyaltyPanelFromClientUi()
         await SyncActiveMemberUsageAsync("PERIODIC", false);
         EvaluateMemberRemainingTimeWarnings();
         await EnforceMemberAutoLockIfNoRemainingTimeAsync("PERIODIC");
-    }
-
-    private async void ServiceCostSyncTimer_Tick(object? sender, EventArgs e)
-    {
-        await RefreshServiceCostUiAsync(force: false);
     }
 
     private async Task RefreshClientRuntimeSettingsIfDueAsync()
@@ -2265,7 +2254,7 @@ public async void OpenLoyaltyPanelFromClientUi()
         _readyAutoShutdownTriggered = true;
         await TrackAndClearMemberSessionAsync("AUTO_SHUTDOWN_IDLE_READY");
         _mainWindow?.SetLastCommand(
-            $"Tá»° Táº®T sau {_readyAutoShutdownMinutes} phÃºt khÃ´ng Ä‘Äƒng nháº­p");
+            $"TỰ TẮT sau {_readyAutoShutdownMinutes} phút không �'�fng nhập");
 
         if (_logger is not null)
         {
@@ -2315,7 +2304,7 @@ public async void OpenLoyaltyPanelFromClientUi()
         return "none";
     }
 
-    private async void WebFilterSyncTimer_Tick(object? sender, EventArgs e)
+    private async Task RefreshAndApplyWebFilterAsync(bool force = false)
     {
         if (_isWebFilterSyncRunning)
         {
@@ -2325,16 +2314,6 @@ public async void OpenLoyaltyPanelFromClientUi()
         _isWebFilterSyncRunning = true;
         try
         {
-            await RefreshAndApplyWebFilterAsync();
-        }
-        finally
-        {
-            _isWebFilterSyncRunning = false;
-        }
-    }
-
-    private async Task RefreshAndApplyWebFilterAsync(bool force = false)
-    {
         var now = DateTime.UtcNow;
         if (!force && (now - _lastWebFilterFetchUtc).TotalSeconds < 45)
         {
@@ -2386,6 +2365,11 @@ public async void OpenLoyaltyPanelFromClientUi()
             {
                 await _logger.ErrorAsync("Refresh web filter settings failed", ex);
             }
+        }
+        }
+        finally
+        {
+            _isWebFilterSyncRunning = false;
         }
     }
 
@@ -2565,6 +2549,11 @@ public async void OpenLoyaltyPanelFromClientUi()
     {
         try
         {
+            if (!_isBillingServerConnected)
+            {
+                return;
+            }
+
             var settings = await GetWebsiteLogSettingsAsync(force);
             if (settings is null)
             {
@@ -2573,8 +2562,8 @@ public async void OpenLoyaltyPanelFromClientUi()
 
             _websiteLogEnabled = settings.Enabled;
             _websiteLogSyncTimer.Interval = _websiteLogEnabled
-                ? TimeSpan.FromSeconds(600)
-                : TimeSpan.FromMinutes(10);
+                ? WebsiteLogEnabledSyncInterval
+                : WebsiteLogDisabledSyncInterval;
             if (!_websiteLogEnabled)
             {
                 return;
@@ -2582,14 +2571,15 @@ public async void OpenLoyaltyPanelFromClientUi()
 
             var now = DateTime.UtcNow;
             var fromUtc = _lastWebsiteHistoryScanUtc == DateTime.MinValue
-                ? now.AddMinutes(-3)
-                : _lastWebsiteHistoryScanUtc.AddSeconds(-20);
+                ? now.AddMinutes(-WebsiteLogInitialLookbackMinutes)
+                : _lastWebsiteHistoryScanUtc.AddSeconds(-WebsiteLogOverlapSeconds);
             if (fromUtc > now)
             {
                 fromUtc = now.AddMinutes(-1);
             }
 
-            var browserEntries = await CollectBrowserHistoryEntriesAsync(fromUtc, 240);
+            var browserEntries = await Task.Run(() =>
+                CollectBrowserHistoryEntriesAsync(fromUtc, WebsiteLogCollectMaxItems));
             _lastWebsiteHistoryScanUtc = now;
             if (browserEntries.Count == 0)
             {
@@ -2602,7 +2592,7 @@ public async void OpenLoyaltyPanelFromClientUi()
             {
                 var dedupeKey = $"{entry.Browser}|{entry.Domain}";
                 if (_websiteDomainLastSentAt.TryGetValue(dedupeKey, out var lastSentAt) &&
-                    (now - lastSentAt).TotalMinutes < 10)
+                    (now - lastSentAt) < WebsiteLogDomainDedupeWindow)
                 {
                     continue;
                 }
@@ -2617,7 +2607,7 @@ public async void OpenLoyaltyPanelFromClientUi()
                 });
                 stagedSentAt[dedupeKey] = now;
 
-                if (payloadEntries.Count >= 120)
+                if (payloadEntries.Count >= WebsiteLogPayloadMaxItems)
                 {
                     break;
                 }
@@ -2668,7 +2658,7 @@ public async void OpenLoyaltyPanelFromClientUi()
         bool force = false)
     {
         var now = DateTime.UtcNow;
-        if (!force && (now - _lastWebsiteLogSettingsFetchUtc).TotalSeconds < 300)
+        if (!force && (now - _lastWebsiteLogSettingsFetchUtc) < WebsiteLogSettingsRefreshInterval)
         {
             return new WebsiteLogSettingsResponse
             {
@@ -2728,22 +2718,22 @@ public async void OpenLoyaltyPanelFromClientUi()
             "edge",
             Path.Combine(localAppData, "Microsoft", "Edge", "User Data"),
             fromUtc,
-            180));
+            WebsiteLogPerBrowserLimit));
         allEntries.AddRange(await CollectChromiumHistoryEntriesAsync(
             "chrome",
             Path.Combine(localAppData, "Google", "Chrome", "User Data"),
             fromUtc,
-            180));
+            WebsiteLogPerBrowserLimit));
         allEntries.AddRange(await CollectChromiumHistoryEntriesAsync(
             "brave",
             Path.Combine(localAppData, "BraveSoftware", "Brave-Browser", "User Data"),
             fromUtc,
-            180));
+            WebsiteLogPerBrowserLimit));
         allEntries.AddRange(await CollectFirefoxHistoryEntriesAsync(
             "firefox",
             Path.Combine(roamingAppData, "Mozilla", "Firefox", "Profiles"),
             fromUtc,
-            180));
+            WebsiteLogPerBrowserLimit));
 
         var deduped = allEntries
             .GroupBy(x => $"{x.Browser}|{x.Domain}|{x.Url}", StringComparer.OrdinalIgnoreCase)
@@ -3332,7 +3322,7 @@ LIMIT $limit;";
                 {
                     agentId = _settings.AgentId,
                     isActive,
-                    displayName = "KhÃ¡ch vÃ£ng lai",
+                    displayName = "Khách vãng lai",
                 });
 
             if (!response.IsSuccessStatusCode && _logger is not null)
@@ -3846,7 +3836,7 @@ LIMIT $limit;";
 
         var dialog = new Window
         {
-            Title = $"Äiá»ƒm tÃ­ch lÅ©y - {activeSession.Username}",
+            Title = $"Đi�fm tích lũy - {activeSession.Username}",
             Width = 430,
             Height = 420,
             ResizeMode = ResizeMode.NoResize,
@@ -3878,7 +3868,7 @@ LIMIT $limit;";
 
         var titleTextBlock = new TextBlock
         {
-            Text = $"Há»™i viÃªn: {activeSession.Username}",
+            Text = $"H�Ti viên: {activeSession.Username}",
             FontWeight = FontWeights.SemiBold,
             FontSize = 17,
             Margin = new Thickness(0, 0, 0, 8),
@@ -3888,7 +3878,7 @@ LIMIT $limit;";
 
         var balanceTextBlock = new TextBlock
         {
-            Text = $"Sá»‘ dÆ° hiá»‡n táº¡i: {member.Balance:N0} VND",
+            Text = $"S�' dư hi�?n tại: {member.Balance:N0} VND",
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 0, 0, 4),
         };
@@ -3897,7 +3887,7 @@ LIMIT $limit;";
 
         var playTimeTextBlock = new TextBlock
         {
-            Text = $"Giá» chÆ¡i cÃ²n láº¡i: {member.PlayHours:0.##} giá»",
+            Text = $"Giờ chơi còn lại: {member.PlayHours:0.##} giờ",
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 0, 0, 10),
         };
@@ -3906,7 +3896,7 @@ LIMIT $limit;";
 
         var pointsTextBlock = new TextBlock
         {
-            Text = $"Äiá»ƒm hiá»‡n cÃ³: {loyalty.AvailablePoints} Ä‘iá»ƒm",
+            Text = $"Đi�fm hi�?n có: {loyalty.AvailablePoints} �'i�fm",
             FontSize = 22,
             FontWeight = FontWeights.Bold,
             Foreground = new SolidColorBrush(Color.FromRgb(30, 90, 168)),
@@ -3918,7 +3908,7 @@ LIMIT $limit;";
         {
             Margin = new Thickness(0, 6, 0, 12),
             Text =
-                $"ÄÃ£ tÃ­ch lÅ©y: {loyalty.ProgressMinutes:0.##}/{settings.MinutesPerPoint} phÃºt Ä‘á»ƒ lÃªn Ä‘iá»ƒm káº¿ tiáº¿p.",
+                $"Đã tích lũy: {loyalty.ProgressMinutes:0.##}/{settings.MinutesPerPoint} phút �'�f lên �'i�fm kế tiếp.",
             Foreground = Brushes.DimGray,
         };
         Grid.SetRow(progressTextBlock, 4);
@@ -3931,7 +3921,7 @@ LIMIT $limit;";
         };
         inputPanel.Children.Add(new TextBlock
         {
-            Text = "Sá»‘ Ä‘iá»ƒm muá»‘n Ä‘á»•i:",
+            Text = "S�' �'i�fm mu�'n �'�.i:",
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 8, 0),
         });
@@ -3949,7 +3939,7 @@ LIMIT $limit;";
 
         var helpText = new TextBlock
         {
-            Text = "1 Ä‘iá»ƒm = 1 phÃºt chÆ¡i. CÃ³ thá»ƒ Ä‘á»•i nhiá»u Ä‘iá»ƒm má»™t láº§n.",
+            Text = "1 �'i�fm = 1 phút chơi. Có th�f �'�.i nhiều �'i�fm m�Tt lần.",
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 0, 0, 8),
         };
@@ -3974,7 +3964,7 @@ LIMIT $limit;";
 
         var redeemAllButton = new Button
         {
-            Content = "Äá»•i táº¥t cáº£",
+            Content = "Đ�.i tất cả",
             Margin = new Thickness(0, 0, 6, 0),
             IsEnabled = loyalty.AvailablePoints > 0,
         };
@@ -3987,7 +3977,7 @@ LIMIT $limit;";
 
         var cancelButton = new Button
         {
-            Content = "ÄÃ³ng",
+            Content = "Đóng",
             Margin = new Thickness(0, 0, 0, 0),
         };
         cancelButton.Click += (_, _) => dialog.Close();
@@ -4006,7 +3996,7 @@ LIMIT $limit;";
 
         var redeemButton = new Button
         {
-            Content = "Äá»•i Ä‘iá»ƒm",
+            Content = "Đ�.i �'i�fm",
             Margin = new Thickness(0, 0, 6, 0),
             Background = new SolidColorBrush(Color.FromRgb(121, 201, 89)),
             BorderBrush = new SolidColorBrush(Color.FromRgb(63, 138, 46)),
@@ -4017,13 +4007,13 @@ LIMIT $limit;";
             errorTextBlock.Text = string.Empty;
             if (!int.TryParse(pointsBox.Text.Trim(), out var redeemPoints) || redeemPoints < 1)
             {
-                errorTextBlock.Text = "Sá»‘ Ä‘iá»ƒm Ä‘á»•i pháº£i lÃ  sá»‘ nguyÃªn >= 1.";
+                errorTextBlock.Text = "S�' �'i�fm �'�.i phải là s�' nguyên >= 1.";
                 return;
             }
 
             if (redeemPoints > loyalty.AvailablePoints)
             {
-                errorTextBlock.Text = $"Chá»‰ cÃ²n {loyalty.AvailablePoints} Ä‘iá»ƒm.";
+                errorTextBlock.Text = $"Ch�? còn {loyalty.AvailablePoints} �'i�fm.";
                 return;
             }
 
@@ -4042,7 +4032,7 @@ LIMIT $limit;";
                 {
                     var message = await ReadErrorMessageAsync(response);
                     errorTextBlock.Text = string.IsNullOrWhiteSpace(message)
-                        ? $"Äá»•i Ä‘iá»ƒm tháº¥t báº¡i ({(int)response.StatusCode})"
+                        ? $"Đ�.i �'i�fm thất bại ({(int)response.StatusCode})"
                         : message;
                     return;
                 }
@@ -4060,14 +4050,14 @@ LIMIT $limit;";
                         var usedSecondsNow = _mainWindow?.GetUsedSeconds() ?? 0;
                         SynchronizeMemberBillingFromServer(payload.Member, usedSecondsNow);
                         _mainWindow?.SetLastCommand(
-                            $"Äá»•i Ä‘iá»ƒm {redeemPoints} @ {DateTime.Now:HH:mm:ss}");
+                            $"Đ�.i �'i�fm {redeemPoints} @ {DateTime.Now:HH:mm:ss}");
                         _lastSyncedMemberUsedSeconds = usedSecondsNow;
                     });
                 }
 
                 MessageBox.Show(
-                    $"Äá»•i Ä‘iá»ƒm thÃ nh cÃ´ng: +{redeemPoints} phÃºt chÆ¡i.",
-                    "Äiá»ƒm tÃ­ch lÅ©y",
+                    $"Đ�.i �'i�fm thành công: +{redeemPoints} phút chơi.",
+                    "Đi�fm tích lũy",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
 
@@ -4098,7 +4088,7 @@ LIMIT $limit;";
         var loyalty = loyaltyResponse.Loyalty;
         var dialog = new Window
         {
-            Title = "VÃ²ng quay may máº¯n",
+            Title = "Vòng quay may mắn",
             Width = 420,
             Height = 580,
             ResizeMode = ResizeMode.NoResize,
@@ -4115,7 +4105,7 @@ LIMIT $limit;";
 
         var title = new TextBlock
         {
-            Text = "THá»¬ Váº¬N MAY",
+            Text = "THỬ VẬN MAY",
             FontSize = 26,
             FontWeight = FontWeights.Bold,
             Foreground = Brushes.Crimson,
@@ -4127,7 +4117,7 @@ LIMIT $limit;";
 
         var pointsLabel = new TextBlock
         {
-            Text = $"Báº¡n Ä‘ang cÃ³: {loyalty.AvailablePoints} Ä‘iá»ƒm",
+            Text = $"Bạn �'ang có: {loyalty.AvailablePoints} �'i�fm",
             FontSize = 16,
             FontWeight = FontWeights.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -4152,15 +4142,15 @@ LIMIT $limit;";
 
         var wheelItems = new[]
         {
-            new { Label = "Äáº¶C BIá»†T\n30p", Minutes = 30, Color = new SolidColorBrush(Color.FromRgb(220, 38, 38)) }, // Red
+            new { Label = "ĐẶC BI�?T\n30p", Minutes = 30, Color = new SolidColorBrush(Color.FromRgb(220, 38, 38)) }, // Red
             new { Label = "0p", Minutes = 0, Color = new SolidColorBrush(Color.FromRgb(107, 114, 128)) },      // Gray
-            new { Label = "NHáº¤T\n20p", Minutes = 20, Color = new SolidColorBrush(Color.FromRgb(37, 99, 235)) },   // Blue
+            new { Label = "NHẤT\n20p", Minutes = 20, Color = new SolidColorBrush(Color.FromRgb(37, 99, 235)) },   // Blue
             new { Label = "2p", Minutes = 2, Color = new SolidColorBrush(Color.FromRgb(249, 115, 22)) },      // Orange
-            new { Label = "NHÃŒ\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },  // Green
+            new { Label = "NH�O\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },  // Green
             new { Label = "5p", Minutes = 5, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) },       // Yellow
             new { Label = "0p", Minutes = 0, Color = new SolidColorBrush(Color.FromRgb(107, 114, 128)) },      // Gray
             new { Label = "2p", Minutes = 2, Color = new SolidColorBrush(Color.FromRgb(249, 115, 22)) },      // Orange
-            new { Label = "NHÃŒ\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },  // Green
+            new { Label = "NH�O\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },  // Green
             new { Label = "5p", Minutes = 5, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) }        // Yellow
         };
         wheelItems = new[]
@@ -4287,7 +4277,7 @@ LIMIT $limit;";
 
         var costText = new TextBlock
         {
-            Text = "Chi phÃ­: 5 Ä‘iá»ƒm / lÆ°á»£t quay",
+            Text = "Chi phí: 5 �'i�fm / lượt quay",
             Foreground = Brushes.DimGray,
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 15)
@@ -4323,7 +4313,7 @@ LIMIT $limit;";
 
         var closeButton = new Button
         {
-            Content = "ÄÃ³ng",
+            Content = "Đóng",
             Width = 100,
             Height = 35,
             HorizontalAlignment = HorizontalAlignment.Right
@@ -4334,7 +4324,7 @@ LIMIT $limit;";
         {
             spinButton.IsEnabled = false;
             closeButton.IsEnabled = false;
-            resultText.Text = "Äang quay...";
+            resultText.Text = "Đang quay...";
             resultText.Foreground = Brushes.DimGray;
 
             // Start fake fast spin while waiting for API
@@ -4362,7 +4352,7 @@ LIMIT $limit;";
                 {
                     wheelRotation.BeginAnimation(RotateTransform.AngleProperty, null);
                     var error = await ReadErrorMessageAsync(response);
-                    resultText.Text = string.IsNullOrWhiteSpace(error) ? "Lá»—i káº¿t ná»‘i!" : error;
+                    resultText.Text = string.IsNullOrWhiteSpace(error) ? "L�-i kết n�'i!" : error;
                     resultText.Foreground = Brushes.Red;
                     return;
                 }
@@ -4402,17 +4392,17 @@ LIMIT $limit;";
                     
                     await tcs.Task;
 
-                    pointsLabel.Text = $"Báº¡n Ä‘ang cÃ³: {payload.Loyalty.AvailablePoints} Ä‘iá»ƒm";
+                    pointsLabel.Text = $"Bạn �'ang có: {payload.Loyalty.AvailablePoints} �'i�fm";
                     resultText.Text = payload.WonMinutes > 0
-                        ? $"CHÃšC Má»ªNG!\nBáº¡n trÃºng {payload.WonMinutes} phÃºt chÆ¡i!"
-                        : "ChÃºc báº¡n may máº¯n láº§n sau!";
+                        ? $"CH�sC MỪNG!\nBạn trúng {payload.WonMinutes} phút chơi!"
+                        : "Chúc bạn may mắn lần sau!";
                     resultText.Foreground = payload.WonMinutes > 0 ? Brushes.DarkGreen : Brushes.OrangeRed;
 
                     Dispatcher.Invoke(() =>
                     {
                         var usedSecondsNow = _mainWindow?.GetUsedSeconds() ?? 0;
                         SynchronizeMemberBillingFromServer(payload.Member, usedSecondsNow);
-                        _mainWindow?.SetLastCommand($"QUAY THÆ¯á»žNG: +{payload.WonMinutes}m @ {DateTime.Now:HH:mm:ss}");
+                        _mainWindow?.SetLastCommand($"QUAY THƯ�zNG: +{payload.WonMinutes}m @ {DateTime.Now:HH:mm:ss}");
                         _lastSyncedMemberUsedSeconds = usedSecondsNow;
                     });
 
@@ -4422,7 +4412,7 @@ LIMIT $limit;";
             catch (Exception ex)
             {
                 wheelRotation.BeginAnimation(RotateTransform.AngleProperty, null);
-                resultText.Text = "Lá»—i: " + ex.Message;
+                resultText.Text = "L�-i: " + ex.Message;
                 resultText.Foreground = Brushes.Red;
             }
             finally
@@ -4451,7 +4441,7 @@ LIMIT $limit;";
         var loyalty = loyaltyResponse.Loyalty;
         var dialog = new Window
         {
-            Title = "VÃ²ng quay may máº¯n",
+            Title = "Vòng quay may mắn",
             Width = 520,
             Height = 760,
             ResizeMode = ResizeMode.NoResize,
@@ -4478,7 +4468,7 @@ LIMIT $limit;";
         };
         titlePanel.Children.Add(new TextBlock
         {
-            Text = "THá»¬ Váº¬N MAY",
+            Text = "THỬ VẬN MAY",
             FontSize = 40,
             FontWeight = FontWeights.ExtraBold,
             Foreground = new SolidColorBrush(Color.FromRgb(225, 29, 72)),
@@ -4486,7 +4476,7 @@ LIMIT $limit;";
         });
         titlePanel.Children.Add(new TextBlock
         {
-            Text = "Má»—i lÆ°á»£t quay tá»‘n 5 Ä‘iá»ƒm",
+            Text = "M�-i lượt quay t�'n 5 �'i�fm",
             FontSize = 14,
             Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -4517,7 +4507,7 @@ LIMIT $limit;";
 
         var pointsLabel = new TextBlock
         {
-            Text = $"Äiá»ƒm hiá»‡n cÃ³: {loyalty.AvailablePoints:N0}",
+            Text = $"Đi�fm hi�?n có: {loyalty.AvailablePoints:N0}",
             FontSize = 20,
             FontWeight = FontWeights.SemiBold,
             Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
@@ -4540,7 +4530,7 @@ LIMIT $limit;";
 
         var costText = new TextBlock
         {
-            Text = "Chi phÃ­: 5 Ä‘iá»ƒm/lÆ°á»£t",
+            Text = "Chi phí: 5 �'i�fm/lượt",
             FontSize = 14,
             FontWeight = FontWeights.SemiBold,
             Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
@@ -4585,15 +4575,15 @@ LIMIT $limit;";
 
         var wheelItems = new[]
         {
-            new { Label = "Äáº¶C BIá»†T\n30p", Minutes = 30, Color = new SolidColorBrush(Color.FromRgb(220, 38, 38)) },
+            new { Label = "ĐẶC BI�?T\n30p", Minutes = 30, Color = new SolidColorBrush(Color.FromRgb(220, 38, 38)) },
             new { Label = "0p", Minutes = 0, Color = new SolidColorBrush(Color.FromRgb(100, 116, 139)) },
-            new { Label = "NHáº¤T\n20p", Minutes = 20, Color = new SolidColorBrush(Color.FromRgb(37, 99, 235)) },
+            new { Label = "NHẤT\n20p", Minutes = 20, Color = new SolidColorBrush(Color.FromRgb(37, 99, 235)) },
             new { Label = "2p", Minutes = 2, Color = new SolidColorBrush(Color.FromRgb(249, 115, 22)) },
-            new { Label = "NHÃŒ\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },
+            new { Label = "NH�O\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },
             new { Label = "5p", Minutes = 5, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) },
             new { Label = "0p", Minutes = 0, Color = new SolidColorBrush(Color.FromRgb(100, 116, 139)) },
             new { Label = "2p", Minutes = 2, Color = new SolidColorBrush(Color.FromRgb(249, 115, 22)) },
-            new { Label = "NHÃŒ\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },
+            new { Label = "NH�O\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },
             new { Label = "5p", Minutes = 5, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) }
         };
         wheelItems = new[]
@@ -4755,7 +4745,7 @@ LIMIT $limit;";
 
         var resultText = new TextBlock
         {
-            Text = "Nháº¥n QUAY NGAY Ä‘á»ƒ báº¯t Ä‘áº§u.",
+            Text = "Nhấn QUAY NGAY �'�f bắt �'ầu.",
             FontSize = 18,
             FontWeight = FontWeights.SemiBold,
             Foreground = new SolidColorBrush(Color.FromRgb(51, 65, 85)),
@@ -4794,7 +4784,7 @@ LIMIT $limit;";
 
         var closeButton = new Button
         {
-            Content = "ÄÃ³ng",
+            Content = "Đóng",
             Width = 120,
             Height = 42,
             FontSize = 15,
@@ -4808,7 +4798,7 @@ LIMIT $limit;";
         {
             spinButton.IsEnabled = false;
             closeButton.IsEnabled = false;
-            resultText.Text = "Äang quay...";
+            resultText.Text = "Đang quay...";
             resultText.Foreground = Brushes.DimGray;
 
             var fastSpinAnimation = new DoubleAnimation
@@ -4839,7 +4829,7 @@ LIMIT $limit;";
                 {
                     wheelRotation.BeginAnimation(RotateTransform.AngleProperty, null);
                     var error = await ReadErrorMessageAsync(response);
-                    resultText.Text = string.IsNullOrWhiteSpace(error) ? "Lá»—i káº¿t ná»‘i!" : error;
+                    resultText.Text = string.IsNullOrWhiteSpace(error) ? "L�-i kết n�'i!" : error;
                     resultText.Foreground = Brushes.Red;
                     return;
                 }
@@ -4876,17 +4866,17 @@ LIMIT $limit;";
                     wheelRotation.BeginAnimation(RotateTransform.AngleProperty, stopAnimation);
                     await tcs.Task;
 
-                    pointsLabel.Text = $"Äiá»ƒm hiá»‡n cÃ³: {payload.Loyalty.AvailablePoints:N0}";
+                    pointsLabel.Text = $"Đi�fm hi�?n có: {payload.Loyalty.AvailablePoints:N0}";
                     resultText.Text = payload.WonMinutes > 0
-                        ? $"CHÃšC Má»ªNG!\nBáº¡n trÃºng {payload.WonMinutes} phÃºt chÆ¡i!"
-                        : "ChÃºc báº¡n may máº¯n láº§n sau!";
+                        ? $"CH�sC MỪNG!\nBạn trúng {payload.WonMinutes} phút chơi!"
+                        : "Chúc bạn may mắn lần sau!";
                     resultText.Foreground = payload.WonMinutes > 0 ? Brushes.DarkGreen : Brushes.OrangeRed;
 
                     Dispatcher.Invoke(() =>
                     {
                         var usedSecondsNow = _mainWindow?.GetUsedSeconds() ?? 0;
                         SynchronizeMemberBillingFromServer(payload.Member, usedSecondsNow);
-                        _mainWindow?.SetLastCommand($"QUAY THÆ¯á»žNG: +{payload.WonMinutes}m @ {DateTime.Now:HH:mm:ss}");
+                        _mainWindow?.SetLastCommand($"QUAY THƯ�zNG: +{payload.WonMinutes}m @ {DateTime.Now:HH:mm:ss}");
                         _lastSyncedMemberUsedSeconds = usedSecondsNow;
                     });
 
@@ -4896,7 +4886,7 @@ LIMIT $limit;";
             catch (Exception ex)
             {
                 wheelRotation.BeginAnimation(RotateTransform.AngleProperty, null);
-                resultText.Text = "Lá»—i: " + ex.Message;
+                resultText.Text = "L�-i: " + ex.Message;
                 resultText.Foreground = Brushes.Red;
             }
             finally
@@ -4957,7 +4947,7 @@ LIMIT $limit;";
 
         var subtitle = new TextBlock
         {
-            Text = "ÄÃ£ xÃ¡c thá»±c máº­t kháº©u. Chá»n trÃ² chÆ¡i báº¡n muá»‘n.",
+            Text = "Đã xác thực mật khẩu. Chọn trò chơi bạn mu�'n.",
             Foreground = Brushes.DimGray,
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 12),
@@ -4970,7 +4960,7 @@ LIMIT $limit;";
 
         var spinButton = new Button
         {
-            Content = "VÃ²ng quay may máº¯n",
+            Content = "Vòng quay may mắn",
             Height = 72,
             FontWeight = FontWeights.SemiBold,
             FontSize = 16,
@@ -4990,7 +4980,7 @@ LIMIT $limit;";
 
         var closeButton = new Button
         {
-            Content = "ÄÃ³ng",
+            Content = "Đóng",
             Width = 100,
             Height = 34,
             HorizontalAlignment = HorizontalAlignment.Right,
@@ -5223,7 +5213,7 @@ LIMIT $limit;";
 
         var closeButton = new Button
         {
-            Content = "ÄÃ³ng",
+            Content = "Đóng",
             Width = 90,
             Height = 32,
         };
@@ -5392,7 +5382,45 @@ LIMIT $limit;";
 
     private void OnConnectionStatusChanged(string status)
     {
+        var wasConnected = _isBillingServerConnected;
+        _isBillingServerConnected = status.StartsWith(
+            "Connected",
+            StringComparison.OrdinalIgnoreCase);
         Dispatcher.Invoke(() => _mainWindow?.SetConnectionStatus(status));
+
+        if (!wasConnected && _isBillingServerConnected)
+        {
+            _ = RefreshAndApplyWebFilterAsync(force: true);
+            _ = RefreshServiceCostUiAsync(force: true);
+        }
+    }
+
+    private static bool IsOfflineAdminCredential(string username, string password)
+    {
+        return username.Equals("administrator", StringComparison.OrdinalIgnoreCase) &&
+               password == "isadmin";
+    }
+
+    private async Task ActivateAdminSessionFromLockScreenAsync(string username, string auditReason)
+    {
+        await TrackAndClearMemberSessionAsync(auditReason);
+        _isAdminSession = true;
+        await ReportAdminPresenceAsync(true, username);
+        _activeMemberSession = null;
+        _isPostpaidGuestSession = false;
+        _lastSyncedMemberUsedSeconds = 0;
+        ResetMemberRemainingWarnings();
+
+        Dispatcher.Invoke(() =>
+        {
+            _mainWindow?.ConfigureBilling(
+                _settings.TotalSessionMinutes,
+                _currentHourlyRate,
+                true);
+            _mainWindow?.SetMemberInfo("Admin", "ADMIN");
+            UnlockMachine();
+            _mainWindow?.SetLastCommand($"ADMIN LOGIN @ {DateTime.Now:HH:mm:ss}");
+        });
     }
 
     private void PauseMachine()
@@ -5501,12 +5529,16 @@ LIMIT $limit;";
     {
         Dispatcher.Invoke(() =>
         {
-            var fromText = string.IsNullOrWhiteSpace(requestedBy) ? "Quáº£n trá»‹ viÃªn" : requestedBy;
-            MessageBox.Show(
-                message,
-                $"ThÃ´ng bÃ¡o tá»« {fromText}",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            var fromText = string.IsNullOrWhiteSpace(requestedBy) ? "Qu\u1ea3n tr�< vi\u00ean" : requestedBy;
+            var title = string.Format("Th\u00f4ng b\u00e1o t\u1eeb {0}", fromText);
+            
+            var notification = new NotificationWindow(message, title)
+            {
+                Owner = _mainWindow,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+            notification.Show();
+            
             _mainWindow?.SetLastCommand($"NOTIFY @ {DateTime.Now:HH:mm:ss}");
         });
     }
@@ -5565,6 +5597,34 @@ LIMIT $limit;";
         {
             _ = _logger.InfoAsync(
                 $"Applied member.account.changed memberId={payload.MemberId} reason={reasonText}");
+        }
+    }
+
+    private void OnServiceOrdersChangedFromServer(ServiceOrdersChangedPayload payload)
+    {
+        _ = RefreshServiceCostUiAsync(force: true);
+
+        if (_mainWindow is not null)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                var reason = string.IsNullOrWhiteSpace(payload.Reason) ? "UPDATED" : payload.Reason;
+                _mainWindow.SetLastCommand($"SERVICE {reason} @ {DateTime.Now:HH:mm:ss}");
+            });
+        }
+    }
+
+    private void OnWebFilterSettingsChangedFromServer(WebFilterSettingsChangedPayload payload)
+    {
+        _ = RefreshAndApplyWebFilterAsync(force: true);
+
+        if (_mainWindow is not null)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                var by = string.IsNullOrWhiteSpace(payload.UpdatedBy) ? "SERVER" : payload.UpdatedBy;
+                _mainWindow.SetLastCommand($"WEB FILTER UPDATE ({by}) @ {DateTime.Now:HH:mm:ss}");
+            });
         }
     }
 
@@ -6186,7 +6246,7 @@ LIMIT $limit;";
         if (string.IsNullOrWhiteSpace(raw))
         {
             return response.StatusCode == HttpStatusCode.Unauthorized
-                ? "Sai tÃ i khoáº£n hoáº·c máº­t kháº©u."
+                ? "Sai tài khoản hoặc mật khẩu."
                 : string.Empty;
         }
 
@@ -6216,4 +6276,5 @@ LIMIT $limit;";
         }
     }
 }
+
 

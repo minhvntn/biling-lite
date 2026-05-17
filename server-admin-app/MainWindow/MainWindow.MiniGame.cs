@@ -66,14 +66,14 @@ public partial class MainWindow
             var total = _loyaltySpinSettingRows.Sum(x => x.Chance);
             var totalText = total.ToString("0.####", CultureInfo.InvariantCulture);
             var updatedAtText = FormatDateTime(response?.UpdatedAt);
-            MiniGameSpinStatusTextBlock.Text = $"Đã tải cấu hình vòng quay. Tổng hiện tại: {totalText}% (cập nhật: {updatedAtText}).";
+            MiniGameSpinStatusTextBlock.Text = $"Da tai cau hinh vong quay. Tong hien tai: {totalText}% (cap nhat: {updatedAtText}).";
             MiniGameSpinStatusTextBlock.Foreground = IsChanceTotalValid(total)
                 ? Brushes.DarkGreen
                 : Brushes.DarkGoldenrod;
         }
         catch
         {
-            MiniGameSpinStatusTextBlock.Text = "Không kết nối được backend để tải cấu hình mini game.";
+            MiniGameSpinStatusTextBlock.Text = "Khong ket noi duoc backend de tai cau hinh mini game.";
             MiniGameSpinStatusTextBlock.Foreground = Brushes.Firebrick;
         }
         finally
@@ -89,21 +89,14 @@ public partial class MainWindow
 
     private async Task SaveMiniGameSpinSettingsAsync()
     {
-        if (_loyaltySpinSettingRows.Count == 0)
+        if (!TryValidateMiniGameSpinRows(out var validationMessage))
         {
-            MiniGameSpinStatusTextBlock.Text = "Không có dữ liệu để lưu.";
+            MiniGameSpinStatusTextBlock.Text = validationMessage;
             MiniGameSpinStatusTextBlock.Foreground = Brushes.Firebrick;
             return;
         }
 
         var total = _loyaltySpinSettingRows.Sum(x => x.Chance);
-        if (!IsChanceTotalValid(total))
-        {
-            MiniGameSpinStatusTextBlock.Text =
-                $"Tổng tỉ lệ phải bằng 100%. Hiện tại: {total.ToString("0.####", CultureInfo.InvariantCulture)}%.";
-            MiniGameSpinStatusTextBlock.Foreground = Brushes.Firebrick;
-            return;
-        }
 
         try
         {
@@ -111,11 +104,14 @@ public partial class MainWindow
                 BuildApiUrl("/members/loyalty/spin-settings"),
                 new
                 {
-                    items = _loyaltySpinSettingRows.Select(row => new
-                    {
-                        minutes = row.Minutes,
-                        chance = row.Chance,
-                    }).ToList(),
+                    items = _loyaltySpinSettingRows
+                        .OrderBy(row => row.Minutes)
+                        .Select(row => new
+                        {
+                            minutes = row.Minutes,
+                            chance = row.Chance,
+                        })
+                        .ToList(),
                     updatedBy = "admin.desktop",
                 });
 
@@ -123,8 +119,8 @@ public partial class MainWindow
             {
                 var error = await response.Content.ReadAsStringAsync();
                 MiniGameSpinStatusTextBlock.Text = string.IsNullOrWhiteSpace(error)
-                    ? $"Lưu tỉ lệ thất bại ({(int)response.StatusCode})."
-                    : $"Lưu thất bại: {error}";
+                    ? $"Luu ti le that bai ({(int)response.StatusCode})."
+                    : $"Luu that bai: {error}";
                 MiniGameSpinStatusTextBlock.Foreground = Brushes.Firebrick;
                 return;
             }
@@ -132,13 +128,13 @@ public partial class MainWindow
             var payload = await response.Content.ReadFromJsonAsync<LoyaltySpinSettingsResponse>(JsonOptions());
             var totalChance = payload?.TotalChance ?? total;
             MiniGameSpinStatusTextBlock.Text =
-                $"Đã lưu tỉ lệ vòng quay thành công. Tổng: {totalChance.ToString("0.####", CultureInfo.InvariantCulture)}%.";
+                $"Da luu ti le vong quay thanh cong. Tong: {totalChance.ToString("0.####", CultureInfo.InvariantCulture)}%.";
             MiniGameSpinStatusTextBlock.Foreground = Brushes.DarkGreen;
-            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã lưu cấu hình mini game vòng quay.");
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Da luu cau hinh mini game vong quay.");
         }
         catch
         {
-            MiniGameSpinStatusTextBlock.Text = "Không kết nối được backend khi lưu cấu hình mini game.";
+            MiniGameSpinStatusTextBlock.Text = "Khong ket noi duoc backend khi luu cau hinh mini game.";
             MiniGameSpinStatusTextBlock.Foreground = Brushes.Firebrick;
         }
     }
@@ -156,7 +152,7 @@ public partial class MainWindow
             });
         }
 
-        MiniGameSpinStatusTextBlock.Text = "Đã đưa về tỉ lệ mặc định. Bấm \"Lưu tỉ lệ\" để áp dụng lên backend.";
+        MiniGameSpinStatusTextBlock.Text = "Da dua ve ti le mac dinh. Bam \"Luu ti le\" de ap dung len backend.";
         MiniGameSpinStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
     }
 
@@ -169,20 +165,61 @@ public partial class MainWindow
 
         Dispatcher.InvokeAsync(() =>
         {
-            var total = _loyaltySpinSettingRows.Sum(x => x.Chance);
-            if (IsChanceTotalValid(total))
+            if (TryValidateMiniGameSpinRows(out var validationMessage))
             {
+                var total = _loyaltySpinSettingRows.Sum(x => x.Chance);
                 MiniGameSpinStatusTextBlock.Text =
-                    $"Đã chỉnh tỉ lệ. Tổng hiện tại: {total.ToString("0.####", CultureInfo.InvariantCulture)}%. Bấm \"Lưu tỉ lệ\" để áp dụng.";
+                    $"Da chinh ti le. Tong hien tai: {total.ToString("0.####", CultureInfo.InvariantCulture)}%. Bam \"Luu ti le\" de ap dung.";
                 MiniGameSpinStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
             }
             else
             {
-                MiniGameSpinStatusTextBlock.Text =
-                    $"Tổng tỉ lệ đang là {total.ToString("0.####", CultureInfo.InvariantCulture)}%. Cần chỉnh về đúng 100%.";
+                MiniGameSpinStatusTextBlock.Text = validationMessage;
                 MiniGameSpinStatusTextBlock.Foreground = Brushes.Firebrick;
             }
         }, System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    private bool TryValidateMiniGameSpinRows(out string message)
+    {
+        if (_loyaltySpinSettingRows.Count == 0)
+        {
+            message = "Khong co du lieu de luu.";
+            return false;
+        }
+
+        var invalidMinute = _loyaltySpinSettingRows.FirstOrDefault(x => x.Minutes < 0 || x.Minutes > 1000);
+        if (invalidMinute is not null)
+        {
+            message = $"Moc thuong khong hop le: {invalidMinute.Minutes}. Chi cho phep tu 0 den 1000 phut.";
+            return false;
+        }
+
+        var duplicateMinutes = _loyaltySpinSettingRows
+            .GroupBy(x => x.Minutes)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicateMinutes is not null)
+        {
+            message = $"Moc thuong {duplicateMinutes.Key} phut dang bi trung. Vui long chinh lai.";
+            return false;
+        }
+
+        var invalidChance = _loyaltySpinSettingRows.FirstOrDefault(x => x.Chance < 0 || x.Chance > 100);
+        if (invalidChance is not null)
+        {
+            message = "Co ti le khong hop le. Moi moc phai nam trong khoang 0% - 100%.";
+            return false;
+        }
+
+        var total = _loyaltySpinSettingRows.Sum(x => x.Chance);
+        if (!IsChanceTotalValid(total))
+        {
+            message = $"Tong ti le phai bang 100%. Hien tai: {total.ToString("0.####", CultureInfo.InvariantCulture)}%.";
+            return false;
+        }
+
+        message = string.Empty;
+        return true;
     }
 
     private static bool IsChanceTotalValid(decimal totalChance)

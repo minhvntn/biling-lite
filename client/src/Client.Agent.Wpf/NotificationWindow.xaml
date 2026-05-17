@@ -1,0 +1,55 @@
+<Window x:Class="Client.Agent.Wpf.NotificationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Notification" Height="220" Width="420"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        WindowStartupLocation="CenterScreen" Topmost="True" ShowInTaskbar="False">
+    <Border Background="White" CornerRadius="16" BorderBrush="#E2E8F0" BorderThickness="1">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="30" Color="Black" Opacity="0.15" ShadowDepth="8" />
+        </Border.Effect>
+        <Grid Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+                <TextBlock Text="🔔" FontSize="20" Margin="0,0,10,0" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleTextBlock" Text="Thông báo từ quản trị viên" FontWeight="Bold" FontSize="16" Foreground="#1E293B" VerticalAlignment="Center" />
+            </StackPanel>
+            
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <TextBlock x:Name="MessageTextBlock" Text="..." FontSize="15" Foreground="#475569" TextWrapping="Wrap" LineHeight="22" />
+            </ScrollViewer>
+            
+            <Grid Grid.Row="2" Margin="0,16,0,0">
+                <TextBlock x:Name="TimerTextBlock" Text="Tự động đóng sau 120 giây" FontSize="12" Foreground="#94A3B8" VerticalAlignment="Center" HorizontalAlignment="Left" />
+                <Button x:Name="CloseButton" Content="Đóng" HorizontalAlignment="Right" Width="90" Height="34" Click="CloseButton_Click">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Background" Value="#4F46E5" />
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="Cursor" Value="Hand" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="8">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="border" Property="Background" Value="#4338CA" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

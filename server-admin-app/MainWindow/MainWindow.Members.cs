@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -157,6 +157,7 @@ public partial class MainWindow : Window
             _memberTransactionRows.Clear();
             var filteredItems = response.Items
                 .Where(x => string.IsNullOrEmpty(x.Note) || !x.Note.StartsWith("SESSION_USAGE"))
+                .OrderByDescending(x => x.CreatedAt)
                 .Select(ToMemberTransactionRow);
 
             foreach (var tx in filteredItems)
@@ -180,6 +181,13 @@ public partial class MainWindow : Window
             JsonOptions());
     }
 
+    private async Task<MemberUsageSummaryResponse?> GetMemberUsageSummaryAsync(string memberId)
+    {
+        return await _httpClient.GetFromJsonAsync<MemberUsageSummaryResponse>(
+            BuildApiUrl($"/members/{memberId}/usage-summary"),
+            JsonOptions());
+    }
+
     private async Task<SystemEventsResponse?> GetSystemEventsAsync(int limit = 500)
     {
         var safeLimit = Math.Clamp(limit, 20, 500);
@@ -187,6 +195,46 @@ public partial class MainWindow : Window
             BuildApiUrl($"/reports/events/system?limit={safeLimit}"),
             JsonOptions());
     }
+
+    private static MemberTransactionRow ToMemberTransactionRow(MemberTransactionItem item)
+    {
+        var note = item.Note ?? string.Empty;
+        var typeText = item.Type switch
+        {
+            "TOPUP" => "N\u1ea1p ti\u1ec1n",
+            "BUY_PLAYTIME" => "Mua gi\u1edd",
+            _ => "\u0110i\u1ec1u ch\u1ec9nh",
+        };
+
+        if (item.Type == "ADJUSTMENT" || item.Type == "TRANSFER")
+        {
+            if (note.Contains("Chuyen tien") || note.Contains("Nhan tien") || note.Contains("TRANSFER"))
+            {
+                typeText = "Chuy\u1ec3n ti\u1ec1n";
+            }
+            else if (note.Contains("Rut tien") || note.Contains("WITHDRAW") || note.Contains("tra lai") || note.Contains("Refund"))
+            {
+                typeText = "R\u00fat ti\u1ec1n";
+            }
+            else if (note.Contains("UPFRONT_LOGIN_CHARGE"))
+            {
+                typeText = "Ph\u00ed \u0111\u0103ng nh\u1eadp";
+            }
+        }
+
+        return new MemberTransactionRow
+        {
+            CreatedAtText = FormatDateTime(item.CreatedAt),
+            TypeText = typeText,
+            AmountDeltaText = item.AmountDelta.ToString("N0", CultureInfo.InvariantCulture),
+            PlayHoursDeltaText = (item.PlaySecondsDelta / 3600.0).ToString("0.##", CultureInfo.InvariantCulture),
+            CreatedBy = item.CreatedBy,
+            Note = string.IsNullOrWhiteSpace(item.Note) ? "-" : item.Note,
+        };
+    }
+
+    private async Task CreateMemberAsync()
+    {
         var username = MemberUsernameTextBox.Text.Trim();
         var password = MemberPasswordBox.Password;
         var phone = MemberPhoneTextBox.Text.Trim();
@@ -321,6 +369,17 @@ public partial class MainWindow : Window
         await RefreshMembersAsync(forceRefresh: true);
     }
 
+    private void ResetMemberModalTimer()
+    {
+        _memberModalAutoCloseTimer.Stop();
+        _memberModalAutoCloseTimer.Start();
+    }
+
+    private void StopMemberModalTimer()
+    {
+        _memberModalAutoCloseTimer.Stop();
+    }
+
     private async Task<decimal?> ShowTopupModalAsync(
         MemberRow? member,
         string? title = null,
@@ -362,6 +421,8 @@ public partial class MainWindow : Window
         TopupMinutesTextBox.Text = string.Empty;
         TopupModalErrorTextBlock.Text = string.Empty;
         UpdateTopupMinutesRateHint();
+        
+        ResetMemberModalTimer();
         TopupModalOverlay.Visibility = Visibility.Visible;
 
         _topupModalTcs = new TaskCompletionSource<decimal?>();
@@ -427,6 +488,7 @@ public partial class MainWindow : Window
 
         var tcs = _topupModalTcs;
         _topupModalTcs = null;
+        StopMemberModalTimer();
         TopupModalOverlay.Visibility = Visibility.Collapsed;
         TopupModalErrorTextBlock.Text = string.Empty;
         tcs.TrySetResult(amount);
@@ -447,6 +509,7 @@ public partial class MainWindow : Window
         _topupModalAmount += value;
         _topupModalHistory.Push(value);
         TopupModalErrorTextBlock.Text = string.Empty;
+        ResetMemberModalTimer();
         UpdateTopupModalUi();
     }
 
@@ -585,6 +648,7 @@ public partial class MainWindow : Window
         _topupModalAmount = customAmount;
         _topupModalHistory.Clear();
         TopupModalErrorTextBlock.Text = string.Empty;
+        ResetMemberModalTimer();
         UpdateTopupModalUi();
     }
 
@@ -636,6 +700,7 @@ public partial class MainWindow : Window
         TopupCustomAmountTextBox.Text = convertedAmount.ToString("0", CultureInfo.InvariantCulture);
         _isTopupModalInputSync = false;
         TopupModalErrorTextBlock.Text = string.Empty;
+        ResetMemberModalTimer();
         UpdateTopupModalUi();
     }
 
@@ -646,10 +711,7 @@ public partial class MainWindow : Window
             return preferredRatePerHour.Value;
         }
 
-        if (TryParsePositiveMoney(RatePerHourTextBox.Text.Trim(), out var rateFromInput) && rateFromInput > 0)
-        {
-            return rateFromInput;
-        }
+
 
         if (_pricingSettings?.DefaultRatePerHour > 0)
         {
@@ -701,7 +763,63 @@ public partial class MainWindow : Window
         UpdateTopupModalUi();
     }
 
-    private async Task BuyHoursAsync()
+
+    private async Task GiftMemberAsync()
+    {
+        const string actionLabel = "Tặng tiền miễn phí";
+
+        if (string.IsNullOrWhiteSpace(_selectedMemberId))
+        {
+            MessageBox.Show(I18n.PleaseSelectMember, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var selectedMember =
+            MembersDataGrid.SelectedItem as MemberRow ??
+            _memberRows.FirstOrDefault(x => string.Equals(x.Id, _selectedMemberId, StringComparison.OrdinalIgnoreCase));
+
+        if (selectedMember is null)
+        {
+            MessageBox.Show(I18n.PleaseSelectMember, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var amount = await ShowTopupModalAsync(
+            selectedMember,
+            title: "T\u1eb7ng ti\u1ec1n mi\u1ec5n ph\u00ed",
+            memberPrompt: $"H\u1ed9i vi\u00ean: {selectedMember.Username} - ch\u1ecdn s\u1ed1 ti\u1ec1n t\u1eb7ng:",
+            allowDeduct: false);
+
+        if (!amount.HasValue || amount.Value <= 0)
+        {
+            return;
+        }
+
+        using var response = await _httpClient.PostAsJsonAsync(
+            BuildApiUrl($"/members/{_selectedMemberId}/adjust"),
+            new
+            {
+                amountDelta = Convert.ToDouble(amount.Value),
+                createdBy = "admin.desktop",
+                note = "Tang tien mien phi"
+            });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            MessageBox.Show(
+                $"{actionLabel} thất bại ({(int)response.StatusCode})",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] {actionLabel} {amount:N0} cho hội viên {_selectedMemberId}");
+        InvalidateMembersCache();
+        await RefreshMembersAsync(forceRefresh: true);
+    }
+
+    private async Task BuyHoursForMemberAsync()
     {
         if (string.IsNullOrWhiteSpace(_selectedMemberId))
         {
@@ -709,34 +827,66 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!double.TryParse(BuyHoursTextBox.Text.Trim(), out var hours) || hours <= 0)
+        var selectedMember =
+            MembersDataGrid.SelectedItem as MemberRow ??
+            _memberRows.FirstOrDefault(x => string.Equals(x.Id, _selectedMemberId, StringComparison.OrdinalIgnoreCase));
+
+        if (selectedMember is null)
         {
-            MessageBox.Show(I18n.InvalidBuyHours, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(I18n.PleaseSelectMember, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
-        if (!double.TryParse(RatePerHourTextBox.Text.Trim(), out var ratePerHour) || ratePerHour <= 0)
+        var ratePerHour = ResolveTopupRatePerHour(null);
+        var amount = await ShowTopupModalAsync(
+            selectedMember,
+            title: "Mua giờ hội viên",
+            memberPrompt: $"Hội viên: {selectedMember.Username} - nhập số tiền mua giờ:",
+            allowDeduct: false,
+            ratePerHour: ratePerHour);
+
+        if (!amount.HasValue || amount.Value <= 0)
         {
-            MessageBox.Show(I18n.InvalidRatePerHour, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var boughtHours = Math.Round(amount.Value / ratePerHour, 2, MidpointRounding.AwayFromZero);
+        if (boughtHours < 0.5m)
+        {
+            MessageBox.Show(
+                "Số tiền quá nhỏ để mua giờ (tối thiểu 0.5 giờ).",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
             return;
         }
 
         using var response = await _httpClient.PostAsJsonAsync(
             BuildApiUrl($"/members/{_selectedMemberId}/buy-hours"),
-            new { hours, ratePerHour, createdBy = "admin.desktop" });
+            new
+            {
+                hours = Convert.ToDouble(boughtHours),
+                ratePerHour = Convert.ToDouble(ratePerHour),
+                note = "Mua giờ tại admin",
+                createdBy = "admin.desktop"
+            });
 
         if (!response.IsSuccessStatusCode)
         {
-            MessageBox.Show($"Mua gi\u1edd th\u1ea5t b\u1ea1i ({(int)response.StatusCode})", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(
+                $"Mua giờ thất bại ({(int)response.StatusCode})",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
 
-        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Mua {hours:0.##} gi\u1edd cho h\u1ed9i vi\u00ean {_selectedMemberId}");
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Mua giờ {boughtHours:0.##}h cho hội viên {_selectedMemberId}");
         InvalidateMembersCache();
         await RefreshMembersAsync(forceRefresh: true);
     }
 
-    private async Task AdjustMemberBalanceAsync(bool isRefund)
+    private async Task RefundMemberAsync()
     {
         if (string.IsNullOrWhiteSpace(_selectedMemberId))
         {
@@ -744,30 +894,50 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!decimal.TryParse(TopupAmountTextBox.Text.Trim(), out var amount) || amount <= 0)
+        var selectedMember =
+            MembersDataGrid.SelectedItem as MemberRow ??
+            _memberRows.FirstOrDefault(x => string.Equals(x.Id, _selectedMemberId, StringComparison.OrdinalIgnoreCase));
+
+        if (selectedMember is null)
         {
-            MessageBox.Show(I18n.InvalidTopupAmount, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(I18n.PleaseSelectMember, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
-        var signedAmount = isRefund ? -amount : amount;
-        var note = isRefund ? "Tien tra lai" : "Tang tien mien phi";
+        var amount = await ShowTopupModalAsync(
+            selectedMember,
+            title: "Tiền trả lại",
+            memberPrompt: $"Hội viên: {selectedMember.Username} - nhập số tiền cần trả lại:",
+            allowDeduct: false);
+
+        if (!amount.HasValue || amount.Value <= 0)
+        {
+            return;
+        }
 
         using var response = await _httpClient.PostAsJsonAsync(
-            BuildApiUrl($"/members/{_selectedMemberId}/adjust"),
-            new { amountDelta = Convert.ToDouble(signedAmount), createdBy = "admin.desktop", note });
+            BuildApiUrl($"/members/{_selectedMemberId}/withdraw"),
+            new
+            {
+                amount = Convert.ToDouble(amount.Value),
+                note = "Tra lai tai quan",
+                createdBy = "admin.desktop"
+            });
 
         if (!response.IsSuccessStatusCode)
         {
-            MessageBox.Show($"{note} that bai ({(int)response.StatusCode})", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(
+                $"Trả lại tiền thất bại ({(int)response.StatusCode})",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
 
-        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] {note} {amount:N0} cho hoi vien {_selectedMemberId}");
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Trả lại {amount.Value:N0} cho hội viên {_selectedMemberId}");
         InvalidateMembersCache();
         await RefreshMembersAsync(forceRefresh: true);
     }
-
 
     private void ShowAddMemberModal()
     {
@@ -776,12 +946,14 @@ public partial class MainWindow : Window
         MemberPhoneTextBox.Text = string.Empty;
         MemberIdentityTextBox.Text = string.Empty;
         MemberModalErrorTextBlock.Text = string.Empty;
+        ResetMemberModalTimer();
         MemberModalOverlay.Visibility = Visibility.Visible;
         MemberUsernameTextBox.Focus();
     }
 
     private void HideAddMemberModal()
     {
+        StopMemberModalTimer();
         MemberModalOverlay.Visibility = Visibility.Collapsed;
     }
 
@@ -790,10 +962,6 @@ public partial class MainWindow : Window
     private void AddMemberButton_Click(object sender, RoutedEventArgs e) => ShowAddMemberModal();
 
     private async void TopupMemberButton_Click(object sender, RoutedEventArgs e) => await TopupMemberAsync();
-
-    private async void BuyHoursButton_Click(object sender, RoutedEventArgs e) => await BuyHoursAsync();
-    private async void RefundMemberButton_Click(object sender, RoutedEventArgs e) => await AdjustMemberBalanceAsync(true);
-    private async void GiftMemberButton_Click(object sender, RoutedEventArgs e) => await AdjustMemberBalanceAsync(false);
 
     private void MembersSearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
@@ -884,10 +1052,10 @@ public partial class MainWindow : Window
     }
 
     private async void ContextTopupMemberMenuItem_Click(object sender, RoutedEventArgs e) => await TopupMemberAsync();
-    private async void ContextBuyHoursMenuItem_Click(object sender, RoutedEventArgs e) => await BuyHoursAsync();
-    private async void ContextRefundMemberMenuItem_Click(object sender, RoutedEventArgs e) => await AdjustMemberBalanceAsync(true);
-    private async void ContextGiftMemberMenuItem_Click(object sender, RoutedEventArgs e) => await AdjustMemberBalanceAsync(false);
+    private async void ContextBuyHoursMenuItem_Click(object sender, RoutedEventArgs e) => await BuyHoursForMemberAsync();
+    private async void ContextGiftMemberMenuItem_Click(object sender, RoutedEventArgs e) => await GiftMemberAsync();
     private async void ContextTransferMemberMenuItem_Click(object sender, RoutedEventArgs e) => await TransferMemberBalanceAsync();
+    private async void ContextRefundMemberMenuItem_Click(object sender, RoutedEventArgs e) => await RefundMemberAsync();
     private async void ContextMemberTransactionsMenuItem_Click(object sender, RoutedEventArgs e)
     {
         var selectedMember =
@@ -951,6 +1119,7 @@ public partial class MainWindow : Window
 
         var transactionRows = response.Items
             .Where(x => string.IsNullOrEmpty(x.Note) || !x.Note.StartsWith("SESSION_USAGE"))
+            .OrderByDescending(x => x.CreatedAt)
             .Select(ToMemberTransactionRow)
             .ToList();
 
@@ -966,29 +1135,48 @@ public partial class MainWindow : Window
             WindowStyle = WindowStyle.SingleBorderWindow,
             ShowInTaskbar = false,
             Owner = this,
+            Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)), // Slate 50
         };
 
-        var root = new Grid { Margin = new Thickness(12) };
+        // Add 2-minute auto-close timer to this window
+        var autoCloseTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(2) };
+        autoCloseTimer.Tick += (s, e) => dialog.Close();
+        dialog.PreviewMouseMove += (s, e) => { autoCloseTimer.Stop(); autoCloseTimer.Start(); };
+        dialog.PreviewKeyDown += (s, e) => { autoCloseTimer.Stop(); autoCloseTimer.Start(); };
+        autoCloseTimer.Start();
+
+        var root = new Grid { Margin = new Thickness(16) };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
+        var headerBorder = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(15, 23, 42)), // Slate 900
+            Padding = new Thickness(12, 8, 12, 8),
+            CornerRadius = new CornerRadius(6),
+            Margin = new Thickness(0, 0, 0, 12)
+        };
+        Grid.SetRow(headerBorder, 0);
+
         var headerTextBlock = new TextBlock
         {
             Text = $"Hội viên: {response.Member.Username} | Số dư: {response.Member.Balance:N0} VND | Giờ chơi: {response.Member.PlayHours:0.##} | Điểm: {response.Member.AvailablePoints}",
             FontWeight = FontWeights.SemiBold,
+            Foreground = Brushes.White,
+            FontSize = 15,
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 0, 0, 6),
         };
-        Grid.SetRow(headerTextBlock, 0);
-        root.Children.Add(headerTextBlock);
+        headerBorder.Child = headerTextBlock;
+        root.Children.Add(headerBorder);
 
         var summaryTextBlock = new TextBlock
         {
             Text = $"Tổng giao dịch: {transactionRows.Count}",
-            Foreground = Brushes.DimGray,
-            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)), // Slate 500
+            FontSize = 13,
+            Margin = new Thickness(4, 0, 0, 8),
         };
         Grid.SetRow(summaryTextBlock, 1);
         root.Children.Add(summaryTextBlock);
@@ -1000,9 +1188,14 @@ public partial class MainWindow : Window
             CanUserAddRows = false,
             HeadersVisibility = DataGridHeadersVisibility.Column,
             GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+            HorizontalGridLinesBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240)), // Slate 200
             RowHeaderWidth = 0,
             AlternationCount = 2,
             ItemsSource = transactionRows,
+            FontSize = 14,
+            RowHeight = 38,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)), // Slate 300
+            BorderThickness = new Thickness(1),
         };
         transactionsGrid.Columns.Add(new DataGridTextColumn
         {
@@ -1046,11 +1239,15 @@ public partial class MainWindow : Window
         var closeButton = new Button
         {
             Content = "Đóng",
-            Width = 96,
-            Height = 34,
+            Width = 110,
+            Height = 36,
             HorizontalAlignment = HorizontalAlignment.Right,
             IsDefault = true,
-            Margin = new Thickness(0, 10, 0, 0),
+            Margin = new Thickness(0, 16, 0, 0),
+            Background = new SolidColorBrush(Color.FromRgb(30, 41, 59)), // Slate 800
+            Foreground = Brushes.White,
+            FontWeight = FontWeights.SemiBold,
+            BorderThickness = new Thickness(0)
         };
         closeButton.Click += (_, _) => dialog.Close();
         Grid.SetRow(closeButton, 3);
@@ -1087,18 +1284,95 @@ public partial class MainWindow : Window
             return;
         }
 
-        var usageRows = response.Items
-            .Select(item => TryMapMemberUsageLogRow(item, member))
+        var events = response.Items
+            .Select(item => TryMapMemberUsageEvent(item, member))
             .Where(x => x is not null)
             .Select(x => x!)
-            .OrderByDescending(x => x.SortAt)
+            .OrderBy(x => x.Timestamp)
             .ToList();
+
+        // Standardize Usage Log Aggregation Logic
+        var usageRows = new List<MemberUsageLogRow>();
+        var pendingSessions = new Dictionary<string, MemberUsageEvent>();
+
+        foreach (var ev in events)
+        {
+            if (ev.IsActive)
+            {
+                // Login event
+                if (pendingSessions.TryGetValue(ev.PcText, out var existingLogin))
+                {
+                    // If already have a pending login for this PC, close it as incomplete before starting new one
+                    usageRows.Add(new MemberUsageLogRow
+                    {
+                        SortAt = existingLogin.Timestamp,
+                        LoginTimeText = existingLogin.Timestamp.ToString("dd-MM-yyyy HH:mm:ss"),
+                        LogoutTimeText = "-",
+                        DurationText = "-",
+                        PcText = existingLogin.PcText,
+                        SourceText = existingLogin.Source,
+                        Details = existingLogin.Details
+                    });
+                }
+                pendingSessions[ev.PcText] = ev;
+            }
+            else
+            {
+                // Logout event
+                if (pendingSessions.TryGetValue(ev.PcText, out var loginEvent))
+                {
+                    var duration = ev.Timestamp - loginEvent.Timestamp;
+                    usageRows.Add(new MemberUsageLogRow
+                    {
+                        SortAt = loginEvent.Timestamp,
+                        LoginTimeText = loginEvent.Timestamp.ToString("dd-MM-yyyy HH:mm:ss"),
+                        LogoutTimeText = ev.Timestamp.ToString("dd-MM-yyyy HH:mm:ss"),
+                        DurationText = FormatDuration(duration),
+                        PcText = loginEvent.PcText,
+                        SourceText = loginEvent.Source,
+                        Details = loginEvent.Details
+                    });
+                    pendingSessions.Remove(ev.PcText);
+                }
+                else
+                {
+                    // Logout without matching login
+                    usageRows.Add(new MemberUsageLogRow
+                    {
+                        SortAt = ev.Timestamp,
+                        LoginTimeText = "-",
+                        LogoutTimeText = ev.Timestamp.ToString("dd-MM-yyyy HH:mm:ss"),
+                        DurationText = "-",
+                        PcText = ev.PcText,
+                        SourceText = ev.Source,
+                        Details = ev.Details
+                    });
+                }
+            }
+        }
+
+        // Handle remaining pending logins (currently using)
+        foreach (var pending in pendingSessions.Values)
+        {
+            usageRows.Add(new MemberUsageLogRow
+            {
+                SortAt = pending.Timestamp,
+                LoginTimeText = pending.Timestamp.ToString("dd-MM-yyyy HH:mm:ss"),
+                LogoutTimeText = "\u0110ang s\u1eed d\u1ee5ng",
+                DurationText = FormatDuration(DateTime.Now - pending.Timestamp),
+                PcText = pending.PcText,
+                SourceText = pending.Source,
+                Details = pending.Details
+            });
+        }
+
+        usageRows = usageRows.OrderByDescending(x => x.SortAt).ToList();
 
         var dialog = new Window
         {
-            Title = $"Nhật ký sử dụng máy - {member.Username}",
-            Width = 980,
-            Height = 600,
+            Title = $"Nh\u1eadt k\u00fd s\u1eed d\u1ee5ng m\u00e1y - {member.Username}",
+            Width = 1080,
+            Height = 650,
             MinWidth = 820,
             MinHeight = 440,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -1106,29 +1380,48 @@ public partial class MainWindow : Window
             WindowStyle = WindowStyle.SingleBorderWindow,
             ShowInTaskbar = false,
             Owner = this,
+            Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)), // Slate 50
         };
 
-        var root = new Grid { Margin = new Thickness(12) };
+        // Add 2-minute auto-close timer to this window
+        var autoCloseTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(2) };
+        autoCloseTimer.Tick += (s, e) => dialog.Close();
+        dialog.PreviewMouseMove += (s, e) => { autoCloseTimer.Stop(); autoCloseTimer.Start(); };
+        dialog.PreviewKeyDown += (s, e) => { autoCloseTimer.Stop(); autoCloseTimer.Start(); };
+        autoCloseTimer.Start();
+
+        var root = new Grid { Margin = new Thickness(16) };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
+        var headerBorder = new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(15, 23, 42)), // Slate 900
+            Padding = new Thickness(12, 8, 12, 8),
+            CornerRadius = new CornerRadius(6),
+            Margin = new Thickness(0, 0, 0, 12)
+        };
+        Grid.SetRow(headerBorder, 0);
+
         var headerTextBlock = new TextBlock
         {
-            Text = $"Hội viên: {member.Username} | Số dư: {member.BalanceRaw:N0} VND | Giờ chơi còn: {member.PlayHoursRaw:0.##}",
+            Text = $"H\u1ed9i vi\u00ean: {member.Username} | S\u1ed1 d\u01b0: {member.BalanceRaw:N0} VND | Gi\u1edd ch\u01a1i c\u00f2n: {member.PlayHoursRaw:0.##}",
             FontWeight = FontWeights.SemiBold,
+            Foreground = Brushes.White,
+            FontSize = 15,
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 0, 0, 6),
         };
-        Grid.SetRow(headerTextBlock, 0);
-        root.Children.Add(headerTextBlock);
+        headerBorder.Child = headerTextBlock;
+        root.Children.Add(headerBorder);
 
         var summaryTextBlock = new TextBlock
         {
-            Text = $"Tổng sự kiện sử dụng máy: {usageRows.Count} (lọc từ tối đa 500 log gần nhất)",
-            Foreground = Brushes.DimGray,
-            Margin = new Thickness(0, 0, 0, 8),
+            Text = $"T\u1ed5ng phi\u00ean s\u1eed d\u1ee5ng: {usageRows.Count} (ph\u00e2n t\u00edch t\u1eeb 500 s\u1ef1 ki\u1ec7n g\u1ea7n nh\u1ea5t)",
+            Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)), // Slate 500
+            FontSize = 13,
+            Margin = new Thickness(4, 0, 0, 8),
         };
         Grid.SetRow(summaryTextBlock, 1);
         root.Children.Add(summaryTextBlock);
@@ -1140,37 +1433,43 @@ public partial class MainWindow : Window
             CanUserAddRows = false,
             HeadersVisibility = DataGridHeadersVisibility.Column,
             GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+            HorizontalGridLinesBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240)), // Slate 200
             RowHeaderWidth = 0,
             AlternationCount = 2,
             ItemsSource = usageRows,
+            FontSize = 14,
+            RowHeight = 38,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)), // Slate 300
+            BorderThickness = new Thickness(1),
         };
+        
         usageGrid.Columns.Add(new DataGridTextColumn
         {
-            Header = "Thời gian",
-            Width = 170,
-            Binding = new System.Windows.Data.Binding(nameof(MemberUsageLogRow.CreatedAtText)),
+            Header = "\u0110\u0103ng nh\u1eadp",
+            Width = 180,
+            Binding = new System.Windows.Data.Binding(nameof(MemberUsageLogRow.LoginTimeText)),
         });
         usageGrid.Columns.Add(new DataGridTextColumn
         {
-            Header = "Trạng thái",
-            Width = 110,
-            Binding = new System.Windows.Data.Binding(nameof(MemberUsageLogRow.StatusText)),
+            Header = "\u0110\u0103ng xu\u1ea5t",
+            Width = 180,
+            Binding = new System.Windows.Data.Binding(nameof(MemberUsageLogRow.LogoutTimeText)),
         });
         usageGrid.Columns.Add(new DataGridTextColumn
         {
-            Header = "Máy",
-            Width = 220,
+            Header = "Th\u1eddi gian ch\u01a1i",
+            Width = 130,
+            Binding = new System.Windows.Data.Binding(nameof(MemberUsageLogRow.DurationText)),
+        });
+        usageGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "M\u00e1y",
+            Width = 180,
             Binding = new System.Windows.Data.Binding(nameof(MemberUsageLogRow.PcText)),
         });
         usageGrid.Columns.Add(new DataGridTextColumn
         {
-            Header = "Nguồn",
-            Width = 100,
-            Binding = new System.Windows.Data.Binding(nameof(MemberUsageLogRow.SourceText)),
-        });
-        usageGrid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "Chi tiết",
+            Header = "Chi ti\u1ebft",
             Width = new DataGridLength(1, DataGridLengthUnitType.Star),
             Binding = new System.Windows.Data.Binding(nameof(MemberUsageLogRow.Details)),
         });
@@ -1179,12 +1478,16 @@ public partial class MainWindow : Window
 
         var closeButton = new Button
         {
-            Content = "Đóng",
-            Width = 96,
-            Height = 34,
+            Content = "\u0110\u00f3ng",
+            Width = 110,
+            Height = 36,
             HorizontalAlignment = HorizontalAlignment.Right,
             IsDefault = true,
-            Margin = new Thickness(0, 10, 0, 0),
+            Margin = new Thickness(0, 16, 0, 0),
+            Background = new SolidColorBrush(Color.FromRgb(30, 41, 59)), // Slate 800
+            Foreground = Brushes.White,
+            FontWeight = FontWeights.SemiBold,
+            BorderThickness = new Thickness(0)
         };
         closeButton.Click += (_, _) => dialog.Close();
         Grid.SetRow(closeButton, 3);
@@ -1194,7 +1497,7 @@ public partial class MainWindow : Window
         _ = dialog.ShowDialog();
     }
 
-    private static MemberUsageLogRow? TryMapMemberUsageLogRow(SystemEventItem item, MemberRow member)
+    private static MemberUsageEvent? TryMapMemberUsageEvent(SystemEventItem item, MemberRow member)
     {
         if (!string.Equals(item.EventType, "member.pc.presence", StringComparison.OrdinalIgnoreCase))
         {
@@ -1225,28 +1528,71 @@ public partial class MainWindow : Window
         var detailsParts = new List<string>();
         if (!string.IsNullOrWhiteSpace(fullName))
         {
-            detailsParts.Add($"Tên đầy đủ: {fullName}");
+            detailsParts.Add($"T\u00ean \u0111\u1ea7y \u0111\u1ee7: {fullName}");
         }
         if (!string.IsNullOrWhiteSpace(transferredFromPcId))
         {
-            detailsParts.Add($"Chuyển từ máy ID: {transferredFromPcId}");
+            detailsParts.Add($"Chuy\u1ec3n t\u1eeb m\u00e1y ID: {transferredFromPcId}");
         }
         if (!string.IsNullOrWhiteSpace(transferredToPcId))
         {
-            detailsParts.Add($"Chuyển sang máy ID: {transferredToPcId}");
+            detailsParts.Add($"Chuy\u1ec3n sang m\u00e1y ID: {transferredToPcId}");
         }
 
         var details = detailsParts.Count == 0 ? "-" : string.Join(" | ", detailsParts);
 
-        return new MemberUsageLogRow
+        return new MemberUsageEvent
         {
-            SortAt = ParseDateLocal(item.CreatedAt) ?? DateTime.MinValue,
-            CreatedAtText = FormatDateTime(item.CreatedAt),
-            StatusText = isActive ? "Đăng nhập" : "Đăng xuất",
+            Timestamp = ParseDateLocal(item.CreatedAt) ?? DateTime.MinValue,
+            IsActive = isActive,
             PcText = BuildMemberUsagePcText(item),
-            SourceText = string.IsNullOrWhiteSpace(item.Source) ? "-" : item.Source,
+            Source = string.IsNullOrWhiteSpace(item.Source) ? "-" : item.Source,
             Details = details,
         };
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        if (duration.TotalSeconds < 0) return "0s";
+        
+        var parts = new List<string>();
+        if (duration.Days > 0) parts.Add($"{duration.Days}d");
+        if (duration.Hours > 0) parts.Add($"{duration.Hours}h");
+        if (duration.Minutes > 0) parts.Add($"{duration.Minutes}m");
+        if (duration.Seconds > 0 || parts.Count == 0) parts.Add($"{duration.Seconds}s");
+        
+        return string.Join(" ", parts);
+    }
+
+    private static string FormatUsageDuration(int totalSeconds)
+    {
+        var safeSeconds = Math.Max(0, totalSeconds);
+        var span = TimeSpan.FromSeconds(safeSeconds);
+        var totalHours = (int)span.TotalHours;
+        var minutes = span.Minutes;
+        var seconds = span.Seconds;
+
+        if (totalHours > 0)
+        {
+            if (minutes > 0)
+            {
+                return $"{totalHours} gi\u1edd {minutes} ph\u00fat";
+            }
+
+            return $"{totalHours} gi\u1edd";
+        }
+
+        if (minutes > 0)
+        {
+            if (seconds > 0)
+            {
+                return $"{minutes} ph\u00fat {seconds} gi\u00e2y";
+            }
+
+            return $"{minutes} ph\u00fat";
+        }
+
+        return $"{seconds} gi\u00e2y";
     }
 
     private static string BuildMemberUsagePcText(SystemEventItem item)
@@ -1302,12 +1648,46 @@ public partial class MainWindow : Window
     private async Task OpenEditMemberDialogAsync(MemberRow member)
     {
         var lifetimeTopup = member.TotalTopupRaw;
+        MemberUsageSummaryResponse? usageSummary = null;
+        try
+        {
+            usageSummary = await GetMemberUsageSummaryAsync(member.Id);
+        }
+        catch
+        {
+            // Keep dialog usable even if usage summary API is temporarily unavailable.
+        }
+
+        var lastLoginText = FormatDateTime(usageSummary?.LastLoginAt);
+        if (lastLoginText == "-")
+        {
+            lastLoginText = "Ch\u01b0a c\u00f3";
+        }
+
+        var loginMachineParts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(usageSummary?.LastLoginPcName))
+        {
+            loginMachineParts.Add(usageSummary.LastLoginPcName.Trim());
+        }
+        if (!string.IsNullOrWhiteSpace(usageSummary?.LastLoginAgentId))
+        {
+            loginMachineParts.Add(usageSummary.LastLoginAgentId.Trim());
+        }
+        if (loginMachineParts.Count > 0)
+        {
+            lastLoginText = $"{lastLoginText} ({string.Join(" - ", loginMachineParts)})";
+        }
+
+        var totalUsageSeconds = Math.Max(0, usageSummary?.TotalUsageSeconds ?? 0);
+        var totalUsageText = usageSummary is null
+            ? "-"
+            : $"{FormatUsageDuration(totalUsageSeconds)} ({(totalUsageSeconds / 3600d):0.##} gi\u1edd)";
 
         var dialog = new Window
         {
-            Title = $"Thông tin hội viên - {member.Username}",
-            Width = 520,
-            Height = 680,
+            Title = $"Th\u00f4ng tin h\u1ed9i vi\u00ean - {member.Username}",
+            Width = 780,
+            Height = 620,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             ResizeMode = ResizeMode.NoResize,
             WindowStyle = WindowStyle.SingleBorderWindow,
@@ -1315,17 +1695,38 @@ public partial class MainWindow : Window
             Owner = this,
         };
 
-        var root = new Grid { Margin = new Thickness(16) };
-        for (var i = 0; i < 18; i++)
-        {
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        }
-        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        var root = new Grid { Margin = new Thickness(18) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        var usernameLabel = new TextBlock { Text = "Username", Margin = new Thickness(0, 0, 0, 4) };
-        Grid.SetRow(usernameLabel, 0);
-        root.Children.Add(usernameLabel);
+        var formGrid = new Grid();
+        formGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        formGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        for (var i = 0; i < 4; i++)
+        {
+            formGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        }
+
+        static void AddField(Grid container, string label, UIElement editor, int row, int column)
+        {
+            var panel = new StackPanel
+            {
+                Margin = new Thickness(column == 0 ? 0 : 10, row == 0 ? 0 : 10, column == 0 ? 10 : 0, 0),
+            };
+            panel.Children.Add(new TextBlock
+            {
+                Text = label,
+                Margin = new Thickness(0, 0, 0, 4),
+            });
+            panel.Children.Add(editor);
+            Grid.SetRow(panel, row);
+            Grid.SetColumn(panel, column);
+            container.Children.Add(panel);
+        }
 
         var usernameBox = new TextBox
         {
@@ -1334,12 +1735,6 @@ public partial class MainWindow : Window
             IsReadOnly = true,
             VerticalContentAlignment = VerticalAlignment.Center,
         };
-        Grid.SetRow(usernameBox, 1);
-        root.Children.Add(usernameBox);
-
-        var fullNameLabel = new TextBlock { Text = "Họ tên", Margin = new Thickness(0, 10, 0, 4) };
-        Grid.SetRow(fullNameLabel, 2);
-        root.Children.Add(fullNameLabel);
 
         var fullNameBox = new TextBox
         {
@@ -1347,12 +1742,6 @@ public partial class MainWindow : Window
             Height = 32,
             VerticalContentAlignment = VerticalAlignment.Center,
         };
-        Grid.SetRow(fullNameBox, 3);
-        root.Children.Add(fullNameBox);
-
-        var phoneLabel = new TextBlock { Text = "Số điện thoại", Margin = new Thickness(0, 10, 0, 4) };
-        Grid.SetRow(phoneLabel, 4);
-        root.Children.Add(phoneLabel);
 
         var phoneBox = new TextBox
         {
@@ -1360,12 +1749,6 @@ public partial class MainWindow : Window
             Height = 32,
             VerticalContentAlignment = VerticalAlignment.Center,
         };
-        Grid.SetRow(phoneBox, 5);
-        root.Children.Add(phoneBox);
-
-        var identityLabel = new TextBlock { Text = "CCCD/CMND", Margin = new Thickness(0, 10, 0, 4) };
-        Grid.SetRow(identityLabel, 6);
-        root.Children.Add(identityLabel);
 
         var identityBox = new TextBox
         {
@@ -1373,12 +1756,6 @@ public partial class MainWindow : Window
             Height = 32,
             VerticalContentAlignment = VerticalAlignment.Center,
         };
-        Grid.SetRow(identityBox, 7);
-        root.Children.Add(identityBox);
-
-        var balanceLabel = new TextBlock { Text = "Số dư (VND)", Margin = new Thickness(0, 10, 0, 4) };
-        Grid.SetRow(balanceLabel, 8);
-        root.Children.Add(balanceLabel);
 
         var balanceBox = new TextBox
         {
@@ -1396,25 +1773,24 @@ public partial class MainWindow : Window
         var balancePanel = new StackPanel();
         balancePanel.Children.Add(balanceBox);
         balancePanel.Children.Add(totalTopupTextBlock);
-        Grid.SetRow(balancePanel, 9);
-        root.Children.Add(balancePanel);
 
-        var playHoursLabel = new TextBlock { Text = "Giờ chơi", Margin = new Thickness(0, 10, 0, 4) };
-        Grid.SetRow(playHoursLabel, 10);
-        root.Children.Add(playHoursLabel);
-
-        var playHoursBox = new TextBox
+        var lastLoginBox = new TextBox
         {
-            Text = member.PlayHoursRaw.ToString("0.##", CultureInfo.InvariantCulture),
+            Text = lastLoginText,
             Height = 32,
+            IsReadOnly = true,
             VerticalContentAlignment = VerticalAlignment.Center,
+            Background = Brushes.WhiteSmoke,
         };
-        Grid.SetRow(playHoursBox, 11);
-        root.Children.Add(playHoursBox);
 
-        var pointsLabel = new TextBlock { Text = "Điểm tích lũy", Margin = new Thickness(0, 10, 0, 4) };
-        Grid.SetRow(pointsLabel, 12);
-        root.Children.Add(pointsLabel);
+        var totalUsageBox = new TextBox
+        {
+            Text = totalUsageText,
+            Height = 32,
+            IsReadOnly = true,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Background = Brushes.WhiteSmoke,
+        };
 
         var pointsBox = new TextBox
         {
@@ -1422,24 +1798,34 @@ public partial class MainWindow : Window
             Height = 32,
             VerticalContentAlignment = VerticalAlignment.Center,
         };
-        Grid.SetRow(pointsBox, 13);
-        root.Children.Add(pointsBox);
+
+        AddField(formGrid, "Username", usernameBox, 0, 0);
+        AddField(formGrid, "H\u1ecd t\u00ean", fullNameBox, 0, 1);
+        AddField(formGrid, "S\u1ed1 \u0111i\u1ec7n tho\u1ea1i", phoneBox, 1, 0);
+        AddField(formGrid, "CCCD/CMND", identityBox, 1, 1);
+        AddField(formGrid, "S\u1ed1 d\u01b0 (VND)", balancePanel, 2, 0);
+        AddField(formGrid, "\u0110i\u1ec3m t\u00edch l\u0169y", pointsBox, 2, 1);
+        AddField(formGrid, "L\u1ea7n \u0111\u0103ng nh\u1eadp g\u1ea7n \u0111\u00e2y", lastLoginBox, 3, 0);
+        AddField(formGrid, "T\u1ed5ng th\u1eddi gian s\u1eed d\u1ee5ng m\u00e1y", totalUsageBox, 3, 1);
+
+        Grid.SetRow(formGrid, 0);
+        root.Children.Add(formGrid);
 
         var statusCheckBox = new CheckBox
         {
-            Content = "Tài khoản đang hoạt động",
+            Content = "T\u00e0i kho\u1ea3n \u0111ang ho\u1ea1t \u0111\u1ed9ng",
             IsChecked = member.IsActive,
             Margin = new Thickness(0, 12, 0, 0),
         };
-        Grid.SetRow(statusCheckBox, 14);
+        Grid.SetRow(statusCheckBox, 1);
         root.Children.Add(statusCheckBox);
 
         var passwordLabel = new TextBlock
         {
-            Text = "Đổi mật khẩu (để trống nếu không đổi)",
+            Text = "\u0110\u1ed5i m\u1eadt kh\u1ea9u (\u0111\u1ec3 tr\u1ed1ng n\u1ebfu kh\u00f4ng \u0111\u1ed5i)",
             Margin = new Thickness(0, 10, 0, 4),
         };
-        Grid.SetRow(passwordLabel, 15);
+        Grid.SetRow(passwordLabel, 2);
         root.Children.Add(passwordLabel);
 
         var passwordBox = new PasswordBox
@@ -1447,7 +1833,7 @@ public partial class MainWindow : Window
             Height = 32,
             VerticalContentAlignment = VerticalAlignment.Center,
         };
-        Grid.SetRow(passwordBox, 16);
+        Grid.SetRow(passwordBox, 3);
         root.Children.Add(passwordBox);
 
         var errorTextBlock = new TextBlock
@@ -1456,31 +1842,44 @@ public partial class MainWindow : Window
             Margin = new Thickness(0, 8, 0, 0),
             TextWrapping = TextWrapping.Wrap,
         };
-        Grid.SetRow(errorTextBlock, 17);
+        Grid.SetRow(errorTextBlock, 4);
         root.Children.Add(errorTextBlock);
 
         var actionsPanel = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 16, 0, 0),
+            Margin = new Thickness(0, 18, 0, 0),
         };
         var saveButton = new Button
         {
-            Content = "Luu",
-            Width = 90,
-            Margin = new Thickness(0, 0, 8, 0),
+            Content = "L\u01b0u",
+            Width = 130,
+            Height = 42,
+            Margin = new Thickness(0, 0, 10, 0),
             IsDefault = true,
+            FontSize = 15,
+            FontWeight = FontWeights.SemiBold,
+            Background = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
+            Foreground = Brushes.White,
+            BorderThickness = new Thickness(0),
         };
         var cancelButton = new Button
         {
-            Content = "Hủy",
-            Width = 90,
+            Content = "H\u1ee7y",
+            Width = 130,
+            Height = 42,
             IsCancel = true,
+            FontSize = 15,
+            FontWeight = FontWeights.SemiBold,
+            Background = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+            Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
+            BorderThickness = new Thickness(1),
         };
         actionsPanel.Children.Add(saveButton);
         actionsPanel.Children.Add(cancelButton);
-        Grid.SetRow(actionsPanel, 19);
+        Grid.SetRow(actionsPanel, 5);
         root.Children.Add(actionsPanel);
 
         saveButton.Click += async (_, _) =>
@@ -1489,26 +1888,19 @@ public partial class MainWindow : Window
 
             if (!TryParseNonNegativeMoney(balanceBox.Text.Trim(), out var balance))
             {
-                errorTextBlock.Text = "Số dư không hợp lệ.";
+                errorTextBlock.Text = "S\u1ed1 d\u01b0 kh\u00f4ng h\u1ee3p l\u1ec7.";
                 return;
             }
-
-            if (!TryParseNonNegativeDouble(playHoursBox.Text.Trim(), out var playHours))
-            {
-                errorTextBlock.Text = "Giờ chơi không hợp lệ.";
-                return;
-            }
-
             if (!int.TryParse(pointsBox.Text.Trim(), out var points) || points < 0)
             {
-                errorTextBlock.Text = "Điểm tích lũy không hợp lệ.";
+                errorTextBlock.Text = "\u0110i\u1ec3m t\u00edch l\u0169y kh\u00f4ng h\u1ee3p l\u1ec7.";
                 return;
             }
 
             var fullName = fullNameBox.Text.Trim();
             if (string.IsNullOrWhiteSpace(fullName))
             {
-                errorTextBlock.Text = "Họ tên không được để trống.";
+                errorTextBlock.Text = "H\u1ecd t\u00ean kh\u00f4ng \u0111\u01b0\u1ee3c \u0111\u1ec3 tr\u1ed1ng.";
                 return;
             }
 
@@ -1519,7 +1911,6 @@ public partial class MainWindow : Window
                 ["identityNumber"] = string.IsNullOrWhiteSpace(identityBox.Text) ? null : identityBox.Text.Trim(),
                 ["isActive"] = statusCheckBox.IsChecked == true,
                 ["balance"] = Convert.ToDouble(balance),
-                ["playHours"] = playHours,
                 ["availablePoints"] = points,
                 ["updatedBy"] = "admin.desktop",
                 ["note"] = "Cap nhat tu app server admin",
@@ -1541,7 +1932,7 @@ public partial class MainWindow : Window
                 {
                     var err = await response.Content.ReadAsStringAsync();
                     errorTextBlock.Text = string.IsNullOrWhiteSpace(err)
-                        ? $"Cập nhật thất bại ({(int)response.StatusCode})"
+                        ? $"C\u1eadp nh\u1eadt th\u1ea5t b\u1ea1i ({(int)response.StatusCode})"
                         : err;
                     return;
                 }
@@ -1562,11 +1953,10 @@ public partial class MainWindow : Window
             return;
         }
 
-        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã cập nhật hội viên {member.Username}");
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 c\u1eadp nh\u1eadt h\u1ed9i vi\u00ean {member.Username}");
         InvalidateMembersCache();
         await RefreshMembersAsync(forceRefresh: true);
     }
-
 
     private async Task TransferMemberBalanceAsync()
     {
@@ -1580,6 +1970,7 @@ public partial class MainWindow : Window
             .Where(x => !string.Equals(x.Id, sourceMember.Id, StringComparison.OrdinalIgnoreCase))
             .OrderBy(x => x.Username)
             .ToList();
+
         if (targets.Count == 0)
         {
             MessageBox.Show("Không có hội viên đích để chuyển tiền.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -2025,16 +2416,28 @@ public partial class MainWindow : Window
         return false;
     }
 
-    private sealed class MemberUsageLogRow
+    private sealed class MemberUsageEvent
     {
-        public DateTime SortAt { get; init; } = DateTime.MinValue;
-        public string CreatedAtText { get; init; } = "-";
-        public string StatusText { get; init; } = "-";
+        public DateTime Timestamp { get; init; }
+        public bool IsActive { get; init; }
         public string PcText { get; init; } = "-";
-        public string SourceText { get; init; } = "-";
+        public string Source { get; init; } = "-";
         public string Details { get; init; } = "-";
     }
+
+    private sealed class MemberUsageLogRow
+    {
+        public DateTime SortAt { get; set; } = DateTime.MinValue;
+        public string LoginTimeText { get; set; } = "-";
+        public string LogoutTimeText { get; set; } = "-";
+        public string DurationText { get; set; } = "-";
+        public string PcText { get; set; } = "-";
+        public string SourceText { get; set; } = "-";
+        public string Details { get; set; } = "-";
+    }
 }
+
+
 
 
 

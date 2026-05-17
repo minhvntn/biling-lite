@@ -10,6 +10,7 @@ import {
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
+import * as dgram from 'dgram';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { CommandAckPayload } from './types/command-ack.type';
@@ -147,6 +148,46 @@ export class CommandsService {
 
   async createShutdownCommand(pcId: string, requestedBy?: CommandRequestedBy) {
     return this.createAndDispatch(pcId, CommandType.SHUTDOWN, requestedBy);
+  }
+
+  async wakePc(
+    pcId: string,
+    macAddressRaw: string,
+    broadcastAddressRaw?: string,
+    requestedBy?: CommandRequestedBy,
+  ) {
+    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    if (!pc) {
+      throw new NotFoundException('PC not found');
+    }
+
+    const normalizedMacHex = this.normalizeMacAddress(macAddressRaw);
+    if (!normalizedMacHex) {
+      throw new BadRequestException('MAC address is invalid');
+    }
+
+    const broadcastAddress = this.resolveWakeBroadcastAddress(
+      broadcastAddressRaw,
+      pc.ipAddress,
+    );
+
+    const packet = this.buildWakeMagicPacket(normalizedMacHex);
+    await this.sendWakePacket(packet, broadcastAddress, 9);
+
+    const formattedMac = this.formatMacAddress(normalizedMacHex);
+    await this.logEvent(EventSource.ADMIN, 'pc.wake.sent', pc.id, {
+      macAddress: formattedMac,
+      broadcastAddress,
+      requestedBy: requestedBy?.trim() || 'admin.desktop',
+      sentAt: new Date().toISOString(),
+    });
+
+    return {
+      ok: true,
+      pcId: pc.id,
+      macAddress: formattedMac,
+      broadcastAddress,
+    };
   }
 
   async createCloseAppsCommand(pcId: string, requestedBy?: CommandRequestedBy) {
@@ -1658,6 +1699,89 @@ export class CommandsService {
     });
 
     return this.isActivePresencePayload(latestPresence?.payload);
+  }
+
+  private normalizeMacAddress(raw: string): string | null {
+    const compact = raw.replace(/[^0-9a-fA-F]/g, '').toUpperCase();
+    if (!/^[0-9A-F]{12}$/.test(compact)) {
+      return null;
+    }
+
+    return compact;
+  }
+
+  private formatMacAddress(macHex: string): string {
+    return macHex.match(/.{1,2}/g)?.join(':') ?? macHex;
+  }
+
+  private resolveWakeBroadcastAddress(
+    requestedBroadcast?: string | null,
+    pcIpAddress?: string | null,
+  ): string {
+    const requested = requestedBroadcast?.trim();
+    if (requested && this.isValidIpv4(requested)) {
+      return requested;
+    }
+
+    const ip = pcIpAddress?.trim();
+    if (ip && this.isValidIpv4(ip)) {
+      const parts = ip.split('.');
+      parts[3] = '255';
+      return parts.join('.');
+    }
+
+    return '255.255.255.255';
+  }
+
+  private isValidIpv4(value: string): boolean {
+    const parts = value.split('.');
+    if (parts.length !== 4) {
+      return false;
+    }
+
+    return parts.every((part) => {
+      if (!/^\d{1,3}$/.test(part)) {
+        return false;
+      }
+
+      const num = Number(part);
+      return Number.isInteger(num) && num >= 0 && num <= 255;
+    });
+  }
+
+  private buildWakeMagicPacket(macHex: string): Buffer {
+    const macBytes = Buffer.from(macHex, 'hex');
+    const packet = Buffer.alloc(6 + 16 * macBytes.length, 0xff);
+
+    for (let i = 0; i < 16; i++) {
+      macBytes.copy(packet, 6 + i * macBytes.length);
+    }
+
+    return packet;
+  }
+
+  private async sendWakePacket(
+    packet: Buffer,
+    broadcastAddress: string,
+    port: number,
+  ): Promise<void> {
+    const socket = dgram.createSocket('udp4');
+    try {
+      socket.setBroadcast(true);
+
+      await new Promise<void>((resolve, reject) => {
+        socket.send(packet, port, broadcastAddress, (error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        });
+      });
+    } finally {
+      socket.close();
+    }
   }
 
   private appendAdminLoginMarker(requestedBy?: string): string {

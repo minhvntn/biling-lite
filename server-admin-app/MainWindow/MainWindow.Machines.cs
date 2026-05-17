@@ -962,6 +962,7 @@ public partial class MainWindow : Window
                 lockMachine: false,
                 topupMember: false,
                 restart: true,
+                wakeRemote: true,
                 shutdownSelected: false,
                 shutdownReady: hasReadyMachines,
                 closeApps: false,
@@ -985,6 +986,7 @@ public partial class MainWindow : Window
             lockMachine: !isLocked && !isGuestInUse,
             topupMember: isInUse && hasActiveMember,
             restart: true,
+            wakeRemote: isOffline,
             shutdownSelected: true,
             shutdownReady: hasReadyMachines,
             closeApps: true,
@@ -1013,6 +1015,7 @@ public partial class MainWindow : Window
         bool lockMachine,
         bool topupMember,
         bool restart,
+        bool wakeRemote,
         bool shutdownSelected,
         bool shutdownReady,
         bool closeApps,
@@ -1055,6 +1058,11 @@ public partial class MainWindow : Window
         if (ContextRestartMachineMenuItem is not null)
         {
             ContextRestartMachineMenuItem.IsEnabled = restart;
+        }
+
+        if (ContextWakeRemoteMachineMenuItem is not null)
+        {
+            ContextWakeRemoteMachineMenuItem.IsEnabled = wakeRemote;
         }
 
         if (ContextShutdownMachineMenuItem is not null)
@@ -1200,6 +1208,7 @@ public partial class MainWindow : Window
     private async void ContextTopupMachineMemberMenuItem_Click(object sender, RoutedEventArgs e) => await TopupActiveMemberFromMachineAsync();
 
     private async void ContextRestartMachineMenuItem_Click(object sender, RoutedEventArgs e) => await SendCommandAsync("restart");
+    private async void ContextWakeRemoteMachineMenuItem_Click(object sender, RoutedEventArgs e) => await WakeRemoteMachineAsync();
 
     private async void ContextShutdownSelectedMachineMenuItem_Click(object sender, RoutedEventArgs e) => await ShutdownSelectedMachineAsync();
 
@@ -1218,6 +1227,232 @@ public partial class MainWindow : Window
     private async void ContextRefreshMachinesMenuItem_Click(object sender, RoutedEventArgs e) => await RefreshMachinesAsync();
 
     private void ContextClearMachineFiltersMenuItem_Click(object sender, RoutedEventArgs e) => UnlockAllFilterButton_Click(sender, e);
+
+    private async Task WakeRemoteMachineAsync()
+    {
+        if (MachinesDataGrid.SelectedItem is not MachineRow selected)
+        {
+            MessageBox.Show(I18n.PleaseSelectPc, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var status = selected.StatusCode?.Trim().ToUpperInvariant() ?? string.Empty;
+        if (status is not "OFFLINE")
+        {
+            MessageBox.Show(
+                "Chỉ nên dùng tính năng này khi máy đang tắt (Offline).",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var wakeInput = ShowWakeRemoteMachineModal(selected);
+        if (wakeInput is null)
+        {
+            return;
+        }
+
+        try
+        {
+            using var response = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl($"/pcs/{selected.Id}/wake"),
+                new
+                {
+                    macAddress = wakeInput.Value.MacAddress,
+                    broadcastAddress = wakeInput.Value.BroadcastAddress,
+                    requestedBy = "admin.desktop",
+                });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                MessageBox.Show(
+                    string.IsNullOrWhiteSpace(err)
+                        ? $"Khởi động máy trạm từ xa thất bại ({(int)response.StatusCode})"
+                        : err,
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            AppendServiceLog(
+                $"[{DateTime.Now:HH:mm:ss}] Đã gửi WOL cho {selected.Name} (MAC: {wakeInput.Value.MacAddress}, Broadcast: {wakeInput.Value.BroadcastAddress})");
+            MessageBox.Show(
+                "Đã gửi gói khởi động từ xa (WOL). Máy có thể cần vài giây để lên trạng thái Online.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Lỗi gửi lệnh khởi động từ xa: {ex.Message}",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
+    private (string MacAddress, string BroadcastAddress)? ShowWakeRemoteMachineModal(MachineRow machine)
+    {
+        var dialog = new Window
+        {
+            Title = $"Khởi động máy trạm từ xa - {machine.Name}",
+            Width = 520,
+            Height = 270,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+            ShowInTaskbar = false,
+            Owner = this,
+        };
+
+        (string MacAddress, string BroadcastAddress)? result = null;
+        var defaultBroadcast = ResolveBroadcastAddressFromMachineIp(machine.IpAddress) ?? "255.255.255.255";
+
+        var root = new Grid { Margin = new Thickness(14) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var machineLabel = new TextBlock
+        {
+            Text = $"Máy: {machine.Name} | IP: {machine.IpAddress}",
+            Foreground = Brushes.DimGray,
+            Margin = new Thickness(0, 0, 0, 10),
+            TextWrapping = TextWrapping.Wrap,
+        };
+        Grid.SetRow(machineLabel, 0);
+        root.Children.Add(machineLabel);
+
+        var macLabel = new TextBlock
+        {
+            Text = "MAC Address (AA:BB:CC:DD:EE:FF):",
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+        Grid.SetRow(macLabel, 1);
+        root.Children.Add(macLabel);
+
+        var macBox = new TextBox
+        {
+            Height = 32,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 10),
+        };
+        Grid.SetRow(macBox, 2);
+        root.Children.Add(macBox);
+
+        var broadcastLabel = new TextBlock
+        {
+            Text = "Broadcast IP:",
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+        Grid.SetRow(broadcastLabel, 3);
+        root.Children.Add(broadcastLabel);
+
+        var broadcastBox = new TextBox
+        {
+            Height = 32,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Text = defaultBroadcast,
+            Margin = new Thickness(0, 0, 0, 10),
+        };
+        Grid.SetRow(broadcastBox, 4);
+        root.Children.Add(broadcastBox);
+
+        var errorText = new TextBlock
+        {
+            Foreground = Brushes.Firebrick,
+            Margin = new Thickness(0, 0, 0, 10),
+            TextWrapping = TextWrapping.Wrap,
+        };
+        Grid.SetRow(errorText, 5);
+        root.Children.Add(errorText);
+
+        var actions = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        var cancelButton = new Button
+        {
+            Content = "Hủy",
+            Width = 90,
+            Height = 34,
+            Margin = new Thickness(0, 0, 8, 0),
+            IsCancel = true,
+        };
+        var sendButton = new Button
+        {
+            Content = "Gửi lệnh",
+            Width = 100,
+            Height = 34,
+            IsDefault = true,
+        };
+        actions.Children.Add(cancelButton);
+        actions.Children.Add(sendButton);
+        Grid.SetRow(actions, 6);
+        root.Children.Add(actions);
+
+        sendButton.Click += (_, _) =>
+        {
+            errorText.Text = string.Empty;
+            var macAddress = macBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(macAddress))
+            {
+                errorText.Text = "Vui lòng nhập MAC address.";
+                return;
+            }
+
+            var compact = new string(macAddress.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+            if (compact.Length != 12 || !compact.All(c => Uri.IsHexDigit(c)))
+            {
+                errorText.Text = "MAC address không hợp lệ.";
+                return;
+            }
+
+            var normalizedMac = string.Join(":", Enumerable.Range(0, 6).Select(i => compact.Substring(i * 2, 2)));
+
+            var broadcast = broadcastBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(broadcast))
+            {
+                broadcast = "255.255.255.255";
+            }
+
+            if (!IPAddress.TryParse(broadcast, out var broadcastIp) ||
+                broadcastIp.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+            {
+                errorText.Text = "Broadcast IP không hợp lệ (chỉ hỗ trợ IPv4).";
+                return;
+            }
+
+            result = (normalizedMac, broadcast);
+            dialog.DialogResult = true;
+            dialog.Close();
+        };
+
+        dialog.Content = root;
+        return dialog.ShowDialog() == true ? result : null;
+    }
+
+    private static string? ResolveBroadcastAddressFromMachineIp(string? ipAddress)
+    {
+        if (!IPAddress.TryParse(ipAddress, out var ip) ||
+            ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            return null;
+        }
+
+        var bytes = ip.GetAddressBytes();
+        bytes[3] = 255;
+        return string.Join(".", bytes.Select(x => x.ToString(CultureInfo.InvariantCulture)));
+    }
 
     private async Task ShutdownSelectedMachineAsync()
     {
@@ -3558,4 +3793,3 @@ public class LatestRunningAppsResponse
     public List<RunningAppItem>? Apps { get; set; }
     public string? Reason { get; set; }
 }
-

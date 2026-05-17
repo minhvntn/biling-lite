@@ -148,6 +148,19 @@ public sealed class MemberTransactionsResponse
     public List<MemberTransactionItem> Items { get; set; } = new();
 }
 
+public sealed class MemberUsageSummaryResponse
+{
+    public string MemberId { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    public string? LastLoginAt { get; set; }
+    public string? LastLoginPcName { get; set; }
+    public string? LastLoginAgentId { get; set; }
+    public int TotalUsageSeconds { get; set; }
+    public double TotalUsageHours { get; set; }
+    public int SessionUsageCount { get; set; }
+    public string ServerTime { get; set; } = string.Empty;
+}
+
 public sealed class LoyaltySettingsResponse
 {
     public bool Enabled { get; set; }

@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _systemLogsTimer = new();
     private readonly DispatcherTimer _machineSearchDebounceTimer = new();
     private readonly DispatcherTimer _memberSearchDebounceTimer = new();
+    private readonly DispatcherTimer _memberModalAutoCloseTimer = new();
 
     private readonly ObservableCollection<MachineRow> _machineRows = new();
     private readonly ObservableCollection<MemberRow> _memberRows = new();
@@ -146,6 +147,9 @@ public partial class MainWindow : Window
         InitializeLoyaltyRanksTab();
         InitializeMiniGameTab();
         InitializeAppBlockTab();
+        
+        _memberModalAutoCloseTimer.Interval = TimeSpan.FromMinutes(2);
+        _memberModalAutoCloseTimer.Tick += MemberModalAutoCloseTimer_Tick;
         
         ApplyUserRoleRestrictions();
 
@@ -379,6 +383,16 @@ public partial class MainWindow : Window
 
             // Close current window
             this.Close();
+        }
+    }
+
+    private void MemberModalAutoCloseTimer_Tick(object? sender, EventArgs e)
+    {
+        _memberModalAutoCloseTimer.Stop();
+        HideAddMemberModal();
+        if (_topupModalTcs != null)
+        {
+            CloseTopupModal(null);
         }
     }
 }

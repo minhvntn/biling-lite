@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { EventSource, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { UpdateWebFilterSettingsDto } from './dto/update-web-filter-settings.dto';
 
 type WebFilterSettings = {
@@ -47,7 +48,10 @@ const DEFAULT_BLOCKED_DOMAINS = [
 
 @Injectable()
 export class WebFilterService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeService,
+  ) {}
 
   async getSettings() {
     const existing = await this.prisma.eventLog.findFirst({
@@ -118,12 +122,21 @@ export class WebFilterService {
       },
     });
 
-    return {
+    const result = {
       enabled: input.enabled,
       blockedDomains,
       updatedAt: created.createdAt.toISOString(),
       updatedBy: input.updatedBy,
     };
+
+    this.realtime.emitToAll('web.filter.settings.changed', {
+      enabled: result.enabled,
+      blockedDomains: result.blockedDomains,
+      updatedAt: result.updatedAt,
+      updatedBy: result.updatedBy,
+    });
+
+    return result;
   }
 
   private parseSettingsPayload(

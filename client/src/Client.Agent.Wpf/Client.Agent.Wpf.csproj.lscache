@@ -67,6 +67,7 @@ MainWindow.xaml.cs
 Models/
  AgentSettings.cs
  CommandExecutePayload.cs
+NotificationWindow.xaml.cs
 obj/Debug/net10.0-windows/
  .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
  App.g.cs
@@ -74,6 +75,7 @@ obj/Debug/net10.0-windows/
  Client.Agent.Wpf.GlobalUsings.g.cs
  LockScreenWindow.g.cs
  MainWindow.g.cs
+ NotificationWindow.g.cs
 Services/
  AgentSocketService.cs
  FileLogger.cs

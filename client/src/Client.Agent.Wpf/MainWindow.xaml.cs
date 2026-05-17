@@ -36,7 +36,8 @@ public partial class MainWindow : Window
         ApplyI18nTexts();
         SetLogoutActionVisible(false);
 
-        _usageTimer.Interval = TimeSpan.FromSeconds(1);
+        // Reduce UI refresh frequency; critical state changes still call UpdateUsageUi() immediately.
+        _usageTimer.Interval = TimeSpan.FromMinutes(1);
         _usageTimer.Tick += UsageTimer_Tick;
         _usageTimer.Start();
 
