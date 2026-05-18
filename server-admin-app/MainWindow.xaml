@@ -464,11 +464,39 @@
                                 <DataGridTemplateColumn Header="Tiền dịch vụ" Width="0.9*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding ServiceAmountText}"
-                                                       VerticalAlignment="Center"
-                                                       HorizontalAlignment="Center"
-                                                       TextAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis" />
+                                            <Border Padding="3,2"
+                                                    CornerRadius="4"
+                                                    HorizontalAlignment="Stretch"
+                                                    VerticalAlignment="Center">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding HasPendingClientServiceOrderHighlight}" Value="True">
+                                                                <Setter Property="Background" Value="#8B5CF6" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding ServiceAmountText}"
+                                                           VerticalAlignment="Center"
+                                                           HorizontalAlignment="Center"
+                                                           TextAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#0F172A" />
+                                                            <Setter Property="FontWeight" Value="Normal" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasPendingClientServiceOrderHighlight}" Value="True">
+                                                                    <Setter Property="Foreground" Value="White" />
+                                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -554,7 +582,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
-                            <RowDefinition Height="220" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
@@ -570,6 +598,7 @@
 
                             <Button Grid.Column="0" Margin="0,0,8,0" Padding="10,5" Click="RefreshMembersButton_Click" Content="Làm mới" />
                             <Button Grid.Column="1" Margin="0,0,8,0" Padding="10,5" Click="AddMemberButton_Click" Content="Thêm hội viên" />
+                            <Button Grid.Column="2" Margin="0,0,8,0" Padding="10,5" Click="ViewMemberTransactionsButton_Click" Content="Xem log" />
 
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Visibility="Collapsed">
                                 <TextBox x:Name="TopupAmountTextBox" Width="100" VerticalContentAlignment="Center" Text="0" />
@@ -639,6 +668,8 @@
                         <DataGrid x:Name="MemberTransactionsDataGrid"
                                   Grid.Row="2"
                                   Margin="0,8,0,0"
+                                  Height="0"
+                                  Visibility="Collapsed"
                                   AutoGenerateColumns="False"
                                   IsReadOnly="True"
                                   CanUserAddRows="False"
@@ -1806,7 +1837,7 @@
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="&#x1F3B2;" Margin="0,0,6,0" />
-                            <TextBlock Text="Mini Game" />
+                            <TextBlock Text="Games" />
                         </StackPanel>
                     </TabItem.Header>
                     <Grid Margin="8">
@@ -1846,7 +1877,10 @@
                                   HeadersVisibility="Column"
                                   CellEditEnding="MiniGameSpinSettingsDataGrid_CellEditEnding">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Mốc thưởng" Binding="{Binding MinutesText}" Width="180" IsReadOnly="True" />
+                                <DataGridTextColumn Header="Mốc thưởng (phút)"
+                                                    Binding="{Binding Minutes, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                    Width="180"
+                                                    IsReadOnly="False" />
                                 <DataGridTextColumn Header="Tỉ lệ (%)" Binding="{Binding Chance}" Width="180" IsReadOnly="False" />
                             </DataGrid.Columns>
                         </DataGrid>

@@ -9,6 +9,9 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { QuerySessionsDto } from './dto/query-sessions.dto';
+import {
+  calculateSessionAmountByPromotions,
+} from '../pricing/time-based-billing.util';
 
 @Injectable()
 export class SessionsService {
@@ -351,7 +354,6 @@ export class SessionsService {
       id: string;
       pcId: string;
       startedAt: Date;
-      pricePerMinute: Prisma.Decimal | null;
       pc: { lastSeenAt: Date | null };
     },
     sourceEvent: string,
@@ -362,8 +364,24 @@ export class SessionsService {
       Math.floor((endedAt.getTime() - session.startedAt.getTime()) / 1000),
     );
     const billableMinutes = Math.max(0, Math.ceil(durationSeconds / 60));
-    const pricePerMinute = Number(session.pricePerMinute ?? 0);
-    const rawAmount = (durationSeconds / 60) * pricePerMinute;
+    const baseHourlyRate = await this.resolveBaseHourlyRateForPc(session.pcId);
+    const activePromotions = await this.prisma.timeBasedPromotion.findMany({
+      where: { isActive: true },
+      select: {
+        daysOfWeek: true,
+        startTime: true,
+        endTime: true,
+        discountPercent: true,
+        isActive: true,
+      },
+    });
+    const rawAmount = calculateSessionAmountByPromotions({
+      startedAt: session.startedAt,
+      endedAt,
+      baseHourlyRate,
+      promotions: activePromotions,
+      mode: 'PER_SECOND',
+    });
     const amount = Math.round(rawAmount * 100) / 100;
 
     await this.prisma.session.update({
@@ -392,6 +410,33 @@ export class SessionsService {
       amount,
       billableMinutes,
     };
+  }
+
+  private async resolveBaseHourlyRateForPc(pcId: string): Promise<number> {
+    const pc = await this.prisma.pc.findUnique({
+      where: { id: pcId },
+      select: { groupId: true },
+    });
+    if (!pc) {
+      return 0;
+    }
+
+    if (pc.groupId) {
+      const group = await this.prisma.pcGroup.findUnique({
+        where: { id: pc.groupId },
+        select: { hourlyRate: true },
+      });
+      if (group) {
+        return Number(group.hourlyRate);
+      }
+    }
+
+    const defaultGroup = await this.prisma.pcGroup.findFirst({
+      where: { isDefault: true },
+      select: { hourlyRate: true },
+    });
+
+    return Number(defaultGroup?.hourlyRate ?? 0);
   }
 
   private async hasActiveGuestPresenceForPc(

@@ -5,6 +5,7 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <CodePage>65001</CodePage>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>Assets\client-icon.ico</ApplicationIcon>
   </PropertyGroup>

@@ -19,7 +19,10 @@ public partial class MainWindow : Window
 {
     private const int ServiceAmountCacheTtlSeconds = 8;
     private const int MachineSummaryMemberCountCacheTtlSeconds = 20;
-    private readonly Dictionary<string, (decimal Amount, DateTime CachedAtUtc)> _serviceAmountBySessionCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (decimal Amount, bool HasPendingClientOrderHighlight, DateTime CachedAtUtc)> _serviceAmountBySessionCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _acknowledgedClientServiceOrderIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _notifiedClientServiceOrderIds = new(StringComparer.OrdinalIgnoreCase);
+    private bool _clientServiceOrderNotificationsPrimed;
     private int _cachedMachineSummaryMemberCount;
     private DateTime _cachedMachineSummaryMemberCountAtUtc = DateTime.MinValue;
     private bool _isRefreshingMachineSummaryMemberCount;
@@ -132,7 +135,7 @@ public partial class MainWindow : Window
             activeMember is null;
         var statusText = item.Status switch
         {
-            "IN_USE" => isAdminSession ? "Admin đăng nhập" : I18n.StatusInUse,
+            "IN_USE" => isAdminSession ? "Admin dang nh?p" : I18n.StatusInUse,
             "LOCKED" => I18n.StatusLocked,
             "ONLINE" => I18n.StatusReady,
             "OFFLINE" => hasUnpaidGuestSession ? "Chưa thanh toán" : I18n.StatusLocked,
@@ -153,13 +156,13 @@ public partial class MainWindow : Window
 
         var statusIconBrush = Brushes.Gray;
         var statusIconPath = "/Assets/pc-default.svg";
-        var statusIconToolTip = "Ngoại tuyến";
+        var statusIconToolTip = "Ngo?i tuy?n";
 
         if (item.Status == "ONLINE")
         {
             statusIconBrush = Brushes.LimeGreen;
             statusIconPath = "/Assets/pc-available.svg";
-            statusIconToolTip = "Sẵn sàng";
+            statusIconToolTip = "S?n sàng";
         }
         else if (item.Status == "IN_USE")
         {
@@ -167,19 +170,19 @@ public partial class MainWindow : Window
             {
                 statusIconBrush = Brushes.Gold;
                 statusIconPath = "/Assets/pc-admin.svg";
-                statusIconToolTip = "Admin đang sử dụng";
+                statusIconToolTip = "Admin dang s? d?ng";
             }
             else if (activeMember != null)
             {
                 statusIconBrush = Brushes.DodgerBlue;
                 statusIconPath = "/Assets/pc-blue-user.svg";
-                statusIconToolTip = "Hội viên đang sử dụng";
+                statusIconToolTip = "H?i viên dang s? d?ng";
             }
             else
             {
                 statusIconBrush = Brushes.Orange;
                 statusIconPath = "/Assets/pc-guest.svg";
-                statusIconToolTip = "Khách đang sử dụng";
+                statusIconToolTip = "Khách dang s? d?ng";
             }
         }
         else if (item.Status == "LOCKED")
@@ -234,12 +237,14 @@ public partial class MainWindow : Window
             MoneyText = item.ActiveSession is null ? "-" : item.ActiveSession.EstimatedAmount.ToString("N0"),
             ServiceAmountRaw = 0,
             ServiceAmountText = item.ActiveSession is null ? "-" : "0",
+            HasPendingClientServiceOrderHighlight = false,
             DateText = now.ToString("dd-MM-yyyy"),
             VersionText = "0.1.0",
             GroupName = string.IsNullOrWhiteSpace(item.GroupName) ? "Mặc định" : item.GroupName,
             StatusCode = item.Status,
             ActiveSessionId = item.ActiveSession?.Id,
             ActiveSessionElapsedSeconds = item.ActiveSession?.ElapsedSeconds ?? 0,
+            ActiveSessionPricePerMinute = item.ActiveSession?.PricePerMinute ?? 0,
             ActiveSessionEstimatedAmount = item.ActiveSession?.EstimatedAmount ?? 0,
             ActiveMemberId = activeMember?.MemberId,
             ActiveMemberUsername = activeMember?.Username,
@@ -819,7 +824,7 @@ public partial class MainWindow : Window
         if (member is null)
         {
             MessageBox.Show(
-                "Không tìm thấy thông tin hội viên đang sử dụng máy này.",
+                "Không tìm th?y thông tin h?i viên dang s? d?ng máy này.",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -1240,7 +1245,7 @@ public partial class MainWindow : Window
         if (status is not "OFFLINE")
         {
             MessageBox.Show(
-                "Chỉ nên dùng tính năng này khi máy đang tắt (Offline).",
+                "Ch? nên dùng tính nang này khi máy dang t?t (Offline).",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -1269,7 +1274,7 @@ public partial class MainWindow : Window
                 var err = await response.Content.ReadAsStringAsync();
                 MessageBox.Show(
                     string.IsNullOrWhiteSpace(err)
-                        ? $"Khởi động máy trạm từ xa thất bại ({(int)response.StatusCode})"
+                        ? $"Khởi động máy trạm từ xa th?t b?i ({(int)response.StatusCode})"
                         : err,
                     "Server Admin",
                     MessageBoxButton.OK,
@@ -1288,7 +1293,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show(
-                $"Lỗi gửi lệnh khởi động từ xa: {ex.Message}",
+                $"L?i g?i l?nh kh?i d?ng t? xa: {ex.Message}",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
@@ -1382,7 +1387,7 @@ public partial class MainWindow : Window
         };
         var cancelButton = new Button
         {
-            Content = "Hủy",
+            Content = "H?y",
             Width = 90,
             Height = 34,
             Margin = new Thickness(0, 0, 8, 0),
@@ -1390,7 +1395,7 @@ public partial class MainWindow : Window
         };
         var sendButton = new Button
         {
-            Content = "Gửi lệnh",
+            Content = "G?i l?nh",
             Width = 100,
             Height = 34,
             IsDefault = true,
@@ -1406,14 +1411,14 @@ public partial class MainWindow : Window
             var macAddress = macBox.Text.Trim();
             if (string.IsNullOrWhiteSpace(macAddress))
             {
-                errorText.Text = "Vui lòng nhập MAC address.";
+                errorText.Text = "Vui lòng nh?p MAC address.";
                 return;
             }
 
             var compact = new string(macAddress.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
             if (compact.Length != 12 || !compact.All(c => Uri.IsHexDigit(c)))
             {
-                errorText.Text = "MAC address không hợp lệ.";
+                errorText.Text = "MAC address không h?p l?.";
                 return;
             }
 
@@ -1428,7 +1433,7 @@ public partial class MainWindow : Window
             if (!IPAddress.TryParse(broadcast, out var broadcastIp) ||
                 broadcastIp.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
             {
-                errorText.Text = "Broadcast IP không hợp lệ (chỉ hỗ trợ IPv4).";
+                errorText.Text = "Broadcast IP không h?p l? (ch? h? tr? IPv4).";
                 return;
             }
 
@@ -1475,7 +1480,7 @@ public partial class MainWindow : Window
         if (readyMachines.Count == 0)
         {
             MessageBox.Show(
-                "Không có máy nào ở trạng thái Sẵn sàng để tắt.",
+                "Không có máy nào ? tr?ng thái S?n sàng d? t?t.",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -1483,8 +1488,8 @@ public partial class MainWindow : Window
         }
 
         var confirm = MessageBox.Show(
-            $"Bạn có chắc muốn tắt {readyMachines.Count} máy đang Sẵn sàng?",
-            "Xác nhận tắt máy hàng loạt",
+            $"B?n có ch?c mu?n t?t {readyMachines.Count} máy dang S?n sàng?",
+            "Xác nh?n t?t máy hàng lo?t",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
         if (confirm != MessageBoxResult.Yes)
@@ -1522,7 +1527,7 @@ public partial class MainWindow : Window
 
         MessageBox.Show(
             $"Đã gửi thành công {successCount}/{readyMachines.Count} máy.\n" +
-            $"Thất bại: {string.Join(", ", failedMachines)}",
+            $"Th?t b?i: {string.Join(", ", failedMachines)}",
             "Server Admin",
             MessageBoxButton.OK,
             MessageBoxImage.Warning);
@@ -1539,7 +1544,7 @@ public partial class MainWindow : Window
             if (!response.IsSuccessStatusCode)
             {
                 AppendServiceLog(
-                    $"[{DateTime.Now:HH:mm:ss}] Gửi lệnh {action.ToUpperInvariant()} thất bại cho {machine.Name} ({(int)response.StatusCode})");
+                    $"[{DateTime.Now:HH:mm:ss}] G?i l?nh {action.ToUpperInvariant()} th?t b?i cho {machine.Name} ({(int)response.StatusCode})");
                 return false;
             }
 
@@ -1550,7 +1555,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             AppendServiceLog(
-                $"[{DateTime.Now:HH:mm:ss}] Lỗi gửi lệnh {action.ToUpperInvariant()} cho {machine.Name}: {ex.Message}");
+                $"[{DateTime.Now:HH:mm:ss}] L?i g?i l?nh {action.ToUpperInvariant()} cho {machine.Name}: {ex.Message}");
             return false;
         }
     }
@@ -1595,7 +1600,7 @@ public partial class MainWindow : Window
             if (imageSource is null)
             {
                 MessageBox.Show(
-                    "Ảnh chụp màn hình bị lỗi dữ liệu.",
+                    "?nh ch?p màn hình b? l?i d? li?u.",
                     "Server Admin",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -1607,7 +1612,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show(
-                $"Lỗi chụp màn hình: {ex.Message}",
+                $"L?i ch?p màn hình: {ex.Message}",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
@@ -1628,7 +1633,7 @@ public partial class MainWindow : Window
             if (interactiveErrors)
             {
                 MessageBox.Show(
-                    $"Yêu cầu chụp màn hình thất bại ({(int)requestResponse.StatusCode}).",
+                    $"Yêu c?u ch?p màn hình th?t b?i ({(int)requestResponse.StatusCode}).",
                     "Server Admin",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -1643,7 +1648,7 @@ public partial class MainWindow : Window
             {
                 var reasonText = requestPayload?.Reason == "AGENT_OFFLINE"
                     ? "Máy trạm đang offline."
-                    : "Không thể gửi yêu cầu chụp màn hình.";
+                    : "Không th? g?i yêu c?u ch?p màn hình.";
                 MessageBox.Show(
                     reasonText,
                     "Server Admin",
@@ -1699,7 +1704,7 @@ public partial class MainWindow : Window
 
         var refreshButton = new Button
         {
-            Content = "Làm mới ảnh",
+            Content = "Làm m?i ?nh",
             MinWidth = 120,
             Height = 32,
             Margin = new Thickness(0, 0, 8, 0),
@@ -1724,7 +1729,7 @@ public partial class MainWindow : Window
         };
         var statusText = new TextBlock
         {
-            Text = "Sẵn sàng. Click vào preview để điều khiển.",
+            Text = "S?n sàng. Click vào preview d? di?u khi?n.",
             VerticalAlignment = VerticalAlignment.Center,
             Foreground = Brushes.DimGray,
         };
@@ -1800,7 +1805,7 @@ public partial class MainWindow : Window
                 var imageSource = DecodeBase64Image(liveFrame.ImageBase64);
                 if (imageSource is null)
                 {
-                    statusText.Text = "Ảnh màn hình không hợp lệ.";
+                    statusText.Text = "?nh màn hình không h?p l?.";
                     statusText.Foreground = Brushes.IndianRed;
                     return;
                 }
@@ -1814,12 +1819,12 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                statusText.Text = $"Lỗi lấy ảnh: {ex.Message}";
+                statusText.Text = $"L?i l?y ?nh: {ex.Message}";
                 statusText.Foreground = Brushes.IndianRed;
                 if (interactiveErrors)
                 {
                     MessageBox.Show(
-                        $"Lỗi lấy ảnh màn hình: {ex.Message}",
+                        $"L?i l?y ?nh màn hình: {ex.Message}",
                         "Server Admin",
                         MessageBoxButton.OK,
                         MessageBoxImage.Warning);
@@ -2070,7 +2075,7 @@ public partial class MainWindow : Window
             if (interactiveErrors)
             {
                 MessageBox.Show(
-                    $"Yêu cầu live stream thất bại ({(int)requestResponse.StatusCode}).",
+                    $"Yêu c?u live stream th?t b?i ({(int)requestResponse.StatusCode}).",
                     "Server Admin",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -2085,7 +2090,7 @@ public partial class MainWindow : Window
             {
                 var reasonText = requestPayload?.Reason == "AGENT_OFFLINE"
                     ? "Máy trạm đang offline."
-                    : "Không thể gửi yêu cầu live stream.";
+                    : "Không th? g?i yêu c?u live stream.";
                 MessageBox.Show(
                     reasonText,
                     "Server Admin",
@@ -2169,7 +2174,7 @@ public partial class MainWindow : Window
             if (interactiveErrors)
             {
                 MessageBox.Show(
-                    $"Gửi lệnh điều khiển thất bại ({(int)response.StatusCode}).",
+                    $"G?i l?nh di?u khi?n th?t b?i ({(int)response.StatusCode}).",
                     "Server Admin",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -2181,7 +2186,7 @@ public partial class MainWindow : Window
             if (interactiveErrors)
             {
                 MessageBox.Show(
-                    $"Gửi lệnh điều khiển thất bại: {ex.Message}",
+                    $"G?i l?nh di?u khi?n th?t b?i: {ex.Message}",
                     "Server Admin",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -2332,7 +2337,7 @@ public partial class MainWindow : Window
     {
         var dialog = new Window
         {
-            Title = $"Ảnh chụp màn hình - {machine.Name}",
+            Title = $"?nh ch?p màn hình - {machine.Name}",
             Width = 1100,
             Height = 760,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -2412,7 +2417,7 @@ public partial class MainWindow : Window
         if (eligibleMachines.Count == 0)
         {
             MessageBox.Show(
-                "Chỉ thanh toán cho máy khách vãng lai (đang sử dụng hoặc đã tắt nhưng chưa thanh toán).",
+                "Ch? thanh toán cho máy khách vãng lai (dang s? d?ng ho?c dã t?t nhung chua thanh toán).",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -2423,7 +2428,7 @@ public partial class MainWindow : Window
         {
             MessageBox.Show(
                 $"Đã bỏ qua {skippedCount} máy hội viên hoặc không thuộc trạng thái cần thanh toán.\n" +
-                $"Sẽ tính tiền cho {eligibleMachines.Count} máy khách vãng lai.",
+                $"S? tính ti?n cho {eligibleMachines.Count} máy khách vãng lai.",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -2479,7 +2484,7 @@ public partial class MainWindow : Window
         if (summaryRows.Count == 0)
         {
             MessageBox.Show(
-                "Không có máy nào để tính tiền.",
+                "Không có máy nào d? tính ti?n.",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -2514,7 +2519,7 @@ public partial class MainWindow : Window
 
         var title = new TextBlock
         {
-            Text = $"Tính tiền nhiều máy ({summaryRows.Count} máy đã chọn)",
+            Text = $"Tính ti?n nhi?u máy ({summaryRows.Count} máy dã ch?n)",
             FontSize = 18,
             FontWeight = FontWeights.SemiBold,
             Margin = new Thickness(0, 0, 0, 12),
@@ -2558,7 +2563,7 @@ public partial class MainWindow : Window
             {
                 Text =
                     $"Tổng cộng {summaryRows.Count} máy: {totalAmount:N0} VND  " +
-                    $"(Giờ chơi: {totalPlayAmount:N0} + Dịch vụ: {totalServiceAmount:N0})",
+                    $"(Gi? choi: {totalPlayAmount:N0} + D?ch v?: {totalServiceAmount:N0})",
                 FontSize = 17,
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(Color.FromRgb(30, 64, 175)),
@@ -2647,10 +2652,12 @@ public partial class MainWindow : Window
 
     private async Task ShowMachineBillingDetailsAsync(MachineRow machine)
     {
+        var latestMachine = FindMachineRowById(machine.Id) ?? machine;
+
         decimal serviceAmount;
         try
         {
-            serviceAmount = await GetServiceAmountForMachineAsync(machine);
+            serviceAmount = await GetServiceAmountForMachineAsync(latestMachine);
         }
         catch (Exception ex)
         {
@@ -2658,16 +2665,15 @@ public partial class MainWindow : Window
             return;
         }
 
-        var playAmount = machine.ActiveSessionEstimatedAmount;
-        var totalAmount = playAmount + serviceAmount;
-        var hasActiveSession = !string.IsNullOrWhiteSpace(machine.ActiveSessionId);
-        var playDurationText = hasActiveSession ? FormatUsed(machine.ActiveSessionElapsedSeconds) : "0 phút";
+        var machineSnapshot = latestMachine;
+        var elapsedAnchorAt = DateTime.Now;
+        var elapsedAnchorSeconds = machineSnapshot.ActiveSessionElapsedSeconds;
 
         var dialog = new Window
         {
             Title = $"Chi tiết thanh toán - {machine.Name}",
-            Width = 560,
-            Height = 420,
+            Width = 600,
+            Height = 500,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             ResizeMode = ResizeMode.NoResize,
             WindowStyle = WindowStyle.SingleBorderWindow,
@@ -2676,30 +2682,41 @@ public partial class MainWindow : Window
         };
 
         var root = new Grid { Margin = new Thickness(16) };
-        for (var i = 0; i < 10; i++)
-        {
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        }
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var detailsGrid = new Grid();
+        for (var i = 0; i < 12; i++)
+        {
+            detailsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        }
 
         var title = new TextBlock
         {
             Text = $"Máy trạm: {machine.Name}",
-            FontSize = 18,
+            FontSize = 24,
             FontWeight = FontWeights.SemiBold,
-            Margin = new Thickness(0, 0, 0, 12),
+            Margin = new Thickness(0, 0, 0, 16),
         };
         Grid.SetRow(title, 0);
-        root.Children.Add(title);
+        detailsGrid.Children.Add(title);
 
-        AddBillingLine(root, 1, "Trạng thái", machine.StatusText);
-        AddBillingLine(root, 2, "Nhóm máy", machine.GroupName);
-        AddBillingLine(root, 3, "Bắt đầu", machine.StartedAtText);
-        AddBillingLine(root, 4, "Thời gian chơi", playDurationText);
-        AddBillingLine(root, 5, "Giá giờ chơi", $"{machine.HourlyRate:N0} VND/giờ");
-        AddBillingLine(root, 6, "Tiền giờ chơi", $"{playAmount:N0} VND");
-        AddBillingLine(root, 7, "Tiền dịch vụ", $"{serviceAmount:N0} VND");
+        var statusValueText = AddBillingLine(detailsGrid, 1, "Trạng thái", machine.StatusText);
+        var groupValueText = AddBillingLine(detailsGrid, 2, "Nhóm máy", machine.GroupName);
+        var startedAtValueText = AddBillingLine(detailsGrid, 3, "Bắt đầu", machine.StartedAtText);
+        var playDurationValueText = AddBillingLine(detailsGrid, 4, "Thời gian chơi", "-");
+        var sessionRateValueText = AddBillingLine(detailsGrid, 5, "Đơn giá phiên tính tiền", "-");
+        var currentRateValueText = AddBillingLine(detailsGrid, 6, "Đơn giá hiện tại (tham khảo)", "-");
+        var playAmountValueText = AddBillingLine(detailsGrid, 7, "Tiền giờ chơi (theo phiên)", "-");
+        var currentRatePlayAmountValueText = AddBillingLine(detailsGrid, 8, "Tiền giờ chơi theo giá hiện tại (tham khảo)", "-");
+        var serviceAmountValueText = AddBillingLine(detailsGrid, 9, "Tiền dịch vụ", $"{serviceAmount:N0} VND");
+
+        var totalText = new TextBlock
+        {
+            FontSize = 24,
+            FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(30, 64, 175)),
+        };
 
         var totalBorder = new Border
         {
@@ -2707,49 +2724,65 @@ public partial class MainWindow : Window
             BorderBrush = new SolidColorBrush(Color.FromRgb(147, 197, 253)),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(12, 10, 12, 10),
-            Margin = new Thickness(0, 10, 0, 0),
-            Child = new TextBlock
-            {
-                Text = $"Tổng thanh toán: {totalAmount:N0} VND",
-                FontSize = 18,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(30, 64, 175)),
-            },
+            Padding = new Thickness(14, 12, 14, 12),
+            Margin = new Thickness(0, 12, 0, 0),
+            Child = totalText,
         };
-        Grid.SetRow(totalBorder, 8);
-        root.Children.Add(totalBorder);
+        Grid.SetRow(totalBorder, 10);
+        detailsGrid.Children.Add(totalBorder);
 
         var noteText = new TextBlock
         {
             Margin = new Thickness(0, 10, 0, 0),
+            FontSize = 9,
             Foreground = Brushes.DimGray,
             TextWrapping = TextWrapping.Wrap,
-            Text = hasActiveSession
-                ? "Đây là tiền tạm tính của phiên đang chạy (bao gồm dịch vụ trong phiên hiện tại)."
-                : "Máy chưa có phiên đang chạy. Tổng thanh toán hiện tại bằng 0 nếu chưa có dịch vụ gắn phiên.",
         };
-        Grid.SetRow(noteText, 9);
-        root.Children.Add(noteText);
+        Grid.SetRow(noteText, 11);
+        detailsGrid.Children.Add(noteText);
+
+        var detailsScroll = new ScrollViewer
+        {
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Content = detailsGrid,
+        };
+        Grid.SetRow(detailsScroll, 0);
+        root.Children.Add(detailsScroll);
 
         var buttonPanel = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 16, 0, 0),
+            Margin = new Thickness(0, 12, 0, 0),
         };
+        var hasActiveSession = !string.IsNullOrWhiteSpace(machineSnapshot.ActiveSessionId);
+
+        var closeButton = new Button
+        {
+            Content = "Đóng",
+            Width = 108,
+            Height = 40,
+            FontSize = 10,
+            IsDefault = !hasActiveSession,
+            IsCancel = true,
+            Margin = new Thickness(0, 0, 10, 0),
+        };
+        closeButton.Click += (_, _) => dialog.Close();
+        buttonPanel.Children.Add(closeButton);
 
         if (hasActiveSession)
         {
             var checkoutButton = new Button
             {
                 Content = "Thanh toán & Khóa máy",
-                Width = 160,
-                Height = 34,
+                Width = 200,
+                Height = 40,
                 Background = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
                 Foreground = Brushes.White,
                 FontWeight = FontWeights.Bold,
-                Margin = new Thickness(0, 0, 10, 0),
+                FontSize = 11,
+                IsDefault = true,
             };
             checkoutButton.Click += async (_, _) =>
             {
@@ -2759,21 +2792,101 @@ public partial class MainWindow : Window
             buttonPanel.Children.Add(checkoutButton);
         }
 
-        var closeButton = new Button
+        bool ShouldAdvanceElapsed(MachineRow row)
         {
-            Content = "Đóng",
-            Width = 100,
-            Height = 34,
-            IsDefault = !hasActiveSession,
-        };
-        closeButton.Click += (_, _) => dialog.Close();
-        buttonPanel.Children.Add(closeButton);
+            if (string.IsNullOrWhiteSpace(row.ActiveSessionId))
+            {
+                return false;
+            }
 
-        Grid.SetRow(buttonPanel, 11);
+            var status = row.StatusCode?.Trim().ToUpperInvariant() ?? string.Empty;
+            return status != "OFFLINE" && status != "LOCKED";
+        }
+
+        int ResolveDisplayedElapsedSeconds(MachineRow row)
+        {
+            if (!ShouldAdvanceElapsed(row))
+            {
+                return row.ActiveSessionElapsedSeconds;
+            }
+
+            var elapsedExtra = Math.Max(0, (int)Math.Floor((DateTime.Now - elapsedAnchorAt).TotalSeconds));
+            return Math.Max(row.ActiveSessionElapsedSeconds, elapsedAnchorSeconds + elapsedExtra);
+        }
+
+        void UpdateSnapshot(MachineRow latest)
+        {
+            machineSnapshot = latest;
+            elapsedAnchorSeconds = latest.ActiveSessionElapsedSeconds;
+            elapsedAnchorAt = DateTime.Now;
+        }
+
+        void RenderBillingDetails()
+        {
+            var hasSession = !string.IsNullOrWhiteSpace(machineSnapshot.ActiveSessionId);
+            var displayedElapsedSeconds = hasSession ? ResolveDisplayedElapsedSeconds(machineSnapshot) : 0;
+            var playDurationText = hasSession ? FormatUsed(displayedElapsedSeconds) : "0 phút";
+            var sessionHourlyRate = machineSnapshot.ActiveSessionPricePerMinute > 0
+                ? machineSnapshot.ActiveSessionPricePerMinute * 60m
+                : machineSnapshot.HourlyRate;
+            var playAmount = machineSnapshot.ActiveSessionEstimatedAmount;
+            var currentRatePlayAmount = CalculatePrecisePlayAmount(
+                displayedElapsedSeconds,
+                machineSnapshot.HourlyRate);
+            var totalAmount = playAmount + serviceAmount;
+
+            statusValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.StatusText) ? "-" : machineSnapshot.StatusText;
+            groupValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.GroupName) ? "-" : machineSnapshot.GroupName;
+            startedAtValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.StartedAtText) ? "-" : machineSnapshot.StartedAtText;
+            playDurationValueText.Text = playDurationText;
+            sessionRateValueText.Text = $"{sessionHourlyRate:N0} VND/giờ";
+            currentRateValueText.Text = $"{machineSnapshot.HourlyRate:N0} VND/giờ";
+            playAmountValueText.Text = $"{playAmount:N0} VND";
+            currentRatePlayAmountValueText.Text = $"{currentRatePlayAmount:N0} VND";
+            serviceAmountValueText.Text = $"{serviceAmount:N0} VND";
+            totalText.Text = $"Tổng thanh toán: {totalAmount:N0} VND";
+            noteText.Text = hasSession
+                ? "Tổng thanh toán lấy theo đơn giá của phiên đang chạy. Đơn giá hiện tại chỉ để tham khảo."
+                : "Máy chưa có phiên đang chạy. Tổng thanh toán hiện tại bằng 0 nếu chưa có dịch vụ gắn phiên.";
+        }
+
+        RenderBillingDetails();
+
+        var popupSyncTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1),
+        };
+        popupSyncTimer.Tick += (_, _) =>
+        {
+            var latest = FindMachineRowById(machine.Id);
+            if (latest is not null && !ReferenceEquals(latest, machineSnapshot))
+            {
+                UpdateSnapshot(latest);
+            }
+
+            RenderBillingDetails();
+        };
+
+        Grid.SetRow(buttonPanel, 1);
         root.Children.Add(buttonPanel);
 
+        dialog.Loaded += (_, _) => popupSyncTimer.Start();
+        dialog.Closed += (_, _) => popupSyncTimer.Stop();
         dialog.Content = root;
         _ = dialog.ShowDialog();
+    }
+
+    private static decimal CalculatePrecisePlayAmount(int elapsedSeconds, decimal hourlyRate)
+    {
+        if (elapsedSeconds <= 0 || hourlyRate <= 0)
+        {
+            return 0m;
+        }
+
+        var billableMinutes = Math.Max(0, (int)Math.Ceiling(elapsedSeconds / 60.0));
+        var perMinute = hourlyRate / 60m;
+        var amount = billableMinutes * perMinute;
+        return Math.Round(amount, 0, MidpointRounding.AwayFromZero);
     }
 
     private async Task OpenGuestMachineAsync(MachineRow? targetMachine = null)
@@ -2789,7 +2902,7 @@ public partial class MainWindow : Window
         if (status is not ("ONLINE" or "AVAILABLE"))
         {
             MessageBox.Show(
-                "Chỉ mở máy khách vãng lai khi máy đang ở trạng thái Sẵn sàng.",
+                "Ch? m? máy khách vãng lai khi máy dang ? tr?ng thái S?n sàng.",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -2798,9 +2911,9 @@ public partial class MainWindow : Window
 
         var amount = await ShowTopupModalAsync(
             member: null,
-            title: $"Mở máy khách vãng lai - {selected.Name}",
+            title: $"M? máy khách vãng lai - {selected.Name}",
             memberPrompt: $"Máy trạm: {selected.Name} - nhập số tiền khách trả trước:",
-            currentBalanceText: "Số tiền khách trả trước: - VND",
+            currentBalanceText: "S? ti?n khách tr? tru?c: - VND",
             allowDeduct: false);
 
         if (!amount.HasValue)
@@ -2811,7 +2924,7 @@ public partial class MainWindow : Window
         if (amount.Value < 1000)
         {
             MessageBox.Show(
-                "Số tiền mở máy khách vãng lai tối thiểu là 1.000 VND.",
+                "S? ti?n m? máy khách vãng lai t?i thi?u là 1.000 VND.",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
@@ -2833,7 +2946,7 @@ public partial class MainWindow : Window
                 var error = await response.Content.ReadAsStringAsync();
                 MessageBox.Show(
                     string.IsNullOrWhiteSpace(error)
-                        ? $"Mở máy khách vãng lai thất bại ({(int)response.StatusCode})"
+                        ? $"M? máy khách vãng lai th?t b?i ({(int)response.StatusCode})"
                         : error,
                     "Server Admin",
                     MessageBoxButton.OK,
@@ -2841,13 +2954,13 @@ public partial class MainWindow : Window
                 return;
             }
 
-            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Mở máy khách vãng lai {selected.Name} ({amount.Value:N0} VND)");
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] M? máy khách vãng lai {selected.Name} ({amount.Value:N0} VND)");
             await RefreshMachinesAsync();
             await RefreshTransactionLogsAsync();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Mở máy khách vãng lai lỗi: {ex.Message}", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"M? máy khách vãng lai l?i: {ex.Message}", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -2875,7 +2988,7 @@ public partial class MainWindow : Window
         if (member is null)
         {
             MessageBox.Show(
-                "Máy này không có hội viên đang sử dụng để nạp tiền.",
+                "Máy này không có h?i viên dang s? d?ng d? n?p ti?n.",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -2901,6 +3014,7 @@ public partial class MainWindow : Window
             {
                 row.ServiceAmountRaw = 0;
                 row.ServiceAmountText = "-";
+                row.HasPendingClientServiceOrderHighlight = false;
                 continue;
             }
 
@@ -2910,11 +3024,13 @@ public partial class MainWindow : Window
             {
                 row.ServiceAmountRaw = cacheEntry.Amount;
                 row.ServiceAmountText = cacheEntry.Amount.ToString("N0");
+                row.HasPendingClientServiceOrderHighlight = cacheEntry.HasPendingClientOrderHighlight;
                 continue;
             }
 
             row.ServiceAmountRaw = 0;
             row.ServiceAmountText = "0";
+            row.HasPendingClientServiceOrderHighlight = false;
             if (!toLoad.ContainsKey(cacheKey))
             {
                 toLoad[cacheKey] = row;
@@ -2930,19 +3046,25 @@ public partial class MainWindow : Window
         {
             try
             {
-                var amount = await GetServiceAmountForMachineAsync(entry.Value);
-                return (Key: entry.Key, Amount: amount);
+                var snapshot = await GetServiceAmountSnapshotForMachineAsync(entry.Value);
+                return (Key: entry.Key, snapshot.Amount, snapshot.HasPendingClientOrderHighlight, snapshot.PendingClientOrders);
             }
             catch
             {
-                return (Key: entry.Key, Amount: 0m);
+                return (Key: entry.Key, Amount: 0m, HasPendingClientOrderHighlight: false, PendingClientOrders: new List<PcServiceOrderDto>());
             }
         });
 
         var loaded = await Task.WhenAll(loadTasks);
+        var pendingClientOrders = new List<PcServiceOrderDto>();
         foreach (var item in loaded)
         {
-            _serviceAmountBySessionCache[item.Key] = (item.Amount, DateTime.UtcNow);
+            _serviceAmountBySessionCache[item.Key] =
+                (item.Amount, item.HasPendingClientOrderHighlight, DateTime.UtcNow);
+            if (item.PendingClientOrders is { Count: > 0 })
+            {
+                pendingClientOrders.AddRange(item.PendingClientOrders);
+            }
         }
 
         foreach (var row in rows)
@@ -2960,7 +3082,10 @@ public partial class MainWindow : Window
 
             row.ServiceAmountRaw = cacheEntry.Amount;
             row.ServiceAmountText = cacheEntry.Amount.ToString("N0");
+            row.HasPendingClientServiceOrderHighlight = cacheEntry.HasPendingClientOrderHighlight;
         }
+
+        NotifyPendingClientServiceOrdersFromPolling(pendingClientOrders);
     }
 
     private void InvalidateServiceAmountCacheForMachine(MachineRow machine)
@@ -2975,10 +3100,140 @@ public partial class MainWindow : Window
         }
     }
 
+    private void InvalidateServiceAmountCacheForPcId(string pcId)
+    {
+        if (string.IsNullOrWhiteSpace(pcId))
+        {
+            return;
+        }
+
+        var keys = _serviceAmountBySessionCache.Keys
+            .Where(x => x.StartsWith(pcId + ":", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        foreach (var key in keys)
+        {
+            _serviceAmountBySessionCache.Remove(key);
+        }
+    }
+
     private static string BuildServiceAmountCacheKey(string pcId, string? sessionId)
         => $"{pcId}:{sessionId ?? "-"}";
 
+    private void AcknowledgeClientServiceOrders(IReadOnlyCollection<string>? orderIds)
+    {
+        if (orderIds is null || orderIds.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var orderId in orderIds)
+        {
+            if (string.IsNullOrWhiteSpace(orderId))
+            {
+                continue;
+            }
+
+            _acknowledgedClientServiceOrderIds.Add(orderId.Trim());
+        }
+    }
+
+    private void ClearClientServiceOrderAcknowledgement(string? orderId)
+    {
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            return;
+        }
+
+        _acknowledgedClientServiceOrderIds.Remove(orderId.Trim());
+    }
+
+    private bool IsClientServiceOrderAcknowledged(string? orderId)
+    {
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            return false;
+        }
+
+        return _acknowledgedClientServiceOrderIds.Contains(orderId.Trim());
+    }
+
+    private void MarkClientServiceOrderNotified(string? orderId)
+    {
+        if (string.IsNullOrWhiteSpace(orderId))
+        {
+            return;
+        }
+
+        _notifiedClientServiceOrderIds.Add(orderId.Trim());
+    }
+
+    private void NotifyPendingClientServiceOrdersFromPolling(IReadOnlyCollection<PcServiceOrderDto>? pendingClientOrders)
+    {
+        if (pendingClientOrders is null || pendingClientOrders.Count == 0)
+        {
+            if (!_clientServiceOrderNotificationsPrimed)
+            {
+                _clientServiceOrderNotificationsPrimed = true;
+            }
+            return;
+        }
+
+        var orderedItems = pendingClientOrders
+            .Where(x => !string.IsNullOrWhiteSpace(x.Id))
+            .OrderBy(x => ParseDateLocal(x.CreatedAt) ?? DateTime.MaxValue)
+            .ToList();
+
+        if (!_clientServiceOrderNotificationsPrimed)
+        {
+            foreach (var item in orderedItems)
+            {
+                MarkClientServiceOrderNotified(item.Id);
+            }
+
+            _clientServiceOrderNotificationsPrimed = true;
+            return;
+        }
+
+        foreach (var item in orderedItems)
+        {
+            var orderId = item.Id?.Trim();
+            if (string.IsNullOrWhiteSpace(orderId) || _notifiedClientServiceOrderIds.Contains(orderId))
+            {
+                continue;
+            }
+
+            var payload = new RealtimeServiceOrderCreatedEvent
+            {
+                PcId = item.PcId,
+                SessionId = item.SessionId,
+                Source = "client",
+                At = item.CreatedAt,
+                Order = new RealtimeServiceOrderInfo
+                {
+                    Id = item.Id,
+                    ServiceItemId = item.ServiceItem?.Id ?? string.Empty,
+                    ServiceName = item.ServiceItem?.Name ?? "Dịch vụ",
+                    Quantity = item.Quantity,
+                    UnitPrice = item.UnitPrice,
+                    LineTotal = item.LineTotal,
+                    CreatedBy = item.CreatedBy,
+                    CreatedAt = item.CreatedAt,
+                },
+            };
+
+            HandleRealtimeServiceOrderCreated(payload);
+            MarkClientServiceOrderNotified(orderId);
+        }
+    }
+
     private async Task<decimal> GetServiceAmountForMachineAsync(MachineRow machine)
+    {
+        var snapshot = await GetServiceAmountSnapshotForMachineAsync(machine);
+        return snapshot.Amount;
+    }
+
+    private async Task<(decimal Amount, bool HasPendingClientOrderHighlight, List<PcServiceOrderDto> PendingClientOrders)> GetServiceAmountSnapshotForMachineAsync(MachineRow machine)
     {
         var response = await _httpClient.GetFromJsonAsync<PcServiceOrdersResponse>(
             BuildApiUrl($"/services/pcs/{machine.Id}/orders?limit=200"),
@@ -2986,7 +3241,7 @@ public partial class MainWindow : Window
 
         if (response?.Items is null || response.Items.Count == 0)
         {
-            return 0;
+            return (0, false, new List<PcServiceOrderDto>());
         }
 
         IEnumerable<PcServiceOrderDto> scopedOrders = response.Items;
@@ -3000,20 +3255,41 @@ public partial class MainWindow : Window
             scopedOrders = Enumerable.Empty<PcServiceOrderDto>();
         }
 
-        return scopedOrders
+        var unpaidOrders = scopedOrders
             .Where(x => !x.IsPaid)
-            .Sum(x => x.LineTotal);
+            .ToList();
+
+        var amount = unpaidOrders.Sum(x => x.LineTotal);
+        var pendingClientOrders = unpaidOrders
+            .Where(x => IsClientServiceRequester(x.CreatedBy))
+            .ToList();
+        var hasClientOrder = pendingClientOrders.Count > 0;
+        var pendingHighlight = pendingClientOrders.Any(x => !IsClientServiceOrderAcknowledged(x.Id));
+
+        return (amount, pendingHighlight, pendingClientOrders);
     }
 
-    private static void AddBillingLine(Grid root, int rowIndex, string label, string value)
+    private MachineRow? FindMachineRowById(string machineId)
     {
-        var rowGrid = new Grid { Margin = new Thickness(0, 2, 0, 2) };
-        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(160) });
+        if (string.IsNullOrWhiteSpace(machineId))
+        {
+            return null;
+        }
+
+        return _allMachineRows.FirstOrDefault(x =>
+            string.Equals(x.Id, machineId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static TextBlock AddBillingLine(Grid root, int rowIndex, string label, string value)
+    {
+        var rowGrid = new Grid { Margin = new Thickness(0, 3, 0, 3) };
+        rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
         rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         var labelText = new TextBlock
         {
             Text = $"{label}:",
+            FontSize = 14,
             FontWeight = FontWeights.SemiBold,
             Foreground = Brushes.Black,
         };
@@ -3023,13 +3299,17 @@ public partial class MainWindow : Window
         var valueText = new TextBlock
         {
             Text = string.IsNullOrWhiteSpace(value) ? "-" : value,
+            FontSize = 14,
             Foreground = Brushes.Black,
+            Margin = new Thickness(8, 0, 0, 0),
         };
         Grid.SetColumn(valueText, 1);
         rowGrid.Children.Add(valueText);
 
         Grid.SetRow(rowGrid, rowIndex);
         root.Children.Add(rowGrid);
+
+        return valueText;
     }
 
     private async Task NotifyPcAsync()
@@ -3349,7 +3629,7 @@ public partial class MainWindow : Window
             HorizontalAlignment = HorizontalAlignment.Right,
             Margin = new Thickness(0, 12, 0, 0),
         };
-        var okButton = new Button { Content = "Lưu", Width = 88, Margin = new Thickness(0, 0, 8, 0), IsDefault = true };
+        var okButton = new Button { Content = "Luu", Width = 88, Margin = new Thickness(0, 0, 8, 0), IsDefault = true };
         var cancelButton = new Button { Content = "H\u1ee7y", Width = 88, IsCancel = true };
         buttonPanel.Children.Add(okButton);
         buttonPanel.Children.Add(cancelButton);
@@ -3655,7 +3935,7 @@ public partial class MainWindow : Window
 
         dataGrid.Columns.Add(new DataGridTextColumn
         {
-            Header = "Tên tiến trình",
+            Header = "Tên ti?n trình",
             Binding = new System.Windows.Data.Binding("Name"),
             Width = new DataGridLength(150),
             ElementStyle = new Style(typeof(TextBlock))
@@ -3702,7 +3982,7 @@ public partial class MainWindow : Window
 
         var cancelButton = new Button
         {
-            Content = "Hủy bỏ",
+            Content = "H?y b?",
             Width = 100,
             Height = 36,
             Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4F5D75")),
@@ -3793,3 +4073,5 @@ public class LatestRunningAppsResponse
     public List<RunningAppItem>? Apps { get; set; }
     public string? Reason { get; set; }
 }
+
+

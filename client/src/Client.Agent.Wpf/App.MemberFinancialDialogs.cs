@@ -15,7 +15,7 @@ public partial class App : Application
     {
         var dialog = new Window
         {
-            Title = $"Chuyá»ƒn tiá»n - {activeSession.Username}",
+            Title = $"Chuyển tiền - {activeSession.Username}",
             Width = 460,
             Height = 480,
             ResizeMode = ResizeMode.NoResize,
@@ -51,7 +51,7 @@ public partial class App : Application
 
         var titleBlock = new TextBlock
         {
-            Text = "Chuyá»ƒn tiá»n cho há»™i viÃªn khÃ¡c",
+            Text = "Chuyển tiền cho hội viên khác",
             FontSize = 18,
             FontWeight = FontWeights.SemiBold,
             Margin = new Thickness(0, 0, 0, 8),
@@ -61,7 +61,7 @@ public partial class App : Application
 
         var sourceBlock = new TextBlock
         {
-            Text = $"TÃ i khoáº£n gá»­i: {sourceMember.Username}",
+            Text = $"Tài khoản gửi: {sourceMember.Username}",
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 0, 0, 4),
         };
@@ -70,7 +70,7 @@ public partial class App : Application
 
         var balanceBlock = new TextBlock
         {
-            Text = $"Sá»‘ dÆ° hiá»‡n táº¡i: {sourceMember.Balance:N0} VND",
+            Text = $"Số dư hiện tại: {sourceMember.Balance:N0} VND",
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 0, 0, 10),
         };
@@ -79,7 +79,7 @@ public partial class App : Application
 
         var targetLabel = new TextBlock
         {
-            Text = "TÃ i khoáº£n nháº­n:",
+            Text = "Tài khoản nhận:",
             Margin = new Thickness(0, 0, 0, 4),
         };
         Grid.SetRow(targetLabel, 3);
@@ -95,7 +95,7 @@ public partial class App : Application
 
         var amountLabel = new TextBlock
         {
-            Text = "Sá»‘ tiá»n chuyá»ƒn (VND):",
+            Text = "Số tiền chuyển (VND):",
             Margin = new Thickness(0, 10, 0, 4),
         };
         Grid.SetRow(amountLabel, 5);
@@ -112,7 +112,7 @@ public partial class App : Application
 
         var noteLabel = new TextBlock
         {
-            Text = "Ghi chÃº (khÃ´ng báº¯t buá»™c):",
+            Text = "Ghi chú (không bắt buộc):",
             Margin = new Thickness(0, 10, 0, 4),
         };
         Grid.SetRow(noteLabel, 7);
@@ -128,7 +128,7 @@ public partial class App : Application
 
         var hintBlock = new TextBlock
         {
-            Text = "Tá»‘i thiá»ƒu 1.000 VND cho má»—i láº§n chuyá»ƒn.",
+            Text = "Tối thiểu 1.000 VND cho mỗi lần chuyển.",
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 8, 0, 0),
         };
@@ -153,7 +153,7 @@ public partial class App : Application
 
         var cancelButton = new Button
         {
-            Content = "Há»§y",
+            Content = "Hủy",
             Width = 90,
             Margin = new Thickness(0, 0, 8, 0),
             IsCancel = true,
@@ -162,7 +162,7 @@ public partial class App : Application
 
         var transferButton = new Button
         {
-            Content = "Chuyá»ƒn tiá»n",
+            Content = "Chuyển tiền",
             Width = 100,
             IsDefault = true,
             Background = new SolidColorBrush(Color.FromRgb(121, 201, 89)),
@@ -175,25 +175,25 @@ public partial class App : Application
             var targetUsername = targetUsernameBox.Text.Trim();
             if (string.IsNullOrWhiteSpace(targetUsername))
             {
-                errorTextBlock.Text = "Vui lÃ²ng nháº­p tÃ i khoáº£n nháº­n.";
+                errorTextBlock.Text = "Vui lòng nhập tài khoản nhận.";
                 return;
             }
 
             if (string.Equals(targetUsername, sourceMember.Username, StringComparison.OrdinalIgnoreCase))
             {
-                errorTextBlock.Text = "KhÃ´ng thá»ƒ chuyá»ƒn tiá»n cho chÃ­nh mÃ¬nh.";
+                errorTextBlock.Text = "Không thể chuyển tiền cho chính mình.";
                 return;
             }
 
             if (!TryParsePositiveMoney(amountBox.Text.Trim(), out var amount))
             {
-                errorTextBlock.Text = "Sá»‘ tiá»n chuyá»ƒn khÃ´ng há»£p lá»‡.";
+                errorTextBlock.Text = "Số tiền chuyển không hợp lệ.";
                 return;
             }
 
             if (amount < 1000)
             {
-                errorTextBlock.Text = "Sá»‘ tiá»n chuyá»ƒn tá»‘i thiá»ƒu lÃ  1.000 VND.";
+                errorTextBlock.Text = "Số tiền chuyển tối thiểu là 1.000 VND.";
                 return;
             }
 
@@ -215,7 +215,7 @@ public partial class App : Application
                 {
                     var message = await ReadErrorMessageAsync(response);
                     errorTextBlock.Text = string.IsNullOrWhiteSpace(message)
-                        ? $"Chuyá»ƒn tiá»n tháº¥t báº¡i ({(int)response.StatusCode})"
+                        ? $"Chuyển tiền thất bại ({(int)response.StatusCode})"
                         : message;
                     return;
                 }
@@ -228,11 +228,11 @@ public partial class App : Application
 
                 var nextBalance = payload?.SourceMember?.Balance ?? Math.Max(0, sourceMember.Balance - amount);
                 _mainWindow?.SetLastCommand(
-                    $"CHUYá»‚N TIá»€N {amount:N0} -> {targetUsername} @ {DateTime.Now:HH:mm:ss}");
+                    $"CHUYỂN TIỀN {amount:N0} -> {targetUsername} @ {DateTime.Now:HH:mm:ss}");
 
                 MessageBox.Show(
-                    $"Chuyá»ƒn tiá»n thÃ nh cÃ´ng.\n\nÄÃ£ chuyá»ƒn: {amount:N0} VND\nÄáº¿n: {targetUsername}\nSá»‘ dÆ° cÃ²n láº¡i: {nextBalance:N0} VND",
-                    "Chuyá»ƒn tiá»n há»™i viÃªn",
+                    $"Chuyển tiền thành công.\n\nĐã chuyển: {amount:N0} VND\nĐến: {targetUsername}\nSố dư còn lại: {nextBalance:N0} VND",
+                    "Chuyển tiền hội viên",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
 
@@ -266,7 +266,7 @@ public partial class App : Application
     {
         var dialog = new Window
         {
-            Title = $"RÃºt tiá»n - {activeSession.Username}",
+            Title = $"Rút tiền - {activeSession.Username}",
             Width = 430,
             Height = 360,
             ResizeMode = ResizeMode.NoResize,
@@ -298,7 +298,7 @@ public partial class App : Application
 
         var titleBlock = new TextBlock
         {
-            Text = "RÃºt tiá»n tá»« tÃ i khoáº£n há»™i viÃªn",
+            Text = "Rút tiền từ tài khoản hội viên",
             FontSize = 18,
             FontWeight = FontWeights.SemiBold,
             Margin = new Thickness(0, 0, 0, 8),
@@ -308,7 +308,7 @@ public partial class App : Application
 
         var sourceBlock = new TextBlock
         {
-            Text = $"TÃ i khoáº£n: {sourceMember.Username}",
+            Text = $"Tài khoản: {sourceMember.Username}",
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 0, 0, 4),
         };
@@ -317,7 +317,7 @@ public partial class App : Application
 
         var balanceBlock = new TextBlock
         {
-            Text = $"Sá»‘ dÆ° hiá»‡n táº¡i: {sourceMember.Balance:N0} VND",
+            Text = $"Số dư hiện tại: {sourceMember.Balance:N0} VND",
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 0, 0, 10),
         };
@@ -326,7 +326,7 @@ public partial class App : Application
 
         var amountLabel = new TextBlock
         {
-            Text = "Sá»‘ tiá»n rÃºt (VND):",
+            Text = "Số tiền rút (VND):",
             Margin = new Thickness(0, 0, 0, 4),
         };
         Grid.SetRow(amountLabel, 3);
@@ -343,7 +343,7 @@ public partial class App : Application
 
         var noteLabel = new TextBlock
         {
-            Text = "Ghi chÃº (khÃ´ng báº¯t buá»™c):",
+            Text = "Ghi chú (không bắt buộc):",
             Margin = new Thickness(0, 10, 0, 4),
         };
         Grid.SetRow(noteLabel, 5);
@@ -359,7 +359,7 @@ public partial class App : Application
 
         var hintBlock = new TextBlock
         {
-            Text = "Tá»‘i thiá»ƒu 1.000 VND cho má»—i láº§n rÃºt.",
+            Text = "Tối thiểu 1.000 VND cho mỗi lần rút.",
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 8, 0, 0),
         };
@@ -384,7 +384,7 @@ public partial class App : Application
 
         var cancelButton = new Button
         {
-            Content = "Há»§y",
+            Content = "Hủy",
             Width = 90,
             Margin = new Thickness(0, 0, 8, 0),
             IsCancel = true,
@@ -393,7 +393,7 @@ public partial class App : Application
 
         var withdrawButton = new Button
         {
-            Content = "RÃºt tiá»n",
+            Content = "Rút tiền",
             Width = 100,
             IsDefault = true,
             Background = new SolidColorBrush(Color.FromRgb(121, 201, 89)),
@@ -406,19 +406,19 @@ public partial class App : Application
 
             if (!TryParsePositiveMoney(amountBox.Text.Trim(), out var amount))
             {
-                errorTextBlock.Text = "Sá»‘ tiá»n rÃºt khÃ´ng há»£p lá»‡.";
+                errorTextBlock.Text = "Số tiền rút không hợp lệ.";
                 return;
             }
 
             if (amount < 1000)
             {
-                errorTextBlock.Text = "Sá»‘ tiá»n rÃºt tá»‘i thiá»ƒu lÃ  1.000 VND.";
+                errorTextBlock.Text = "Số tiền rút tối thiểu là 1.000 VND.";
                 return;
             }
 
             if (amount > sourceMember.Balance)
             {
-                errorTextBlock.Text = "Sá»‘ dÆ° hiá»‡n táº¡i khÃ´ng Ä‘á»§ Ä‘á»ƒ rÃºt.";
+                errorTextBlock.Text = "Số dư hiện tại không đủ để rút.";
                 return;
             }
 
@@ -439,7 +439,7 @@ public partial class App : Application
                 {
                     var message = await ReadErrorMessageAsync(response);
                     errorTextBlock.Text = string.IsNullOrWhiteSpace(message)
-                        ? $"RÃºt tiá»n tháº¥t báº¡i ({(int)response.StatusCode})"
+                        ? $"Rút tiền thất bại ({(int)response.StatusCode})"
                         : message;
                     return;
                 }
@@ -456,8 +456,8 @@ public partial class App : Application
                     $"GUI YEU CAU RUT TIEN {amount:N0} @ {DateTime.Now:HH:mm:ss}");
 
                 MessageBox.Show(
-                    $"ÄÃ£ gá»­i yÃªu cáº§u rÃºt tiá»n.\n\nSá»‘ tiá»n: {amount:N0} VND\nMÃ£ yÃªu cáº§u: {requestId}\nBÃªn app server sáº½ hiá»‡n popup cÃ³ nÃºt Cháº¥p nháº­n/Há»§y.",
-                    "RÃºt tiá»n há»™i viÃªn",
+                    $"Đã gửi yêu cầu rút tiền.\n\nSố tiền: {amount:N0} VND\nMã yêu cầu: {requestId}\nBên app server sẽ hiện popup có nút Chấp nhận/Hủy.",
+                    "Rút tiền hội viên",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
 
@@ -491,7 +491,7 @@ public partial class App : Application
     {
         var dialog = new Window
         {
-            Title = $"Náº¡p tiá»n - {activeSession.Username}",
+            Title = $"Nạp tiền - {activeSession.Username}",
             Width = 430,
             Height = 360,
             ResizeMode = ResizeMode.NoResize,
@@ -523,7 +523,7 @@ public partial class App : Application
 
         var titleBlock = new TextBlock
         {
-            Text = "Gá»­i yÃªu cáº§u náº¡p tiá»n há»™i viÃªn",
+            Text = "Gửi yêu cầu nạp tiền hội viên",
             FontSize = 18,
             FontWeight = FontWeights.SemiBold,
             Margin = new Thickness(0, 0, 0, 8),
@@ -533,7 +533,7 @@ public partial class App : Application
 
         var sourceBlock = new TextBlock
         {
-            Text = $"TÃ i khoáº£n: {sourceMember.Username}",
+            Text = $"Tài khoản: {sourceMember.Username}",
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 0, 0, 4),
         };
@@ -542,7 +542,7 @@ public partial class App : Application
 
         var balanceBlock = new TextBlock
         {
-            Text = $"Sá»‘ dÆ° hiá»‡n táº¡i: {sourceMember.Balance:N0} VND",
+            Text = $"Số dư hiện tại: {sourceMember.Balance:N0} VND",
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 0, 0, 10),
         };
@@ -551,7 +551,7 @@ public partial class App : Application
 
         var amountLabel = new TextBlock
         {
-            Text = "Sá»‘ tiá»n cáº§n náº¡p (VND):",
+            Text = "Số tiền cần nạp (VND):",
             Margin = new Thickness(0, 0, 0, 4),
         };
         Grid.SetRow(amountLabel, 3);
@@ -568,7 +568,7 @@ public partial class App : Application
 
         var noteLabel = new TextBlock
         {
-            Text = "Ghi chÃº (khÃ´ng báº¯t buá»™c):",
+            Text = "Ghi chú (không bắt buộc):",
             Margin = new Thickness(0, 10, 0, 4),
         };
         Grid.SetRow(noteLabel, 5);
@@ -584,7 +584,7 @@ public partial class App : Application
 
         var hintBlock = new TextBlock
         {
-            Text = "Tá»‘i thiá»ƒu 1.000 VND cho má»—i yÃªu cáº§u.",
+            Text = "Tối thiểu 1.000 VND cho mỗi yêu cầu.",
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 8, 0, 0),
         };
@@ -609,7 +609,7 @@ public partial class App : Application
 
         var cancelButton = new Button
         {
-            Content = "Há»§y",
+            Content = "Hủy",
             Width = 90,
             Margin = new Thickness(0, 0, 8, 0),
             IsCancel = true,
@@ -618,7 +618,7 @@ public partial class App : Application
 
         var requestButton = new Button
         {
-            Content = "Gá»­i yÃªu cáº§u",
+            Content = "Gửi yêu cầu",
             Width = 100,
             IsDefault = true,
             Background = new SolidColorBrush(Color.FromRgb(121, 201, 89)),
@@ -631,13 +631,13 @@ public partial class App : Application
 
             if (!TryParsePositiveMoney(amountBox.Text.Trim(), out var amount))
             {
-                errorTextBlock.Text = "Sá»‘ tiá»n náº¡p khÃ´ng há»£p lá»‡.";
+                errorTextBlock.Text = "Số tiền nạp không hợp lệ.";
                 return;
             }
 
             if (amount < 1000)
             {
-                errorTextBlock.Text = "Sá»‘ tiá»n náº¡p tá»‘i thiá»ƒu lÃ  1.000 VND.";
+                errorTextBlock.Text = "Số tiền nạp tối thiểu là 1.000 VND.";
                 return;
             }
 
@@ -658,7 +658,7 @@ public partial class App : Application
                 {
                     var message = await ReadErrorMessageAsync(response);
                     errorTextBlock.Text = string.IsNullOrWhiteSpace(message)
-                        ? $"Gá»­i yÃªu cáº§u tháº¥t báº¡i ({(int)response.StatusCode})"
+                        ? $"Gửi yêu cầu thất bại ({(int)response.StatusCode})"
                         : message;
                     return;
                 }
@@ -675,8 +675,8 @@ public partial class App : Application
                     $"GUI YEU CAU NAP TIEN {amount:N0} @ {DateTime.Now:HH:mm:ss}");
 
                 MessageBox.Show(
-                    $"ÄÃ£ gá»­i yÃªu cáº§u náº¡p tiá»n.\n\nSá»‘ tiá»n: {amount:N0} VND\nMÃ£ yÃªu cáº§u: {requestId}\nBÃªn app server sáº½ hiá»‡n popup cÃ³ nÃºt Cháº¥p nháº­n/Há»§y.",
-                    "Náº¡p tiá»n há»™i viÃªn",
+                    $"Đã gửi yêu cầu nạp tiền.\n\nSố tiền: {amount:N0} VND\nMã yêu cầu: {requestId}\nBên app server sẽ hiện popup có nút Chấp nhận/Hủy.",
+                    "Nạp tiền hội viên",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
 
@@ -721,3 +721,4 @@ public partial class App : Application
     }
 
 }
+

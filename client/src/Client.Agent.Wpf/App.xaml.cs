@@ -523,7 +523,7 @@ public partial class App : Application
     {
         if (!string.IsNullOrEmpty(_manualLockPassword))
         {
-            return new LoginAttemptResult(false, "Vui lòng nhập mật mã khóa máy �'ã �'ặt.");
+            return new LoginAttemptResult(false, "Vui lòng nhập mật mã khóa máy đã đặt.");
         }
 
         var normalizedUsername = username.Trim();
@@ -915,8 +915,8 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             if (pcContext is null)
             {
                 MessageBox.Show(
-                    "Không xác �'�<nh �'ược máy trạm hi�?n tại �'�f gửi d�<ch vụ.",
-                    "D�<ch vụ",
+                    "Không xác định được máy trạm hiện tại để gửi dịch vụ.",
+                    "Dịch vụ",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
                 return;
@@ -926,8 +926,8 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             if (string.IsNullOrWhiteSpace(activeSessionId))
             {
                 MessageBox.Show(
-                    "Máy chưa có phiên �'ang sử dụng �'�f gửi d�<ch vụ.",
-                    "D�<ch vụ",
+                    "Máy chưa có phiên đang sử dụng để gửi dịch vụ.",
+                    "Dịch vụ",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
                 return;
@@ -938,8 +938,8 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
         catch (Exception ex)
         {
             MessageBox.Show(
-                $"Không th�f m�Y màn hình d�<ch vụ: {ex.Message}",
-                "D�<ch vụ",
+                $"Không thể mở màn hình dịch vụ: {ex.Message}",
+                "Dịch vụ",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
@@ -1127,8 +1127,8 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
         if (activeItems.Count == 0)
         {
             MessageBox.Show(
-                "Hi�?n chưa có d�<ch vụ �'ang bán.",
-                "D�<ch vụ",
+                "Hiện chưa có dịch vụ đang bán.",
+                "Dịch vụ",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -1162,11 +1162,11 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
                 StringComparer.OrdinalIgnoreCase);
 
         var orderedPreview = existingOrders.Count == 0
-            ? "Chua gửi d�<ch vụ."
+            ? "Chưa gửi dịch vụ."
             : string.Join(
                 " | ",
                 existingOrders
-                    .GroupBy(x => x.ServiceItem?.Name ?? "D�<ch vụ")
+                    .GroupBy(x => x.ServiceItem?.Name ?? "Dịch vụ")
                     .Select(g =>
                     {
                         var quantity = g.Sum(x => Math.Max(0, x.Quantity));
@@ -1188,7 +1188,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
         var dialog = new Window
         {
-            Title = $"D�<ch vụ - {pcName}",
+            Title = $"Dịch vụ - {pcName}",
             Width = 920,
             Height = 640,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -1244,7 +1244,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
         serviceGrid.Columns.Add(new DataGridTextColumn
         {
-            Header = "D�<ch vụ",
+            Header = "Dịch vụ",
             Width = new DataGridLength(2.0, DataGridLengthUnitType.Star),
             Binding = new Binding(nameof(ClientServiceOrderSelectionRow.ServiceName)),
             IsReadOnly = true,
@@ -1280,7 +1280,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
         var quantityTemplateColumn = new DataGridTemplateColumn
         {
-            Header = "S�' lượng",
+            Header = "Số lượng",
             Width = 150,
         };
 
@@ -1362,7 +1362,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
         };
         notePanel.Children.Add(new TextBlock
         {
-            Text = "Ghi chú (không bắt bu�Tc):",
+            Text = "Ghi chú (không bắt buộc):",
             Margin = new Thickness(0, 0, 0, 4),
         });
         var noteTextBox = new TextBox
@@ -1401,7 +1401,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
         };
         var orderButton = new Button
         {
-            Content = "gửi d�<ch vụ",
+            Content = "Gửi dịch vụ",
             Width = 130,
             Height = 34,
             FontWeight = FontWeights.SemiBold,
@@ -1568,8 +1568,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         if (activeSession is null)
         {
             MessageBox.Show(
-                "Vui lòng �'�fng nhập bằng tài khoản h�Ti viên �'�f dùng �'i�fm tích lũy.",
-                "Đi�fm tích lũy",
+                "Vui lòng đăng nhập bằng tài khoản hội viên để dùng điểm tích lũy.",
+                "Điểm tích lũy",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -1588,8 +1588,8 @@ public async void OpenLoyaltyPanelFromClientUi()
             if (settings is null)
             {
                 MessageBox.Show(
-                    "Không tải �'ược cài �'ặt �'i�fm tích lũy từ máy chủ.",
-                    "Đi�fm tích lũy",
+                    "Không tải được cài đặt điểm tích lũy từ máy chủ.",
+                    "Điểm tích lũy",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
                 return;
@@ -1598,8 +1598,8 @@ public async void OpenLoyaltyPanelFromClientUi()
             if (!settings.Enabled)
             {
                 MessageBox.Show(
-                    "Tính n�fng �'i�fm tích lũy �'ang tắt �Y máy chủ.",
-                    "Đi�fm tích lũy",
+                    "Tính năng điểm tích lũy đang tắt ở máy chủ.",
+                    "Điểm tích lũy",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
                 return;
@@ -1609,8 +1609,8 @@ public async void OpenLoyaltyPanelFromClientUi()
             if (loyalty is null)
             {
                 MessageBox.Show(
-                    "Không �'ọc �'ược �'i�fm tích lũy của h�Ti viên.",
-                    "Đi�fm tích lũy",
+                    "Không đọc được điểm tích lũy của hội viên.",
+                    "Điểm tích lũy",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
                 return;
@@ -1621,8 +1621,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         catch (Exception ex)
         {
             MessageBox.Show(
-                $"L�-i khi m�Y �'i�fm tích lũy: {ex.Message}",
-                "Đi�fm tích lũy",
+                $"Lỗi khi mở điểm tích lũy: {ex.Message}",
+                "Điểm tích lũy",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
@@ -1634,8 +1634,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         if (activeSession is null)
         {
             MessageBox.Show(
-                "Vui lòng �'�fng nhập bằng tài khoản h�Ti viên �'�f chuy�fn tiền.",
-                "Chuy�fn tiền h�Ti viên",
+                "Vui lòng đăng nhập bằng tài khoản hội viên để chuyển tiền.",
+                "Chuyển tiền hội viên",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -1661,8 +1661,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         catch (Exception ex)
         {
             MessageBox.Show(
-                $"Không th�f m�Y màn hình chuy�fn tiền: {ex.Message}",
-                "Chuy�fn tiền h�Ti viên",
+                $"Không thể mở màn hình chuyển tiền: {ex.Message}",
+                "Chuyển tiền hội viên",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
@@ -1673,8 +1673,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         if (!_isMemberWithdrawEnabled)
         {
             MessageBox.Show(
-                "Tính n�fng rút tiền h�Ti viên �'ang tắt từ app server.",
-                "Rút tiền h�Ti viên",
+                "Tính năng rút tiền hội viên đang tắt từ app server.",
+                "Rút tiền hội viên",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -1684,8 +1684,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         if (activeSession is null)
         {
             MessageBox.Show(
-                "Vui lòng �'�fng nhập bằng tài khoản h�Ti viên �'�f rút tiền.",
-                "Rút tiền h�Ti viên",
+                "Vui lòng đăng nhập bằng tài khoản hội viên để rút tiền.",
+                "Rút tiền hội viên",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -1711,8 +1711,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         catch (Exception ex)
         {
             MessageBox.Show(
-                $"Không th�f m�Y màn hình rút tiền: {ex.Message}",
-                "Rút tiền h�Ti viên",
+                $"Không thể mở màn hình rút tiền: {ex.Message}",
+                "Rút tiền hội viên",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
@@ -1723,8 +1723,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         if (!_isMemberTopupRequestEnabled)
         {
             MessageBox.Show(
-                "Tính n�fng nạp tiền nhanh h�Ti viên �'ang tắt từ app server.",
-                "Nạp tiền h�Ti viên",
+                "Tính năng nạp tiền nhanh hội viên đang tắt từ app server.",
+                "Nạp tiền hội viên",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -1734,8 +1734,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         if (activeSession is null)
         {
             MessageBox.Show(
-                "Vui lòng �'�fng nhập bằng tài khoản h�Ti viên �'�f nạp tiền.",
-                "Nạp tiền h�Ti viên",
+                "Vui lòng đăng nhập bằng tài khoản hội viên để nạp tiền.",
+                "Nạp tiền hội viên",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -1761,8 +1761,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         catch (Exception ex)
         {
             MessageBox.Show(
-                $"Không th�f m�Y màn hình nạp tiền: {ex.Message}",
-                "Nạp tiền h�Ti viên",
+                $"Không thể mở màn hình nạp tiền: {ex.Message}",
+                "Nạp tiền hội viên",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
@@ -1774,8 +1774,8 @@ public async void OpenLoyaltyPanelFromClientUi()
         if (activeSession is null)
         {
             MessageBox.Show(
-                "Vui lòng �'�fng nhập �'�f �'�.i mật khẩu.",
-                "Đ�.i mật khẩu",
+                "Vui lòng đăng nhập để đổi mật khẩu.",
+                "Đổi mật khẩu",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -1788,7 +1788,7 @@ public async void OpenLoyaltyPanelFromClientUi()
     {
         var dialog = new Window
         {
-            Title = "Đ�.i mật khẩu h�Ti viên",
+            Title = "Đổi mật khẩu hội viên",
             Width = 400,
             Height = 350,
             ResizeMode = ResizeMode.NoResize,
@@ -1816,7 +1816,7 @@ public async void OpenLoyaltyPanelFromClientUi()
         root.Children.Add(title);
 
         // Current Password
-        var curLabel = new TextBlock { Text = "Mật khẩu hi�?n tại:", Margin = new Thickness(0, 0, 0, 4), VerticalAlignment = VerticalAlignment.Bottom };
+        var curLabel = new TextBlock { Text = "Mật khẩu hiện tại:", Margin = new Thickness(0, 0, 0, 4), VerticalAlignment = VerticalAlignment.Bottom };
         Grid.SetRow(curLabel, 1);
         root.Children.Add(curLabel);
 
@@ -1825,7 +1825,7 @@ public async void OpenLoyaltyPanelFromClientUi()
         root.Children.Add(currentPwdBox);
 
         // New Password
-        var newLabel = new TextBlock { Text = "Mật khẩu m�>i:", Margin = new Thickness(0, 0, 0, 4) };
+        var newLabel = new TextBlock { Text = "Mật khẩu mới:", Margin = new Thickness(0, 0, 0, 4) };
         Grid.SetRow(newLabel, 3);
         root.Children.Add(newLabel);
 
@@ -1834,7 +1834,7 @@ public async void OpenLoyaltyPanelFromClientUi()
         root.Children.Add(newPwdBox);
 
         // Confirm New Password
-        var confirmLabel = new TextBlock { Text = "Xác nhận mật khẩu m�>i:", Margin = new Thickness(0, 0, 0, 4) };
+        var confirmLabel = new TextBlock { Text = "Xác nhận mật khẩu mới:", Margin = new Thickness(0, 0, 0, 4) };
         Grid.SetRow(confirmLabel, 5);
         root.Children.Add(confirmLabel);
 
@@ -1862,13 +1862,13 @@ public async void OpenLoyaltyPanelFromClientUi()
             var newPwd = newPwdBox.Password;
             var confirmPwd = confirmPwdBox.Password;
 
-            if (string.IsNullOrEmpty(currentPwd)) { errorText.Text = "Vui lòng nhập mật khẩu hi�?n tại."; return; }
-            if (string.IsNullOrEmpty(newPwd)) { errorText.Text = "Vui lòng nhập mật khẩu m�>i."; return; }
-            if (newPwd.Length < 4) { errorText.Text = "Mật khẩu m�>i phải từ 4 ký tự tr�Y lên."; return; }
-            if (newPwd != confirmPwd) { errorText.Text = "Mật khẩu xác nhận không kh�>p."; return; }
+            if (string.IsNullOrEmpty(currentPwd)) { errorText.Text = "Vui lòng nhập mật khẩu hiện tại."; return; }
+            if (string.IsNullOrEmpty(newPwd)) { errorText.Text = "Vui lòng nhập mật khẩu mới."; return; }
+            if (newPwd.Length < 4) { errorText.Text = "Mật khẩu mới phải từ 4 ký tự trở lên."; return; }
+            if (newPwd != confirmPwd) { errorText.Text = "Mật khẩu xác nhận không khớp."; return; }
 
             saveBtn.IsEnabled = false;
-            errorText.Text = "Đang ki�fm tra mật khẩu hi�?n tại...";
+            errorText.Text = "Đang kiểm tra mật khẩu hiện tại...";
             errorText.Foreground = Brushes.DimGray;
 
             try
@@ -1884,33 +1884,33 @@ public async void OpenLoyaltyPanelFromClientUi()
                     });
                 if (!loginResp.IsSuccessStatusCode)
                 {
-                    errorText.Text = "Mật khẩu hi�?n tại không chính xác.";
+                    errorText.Text = "Mật khẩu hiện tại không chính xác.";
                     errorText.Foreground = Brushes.Red;
                     saveBtn.IsEnabled = true;
                     return;
                 }
 
                 // 2. Update to new password
-                errorText.Text = "Đang cập nhật mật khẩu m�>i...";
+                errorText.Text = "Đang cập nhật mật khẩu mới...";
                 using var updateResp = await _httpClient.PatchAsJsonAsync(BuildApiUrl($"/members/{activeSession.MemberId}"), new { password = newPwd, updatedBy = "client.password.change" });
                 
                 if (updateResp.IsSuccessStatusCode)
                 {
-                    MessageBox.Show("Đ�.i mật khẩu thành công!", "Mật khẩu", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBox.Show("Đổi mật khẩu thành công!", "Mật khẩu", MessageBoxButton.OK, MessageBoxImage.Information);
                     _mainWindow?.SetLastCommand($"CHANGE_PWD @ {DateTime.Now:HH:mm:ss}");
                     dialog.Close();
                 }
                 else
                 {
                     var msg = await ReadErrorMessageAsync(updateResp);
-                    errorText.Text = string.IsNullOrWhiteSpace(msg) ? "L�-i khi cập nhật mật khẩu." : msg;
+                    errorText.Text = string.IsNullOrWhiteSpace(msg) ? "Lỗi khi cập nhật mật khẩu." : msg;
                     errorText.Foreground = Brushes.Red;
                     saveBtn.IsEnabled = true;
                 }
             }
             catch (Exception ex)
             {
-                errorText.Text = "L�-i kết n�'i: " + ex.Message;
+                errorText.Text = "Lỗi kết nối: " + ex.Message;
                 errorText.Foreground = Brushes.Red;
                 saveBtn.IsEnabled = true;
             }
@@ -1945,7 +1945,7 @@ public async void OpenLoyaltyPanelFromClientUi()
 
         var label = new TextBlock
         {
-            Text = $"Nhập mật khẩu tài khoản '{username}' �'�f tiếp tục:",
+            Text = $"Nhập mật khẩu tài khoản '{username}' để tiếp tục:",
             Margin = new Thickness(0, 0, 0, 10),
             TextWrapping = TextWrapping.Wrap
         };
@@ -2018,7 +2018,7 @@ public async void OpenLoyaltyPanelFromClientUi()
             }
             catch (Exception ex)
             {
-                errorLabel.Text = "L�-i kết n�'i: " + ex.Message;
+                errorLabel.Text = "Lỗi kết nối: " + ex.Message;
                 errorLabel.Foreground = Brushes.Red;
                 okBtn.IsEnabled = true;
             }
@@ -2061,7 +2061,7 @@ public async void OpenLoyaltyPanelFromClientUi()
 
         var title = new TextBlock
         {
-            Text = "Nhập mật mã �'�f khóa máy tạm thời:",
+            Text = "Nhập mật mã để khóa máy tạm thời:",
             FontWeight = FontWeights.SemiBold,
             Margin = new Thickness(0, 0, 0, 10),
             TextWrapping = TextWrapping.Wrap,
@@ -2254,7 +2254,7 @@ public async void OpenLoyaltyPanelFromClientUi()
         _readyAutoShutdownTriggered = true;
         await TrackAndClearMemberSessionAsync("AUTO_SHUTDOWN_IDLE_READY");
         _mainWindow?.SetLastCommand(
-            $"TỰ TẮT sau {_readyAutoShutdownMinutes} phút không �'�fng nhập");
+            $"TỰ TẮT sau {_readyAutoShutdownMinutes} phút không đăng nhập");
 
         if (_logger is not null)
         {
@@ -3836,7 +3836,7 @@ LIMIT $limit;";
 
         var dialog = new Window
         {
-            Title = $"Đi�fm tích lũy - {activeSession.Username}",
+            Title = $"Điểm tích lũy - {activeSession.Username}",
             Width = 430,
             Height = 420,
             ResizeMode = ResizeMode.NoResize,
@@ -3868,7 +3868,7 @@ LIMIT $limit;";
 
         var titleTextBlock = new TextBlock
         {
-            Text = $"H�Ti viên: {activeSession.Username}",
+            Text = $"Hội viên: {activeSession.Username}",
             FontWeight = FontWeights.SemiBold,
             FontSize = 17,
             Margin = new Thickness(0, 0, 0, 8),
@@ -3878,7 +3878,7 @@ LIMIT $limit;";
 
         var balanceTextBlock = new TextBlock
         {
-            Text = $"S�' dư hi�?n tại: {member.Balance:N0} VND",
+            Text = $"Số dư hiện tại: {member.Balance:N0} VND",
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 0, 0, 4),
         };
@@ -3896,7 +3896,7 @@ LIMIT $limit;";
 
         var pointsTextBlock = new TextBlock
         {
-            Text = $"Đi�fm hi�?n có: {loyalty.AvailablePoints} �'i�fm",
+            Text = $"Điểm hiện có: {loyalty.AvailablePoints} điểm",
             FontSize = 22,
             FontWeight = FontWeights.Bold,
             Foreground = new SolidColorBrush(Color.FromRgb(30, 90, 168)),
@@ -3908,7 +3908,7 @@ LIMIT $limit;";
         {
             Margin = new Thickness(0, 6, 0, 12),
             Text =
-                $"Đã tích lũy: {loyalty.ProgressMinutes:0.##}/{settings.MinutesPerPoint} phút �'�f lên �'i�fm kế tiếp.",
+                $"Đã tích lũy: {loyalty.ProgressMinutes:0.##}/{settings.MinutesPerPoint} phút để lên điểm kế tiếp.",
             Foreground = Brushes.DimGray,
         };
         Grid.SetRow(progressTextBlock, 4);
@@ -3921,7 +3921,7 @@ LIMIT $limit;";
         };
         inputPanel.Children.Add(new TextBlock
         {
-            Text = "S�' �'i�fm mu�'n �'�.i:",
+            Text = "Số điểm muốn đổi:",
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 8, 0),
         });
@@ -3939,7 +3939,7 @@ LIMIT $limit;";
 
         var helpText = new TextBlock
         {
-            Text = "1 �'i�fm = 1 phút chơi. Có th�f �'�.i nhiều �'i�fm m�Tt lần.",
+            Text = "1 điểm = 1 phút chơi. Có thể đổi nhiều điểm một lần.",
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 0, 0, 8),
         };
@@ -3964,7 +3964,7 @@ LIMIT $limit;";
 
         var redeemAllButton = new Button
         {
-            Content = "Đ�.i tất cả",
+            Content = "Đổi tất cả",
             Margin = new Thickness(0, 0, 6, 0),
             IsEnabled = loyalty.AvailablePoints > 0,
         };
@@ -3996,7 +3996,7 @@ LIMIT $limit;";
 
         var redeemButton = new Button
         {
-            Content = "Đ�.i �'i�fm",
+            Content = "Đổi điểm",
             Margin = new Thickness(0, 0, 6, 0),
             Background = new SolidColorBrush(Color.FromRgb(121, 201, 89)),
             BorderBrush = new SolidColorBrush(Color.FromRgb(63, 138, 46)),
@@ -4007,13 +4007,13 @@ LIMIT $limit;";
             errorTextBlock.Text = string.Empty;
             if (!int.TryParse(pointsBox.Text.Trim(), out var redeemPoints) || redeemPoints < 1)
             {
-                errorTextBlock.Text = "S�' �'i�fm �'�.i phải là s�' nguyên >= 1.";
+                errorTextBlock.Text = "Số điểm đổi phải là số nguyên >= 1.";
                 return;
             }
 
             if (redeemPoints > loyalty.AvailablePoints)
             {
-                errorTextBlock.Text = $"Ch�? còn {loyalty.AvailablePoints} �'i�fm.";
+                errorTextBlock.Text = $"Chỉ còn {loyalty.AvailablePoints} điểm.";
                 return;
             }
 
@@ -4032,7 +4032,7 @@ LIMIT $limit;";
                 {
                     var message = await ReadErrorMessageAsync(response);
                     errorTextBlock.Text = string.IsNullOrWhiteSpace(message)
-                        ? $"Đ�.i �'i�fm thất bại ({(int)response.StatusCode})"
+                        ? $"Đổi điểm thất bại ({(int)response.StatusCode})"
                         : message;
                     return;
                 }
@@ -4050,14 +4050,14 @@ LIMIT $limit;";
                         var usedSecondsNow = _mainWindow?.GetUsedSeconds() ?? 0;
                         SynchronizeMemberBillingFromServer(payload.Member, usedSecondsNow);
                         _mainWindow?.SetLastCommand(
-                            $"Đ�.i �'i�fm {redeemPoints} @ {DateTime.Now:HH:mm:ss}");
+                            $"Đổi điểm {redeemPoints} @ {DateTime.Now:HH:mm:ss}");
                         _lastSyncedMemberUsedSeconds = usedSecondsNow;
                     });
                 }
 
                 MessageBox.Show(
-                    $"Đ�.i �'i�fm thành công: +{redeemPoints} phút chơi.",
-                    "Đi�fm tích lũy",
+                    $"Đổi điểm thành công: +{redeemPoints} phút chơi.",
+                    "Điểm tích lũy",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
 
@@ -4117,7 +4117,7 @@ LIMIT $limit;";
 
         var pointsLabel = new TextBlock
         {
-            Text = $"Bạn �'ang có: {loyalty.AvailablePoints} �'i�fm",
+            Text = $"Bạn đang có: {loyalty.AvailablePoints} điểm",
             FontSize = 16,
             FontWeight = FontWeights.SemiBold,
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -4142,15 +4142,15 @@ LIMIT $limit;";
 
         var wheelItems = new[]
         {
-            new { Label = "ĐẶC BI�?T\n30p", Minutes = 30, Color = new SolidColorBrush(Color.FromRgb(220, 38, 38)) }, // Red
+            new { Label = "ĐẶC BIỆT\n30p", Minutes = 30, Color = new SolidColorBrush(Color.FromRgb(220, 38, 38)) }, // Red
             new { Label = "0p", Minutes = 0, Color = new SolidColorBrush(Color.FromRgb(107, 114, 128)) },      // Gray
             new { Label = "NHẤT\n20p", Minutes = 20, Color = new SolidColorBrush(Color.FromRgb(37, 99, 235)) },   // Blue
             new { Label = "2p", Minutes = 2, Color = new SolidColorBrush(Color.FromRgb(249, 115, 22)) },      // Orange
-            new { Label = "NH�O\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },  // Green
+            new { Label = "NHỎ\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },  // Green
             new { Label = "5p", Minutes = 5, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) },       // Yellow
             new { Label = "0p", Minutes = 0, Color = new SolidColorBrush(Color.FromRgb(107, 114, 128)) },      // Gray
             new { Label = "2p", Minutes = 2, Color = new SolidColorBrush(Color.FromRgb(249, 115, 22)) },      // Orange
-            new { Label = "NH�O\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },  // Green
+            new { Label = "NHỎ\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },  // Green
             new { Label = "5p", Minutes = 5, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) }        // Yellow
         };
         wheelItems = new[]
@@ -4277,7 +4277,7 @@ LIMIT $limit;";
 
         var costText = new TextBlock
         {
-            Text = "Chi phí: 5 �'i�fm / lượt quay",
+            Text = "Chi phí: 5 điểm / lượt quay",
             Foreground = Brushes.DimGray,
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 15)
@@ -4352,7 +4352,7 @@ LIMIT $limit;";
                 {
                     wheelRotation.BeginAnimation(RotateTransform.AngleProperty, null);
                     var error = await ReadErrorMessageAsync(response);
-                    resultText.Text = string.IsNullOrWhiteSpace(error) ? "L�-i kết n�'i!" : error;
+                    resultText.Text = string.IsNullOrWhiteSpace(error) ? "Lỗi kết nối!" : error;
                     resultText.Foreground = Brushes.Red;
                     return;
                 }
@@ -4392,9 +4392,9 @@ LIMIT $limit;";
                     
                     await tcs.Task;
 
-                    pointsLabel.Text = $"Bạn �'ang có: {payload.Loyalty.AvailablePoints} �'i�fm";
+                    pointsLabel.Text = $"Bạn đang có: {payload.Loyalty.AvailablePoints} điểm";
                     resultText.Text = payload.WonMinutes > 0
-                        ? $"CH�sC MỪNG!\nBạn trúng {payload.WonMinutes} phút chơi!"
+                        ? $"CHÚC MỪNG!\nBạn trúng {payload.WonMinutes} phút chơi!"
                         : "Chúc bạn may mắn lần sau!";
                     resultText.Foreground = payload.WonMinutes > 0 ? Brushes.DarkGreen : Brushes.OrangeRed;
 
@@ -4402,7 +4402,7 @@ LIMIT $limit;";
                     {
                         var usedSecondsNow = _mainWindow?.GetUsedSeconds() ?? 0;
                         SynchronizeMemberBillingFromServer(payload.Member, usedSecondsNow);
-                        _mainWindow?.SetLastCommand($"QUAY THƯ�zNG: +{payload.WonMinutes}m @ {DateTime.Now:HH:mm:ss}");
+                        _mainWindow?.SetLastCommand($"QUAY THƯỞNG: +{payload.WonMinutes}m @ {DateTime.Now:HH:mm:ss}");
                         _lastSyncedMemberUsedSeconds = usedSecondsNow;
                     });
 
@@ -4412,7 +4412,7 @@ LIMIT $limit;";
             catch (Exception ex)
             {
                 wheelRotation.BeginAnimation(RotateTransform.AngleProperty, null);
-                resultText.Text = "L�-i: " + ex.Message;
+                resultText.Text = "Lỗi: " + ex.Message;
                 resultText.Foreground = Brushes.Red;
             }
             finally
@@ -4476,7 +4476,7 @@ LIMIT $limit;";
         });
         titlePanel.Children.Add(new TextBlock
         {
-            Text = "M�-i lượt quay t�'n 5 �'i�fm",
+            Text = "Mỗi lượt quay tốn 5 điểm",
             FontSize = 14,
             Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -4507,7 +4507,7 @@ LIMIT $limit;";
 
         var pointsLabel = new TextBlock
         {
-            Text = $"Đi�fm hi�?n có: {loyalty.AvailablePoints:N0}",
+            Text = $"Điểm hiện có: {loyalty.AvailablePoints:N0}",
             FontSize = 20,
             FontWeight = FontWeights.SemiBold,
             Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
@@ -4530,7 +4530,7 @@ LIMIT $limit;";
 
         var costText = new TextBlock
         {
-            Text = "Chi phí: 5 �'i�fm/lượt",
+            Text = "Chi phí: 5 điểm/lượt",
             FontSize = 14,
             FontWeight = FontWeights.SemiBold,
             Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
@@ -4575,15 +4575,15 @@ LIMIT $limit;";
 
         var wheelItems = new[]
         {
-            new { Label = "ĐẶC BI�?T\n30p", Minutes = 30, Color = new SolidColorBrush(Color.FromRgb(220, 38, 38)) },
+            new { Label = "ĐẶC BIỆT\n30p", Minutes = 30, Color = new SolidColorBrush(Color.FromRgb(220, 38, 38)) },
             new { Label = "0p", Minutes = 0, Color = new SolidColorBrush(Color.FromRgb(100, 116, 139)) },
             new { Label = "NHẤT\n20p", Minutes = 20, Color = new SolidColorBrush(Color.FromRgb(37, 99, 235)) },
             new { Label = "2p", Minutes = 2, Color = new SolidColorBrush(Color.FromRgb(249, 115, 22)) },
-            new { Label = "NH�O\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },
+            new { Label = "NHỎ\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },
             new { Label = "5p", Minutes = 5, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) },
             new { Label = "0p", Minutes = 0, Color = new SolidColorBrush(Color.FromRgb(100, 116, 139)) },
             new { Label = "2p", Minutes = 2, Color = new SolidColorBrush(Color.FromRgb(249, 115, 22)) },
-            new { Label = "NH�O\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },
+            new { Label = "NHỎ\n10p", Minutes = 10, Color = new SolidColorBrush(Color.FromRgb(22, 163, 74)) },
             new { Label = "5p", Minutes = 5, Color = new SolidColorBrush(Color.FromRgb(234, 179, 8)) }
         };
         wheelItems = new[]
@@ -4745,7 +4745,7 @@ LIMIT $limit;";
 
         var resultText = new TextBlock
         {
-            Text = "Nhấn QUAY NGAY �'�f bắt �'ầu.",
+            Text = "Nhấn QUAY NGAY để bắt đầu.",
             FontSize = 18,
             FontWeight = FontWeights.SemiBold,
             Foreground = new SolidColorBrush(Color.FromRgb(51, 65, 85)),
@@ -4829,7 +4829,7 @@ LIMIT $limit;";
                 {
                     wheelRotation.BeginAnimation(RotateTransform.AngleProperty, null);
                     var error = await ReadErrorMessageAsync(response);
-                    resultText.Text = string.IsNullOrWhiteSpace(error) ? "L�-i kết n�'i!" : error;
+                    resultText.Text = string.IsNullOrWhiteSpace(error) ? "Lỗi kết nối!" : error;
                     resultText.Foreground = Brushes.Red;
                     return;
                 }
@@ -4866,9 +4866,9 @@ LIMIT $limit;";
                     wheelRotation.BeginAnimation(RotateTransform.AngleProperty, stopAnimation);
                     await tcs.Task;
 
-                    pointsLabel.Text = $"Đi�fm hi�?n có: {payload.Loyalty.AvailablePoints:N0}";
+                    pointsLabel.Text = $"Điểm hiện có: {payload.Loyalty.AvailablePoints:N0}";
                     resultText.Text = payload.WonMinutes > 0
-                        ? $"CH�sC MỪNG!\nBạn trúng {payload.WonMinutes} phút chơi!"
+                        ? $"CHÚC MỪNG!\nBạn trúng {payload.WonMinutes} phút chơi!"
                         : "Chúc bạn may mắn lần sau!";
                     resultText.Foreground = payload.WonMinutes > 0 ? Brushes.DarkGreen : Brushes.OrangeRed;
 
@@ -4876,7 +4876,7 @@ LIMIT $limit;";
                     {
                         var usedSecondsNow = _mainWindow?.GetUsedSeconds() ?? 0;
                         SynchronizeMemberBillingFromServer(payload.Member, usedSecondsNow);
-                        _mainWindow?.SetLastCommand($"QUAY THƯ�zNG: +{payload.WonMinutes}m @ {DateTime.Now:HH:mm:ss}");
+                        _mainWindow?.SetLastCommand($"QUAY THƯỞNG: +{payload.WonMinutes}m @ {DateTime.Now:HH:mm:ss}");
                         _lastSyncedMemberUsedSeconds = usedSecondsNow;
                     });
 
@@ -4886,7 +4886,7 @@ LIMIT $limit;";
             catch (Exception ex)
             {
                 wheelRotation.BeginAnimation(RotateTransform.AngleProperty, null);
-                resultText.Text = "L�-i: " + ex.Message;
+                resultText.Text = "Lỗi: " + ex.Message;
                 resultText.Foreground = Brushes.Red;
             }
             finally
@@ -4947,7 +4947,7 @@ LIMIT $limit;";
 
         var subtitle = new TextBlock
         {
-            Text = "Đã xác thực mật khẩu. Chọn trò chơi bạn mu�'n.",
+            Text = "Đã xác thực mật khẩu. Chọn trò chơi bạn muốn.",
             Foreground = Brushes.DimGray,
             HorizontalAlignment = HorizontalAlignment.Center,
             Margin = new Thickness(0, 0, 0, 12),
@@ -5529,7 +5529,7 @@ LIMIT $limit;";
     {
         Dispatcher.Invoke(() =>
         {
-            var fromText = string.IsNullOrWhiteSpace(requestedBy) ? "Qu\u1ea3n tr�< vi\u00ean" : requestedBy;
+            var fromText = string.IsNullOrWhiteSpace(requestedBy) ? "Qu\u1ea3n tr?< vi\u00ean" : requestedBy;
             var title = string.Format("Th\u00f4ng b\u00e1o t\u1eeb {0}", fromText);
             
             var notification = new NotificationWindow(message, title)
@@ -6276,5 +6276,7 @@ LIMIT $limit;";
         }
     }
 }
+
+
 
 

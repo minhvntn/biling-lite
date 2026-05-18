@@ -2,6 +2,7 @@
 using System.Net.Http.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Data;
@@ -388,20 +389,44 @@ public partial class MainWindow : Window
             return;
         }
 
-        Dictionary<string, ExistingServiceOrderSummary> existingOrdersByServiceId;
+        List<PcServiceOrderDto> unpaidOrders;
         try
         {
-            existingOrdersByServiceId = await GetUnpaidServiceOrderSummaryForMachineAsync(selectedMachine);
+            unpaidOrders = await GetUnpaidServiceOrdersForMachineAsync(selectedMachine);
         }
         catch
         {
-            existingOrdersByServiceId = new Dictionary<string, ExistingServiceOrderSummary>(StringComparer.OrdinalIgnoreCase);
+            unpaidOrders = new List<PcServiceOrderDto>();
         }
 
-        var orderInput = PromptServiceOrder(selectedMachine, activeItems, existingOrdersByServiceId);
+        var existingOrdersByServiceId = BuildUnpaidServiceOrderSummary(unpaidOrders);
+        var pendingClientOrders = unpaidOrders
+            .Where(x => IsClientServiceRequester(x.CreatedBy))
+            .Where(x => !IsClientServiceOrderAcknowledged(x.Id))
+            .OrderBy(x => ParseDateLocal(x.CreatedAt) ?? DateTime.MaxValue)
+            .ToList();
+
+        var orderInput = PromptServiceOrder(
+            selectedMachine,
+            activeItems,
+            existingOrdersByServiceId,
+            pendingClientOrders);
         if (orderInput is null)
         {
             return;
+        }
+
+        var acknowledgedPendingOrderIds = orderInput.AcknowledgedClientOrderIds
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (acknowledgedPendingOrderIds.Count > 0)
+        {
+            AcknowledgeClientServiceOrders(acknowledgedPendingOrderIds);
+            AppendServiceLog(
+                $"[{DateTime.Now:HH:mm:ss}] {selectedMachine.Name}: đã xác nhận {acknowledgedPendingOrderIds.Count} order dịch vụ chờ từ máy trạm.");
         }
 
         var adjustmentLines = orderInput.Lines
@@ -409,6 +434,11 @@ public partial class MainWindow : Window
             .ToList();
         if (adjustmentLines.Count == 0)
         {
+            if (acknowledgedPendingOrderIds.Count > 0)
+            {
+                InvalidateServiceAmountCacheForMachine(selectedMachine);
+                await RefreshMachinesAsync();
+            }
             return;
         }
 
@@ -477,6 +507,11 @@ public partial class MainWindow : Window
         }
 
         if (successActionCount > 0)
+        {
+            InvalidateServiceAmountCacheForMachine(selectedMachine);
+            await RefreshMachinesAsync();
+        }
+        else if (acknowledgedPendingOrderIds.Count > 0)
         {
             InvalidateServiceAmountCacheForMachine(selectedMachine);
             await RefreshMachinesAsync();
@@ -570,6 +605,12 @@ public partial class MainWindow : Window
     private async Task<Dictionary<string, ExistingServiceOrderSummary>> GetUnpaidServiceOrderSummaryForMachineAsync(MachineRow machine)
     {
         var orders = await GetUnpaidServiceOrdersForMachineAsync(machine);
+        return BuildUnpaidServiceOrderSummary(orders);
+    }
+
+    private static Dictionary<string, ExistingServiceOrderSummary> BuildUnpaidServiceOrderSummary(
+        IReadOnlyCollection<PcServiceOrderDto> orders)
+    {
         var summaryByServiceId = new Dictionary<string, ExistingServiceOrderSummary>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var order in orders)
@@ -586,11 +627,26 @@ public partial class MainWindow : Window
                 summaryByServiceId[serviceItemId] = summary;
             }
 
-            summary.Quantity += Math.Max(0, order.Quantity);
-            summary.Amount += Math.Max(0, order.LineTotal);
+            summary.AddFromOrder(order.Quantity, order.LineTotal, IsClientServiceRequester(order.CreatedBy));
         }
 
         return summaryByServiceId;
+    }
+
+    private static bool IsClientServiceRequester(string? createdBy)
+    {
+        if (string.IsNullOrWhiteSpace(createdBy))
+        {
+            return false;
+        }
+
+        var normalized = createdBy.Trim().ToLowerInvariant();
+        if (normalized == "admin" || normalized.StartsWith("admin.", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private async Task<PayPcServiceOrdersResponse> PayServiceOrdersForMachineAsync(
@@ -970,18 +1026,19 @@ public partial class MainWindow : Window
     private ServiceOrderBatchInput? PromptServiceOrder(
         MachineRow machine,
         IReadOnlyList<ServiceItemRow> items,
-        IReadOnlyDictionary<string, ExistingServiceOrderSummary>? existingOrdersByServiceId = null)
+        IReadOnlyDictionary<string, ExistingServiceOrderSummary>? existingOrdersByServiceId = null,
+        IReadOnlyList<PcServiceOrderDto>? pendingClientOrders = null)
     {
         var dialog = new Window
         {
             Title = $"Chọn dịch vụ - {machine.Name}",
-            Width = 900,
-            Height = 620,
+            Width = 1120,
+            Height = 700,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             ResizeMode = ResizeMode.CanResize,
             WindowStyle = WindowStyle.SingleBorderWindow,
-            MinWidth = 820,
-            MinHeight = 520,
+            MinWidth = 1040,
+            MinHeight = 620,
             ShowInTaskbar = false,
             Owner = this,
         };
@@ -1014,6 +1071,7 @@ public partial class MainWindow : Window
         root.Children.Add(instructionText);
 
         existingOrdersByServiceId ??= new Dictionary<string, ExistingServiceOrderSummary>(StringComparer.OrdinalIgnoreCase);
+        pendingClientOrders ??= Array.Empty<PcServiceOrderDto>();
         var serviceItemById = items.ToDictionary(x => x.Id, StringComparer.OrdinalIgnoreCase);
         var previouslyOrderedRows = existingOrdersByServiceId
             .Where(x => x.Value.Quantity > 0 || x.Value.Amount > 0)
@@ -1025,16 +1083,31 @@ public partial class MainWindow : Window
                     ServiceName = serviceItem?.Name ?? "Dịch vụ",
                     Quantity = Math.Max(0, x.Value.Quantity),
                     Amount = Math.Max(0, x.Value.Amount),
+                    ClientQuantity = Math.Max(0, x.Value.ClientQuantity),
+                    ClientAmount = Math.Max(0, x.Value.ClientAmount),
+                    ServerQuantity = Math.Max(0, x.Value.ServerQuantity),
+                    ServerAmount = Math.Max(0, x.Value.ServerAmount),
                 };
             })
             .OrderByDescending(x => x.Quantity)
             .ThenBy(x => x.ServiceName, StringComparer.OrdinalIgnoreCase)
             .ToList();
         var previouslyOrderedLines = previouslyOrderedRows
-            .Select(x => $"{x.ServiceName}: {x.Quantity:N0} ({x.Amount:N0} VND)")
+            .Select(x =>
+            {
+                var sourceText = $"{x.ClientQuantity:N0} ({x.ClientAmount:N0} VND), Server: {x.ServerQuantity:N0} ({x.ServerAmount:N0} VND)";
+                return $"{x.ServiceName}: {x.Quantity:N0} ({x.Amount:N0} VND) | {sourceText}";
+            })
             .ToList();
         var previouslyOrderedTotalQuantity = previouslyOrderedRows.Sum(x => x.Quantity);
         var previouslyOrderedTotalAmount = previouslyOrderedRows.Sum(x => x.Amount);
+        var previouslyOrderedTotalClientQuantity = previouslyOrderedRows.Sum(x => x.ClientQuantity);
+        var previouslyOrderedTotalClientAmount = previouslyOrderedRows.Sum(x => x.ClientAmount);
+        var previouslyOrderedTotalServerQuantity = previouslyOrderedRows.Sum(x => x.ServerQuantity);
+        var previouslyOrderedTotalServerAmount = previouslyOrderedRows.Sum(x => x.ServerAmount);
+        var pendingClientOrderRows = pendingClientOrders
+            .Select(x => PendingClientServiceOrderRow.FromOrder(x))
+            .ToList();
 
         var selectionRows = new ObservableCollection<ServiceOrderSelectionRow>(
             items
@@ -1060,6 +1133,15 @@ public partial class MainWindow : Window
             GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
             ItemsSource = selectionRows,
             Margin = new Thickness(0),
+            FontSize = 14,
+        };
+        serviceGrid.ColumnHeaderStyle = new Style(typeof(DataGridColumnHeader))
+        {
+            Setters =
+            {
+                new Setter(Control.FontSizeProperty, 14d),
+                new Setter(Control.FontWeightProperty, FontWeights.SemiBold),
+            },
         };
 
         serviceGrid.Columns.Add(new DataGridTextColumn
@@ -1161,7 +1243,7 @@ public partial class MainWindow : Window
         {
             Margin = new Thickness(0, 0, 0, 10),
         };
-        contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
+        contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(350) });
         contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         var previouslyOrderedPanel = new Border
@@ -1178,14 +1260,16 @@ public partial class MainWindow : Window
         {
             Text = "Đã chọn trước đó:",
             FontWeight = FontWeights.SemiBold,
+            FontSize = 14,
             Margin = new Thickness(0, 0, 0, 4),
         });
         var previouslyOrderedListBox = new ListBox
         {
-            Height = 250,
-            MinHeight = 220,
-            MaxHeight = 360,
+            Height = 150,
+            MinHeight = 120,
+            MaxHeight = 220,
             ItemsSource = previouslyOrderedLines,
+            FontSize = 14,
             IsHitTestVisible = false,
             Focusable = false,
         };
@@ -1193,12 +1277,99 @@ public partial class MainWindow : Window
         previouslyOrderedPanelStack.Children.Add(new TextBlock
         {
             Margin = new Thickness(0, 6, 0, 0),
+            FontSize = 14,
             Foreground = Brushes.DimGray,
             TextWrapping = TextWrapping.Wrap,
             Text = previouslyOrderedRows.Count == 0
                 ? "Chưa có dịch vụ gọi trước."
-                : $"Tổng gọi trước: {previouslyOrderedRows.Count} món | {previouslyOrderedTotalQuantity} SL | {previouslyOrderedTotalAmount:N0} VND",
+                : $"Tổng gọi trước: {previouslyOrderedRows.Count} món | {previouslyOrderedTotalQuantity} SL | {previouslyOrderedTotalAmount:N0} VND | {previouslyOrderedTotalClientQuantity} ({previouslyOrderedTotalClientAmount:N0} VND) | Server: {previouslyOrderedTotalServerQuantity} ({previouslyOrderedTotalServerAmount:N0} VND)",
         });
+
+        previouslyOrderedPanelStack.Children.Add(new TextBlock
+        {
+            Text = "Dịch vụ chờ xác nhận:",
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 14,
+            Margin = new Thickness(0, 10, 0, 4),
+        });
+
+        var pendingClientOrderRowsCollection = new ObservableCollection<PendingClientServiceOrderRow>(pendingClientOrderRows);
+        var pendingOrdersGrid = new DataGrid
+        {
+            AutoGenerateColumns = false,
+            CanUserAddRows = false,
+            CanUserDeleteRows = false,
+            CanUserReorderColumns = false,
+            CanUserResizeRows = false,
+            HeadersVisibility = DataGridHeadersVisibility.Column,
+            SelectionMode = DataGridSelectionMode.Single,
+            SelectionUnit = DataGridSelectionUnit.FullRow,
+            GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
+            Height = 200,
+            MinHeight = 170,
+            MaxHeight = 260,
+            FontSize = 13,
+            RowHeight = 30,
+            ItemsSource = pendingClientOrderRowsCollection,
+            Margin = new Thickness(0, 0, 0, 0),
+        };
+        var pendingOrderCheckBoxStyle = new Style(typeof(CheckBox));
+        pendingOrderCheckBoxStyle.Setters.Add(new Setter(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+        pendingOrderCheckBoxStyle.Setters.Add(new Setter(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center));
+        pendingOrderCheckBoxStyle.Setters.Add(new Setter(FrameworkElement.MarginProperty, new Thickness(0)));
+        pendingOrderCheckBoxStyle.Setters.Add(new Setter(UIElement.RenderTransformOriginProperty, new Point(0.5, 0.5)));
+        pendingOrderCheckBoxStyle.Setters.Add(new Setter(UIElement.RenderTransformProperty, new ScaleTransform(1.35, 1.35)));
+
+        pendingOrdersGrid.Columns.Add(new DataGridCheckBoxColumn
+        {
+            Header = "Chọn",
+            Width = 68,
+            Binding = new Binding(nameof(PendingClientServiceOrderRow.IsSelected))
+            {
+                Mode = BindingMode.TwoWay,
+                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+            },
+            ElementStyle = pendingOrderCheckBoxStyle,
+            EditingElementStyle = pendingOrderCheckBoxStyle,
+        });
+        pendingOrdersGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Dịch vụ",
+            Width = new DataGridLength(1.2, DataGridLengthUnitType.Star),
+            Binding = new Binding(nameof(PendingClientServiceOrderRow.ServiceName)),
+            IsReadOnly = true,
+        });
+        pendingOrdersGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "SL",
+            Width = 38,
+            Binding = new Binding(nameof(PendingClientServiceOrderRow.QuantityText)),
+            IsReadOnly = true,
+        });
+        pendingOrdersGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Tiền",
+            Width = 72,
+            Binding = new Binding(nameof(PendingClientServiceOrderRow.AmountText)),
+            IsReadOnly = true,
+        });
+        pendingOrdersGrid.Columns.Add(new DataGridTextColumn
+        {
+            Header = "Lúc",
+            Width = 64,
+            Binding = new Binding(nameof(PendingClientServiceOrderRow.CreatedAtText)),
+            IsReadOnly = true,
+        });
+        previouslyOrderedPanelStack.Children.Add(pendingOrdersGrid);
+
+        var pendingOrderSummaryTextBlock = new TextBlock
+        {
+            Margin = new Thickness(0, 6, 0, 0),
+            FontSize = 13,
+            Foreground = Brushes.DarkViolet,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        previouslyOrderedPanelStack.Children.Add(pendingOrderSummaryTextBlock);
         previouslyOrderedPanel.Child = previouslyOrderedPanelStack;
         Grid.SetColumn(previouslyOrderedPanel, 0);
         contentGrid.Children.Add(previouslyOrderedPanel);
@@ -1226,11 +1397,22 @@ public partial class MainWindow : Window
         Grid.SetRow(statusPanel, 3);
         root.Children.Add(statusPanel);
 
-        var buttonPanel = new StackPanel
+        var buttonPanel = new Grid
+        {
+            Margin = new Thickness(0, 6, 0, 0),
+        };
+        buttonPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        buttonPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var leftButtonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        var rightButtonPanel = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 6, 0, 0),
         };
         var addButton = new Button
         {
@@ -1244,6 +1426,18 @@ public partial class MainWindow : Window
             Margin = new Thickness(0, 0, 8, 0),
             IsDefault = true,
         };
+        var confirmPendingOrdersButton = new Button
+        {
+            Content = "Xác nhận order đã chọn",
+            Width = 180,
+            Height = 34,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Brushes.White,
+            Background = new SolidColorBrush(Color.FromRgb(147, 51, 234)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(126, 34, 206)),
+            Margin = new Thickness(0, 0, 8, 0),
+            ToolTip = "Xác nhận các order chờ từ máy trạm đã chọn.",
+        };
         var cancelButton = new Button
         {
             Content = "Hủy",
@@ -1256,12 +1450,28 @@ public partial class MainWindow : Window
             IsCancel = true,
         };
 
-        buttonPanel.Children.Add(addButton);
-        buttonPanel.Children.Add(cancelButton);
+        leftButtonPanel.Children.Add(confirmPendingOrdersButton);
+        rightButtonPanel.Children.Add(addButton);
+        rightButtonPanel.Children.Add(cancelButton);
+        Grid.SetColumn(leftButtonPanel, 0);
+        Grid.SetColumn(rightButtonPanel, 1);
+        buttonPanel.Children.Add(leftButtonPanel);
+        buttonPanel.Children.Add(rightButtonPanel);
         Grid.SetRow(buttonPanel, 4);
         root.Children.Add(buttonPanel);
 
         ServiceOrderBatchInput? result = null;
+
+        void RefreshPendingOrderSummary()
+        {
+            var totalPending = pendingClientOrderRowsCollection.Count;
+            var selectedPending = pendingClientOrderRowsCollection.Where(x => x.IsSelected).ToList();
+            var selectedAmount = selectedPending.Sum(x => x.Amount);
+
+            pendingOrderSummaryTextBlock.Text = totalPending == 0
+                ? "Không có order chờ từ máy trạm."
+                : $"Đang chờ: {totalPending} | Đã chọn xác nhận: {selectedPending.Count} | Tiền: {selectedAmount:N0} VND";
+        }
 
         void RefreshSummary()
         {
@@ -1286,9 +1496,21 @@ public partial class MainWindow : Window
             }
         }
 
+        void PendingRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(PendingClientServiceOrderRow.IsSelected))
+            {
+                RefreshPendingOrderSummary();
+            }
+        }
+
         foreach (var row in selectionRows)
         {
             row.PropertyChanged += RowPropertyChanged;
+        }
+        foreach (var row in pendingClientOrderRowsCollection)
+        {
+            row.PropertyChanged += PendingRowPropertyChanged;
         }
 
         addButton.Click += (_, _) =>
@@ -1324,10 +1546,40 @@ public partial class MainWindow : Window
             dialog.Close();
         };
 
+        confirmPendingOrdersButton.Click += (_, _) =>
+        {
+            errorTextBlock.Text = string.Empty;
+
+            var selectedPendingOrderIds = pendingClientOrderRowsCollection
+                .Where(x => x.IsSelected)
+                .Select(x => x.OrderId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (selectedPendingOrderIds.Count == 0)
+            {
+                errorTextBlock.Text = "Vui lòng chọn ít nhất 1 order chờ để xác nhận.";
+                return;
+            }
+
+            result = new ServiceOrderBatchInput
+            {
+                Lines = new List<ServiceOrderLineInput>(),
+                Note = null,
+                Total = 0,
+                AcknowledgedClientOrderIds = selectedPendingOrderIds,
+            };
+
+            dialog.DialogResult = true;
+            dialog.Close();
+        };
+
         dialog.Content = root;
         dialog.Loaded += (_, _) =>
         {
             RefreshSummary();
+            RefreshPendingOrderSummary();
             serviceGrid.Focus();
         };
 
@@ -1336,6 +1588,10 @@ public partial class MainWindow : Window
         foreach (var row in selectionRows)
         {
             row.PropertyChanged -= RowPropertyChanged;
+        }
+        foreach (var row in pendingClientOrderRowsCollection)
+        {
+            row.PropertyChanged -= PendingRowPropertyChanged;
         }
 
         return result;
@@ -1379,6 +1635,7 @@ public partial class MainWindow : Window
         public List<ServiceOrderLineInput> Lines { get; init; } = new();
         public string? Note { get; init; }
         public decimal Total { get; init; }
+        public List<string> AcknowledgedClientOrderIds { get; init; } = new();
     }
 
     private sealed class ServiceOrderLineInput
@@ -1469,6 +1726,70 @@ public partial class MainWindow : Window
     {
         public int Quantity { get; set; }
         public decimal Amount { get; set; }
+        public int ClientQuantity { get; set; }
+        public decimal ClientAmount { get; set; }
+        public int ServerQuantity { get; set; }
+        public decimal ServerAmount { get; set; }
+
+        public void AddFromOrder(int quantity, decimal amount, bool fromClient)
+        {
+            var safeQuantity = Math.Max(0, quantity);
+            var safeAmount = Math.Max(0, amount);
+            Quantity += safeQuantity;
+            Amount += safeAmount;
+
+            if (fromClient)
+            {
+                ClientQuantity += safeQuantity;
+                ClientAmount += safeAmount;
+                return;
+            }
+
+            ServerQuantity += safeQuantity;
+            ServerAmount += safeAmount;
+        }
+    }
+
+    private sealed class PendingClientServiceOrderRow : INotifyPropertyChanged
+    {
+        private bool _isSelected;
+
+        public string OrderId { get; init; } = string.Empty;
+        public string ServiceName { get; init; } = string.Empty;
+        public int Quantity { get; init; }
+        public decimal Amount { get; init; }
+        public string CreatedAtText { get; init; } = "-";
+        public string QuantityText => Quantity.ToString("N0");
+        public string AmountText => Amount.ToString("N0");
+
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                if (_isSelected == value)
+                {
+                    return;
+                }
+
+                _isSelected = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public static PendingClientServiceOrderRow FromOrder(PcServiceOrderDto order)
+        {
+            return new PendingClientServiceOrderRow
+            {
+                OrderId = order.Id,
+                ServiceName = string.IsNullOrWhiteSpace(order.ServiceItem?.Name) ? "Dịch vụ" : order.ServiceItem.Name,
+                Quantity = Math.Max(0, order.Quantity),
+                Amount = Math.Max(0, order.LineTotal),
+                CreatedAtText = FormatDateTime(order.CreatedAt),
+            };
+        }
     }
 
     private sealed class ServicePaymentRow : INotifyPropertyChanged

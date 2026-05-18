@@ -154,10 +154,12 @@ public partial class MainWindow : Window
                 return;
             }
 
+            var displayItems = PrepareMemberTransactionsForDisplay(
+                response.Items,
+                aggregateSessionUsage: !IsMemberCurrentlyOnline(memberId));
+
             _memberTransactionRows.Clear();
-            var filteredItems = response.Items
-                .Where(x => string.IsNullOrEmpty(x.Note) || !x.Note.StartsWith("SESSION_USAGE"))
-                .OrderByDescending(x => x.CreatedAt)
+            var filteredItems = displayItems
                 .Select(ToMemberTransactionRow);
 
             foreach (var tx in filteredItems)
@@ -199,12 +201,18 @@ public partial class MainWindow : Window
     private static MemberTransactionRow ToMemberTransactionRow(MemberTransactionItem item)
     {
         var note = item.Note ?? string.Empty;
+        var isSessionUsage = note.StartsWith("SESSION_USAGE", StringComparison.OrdinalIgnoreCase);
         var typeText = item.Type switch
         {
             "TOPUP" => "N\u1ea1p ti\u1ec1n",
             "BUY_PLAYTIME" => "Mua gi\u1edd",
             _ => "\u0110i\u1ec1u ch\u1ec9nh",
         };
+
+        if (isSessionUsage)
+        {
+            typeText = "Ph\u00ed d\u00f9ng m\u00e1y";
+        }
 
         if (item.Type == "ADJUSTMENT" || item.Type == "TRANSFER")
         {
@@ -231,6 +239,90 @@ public partial class MainWindow : Window
             CreatedBy = item.CreatedBy,
             Note = string.IsNullOrWhiteSpace(item.Note) ? "-" : item.Note,
         };
+    }
+
+    private bool IsMemberCurrentlyOnline(string memberId)
+    {
+        if (string.IsNullOrWhiteSpace(memberId))
+        {
+            return false;
+        }
+
+        return _machineRows.Any(machine =>
+            string.Equals(machine.ActiveMemberId, memberId, StringComparison.OrdinalIgnoreCase) &&
+            (string.Equals(machine.StatusCode, "IN_USE", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(machine.StatusCode, "PAUSED", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static bool IsSessionUsageTransaction(MemberTransactionItem item)
+    {
+        var note = item.Note ?? string.Empty;
+        return note.StartsWith("SESSION_USAGE", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static List<MemberTransactionItem> PrepareMemberTransactionsForDisplay(
+        IEnumerable<MemberTransactionItem> sourceItems,
+        bool aggregateSessionUsage)
+    {
+        var ordered = sourceItems
+            .OrderByDescending(x => x.CreatedAt)
+            .ToList();
+
+        if (!aggregateSessionUsage)
+        {
+            return ordered;
+        }
+
+        var result = new List<MemberTransactionItem>();
+        var sessionUsageBucket = new List<MemberTransactionItem>();
+
+        void FlushSessionUsageBucket()
+        {
+            if (sessionUsageBucket.Count == 0)
+            {
+                return;
+            }
+
+            if (sessionUsageBucket.Count == 1)
+            {
+                result.Add(sessionUsageBucket[0]);
+                sessionUsageBucket.Clear();
+                return;
+            }
+
+            var newest = sessionUsageBucket[0];
+            var oldest = sessionUsageBucket[^1];
+            var totalAmount = sessionUsageBucket.Sum(x => x.AmountDelta);
+            var totalPlaySeconds = sessionUsageBucket.Sum(x => x.PlaySecondsDelta);
+            var count = sessionUsageBucket.Count;
+
+            result.Add(new MemberTransactionItem
+            {
+                Type = newest.Type,
+                AmountDelta = totalAmount,
+                PlaySecondsDelta = totalPlaySeconds,
+                CreatedBy = newest.CreatedBy,
+                CreatedAt = newest.CreatedAt,
+                Note = $"SESSION_USAGE:GOM_{count}_LAN ({oldest.CreatedAt} -> {newest.CreatedAt})",
+            });
+
+            sessionUsageBucket.Clear();
+        }
+
+        foreach (var item in ordered)
+        {
+            if (IsSessionUsageTransaction(item))
+            {
+                sessionUsageBucket.Add(item);
+                continue;
+            }
+
+            FlushSessionUsageBucket();
+            result.Add(item);
+        }
+
+        FlushSessionUsageBucket();
+        return result;
     }
 
     private async Task CreateMemberAsync()
@@ -962,6 +1054,8 @@ public partial class MainWindow : Window
     private void AddMemberButton_Click(object sender, RoutedEventArgs e) => ShowAddMemberModal();
 
     private async void TopupMemberButton_Click(object sender, RoutedEventArgs e) => await TopupMemberAsync();
+    private async void ViewMemberTransactionsButton_Click(object sender, RoutedEventArgs e)
+        => await OpenSelectedMemberTransactionsDialogAsync();
 
     private void MembersSearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
@@ -1057,6 +1151,9 @@ public partial class MainWindow : Window
     private async void ContextTransferMemberMenuItem_Click(object sender, RoutedEventArgs e) => await TransferMemberBalanceAsync();
     private async void ContextRefundMemberMenuItem_Click(object sender, RoutedEventArgs e) => await RefundMemberAsync();
     private async void ContextMemberTransactionsMenuItem_Click(object sender, RoutedEventArgs e)
+        => await OpenSelectedMemberTransactionsDialogAsync();
+
+    private async Task OpenSelectedMemberTransactionsDialogAsync()
     {
         var selectedMember =
             MembersDataGrid.SelectedItem as MemberRow ??
@@ -1117,9 +1214,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        var transactionRows = response.Items
-            .Where(x => string.IsNullOrEmpty(x.Note) || !x.Note.StartsWith("SESSION_USAGE"))
-            .OrderByDescending(x => x.CreatedAt)
+        var displayItems = PrepareMemberTransactionsForDisplay(
+            response.Items,
+            aggregateSessionUsage: !IsMemberCurrentlyOnline(member.Id));
+
+        var transactionRows = displayItems
             .Select(ToMemberTransactionRow)
             .ToList();
 

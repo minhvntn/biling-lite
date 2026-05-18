@@ -7,6 +7,10 @@ import { EventSource, Pc, PcGroup, PcStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { AgentHeartbeatPayload, AgentHelloPayload } from './types/agent-events.type';
+import {
+  calculateSessionAmountByPromotions,
+  getEffectiveHourlyRateAt,
+} from '../pricing/time-based-billing.util';
 
 type PresencePayload = AgentHelloPayload | AgentHeartbeatPayload;
 
@@ -33,6 +37,7 @@ export type PcListItem = {
     startedAt: string;
     elapsedSeconds: number;
     billableMinutes: number;
+    pricePerMinute: number;
     estimatedAmount: number;
   } | null;
   activeMember: {
@@ -108,11 +113,25 @@ export class PcsService {
     const minimumCharge = minimumChargeSetting ? Number(minimumChargeSetting.value) : 1000;
 
     const now = Date.now();
+    const activePromotions = await this.prisma.timeBasedPromotion.findMany({
+      where: { isActive: true },
+      select: {
+        daysOfWeek: true,
+        startTime: true,
+        endTime: true,
+        discountPercent: true,
+        isActive: true,
+      },
+    });
     const items = await Promise.all(
       pcs.map(async (pc) => {
         const effectiveGroup = pc.group ?? defaultGroup;
         const baseHourlyRate = Number(effectiveGroup.hourlyRate);
-        const hourlyRate = await this.getEffectiveHourlyRate(baseHourlyRate);
+        const hourlyRate = getEffectiveHourlyRateAt(
+          baseHourlyRate,
+          new Date(now),
+          activePromotions,
+        );
 
         const activeSession = pc.sessions[0] ?? null;
         const activeUser =
@@ -130,8 +149,11 @@ export class PcsService {
         const activeAdmin =
           activeUser?.kind === 'ADMIN' ? activeUser.admin : null;
         const sessionClockAtMs =
-          pc.status === PcStatus.OFFLINE && pc.lastSeenAt
-            ? Math.min(now, pc.lastSeenAt.getTime())
+          pc.status === PcStatus.OFFLINE
+            ? Math.min(
+                now,
+                pc.lastSeenAt?.getTime() ?? activeSession?.startedAt.getTime() ?? now,
+              )
             : now;
         const elapsedSeconds = activeSession
           ? Math.max(
@@ -144,8 +166,15 @@ export class PcsService {
         const billableMinutes = activeSession
           ? Math.max(1, Math.ceil(elapsedSeconds / 60))
           : 0;
-        let estimatedAmount =
-          billableMinutes * Number(activeSession?.pricePerMinute ?? 0);
+        let estimatedAmount = activeSession
+          ? calculateSessionAmountByPromotions({
+              startedAt: activeSession.startedAt,
+              endedAt: new Date(sessionClockAtMs),
+              baseHourlyRate,
+              promotions: activePromotions,
+              mode: 'PER_MINUTE_STARTED',
+            })
+          : 0;
 
         if (activeSession) {
           if (pricingStep > 0) {
@@ -176,6 +205,7 @@ export class PcsService {
                 startedAt: activeSession.startedAt.toISOString(),
                 elapsedSeconds,
                 billableMinutes,
+                pricePerMinute: Number(activeSession.pricePerMinute ?? 0),
                 estimatedAmount,
               }
             : null,
@@ -190,36 +220,22 @@ export class PcsService {
   }
 
   async getEffectiveHourlyRate(baseRate: number): Promise<number> {
-    const now = new Date();
-    const day = now.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
-    const currentTime =
-      now.getHours().toString().padStart(2, '0') +
-      ':' +
-      now.getMinutes().toString().padStart(2, '0');
-
     const promotions = await this.prisma.timeBasedPromotion.findMany({
       where: { isActive: true },
+      select: {
+        daysOfWeek: true,
+        startTime: true,
+        endTime: true,
+        discountPercent: true,
+        isActive: true,
+      },
     });
 
-    let bestDiscount = 0;
-    for (const promo of promotions) {
-      if (promo.daysOfWeek.includes(day)) {
-        // Simple string comparison for HH:mm
-        if (currentTime >= promo.startTime && currentTime <= promo.endTime) {
-          const discount = Number(promo.discountPercent);
-          if (discount > bestDiscount) {
-            bestDiscount = discount;
-          }
-        }
-      }
-    }
-
-    if (bestDiscount > 0) {
-      const discounted = baseRate * (1 - bestDiscount / 100);
-      return Math.round(discounted);
-    }
-
-    return baseRate;
+    return getEffectiveHourlyRateAt(
+      baseRate,
+      new Date(),
+      promotions,
+    );
   }
 
   async getGuestLoginEnabled(): Promise<boolean> {
@@ -367,8 +383,27 @@ export class PcsService {
         },
         select: {
           id: true,
+          startedAt: true,
         },
       });
+
+      // Preserve billing fairness:
+      // when an agent reconnects after being OFFLINE, exclude offline downtime
+      // from the active session clock by shifting startedAt forward.
+      if (activeSession) {
+        const offlineGapMs = Math.max(
+          0,
+          seenAt.getTime() - (existing.lastSeenAt?.getTime() ?? seenAt.getTime()),
+        );
+        if (offlineGapMs > 0) {
+          await this.prisma.session.update({
+            where: { id: activeSession.id },
+            data: {
+              startedAt: new Date(activeSession.startedAt.getTime() + offlineGapMs),
+            },
+          });
+        }
+      }
 
       nextStatus = activeSession ? PcStatus.IN_USE : PcStatus.ONLINE;
     }

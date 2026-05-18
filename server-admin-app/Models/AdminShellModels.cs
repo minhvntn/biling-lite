@@ -70,6 +70,7 @@ public sealed class ActiveSessionInfo
     public string Id { get; set; } = string.Empty;
     public string StartedAt { get; set; } = string.Empty;
     public int ElapsedSeconds { get; set; }
+    public decimal PricePerMinute { get; set; }
     public decimal EstimatedAmount { get; set; }
 }
 
@@ -104,11 +105,13 @@ public sealed class MachineRow
     public string MoneyText { get; set; } = "-";
     public decimal ServiceAmountRaw { get; set; }
     public string ServiceAmountText { get; set; } = "-";
+    public bool HasPendingClientServiceOrderHighlight { get; set; }
     public string DateText { get; set; } = "-";
     public string VersionText { get; set; } = "0.1.0";
     public string GroupName { get; set; } = "M\u1eb7c \u0111\u1ecbnh";
     public string? ActiveSessionId { get; set; }
     public int ActiveSessionElapsedSeconds { get; set; }
+    public decimal ActiveSessionPricePerMinute { get; set; }
     public decimal ActiveSessionEstimatedAmount { get; set; }
     public string? ActiveMemberId { get; set; }
     public string? ActiveMemberUsername { get; set; }

@@ -17,6 +17,9 @@ import { CommandAckPayload } from './types/command-ack.type';
 import { UploadPcScreenshotDto } from './dto/upload-pc-screenshot.dto';
 import { UploadPcLiveFrameDto } from './dto/upload-pc-live-frame.dto';
 import { RemoteInputDto } from './dto/remote-input.dto';
+import {
+  calculateSessionAmountByPromotions,
+} from '../pricing/time-based-billing.util';
 
 type CommandRequestedBy = string | undefined;
 const ADMIN_LOGIN_MARKER = '|admin-login';
@@ -1617,10 +1620,24 @@ export class CommandsService {
       Math.floor((endedAt.getTime() - activeSession.startedAt.getTime()) / 1000),
     );
     const billableMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
-    const pricePerMinute = Number(activeSession.pricePerMinute ?? 0);
-    let amount = applySettlementRules
-      ? billableMinutes * pricePerMinute
-      : (durationSeconds / 60) * pricePerMinute;
+    const baseHourlyRate = await this.resolveHourlyRateForPcTx(tx, pcId);
+    const activePromotions = await tx.timeBasedPromotion.findMany({
+      where: { isActive: true },
+      select: {
+        daysOfWeek: true,
+        startTime: true,
+        endTime: true,
+        discountPercent: true,
+        isActive: true,
+      },
+    });
+    let amount = calculateSessionAmountByPromotions({
+      startedAt: activeSession.startedAt,
+      endedAt,
+      baseHourlyRate,
+      promotions: activePromotions,
+      mode: applySettlementRules ? 'PER_MINUTE_STARTED' : 'PER_SECOND',
+    });
 
     if (applySettlementRules) {
       if (pricingStep > 0) {

@@ -202,6 +202,13 @@ export class ServicesService {
       'created',
       createdBy,
     );
+    this.realtime.emitToAll('service.order.created', {
+      pcId: createdResult.pcId,
+      sessionId: createdResult.sessionId,
+      source: this.isAdminServiceRequester(createdBy) ? 'server' : 'client',
+      order: createdResult.order,
+      at: new Date().toISOString(),
+    });
     return createdResult.order;
   }
 
