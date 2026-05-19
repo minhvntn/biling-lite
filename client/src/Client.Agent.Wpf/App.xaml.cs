@@ -92,6 +92,7 @@ public partial class App : Application
     private readonly Dictionary<string, DateTime> _websiteDomainLastSentAt =
         new(StringComparer.OrdinalIgnoreCase);
     private bool _isBillingServerConnected;
+    private bool _suppressGuestPresenceForAutoResumedUnpaidSession;
     private static readonly int[] MemberRemainingWarningThresholds = [];
     private static readonly object MemberWarningAudioPlaybackSync = new();
     private static MediaPlayer? _memberWarningAudioPlayer;
@@ -771,6 +772,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             _activeMemberSession = null;
             _isAdminSession = false;
             _isPostpaidGuestSession = true;
+            _suppressGuestPresenceForAutoResumedUnpaidSession = false;
             _lastSyncedMemberUsedSeconds = 0;
             ResetMemberRemainingWarnings();
 
@@ -1180,7 +1182,9 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
                 {
                     existingSummaries.TryGetValue(item.Id, out var summary);
                     clientOwnedSummaries.TryGetValue(item.Id, out var clientOwnedSummary);
-                    return ClientServiceOrderSelectionRow.FromServiceItem(item, summary, clientOwnedSummary);
+                    var row = ClientServiceOrderSelectionRow.FromServiceItem(item, summary, clientOwnedSummary);
+                    row.ServiceImageSource = BuildClientServiceImageSource(item.ImageDataUrl);
+                    return row;
                 })
                 .OrderByDescending(x => x.ExistingQuantity)
                 .ThenBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
@@ -1240,15 +1244,41 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             HeadersVisibility = DataGridHeadersVisibility.Column,
             ItemsSource = rows,
             Margin = new Thickness(0, 0, 0, 10),
+            RowHeight = 42,
         };
-
-        serviceGrid.Columns.Add(new DataGridTextColumn
+        var serviceNameColumn = new DataGridTemplateColumn
         {
             Header = "Dịch vụ",
-            Width = new DataGridLength(2.0, DataGridLengthUnitType.Star),
-            Binding = new Binding(nameof(ClientServiceOrderSelectionRow.ServiceName)),
-            IsReadOnly = true,
-        });
+            Width = new DataGridLength(2.4, DataGridLengthUnitType.Star),
+        };
+        var serviceCellPanel = new FrameworkElementFactory(typeof(StackPanel));
+        serviceCellPanel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+        serviceCellPanel.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+
+        var serviceImageBorder = new FrameworkElementFactory(typeof(Border));
+        serviceImageBorder.SetValue(Border.WidthProperty, 28d);
+        serviceImageBorder.SetValue(Border.HeightProperty, 28d);
+        serviceImageBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
+        serviceImageBorder.SetValue(Border.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(203, 213, 225)));
+        serviceImageBorder.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        serviceImageBorder.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(248, 250, 252)));
+        serviceImageBorder.SetValue(Border.MarginProperty, new Thickness(0, 0, 8, 0));
+
+        var serviceImage = new FrameworkElementFactory(typeof(Image));
+        serviceImage.SetBinding(Image.SourceProperty, new Binding(nameof(ClientServiceOrderSelectionRow.ServiceImageSource)));
+        serviceImage.SetValue(Image.StretchProperty, Stretch.UniformToFill);
+        serviceImage.SetValue(Image.SnapsToDevicePixelsProperty, true);
+        serviceImageBorder.AppendChild(serviceImage);
+
+        var serviceNameText = new FrameworkElementFactory(typeof(TextBlock));
+        serviceNameText.SetBinding(TextBlock.TextProperty, new Binding(nameof(ClientServiceOrderSelectionRow.ServiceName)));
+        serviceNameText.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+        serviceNameText.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+
+        serviceCellPanel.AppendChild(serviceImageBorder);
+        serviceCellPanel.AppendChild(serviceNameText);
+        serviceNameColumn.CellTemplate = new DataTemplate { VisualTree = serviceCellPanel };
+        serviceGrid.Columns.Add(serviceNameColumn);
         serviceGrid.Columns.Add(new DataGridTextColumn
         {
             Header = "Danh mục",
@@ -1559,6 +1589,69 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
         foreach (var row in rows)
         {
             row.PropertyChanged -= RowPropertyChanged;
+        }
+    }
+
+    private static ImageSource? BuildClientServiceImageSource(string? imageDataUrl)
+    {
+        var normalized = imageDataUrl?.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return null;
+        }
+
+        if (normalized.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+        {
+            var commaIndex = normalized.IndexOf(',');
+            if (commaIndex <= 0)
+            {
+                return null;
+            }
+
+            var metadata = normalized[..commaIndex];
+            if (!metadata.Contains(";base64", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            try
+            {
+                var bytes = Convert.FromBase64String(normalized[(commaIndex + 1)..]);
+                using var stream = new MemoryStream(bytes);
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.DecodePixelHeight = 72;
+                bitmap.StreamSource = stream;
+                bitmap.EndInit();
+                bitmap.Freeze();
+                return bitmap;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        if (!Uri.TryCreate(normalized, UriKind.Absolute, out var imageUri))
+        {
+            return null;
+        }
+
+        try
+        {
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.DecodePixelHeight = 72;
+            bitmap.UriSource = imageUri;
+            bitmap.EndInit();
+            bitmap.Freeze();
+            return bitmap;
+        }
+        catch
+        {
+            return null;
         }
     }
 
@@ -3254,6 +3347,7 @@ LIMIT $limit;";
         _activeMemberSession = null;
         _isPostpaidGuestSession = false;
         _isAdminSession = false;
+        _suppressGuestPresenceForAutoResumedUnpaidSession = false;
         _lastSyncedMemberUsedSeconds = 0;
         ResetMemberRemainingWarnings();
         TrackMachineState(_currentMachineState);
@@ -3314,6 +3408,11 @@ LIMIT $limit;";
 
     private async Task ReportGuestPresenceAsync(bool isActive)
     {
+        if (_suppressGuestPresenceForAutoResumedUnpaidSession)
+        {
+            return;
+        }
+
         try
         {
             using var response = await _httpClient.PostAsJsonAsync(
@@ -5371,6 +5470,7 @@ LIMIT $limit;";
         }
 
         _isPostpaidGuestSession = true;
+        _suppressGuestPresenceForAutoResumedUnpaidSession = true;
         _mainWindow?.ConfigureBilling(
             _settings.TotalSessionMinutes,
             _currentHourlyRate,
@@ -5405,6 +5505,7 @@ LIMIT $limit;";
     {
         await TrackAndClearMemberSessionAsync(auditReason);
         _isAdminSession = true;
+        _suppressGuestPresenceForAutoResumedUnpaidSession = false;
         await ReportAdminPresenceAsync(true, username);
         _activeMemberSession = null;
         _isPostpaidGuestSession = false;

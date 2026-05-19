@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
+using System.Windows.Media;
 
 namespace Client.Agent.Wpf;
 
@@ -266,6 +267,7 @@ public sealed class ClientServiceItemDto
     public string Category { get; set; } = "-";
     public decimal UnitPrice { get; set; }
     public bool IsActive { get; set; }
+    public string? ImageDataUrl { get; set; }
 }
 
 public sealed class ClientPcServiceOrdersResponse
@@ -302,6 +304,9 @@ public sealed class ClientServiceOrderSelectionRow : INotifyPropertyChanged
     public string ServiceItemId { get; init; } = string.Empty;
     public string ServiceName { get; init; } = string.Empty;
     public string Category { get; init; } = "-";
+    public string? ImageDataUrl { get; init; }
+    public ImageSource? ServiceImageSource { get; set; }
+    public bool HasImage => ServiceImageSource is not null;
     public decimal UnitPrice { get; init; }
     public int ExistingQuantity { get; init; }
     public int CancelableQuantity { get; init; }
@@ -369,6 +374,7 @@ public sealed class ClientServiceOrderSelectionRow : INotifyPropertyChanged
             ServiceItemId = item.Id,
             ServiceName = item.Name,
             Category = string.IsNullOrWhiteSpace(item.Category) ? "-" : item.Category,
+            ImageDataUrl = item.ImageDataUrl,
             UnitPrice = item.UnitPrice,
             ExistingQuantity = existingQuantity,
             CancelableQuantity = cancelableQuantity,

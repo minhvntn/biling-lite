@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Net.Http.Json;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -7,6 +8,8 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using Microsoft.Win32;
 
 namespace Server.Admin.App;
 
@@ -70,6 +73,8 @@ public partial class MainWindow : Window
             UnitPrice = item.UnitPrice,
             UnitPriceText = item.UnitPrice.ToString("N0", CultureInfo.InvariantCulture),
             IsActive = item.IsActive,
+            ImageDataUrl = item.ImageDataUrl,
+            ServiceImageSource = BuildServiceImageSource(item.ImageDataUrl),
             UpdatedAtText = FormatDateTime(item.UpdatedAt),
         };
     }
@@ -90,6 +95,7 @@ public partial class MainWindow : Window
                 category = input.Category,
                 unitPrice = Convert.ToDouble(input.UnitPrice),
                 isActive = true,
+                imageDataUrl = input.ImageDataUrl,
             });
 
         if (!response.IsSuccessStatusCode)
@@ -115,8 +121,8 @@ public partial class MainWindow : Window
         var dialog = new Window
         {
             Title = "Thêm dịch vụ mới",
-            Width = 450,
-            Height = 360,
+            Width = 540,
+            Height = 520,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             ResizeMode = ResizeMode.NoResize,
             WindowStyle = WindowStyle.SingleBorderWindow,
@@ -190,6 +196,77 @@ public partial class MainWindow : Window
         quantityPanel.Children.Add(quantityTextBox);
         content.Children.Add(quantityPanel);
 
+        // 4. Hình ảnh dịch vụ
+        string? imageDataUrl = null;
+        content.Children.Add(new TextBlock { Text = "Hình ảnh dịch vụ:", Margin = new Thickness(0, 0, 0, 4) });
+
+        var imagePickerGrid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+        imagePickerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        imagePickerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        imagePickerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var imagePathTextBox = new TextBox
+        {
+            Height = 28,
+            IsReadOnly = true,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Text = "Chưa chọn ảnh",
+        };
+        Grid.SetColumn(imagePathTextBox, 0);
+        imagePickerGrid.Children.Add(imagePathTextBox);
+
+        var browseImageButton = new Button
+        {
+            Content = "Chọn ảnh...",
+            Height = 28,
+            Margin = new Thickness(8, 0, 0, 0),
+            Padding = new Thickness(10, 2, 10, 2),
+        };
+        Grid.SetColumn(browseImageButton, 1);
+        imagePickerGrid.Children.Add(browseImageButton);
+
+        var clearImageButton = new Button
+        {
+            Content = "Xóa",
+            Height = 28,
+            Margin = new Thickness(8, 0, 0, 0),
+            Padding = new Thickness(10, 2, 10, 2),
+            IsEnabled = false,
+        };
+        Grid.SetColumn(clearImageButton, 2);
+        imagePickerGrid.Children.Add(clearImageButton);
+
+        content.Children.Add(imagePickerGrid);
+
+        var imagePreviewBorder = new Border
+        {
+            Width = 92,
+            Height = 92,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)),
+            Margin = new Thickness(0, 0, 0, 4),
+            Child = new TextBlock
+            {
+                Text = "Không ảnh",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = Brushes.DimGray,
+                FontSize = 12,
+            },
+        };
+        content.Children.Add(imagePreviewBorder);
+
+        var imageStatusTextBlock = new TextBlock
+        {
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = Brushes.DimGray,
+            Text = "Có thể bỏ trống nếu dịch vụ không cần ảnh.",
+            TextWrapping = TextWrapping.Wrap,
+        };
+        content.Children.Add(imageStatusTextBlock);
+
         var errorTextBlock = new TextBlock
         {
             Foreground = System.Windows.Media.Brushes.Firebrick,
@@ -241,6 +318,65 @@ public partial class MainWindow : Window
             quantityTextBox.Text = "1";
         };
 
+        browseImageButton.Click += (_, _) =>
+        {
+            var picker = new OpenFileDialog
+            {
+                CheckFileExists = true,
+                Multiselect = false,
+                Filter = "Image files|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.webp|All files|*.*",
+                Title = "Chọn hình ảnh dịch vụ",
+            };
+
+            if (picker.ShowDialog(this) != true)
+            {
+                return;
+            }
+
+            if (!TryBuildServiceImageDataUrl(picker.FileName, out var dataUrl, out var error))
+            {
+                errorTextBlock.Text = error;
+                return;
+            }
+
+            var previewSource = BuildServiceImageSource(dataUrl);
+            if (previewSource is null)
+            {
+                errorTextBlock.Text = "Không thể đọc ảnh đã chọn. Vui lòng dùng ảnh khác.";
+                return;
+            }
+
+            errorTextBlock.Text = string.Empty;
+            imageDataUrl = dataUrl;
+            imagePathTextBox.Text = picker.FileName;
+            clearImageButton.IsEnabled = true;
+            imageStatusTextBlock.Text = $"Đã chọn ảnh: {Path.GetFileName(picker.FileName)}";
+
+            imagePreviewBorder.Child = new Image
+            {
+                Source = previewSource,
+                Stretch = Stretch.UniformToFill,
+                SnapsToDevicePixels = true,
+            };
+        };
+
+        clearImageButton.Click += (_, _) =>
+        {
+            imageDataUrl = null;
+            imagePathTextBox.Text = "Chưa chọn ảnh";
+            clearImageButton.IsEnabled = false;
+            imageStatusTextBlock.Text = "Có thể bỏ trống nếu dịch vụ không cần ảnh.";
+            imagePreviewBorder.Child = new TextBlock
+            {
+                Text = "Không ảnh",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = Brushes.DimGray,
+                FontSize = 12,
+            };
+            errorTextBlock.Text = string.Empty;
+        };
+
         CreateServiceItemInput? result = null;
 
         createButton.Click += (s, e) =>
@@ -281,6 +417,7 @@ public partial class MainWindow : Window
                 Category = string.IsNullOrWhiteSpace(category) ? null : category,
                 UnitPrice = unitPrice,
                 Quantity = quantityText,
+                ImageDataUrl = imageDataUrl,
             };
 
             dialog.DialogResult = true;
@@ -300,6 +437,344 @@ public partial class MainWindow : Window
         public string? Category { get; init; }
         public decimal UnitPrice { get; init; }
         public string Quantity { get; init; } = "Không giới hạn";
+        public string? ImageDataUrl { get; init; }
+    }
+
+    private async Task UpdateSelectedServiceItemAsync()
+    {
+        if (ServiceItemsDataGrid.SelectedItem is not ServiceItemRow selected)
+        {
+            MessageBox.Show("Vui lòng chọn dịch vụ trước.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var input = PromptUpdateServiceItem(selected);
+        if (input is null)
+        {
+            return;
+        }
+
+        using var response = await _httpClient.PatchAsJsonAsync(
+            BuildApiUrl($"/services/items/{selected.Id}"),
+            new
+            {
+                name = input.Name,
+                category = input.Category,
+                unitPrice = Convert.ToDouble(input.UnitPrice),
+                imageDataUrl = input.ImageDataUrl,
+            });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync();
+            MessageBox.Show(
+                string.IsNullOrWhiteSpace(errorBody)
+                    ? $"Sửa dịch vụ thất bại ({(int)response.StatusCode})"
+                    : errorBody,
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        AppendServiceLog(
+            $"[{DateTime.Now:HH:mm:ss}] Đã sửa dịch vụ: {selected.Name} -> {input.Name} ({input.UnitPrice:N0} VND)");
+        await RefreshServiceItemsAsync();
+    }
+
+    private UpdateServiceItemInput? PromptUpdateServiceItem(ServiceItemRow selected)
+    {
+        var dialog = new Window
+        {
+            Title = "Sửa dịch vụ",
+            Width = 540,
+            Height = 500,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+            ShowInTaskbar = false,
+            Owner = this,
+        };
+
+        var root = new Grid { Margin = new Thickness(16) };
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var content = new StackPanel();
+
+        content.Children.Add(new TextBlock
+        {
+            Text = "Cập nhật thông tin dịch vụ",
+            FontSize = 16,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 16),
+        });
+
+        content.Children.Add(new TextBlock { Text = "Tên dịch vụ:", Margin = new Thickness(0, 0, 0, 4) });
+        var nameTextBox = new TextBox
+        {
+            Height = 28,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 12),
+            Text = selected.Name,
+        };
+        content.Children.Add(nameTextBox);
+
+        var gridFields = new Grid { Margin = new Thickness(0, 0, 0, 12) };
+        gridFields.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        gridFields.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
+        gridFields.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var colLeft = new StackPanel();
+        colLeft.Children.Add(new TextBlock { Text = "Danh mục:", Margin = new Thickness(0, 0, 0, 4) });
+        var categoryTextBox = new TextBox
+        {
+            Height = 28,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Text = selected.Category == "-" ? string.Empty : selected.Category,
+        };
+        colLeft.Children.Add(categoryTextBox);
+        Grid.SetColumn(colLeft, 0);
+        gridFields.Children.Add(colLeft);
+
+        var colRight = new StackPanel();
+        colRight.Children.Add(new TextBlock { Text = "Giá bán (VND):", Margin = new Thickness(0, 0, 0, 4) });
+        var priceTextBox = new TextBox
+        {
+            Height = 28,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Text = selected.UnitPrice.ToString("0.##", CultureInfo.InvariantCulture),
+        };
+        colRight.Children.Add(priceTextBox);
+        Grid.SetColumn(colRight, 2);
+        gridFields.Children.Add(colRight);
+
+        content.Children.Add(gridFields);
+
+        string? imageDataUrl = selected.ImageDataUrl;
+        content.Children.Add(new TextBlock { Text = "Hình ảnh dịch vụ:", Margin = new Thickness(0, 0, 0, 4) });
+
+        var imagePickerGrid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+        imagePickerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        imagePickerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        imagePickerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var imagePathTextBox = new TextBox
+        {
+            Height = 28,
+            IsReadOnly = true,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Text = string.IsNullOrWhiteSpace(imageDataUrl) ? "Chưa chọn ảnh" : "Ảnh hiện tại",
+        };
+        Grid.SetColumn(imagePathTextBox, 0);
+        imagePickerGrid.Children.Add(imagePathTextBox);
+
+        var browseImageButton = new Button
+        {
+            Content = "Chọn ảnh...",
+            Height = 28,
+            Margin = new Thickness(8, 0, 0, 0),
+            Padding = new Thickness(10, 2, 10, 2),
+        };
+        Grid.SetColumn(browseImageButton, 1);
+        imagePickerGrid.Children.Add(browseImageButton);
+
+        var clearImageButton = new Button
+        {
+            Content = "Xóa",
+            Height = 28,
+            Margin = new Thickness(8, 0, 0, 0),
+            Padding = new Thickness(10, 2, 10, 2),
+            IsEnabled = !string.IsNullOrWhiteSpace(imageDataUrl),
+        };
+        Grid.SetColumn(clearImageButton, 2);
+        imagePickerGrid.Children.Add(clearImageButton);
+
+        content.Children.Add(imagePickerGrid);
+
+        var imagePreviewBorder = new Border
+        {
+            Width = 92,
+            Height = 92,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)),
+            Margin = new Thickness(0, 0, 0, 4),
+        };
+        content.Children.Add(imagePreviewBorder);
+
+        var imageStatusTextBlock = new TextBlock
+        {
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = Brushes.DimGray,
+            Text = string.IsNullOrWhiteSpace(imageDataUrl)
+                ? "Có thể bỏ trống nếu dịch vụ không cần ảnh."
+                : "Đang dùng ảnh hiện tại.",
+            TextWrapping = TextWrapping.Wrap,
+        };
+        content.Children.Add(imageStatusTextBlock);
+
+        var errorTextBlock = new TextBlock
+        {
+            Foreground = System.Windows.Media.Brushes.Firebrick,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 4, 0, 0),
+        };
+        content.Children.Add(errorTextBlock);
+
+        UIElement BuildNoImagePlaceholder()
+        {
+            return new TextBlock
+            {
+                Text = "Không ảnh",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = Brushes.DimGray,
+                FontSize = 12,
+            };
+        }
+
+        void SetPreview(ImageSource? source)
+        {
+            if (source is null)
+            {
+                imagePreviewBorder.Child = BuildNoImagePlaceholder();
+                return;
+            }
+
+            imagePreviewBorder.Child = new Image
+            {
+                Source = source,
+                Stretch = Stretch.UniformToFill,
+                SnapsToDevicePixels = true,
+            };
+        }
+
+        SetPreview(BuildServiceImageSource(imageDataUrl));
+
+        Grid.SetRow(content, 0);
+        root.Children.Add(content);
+
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 16, 0, 0),
+        };
+        var saveButton = new Button
+        {
+            Content = "Lưu",
+            Width = 100,
+            Height = 30,
+            Margin = new Thickness(0, 0, 8, 0),
+            IsDefault = true,
+        };
+        var cancelButton = new Button
+        {
+            Content = "Hủy",
+            Width = 80,
+            Height = 30,
+            IsCancel = true,
+        };
+        buttonPanel.Children.Add(saveButton);
+        buttonPanel.Children.Add(cancelButton);
+        Grid.SetRow(buttonPanel, 1);
+        root.Children.Add(buttonPanel);
+
+        browseImageButton.Click += (_, _) =>
+        {
+            var picker = new OpenFileDialog
+            {
+                CheckFileExists = true,
+                Multiselect = false,
+                Filter = "Image files|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.webp|All files|*.*",
+                Title = "Chọn hình ảnh dịch vụ",
+            };
+
+            if (picker.ShowDialog(this) != true)
+            {
+                return;
+            }
+
+            if (!TryBuildServiceImageDataUrl(picker.FileName, out var dataUrl, out var error))
+            {
+                errorTextBlock.Text = error;
+                return;
+            }
+
+            var previewSource = BuildServiceImageSource(dataUrl);
+            if (previewSource is null)
+            {
+                errorTextBlock.Text = "Không thể đọc ảnh đã chọn. Vui lòng dùng ảnh khác.";
+                return;
+            }
+
+            errorTextBlock.Text = string.Empty;
+            imageDataUrl = dataUrl;
+            imagePathTextBox.Text = picker.FileName;
+            clearImageButton.IsEnabled = true;
+            imageStatusTextBlock.Text = $"Đã chọn ảnh: {Path.GetFileName(picker.FileName)}";
+            SetPreview(previewSource);
+        };
+
+        clearImageButton.Click += (_, _) =>
+        {
+            imageDataUrl = null;
+            imagePathTextBox.Text = "Chưa chọn ảnh";
+            clearImageButton.IsEnabled = false;
+            imageStatusTextBlock.Text = "Có thể bỏ trống nếu dịch vụ không cần ảnh.";
+            errorTextBlock.Text = string.Empty;
+            SetPreview(null);
+        };
+
+        UpdateServiceItemInput? result = null;
+
+        saveButton.Click += (_, _) =>
+        {
+            errorTextBlock.Text = string.Empty;
+
+            var name = nameTextBox.Text.Trim();
+            var category = categoryTextBox.Text.Trim();
+            var priceRaw = priceTextBox.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                errorTextBlock.Text = "Vui lòng nhập tên dịch vụ.";
+                return;
+            }
+
+            if (!TryParsePositiveMoney(priceRaw, out var unitPrice))
+            {
+                errorTextBlock.Text = "Giá dịch vụ không hợp lệ.";
+                return;
+            }
+
+            result = new UpdateServiceItemInput
+            {
+                Name = name,
+                Category = string.IsNullOrWhiteSpace(category) ? null : category,
+                UnitPrice = unitPrice,
+                ImageDataUrl = imageDataUrl,
+            };
+
+            dialog.DialogResult = true;
+            dialog.Close();
+        };
+
+        dialog.Content = root;
+        dialog.Loaded += (_, _) => nameTextBox.Focus();
+        _ = dialog.ShowDialog();
+
+        return result;
+    }
+
+    private sealed class UpdateServiceItemInput
+    {
+        public string Name { get; init; } = string.Empty;
+        public string? Category { get; init; }
+        public decimal UnitPrice { get; init; }
+        public string? ImageDataUrl { get; init; }
     }
 
     private async Task ToggleSelectedServiceItemAsync()
@@ -421,6 +896,14 @@ public partial class MainWindow : Window
             .Select(x => x.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+        var canceledPendingOrderIds = orderInput.CanceledClientOrderIds
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var sessionId = string.IsNullOrWhiteSpace(selectedMachine.ActiveSessionId)
+            ? null
+            : selectedMachine.ActiveSessionId;
 
         if (acknowledgedPendingOrderIds.Count > 0)
         {
@@ -429,22 +912,44 @@ public partial class MainWindow : Window
                 $"[{DateTime.Now:HH:mm:ss}] {selectedMachine.Name}: đã xác nhận {acknowledgedPendingOrderIds.Count} order dịch vụ chờ từ máy trạm.");
         }
 
+        if (canceledPendingOrderIds.Count > 0)
+        {
+            using var cancelPendingResponse = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl($"/services/pcs/{selectedMachine.Id}/orders/cancel"),
+                new
+                {
+                    orderIds = canceledPendingOrderIds,
+                    sessionId,
+                    note = "Hủy order chờ do server xử lý (ví dụ hết hàng).",
+                    requestedBy = "admin.desktop",
+                });
+
+            if (!cancelPendingResponse.IsSuccessStatusCode)
+            {
+                var errorBody = await cancelPendingResponse.Content.ReadAsStringAsync();
+                var errorText = string.IsNullOrWhiteSpace(errorBody)
+                    ? $"Hủy order chờ thất bại ({(int)cancelPendingResponse.StatusCode})"
+                    : errorBody;
+                MessageBox.Show(errorText, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            AppendServiceLog(
+                $"[{DateTime.Now:HH:mm:ss}] {selectedMachine.Name}: đã hủy {canceledPendingOrderIds.Count} order dịch vụ chờ từ máy trạm.");
+        }
+
         var adjustmentLines = orderInput.Lines
             .Where(x => x.Quantity != 0)
             .ToList();
         if (adjustmentLines.Count == 0)
         {
-            if (acknowledgedPendingOrderIds.Count > 0)
+            if (acknowledgedPendingOrderIds.Count > 0 || canceledPendingOrderIds.Count > 0)
             {
                 InvalidateServiceAmountCacheForMachine(selectedMachine);
                 await RefreshMachinesAsync();
             }
             return;
         }
-
-        var sessionId = string.IsNullOrWhiteSpace(selectedMachine.ActiveSessionId)
-            ? null
-            : selectedMachine.ActiveSessionId;
 
         var failedItems = new List<string>();
         var successActionCount = 0;
@@ -511,7 +1016,7 @@ public partial class MainWindow : Window
             InvalidateServiceAmountCacheForMachine(selectedMachine);
             await RefreshMachinesAsync();
         }
-        else if (acknowledgedPendingOrderIds.Count > 0)
+        else if (acknowledgedPendingOrderIds.Count > 0 || canceledPendingOrderIds.Count > 0)
         {
             InvalidateServiceAmountCacheForMachine(selectedMachine);
             await RefreshMachinesAsync();
@@ -1134,6 +1639,7 @@ public partial class MainWindow : Window
             ItemsSource = selectionRows,
             Margin = new Thickness(0),
             FontSize = 14,
+            RowHeight = 42,
         };
         serviceGrid.ColumnHeaderStyle = new Style(typeof(DataGridColumnHeader))
         {
@@ -1144,13 +1650,39 @@ public partial class MainWindow : Window
             },
         };
 
-        serviceGrid.Columns.Add(new DataGridTextColumn
+        var serviceNameColumn = new DataGridTemplateColumn
         {
             Header = "Dịch vụ",
-            Width = new DataGridLength(2, DataGridLengthUnitType.Star),
-            Binding = new Binding(nameof(ServiceOrderSelectionRow.ServiceName)),
-            IsReadOnly = true,
-        });
+            Width = new DataGridLength(2.2, DataGridLengthUnitType.Star),
+        };
+        var serviceNameCellPanel = new FrameworkElementFactory(typeof(StackPanel));
+        serviceNameCellPanel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+        serviceNameCellPanel.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
+
+        var serviceImageBorder = new FrameworkElementFactory(typeof(Border));
+        serviceImageBorder.SetValue(Border.WidthProperty, 28d);
+        serviceImageBorder.SetValue(Border.HeightProperty, 28d);
+        serviceImageBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
+        serviceImageBorder.SetValue(Border.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(203, 213, 225)));
+        serviceImageBorder.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        serviceImageBorder.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(248, 250, 252)));
+        serviceImageBorder.SetValue(Border.MarginProperty, new Thickness(0, 0, 8, 0));
+
+        var serviceImage = new FrameworkElementFactory(typeof(Image));
+        serviceImage.SetBinding(Image.SourceProperty, new Binding(nameof(ServiceOrderSelectionRow.ServiceImageSource)));
+        serviceImage.SetValue(Image.StretchProperty, Stretch.UniformToFill);
+        serviceImage.SetValue(Image.SnapsToDevicePixelsProperty, true);
+        serviceImageBorder.AppendChild(serviceImage);
+
+        var serviceNameText = new FrameworkElementFactory(typeof(TextBlock));
+        serviceNameText.SetBinding(TextBlock.TextProperty, new Binding(nameof(ServiceOrderSelectionRow.ServiceName)));
+        serviceNameText.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+        serviceNameText.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+
+        serviceNameCellPanel.AppendChild(serviceImageBorder);
+        serviceNameCellPanel.AppendChild(serviceNameText);
+        serviceNameColumn.CellTemplate = new DataTemplate { VisualTree = serviceNameCellPanel };
+        serviceGrid.Columns.Add(serviceNameColumn);
         serviceGrid.Columns.Add(new DataGridTextColumn
         {
             Header = "Danh mục",
@@ -1438,6 +1970,18 @@ public partial class MainWindow : Window
             Margin = new Thickness(0, 0, 8, 0),
             ToolTip = "Xác nhận các order chờ từ máy trạm đã chọn.",
         };
+        var cancelPendingOrdersButton = new Button
+        {
+            Content = "Hủy order đã chọn",
+            Width = 170,
+            Height = 34,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Brushes.White,
+            Background = new SolidColorBrush(Color.FromRgb(220, 38, 38)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(185, 28, 28)),
+            Margin = new Thickness(0, 0, 8, 0),
+            ToolTip = "Hủy các order chờ đã chọn (ví dụ khi hết hàng).",
+        };
         var cancelButton = new Button
         {
             Content = "Hủy",
@@ -1451,6 +1995,7 @@ public partial class MainWindow : Window
         };
 
         leftButtonPanel.Children.Add(confirmPendingOrdersButton);
+        leftButtonPanel.Children.Add(cancelPendingOrdersButton);
         rightButtonPanel.Children.Add(addButton);
         rightButtonPanel.Children.Add(cancelButton);
         Grid.SetColumn(leftButtonPanel, 0);
@@ -1470,7 +2015,7 @@ public partial class MainWindow : Window
 
             pendingOrderSummaryTextBlock.Text = totalPending == 0
                 ? "Không có order chờ từ máy trạm."
-                : $"Đang chờ: {totalPending} | Đã chọn xác nhận: {selectedPending.Count} | Tiền: {selectedAmount:N0} VND";
+                : $"Đang chờ: {totalPending} | Đã chọn: {selectedPending.Count} | Tiền: {selectedAmount:N0} VND";
         }
 
         void RefreshSummary()
@@ -1575,6 +2120,35 @@ public partial class MainWindow : Window
             dialog.Close();
         };
 
+        cancelPendingOrdersButton.Click += (_, _) =>
+        {
+            errorTextBlock.Text = string.Empty;
+
+            var selectedPendingOrderIds = pendingClientOrderRowsCollection
+                .Where(x => x.IsSelected)
+                .Select(x => x.OrderId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (selectedPendingOrderIds.Count == 0)
+            {
+                errorTextBlock.Text = "Vui lòng chọn ít nhất 1 order chờ để hủy.";
+                return;
+            }
+
+            result = new ServiceOrderBatchInput
+            {
+                Lines = new List<ServiceOrderLineInput>(),
+                Note = null,
+                Total = 0,
+                CanceledClientOrderIds = selectedPendingOrderIds,
+            };
+
+            dialog.DialogResult = true;
+            dialog.Close();
+        };
+
         dialog.Content = root;
         dialog.Loaded += (_, _) =>
         {
@@ -1597,6 +2171,200 @@ public partial class MainWindow : Window
         return result;
     }
 
+    private static ImageSource? BuildServiceImageSource(string? imageDataUrl)
+    {
+        var normalized = imageDataUrl?.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return null;
+        }
+
+        if (normalized.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+        {
+            var commaIndex = normalized.IndexOf(',');
+            if (commaIndex <= 0)
+            {
+                return null;
+            }
+
+            var metadata = normalized[..commaIndex];
+            if (!metadata.Contains(";base64", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            try
+            {
+                var bytes = Convert.FromBase64String(normalized[(commaIndex + 1)..]);
+                using var stream = new MemoryStream(bytes);
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.DecodePixelHeight = 72;
+                bitmap.StreamSource = stream;
+                bitmap.EndInit();
+                bitmap.Freeze();
+                return bitmap;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        if (!Uri.TryCreate(normalized, UriKind.Absolute, out var imageUri))
+        {
+            return null;
+        }
+
+        try
+        {
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.DecodePixelHeight = 72;
+            bitmap.UriSource = imageUri;
+            bitmap.EndInit();
+            bitmap.Freeze();
+            return bitmap;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static bool TryBuildServiceImageDataUrl(
+        string filePath,
+        out string dataUrl,
+        out string error)
+    {
+        dataUrl = string.Empty;
+        error = string.Empty;
+
+        try
+        {
+            var fullPath = Path.GetFullPath(filePath);
+            if (!File.Exists(fullPath))
+            {
+                error = "Không tìm thấy file ảnh đã chọn.";
+                return false;
+            }
+
+            var bytes = File.ReadAllBytes(fullPath);
+            if (bytes.Length == 0)
+            {
+                error = "File ảnh rỗng.";
+                return false;
+            }
+
+            const int maxInputBytes = 20 * 1024 * 1024;
+            if (bytes.Length > maxInputBytes)
+            {
+                error = "Ảnh gốc quá lớn (tối đa 20MB).";
+                return false;
+            }
+
+            var extension = Path.GetExtension(fullPath).ToLowerInvariant();
+            var contentType = GuessImageContentType(extension);
+            if (!contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            {
+                error = "Định dạng ảnh chưa được hỗ trợ.";
+                return false;
+            }
+
+            if (!TryOptimizeImageForUpload(bytes, out var optimizedBytes))
+            {
+                error = "Không thể tối ưu ảnh để upload. Vui lòng chọn ảnh khác.";
+                return false;
+            }
+
+            dataUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(optimizedBytes)}";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = $"Không thể đọc ảnh: {ex.Message}";
+            return false;
+        }
+    }
+
+    private static bool TryOptimizeImageForUpload(byte[] sourceBytes, out byte[] optimizedBytes)
+    {
+        optimizedBytes = Array.Empty<byte>();
+
+        try
+        {
+            using var sourceStream = new MemoryStream(sourceBytes);
+            var sourceImage = new BitmapImage();
+            sourceImage.BeginInit();
+            sourceImage.CacheOption = BitmapCacheOption.OnLoad;
+            sourceImage.StreamSource = sourceStream;
+            sourceImage.EndInit();
+            sourceImage.Freeze();
+
+            if (sourceImage.PixelWidth <= 0 || sourceImage.PixelHeight <= 0)
+            {
+                return false;
+            }
+
+            const int maxDimension = 1280;
+            const int targetBytes = 500 * 1024;
+            var qualityLevels = new[] { 90, 82, 74, 66, 58 };
+
+            var baseScale = Math.Min(
+                1d,
+                maxDimension / (double)Math.Max(sourceImage.PixelWidth, sourceImage.PixelHeight));
+
+            for (var scale = baseScale; scale >= 0.35d; scale *= 0.82d)
+            {
+                BitmapSource frameSource = sourceImage;
+                if (scale < 0.999d)
+                {
+                    var transformed = new TransformedBitmap(
+                        sourceImage,
+                        new ScaleTransform(scale, scale));
+                    transformed.Freeze();
+                    frameSource = transformed;
+                }
+
+                foreach (var quality in qualityLevels)
+                {
+                    var encoded = EncodeJpeg(frameSource, quality);
+                    if (encoded.Length <= targetBytes)
+                    {
+                        optimizedBytes = encoded;
+                        return true;
+                    }
+
+                    if (optimizedBytes.Length == 0 || encoded.Length < optimizedBytes.Length)
+                    {
+                        optimizedBytes = encoded;
+                    }
+                }
+            }
+
+            return optimizedBytes.Length > 0;
+        }
+        catch
+        {
+            optimizedBytes = Array.Empty<byte>();
+            return false;
+        }
+    }
+
+    private static byte[] EncodeJpeg(BitmapSource imageSource, int quality)
+    {
+        var encoder = new JpegBitmapEncoder
+        {
+            QualityLevel = quality,
+        };
+        encoder.Frames.Add(BitmapFrame.Create(imageSource));
+        using var output = new MemoryStream();
+        encoder.Save(output);
+        return output.ToArray();
+    }
+
     private static bool TryParsePositiveMoney(string value, out decimal amount)
     {
         if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out amount) && amount > 0)
@@ -1616,6 +2384,7 @@ public partial class MainWindow : Window
     private async void RefreshServiceItemsButton_Click(object sender, RoutedEventArgs e) => await RefreshServiceItemsAsync();
     private async void CreateServiceItemButton_Click(object sender, RoutedEventArgs e) => await CreateServiceItemAsync();
     private async void UpdateServicePriceButton_Click(object sender, RoutedEventArgs e) => await UpdateSelectedServicePriceAsync();
+    private async void UpdateServiceItemButton_Click(object sender, RoutedEventArgs e) => await UpdateSelectedServiceItemAsync();
     private async void ToggleServiceItemButton_Click(object sender, RoutedEventArgs e) => await ToggleSelectedServiceItemAsync();
     private async void ContextSelectServiceMenuItem_Click(object sender, RoutedEventArgs e) => await OpenServiceOrderDialogForSelectedMachineAsync();
     private async void ContextPayServiceMenuItem_Click(object sender, RoutedEventArgs e) => await PayServiceForSelectedMachineAsync();
@@ -1636,6 +2405,7 @@ public partial class MainWindow : Window
         public string? Note { get; init; }
         public decimal Total { get; init; }
         public List<string> AcknowledgedClientOrderIds { get; init; } = new();
+        public List<string> CanceledClientOrderIds { get; init; } = new();
     }
 
     private sealed class ServiceOrderLineInput
@@ -1655,6 +2425,8 @@ public partial class MainWindow : Window
         public string ServiceItemId { get; init; } = string.Empty;
         public string ServiceName { get; init; } = string.Empty;
         public string Category { get; init; } = "-";
+        public ImageSource? ServiceImageSource { get; init; }
+        public bool HasImage => ServiceImageSource is not null;
         public decimal UnitPrice { get; init; }
         public int PreviouslyOrderedQuantity { get; init; }
         public decimal PreviouslyOrderedAmount { get; init; }
@@ -1697,6 +2469,7 @@ public partial class MainWindow : Window
                 ServiceItemId = item.Id,
                 ServiceName = item.Name,
                 Category = string.IsNullOrWhiteSpace(item.Category) ? "-" : item.Category,
+                ServiceImageSource = item.ServiceImageSource,
                 UnitPrice = item.UnitPrice,
                 PreviouslyOrderedQuantity = previouslyOrderedQuantity,
                 PreviouslyOrderedAmount = previouslyOrderedAmount,

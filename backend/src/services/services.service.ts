@@ -17,6 +17,8 @@ type GetServiceItemsOptions = {
   includeInactive?: boolean;
 };
 
+const MAX_SERVICE_IMAGE_LENGTH = 2_000_000;
+
 @Injectable()
 export class ServicesService {
   constructor(
@@ -51,6 +53,7 @@ export class ServicesService {
           category: this.normalizeOptionalText(payload.category),
           unitPrice: this.roundMoney(payload.unitPrice),
           isActive: payload.isActive ?? true,
+          imageDataUrl: this.normalizeOptionalServiceImage(payload.imageDataUrl),
         },
       });
 
@@ -96,6 +99,10 @@ export class ServicesService {
 
     if (payload.isActive !== undefined) {
       data.isActive = payload.isActive;
+    }
+
+    if (payload.imageDataUrl !== undefined) {
+      data.imageDataUrl = this.normalizeOptionalServiceImage(payload.imageDataUrl);
     }
 
     if (Object.keys(data).length === 0) {
@@ -611,6 +618,7 @@ export class ServicesService {
     category: string | null;
     unitPrice: Prisma.Decimal;
     isActive: boolean;
+    imageDataUrl: string | null;
     createdAt: Date;
     updatedAt: Date;
   }) {
@@ -620,6 +628,7 @@ export class ServicesService {
       category: item.category,
       unitPrice: Number(item.unitPrice),
       isActive: item.isActive,
+      imageDataUrl: item.imageDataUrl,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
     };
@@ -642,6 +651,7 @@ export class ServicesService {
       category: string | null;
       unitPrice: Prisma.Decimal;
       isActive: boolean;
+      imageDataUrl: string | null;
       createdAt: Date;
       updatedAt: Date;
     };
@@ -727,6 +737,37 @@ export class ServicesService {
     return trimmed ? trimmed : null;
   }
 
+  private normalizeOptionalServiceImage(value?: string | null): string | null {
+    const normalized = this.normalizeOptionalText(value);
+    if (!normalized) {
+      return null;
+    }
+
+    if (normalized.length > MAX_SERVICE_IMAGE_LENGTH) {
+      throw new BadRequestException('Anh dich vu qua lon');
+    }
+
+    if (normalized.startsWith('data:image/')) {
+      const commaIndex = normalized.indexOf(',');
+      if (commaIndex <= 0) {
+        throw new BadRequestException('Anh dich vu khong hop le');
+      }
+
+      const metadata = normalized.slice(0, commaIndex).toLowerCase();
+      if (!metadata.includes(';base64')) {
+        throw new BadRequestException('Anh dich vu phai o dang base64');
+      }
+
+      return normalized;
+    }
+
+    if (this.isHttpOrHttpsUrl(normalized)) {
+      return normalized;
+    }
+
+    throw new BadRequestException('Anh dich vu khong hop le');
+  }
+
   private normalizeLimit(rawLimit?: number): number {
     if (!Number.isFinite(rawLimit ?? NaN)) {
       return 50;
@@ -752,5 +793,14 @@ export class ServicesService {
     }
 
     return normalizedCreatedBy === normalizedRequestedBy;
+  }
+
+  private isHttpOrHttpsUrl(value: string): boolean {
+    try {
+      const parsed = new URL(value);
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+      return false;
+    }
   }
 }

@@ -486,7 +486,7 @@
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Foreground" Value="#0F172A" />
-                                                            <Setter Property="FontWeight" Value="Normal" />
+                                                            <Setter Property="FontWeight" Value="SemiBold" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding HasPendingClientServiceOrderHighlight}" Value="True">
                                                                     <Setter Property="Foreground" Value="White" />
@@ -1065,6 +1065,7 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
@@ -1089,10 +1090,16 @@
                             <Button Grid.Column="3"
                                     Margin="0,0,8,0"
                                     Padding="10,5"
+                                    Click="UpdateServiceItemButton_Click"
+                                    Content="Sửa dịch vụ..." />
+
+                            <Button Grid.Column="4"
+                                    Margin="0,0,8,0"
+                                    Padding="10,5"
                                     Click="ToggleServiceItemButton_Click"
                                     Content="Bật/Tắt dịch vụ" />
 
-                            <Button Grid.Column="4"
+                            <Button Grid.Column="5"
                                     Padding="10,5"
                                     Click="RefreshAllDataButton_Click"
                                     Content="Tải lại toàn bộ dữ liệu" />
@@ -1107,9 +1114,44 @@
                                   HeadersVisibility="Column"
                                   GridLinesVisibility="Horizontal"
                                   RowHeaderWidth="0"
+                                  RowHeight="52"
                                   AlternationCount="2"
                                   SelectionChanged="ServiceItemsDataGrid_SelectionChanged">
                             <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="Ảnh" Width="90" MinWidth="80">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Width="40"
+                                                    Height="40"
+                                                    CornerRadius="4"
+                                                    BorderThickness="1"
+                                                    BorderBrush="#CBD5E1"
+                                                    Background="#F8FAFC"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center">
+                                                <Grid>
+                                                    <Image Source="{Binding ServiceImageSource}" Stretch="UniformToFill" SnapsToDevicePixels="True" />
+                                                    <TextBlock Text="-"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
+                                                               Foreground="DimGray"
+                                                               FontSize="12">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="{x:Type TextBlock}">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding HasImage}" Value="False">
+                                                                        <Setter Property="Visibility" Value="Visible" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
                                 <DataGridTextColumn Header="Tên dịch vụ" Binding="{Binding Name}" Width="1.5*" MinWidth="160" />
                                 <DataGridTextColumn Header="Danh mục" Binding="{Binding Category}" Width="1.1*" MinWidth="120" />
                                 <DataGridTextColumn Header="Giá" Binding="{Binding UnitPriceText}" Width="1*" MinWidth="110" />

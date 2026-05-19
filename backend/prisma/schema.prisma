@@ -158,6 +158,7 @@ model ServiceItem {
   category  String?          @db.VarChar(80)
   unitPrice Decimal          @map("unit_price") @db.Decimal(12, 2)
   isActive  Boolean          @default(true) @map("is_active")
+  imageDataUrl String?       @map("image_data_url") @db.Text
   createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
   pcOrders  PcServiceOrder[]

@@ -28,5 +28,9 @@ export class UpdateServiceItemDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
-}
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(2_000_000)
+  imageDataUrl?: string;
+}

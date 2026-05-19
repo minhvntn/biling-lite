@@ -526,6 +526,7 @@ public sealed class ServiceItemDto
     public string? Category { get; set; }
     public decimal UnitPrice { get; set; }
     public bool IsActive { get; set; }
+    public string? ImageDataUrl { get; set; }
     public string CreatedAt { get; set; } = string.Empty;
     public string UpdatedAt { get; set; } = string.Empty;
 }
@@ -538,6 +539,9 @@ public sealed class ServiceItemRow
     public decimal UnitPrice { get; set; }
     public string UnitPriceText { get; set; } = "0";
     public bool IsActive { get; set; }
+    public string? ImageDataUrl { get; set; }
+    public ImageSource? ServiceImageSource { get; set; }
+    public bool HasImage => ServiceImageSource is not null;
     public string ActiveText => IsActive ? "Đang bán" : "Tạm ngưng";
     public string UpdatedAtText { get; set; } = "-";
     public string DisplayText => $"{Name} - {UnitPrice:N0} VND";
