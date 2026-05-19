@@ -124,6 +124,8 @@ public partial class MainWindow : Window
     }
     private static MachineRow ToMachineRow(PcListItem item)
     {
+        const int GuestSessionStartingHours = 1000;
+        const int MinutesPerHour = 60;
         var now = DateTime.Now;
         var activeAdmin = item.ActiveAdmin;
         var activeMember = item.ActiveMember;
@@ -203,7 +205,15 @@ public partial class MainWindow : Window
             : item.Name;
         var guestDisplayName = $"Khách {guestMachineLabel}";
         var remainingText = "-";
-        if (activeMember is not null && item.HourlyRate > 0)
+        var hasGuestLikeSession = activeMember is null && item.ActiveSession is not null;
+        if (hasGuestLikeSession)
+        {
+            var guestRemainingMinutesBase = GuestSessionStartingHours * MinutesPerHour;
+            var guestUsedMinutes = (int)Math.Floor(Math.Max(0, item.ActiveSession!.ElapsedSeconds) / 60d);
+            var guestRemainingMinutes = Math.Max(0, guestRemainingMinutesBase - guestUsedMinutes);
+            remainingText = FormatRemainingMinutes(guestRemainingMinutes);
+        }
+        else if (activeMember is not null && item.HourlyRate > 0)
         {
             var remainingMinutes = (int)Math.Floor((activeMember.Balance / item.HourlyRate) * 60m);
             remainingText = FormatRemainingMinutes(Math.Max(0, remainingMinutes));
@@ -2655,9 +2665,14 @@ public partial class MainWindow : Window
         var latestMachine = FindMachineRowById(machine.Id) ?? machine;
 
         decimal serviceAmount;
+        decimal clientServiceAmount;
+        decimal serverServiceAmount;
         try
         {
-            serviceAmount = await GetServiceAmountForMachineAsync(latestMachine);
+            var serviceSnapshot = await GetServiceAmountSnapshotForMachineAsync(latestMachine);
+            serviceAmount = serviceSnapshot.Amount;
+            clientServiceAmount = serviceSnapshot.PendingClientOrders.Sum(x => x.LineTotal);
+            serverServiceAmount = Math.Max(0m, serviceAmount - clientServiceAmount);
         }
         catch (Exception ex)
         {
@@ -2686,7 +2701,7 @@ public partial class MainWindow : Window
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         var detailsGrid = new Grid();
-        for (var i = 0; i < 12; i++)
+        for (var i = 0; i < 14; i++)
         {
             detailsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         }
@@ -2709,7 +2724,9 @@ public partial class MainWindow : Window
         var currentRateValueText = AddBillingLine(detailsGrid, 6, "Đơn giá hiện tại (tham khảo)", "-");
         var playAmountValueText = AddBillingLine(detailsGrid, 7, "Tiền giờ chơi (theo phiên)", "-");
         var currentRatePlayAmountValueText = AddBillingLine(detailsGrid, 8, "Tiền giờ chơi theo giá hiện tại (tham khảo)", "-");
-        var serviceAmountValueText = AddBillingLine(detailsGrid, 9, "Tiền dịch vụ", $"{serviceAmount:N0} VND");
+        var clientServiceAmountValueText = AddBillingLine(detailsGrid, 9, "Tiền dịch vụ từ máy trạm", $"{clientServiceAmount:N0} VND");
+        var serverServiceAmountValueText = AddBillingLine(detailsGrid, 10, "Tiền dịch vụ từ server", $"{serverServiceAmount:N0} VND");
+        var serviceAmountValueText = AddBillingLine(detailsGrid, 11, "Tổng tiền dịch vụ", $"{serviceAmount:N0} VND");
 
         var totalText = new TextBlock
         {
@@ -2728,7 +2745,7 @@ public partial class MainWindow : Window
             Margin = new Thickness(0, 12, 0, 0),
             Child = totalText,
         };
-        Grid.SetRow(totalBorder, 10);
+        Grid.SetRow(totalBorder, 12);
         detailsGrid.Children.Add(totalBorder);
 
         var noteText = new TextBlock
@@ -2738,7 +2755,7 @@ public partial class MainWindow : Window
             Foreground = Brushes.DimGray,
             TextWrapping = TextWrapping.Wrap,
         };
-        Grid.SetRow(noteText, 11);
+        Grid.SetRow(noteText, 13);
         detailsGrid.Children.Add(noteText);
 
         var detailsScroll = new ScrollViewer
@@ -2843,10 +2860,12 @@ public partial class MainWindow : Window
             currentRateValueText.Text = $"{machineSnapshot.HourlyRate:N0} VND/giờ";
             playAmountValueText.Text = $"{playAmount:N0} VND";
             currentRatePlayAmountValueText.Text = $"{currentRatePlayAmount:N0} VND";
+            clientServiceAmountValueText.Text = $"{clientServiceAmount:N0} VND";
+            serverServiceAmountValueText.Text = $"{serverServiceAmount:N0} VND";
             serviceAmountValueText.Text = $"{serviceAmount:N0} VND";
             totalText.Text = $"Tổng thanh toán: {totalAmount:N0} VND";
             noteText.Text = hasSession
-                ? "Tổng thanh toán lấy theo đơn giá của phiên đang chạy. Đơn giá hiện tại chỉ để tham khảo."
+                ? "Tiền dịch vụ đã tách nguồn: Máy trạm và Server. Tổng thanh toán lấy theo đơn giá của phiên đang chạy."
                 : "Máy chưa có phiên đang chạy. Tổng thanh toán hiện tại bằng 0 nếu chưa có dịch vụ gắn phiên.";
         }
 

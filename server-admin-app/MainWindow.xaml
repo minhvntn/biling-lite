@@ -965,16 +965,13 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
                             <Button Grid.Column="0" Padding="10,5" Click="RefreshGroupsButton_Click" Content="Làm mới" Margin="0,0,8,0" />
-                            <Button Grid.Column="1" Padding="10,5" Click="SetDefaultRateGroupButton_Click" Content="Giá mặc định..." Margin="0,0,8,0" />
-                            <Button Grid.Column="2" Padding="10,5" Click="CreatePricingGroupButton_Click" Content="Thêm nhóm giá..." Margin="0,0,8,0" />
-                            <Button Grid.Column="3" Padding="10,5" Click="UpdateSelectedGroupRateButton_Click" Content="Đổi giá nhóm đã chọn..." Margin="0,0,8,0" />
-                            <TextBlock Grid.Column="5" VerticalAlignment="Center" Text="Kéo máy từ bảng dưới thả vào nhóm bên trên để chuyển nhóm." Foreground="#555" />
+                            <Button Grid.Column="1" Padding="10,5" Click="CreatePricingGroupButton_Click" Content="Thêm nhóm giá..." Margin="0,0,8,0" />
+                            <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="Kéo máy từ bảng dưới thả vào nhóm bên trên để chuyển nhóm." Foreground="#555" />
                         </Grid>
 
                         <DataGrid x:Name="GroupSummaryDataGrid"
@@ -986,13 +983,33 @@
                                   GridLinesVisibility="Horizontal"
                                   RowHeaderWidth="0"
                                   SelectionChanged="GroupSummaryDataGrid_SelectionChanged"
+                                  ContextMenuOpening="GroupSummaryDataGrid_ContextMenuOpening"
                                   AllowDrop="True"
                                   DragOver="GroupSummaryDataGrid_DragOver"
                                   Drop="GroupSummaryDataGrid_Drop"
                                   AlternationCount="2">
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                    <EventSetter Event="PreviewMouseRightButtonDown" Handler="GroupSummaryDataGridRow_PreviewMouseRightButtonDown" />
+                                </Style>
+                            </DataGrid.RowStyle>
+                            <DataGrid.ContextMenu>
+                                <ContextMenu FontSize="{DynamicResource MachineContextMenuFontSize}">
+                                    <ContextMenu.Resources>
+                                        <Style TargetType="MenuItem">
+                                            <Setter Property="Padding" Value="{DynamicResource MachineContextMenuItemPadding}" />
+                                        </Style>
+                                    </ContextMenu.Resources>
+                                    <MenuItem x:Name="GroupSummaryEditGuestRateMenuItem" Header="Sửa giá khách..." Click="GroupSummaryEditGuestRateMenuItem_Click" />
+                                    <MenuItem x:Name="GroupSummaryEditMemberRateMenuItem" Header="Sửa giá hội viên..." Click="GroupSummaryEditMemberRateMenuItem_Click" />
+                                    <Separator />
+                                    <MenuItem x:Name="GroupSummaryDeleteGroupMenuItem" Header="Xóa nhóm giá..." Click="GroupSummaryDeleteGroupMenuItem_Click" />
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Nhóm" Binding="{Binding GroupName}" Width="160" />
-                                <DataGridTextColumn Header="Giá/giờ (VND)" Binding="{Binding HourlyRate, StringFormat={}{0:N0}}" Width="130" />
+                                <DataGridTextColumn Header="Giá khách (VND/giờ)" Binding="{Binding HourlyRate, StringFormat={}{0:N0}}" Width="145" />
+                                <DataGridTextColumn Header="Giá hội viên (VND/giờ)" Binding="{Binding MemberHourlyRate, StringFormat={}{0:N0}}" Width="160" />
                                 <DataGridTextColumn Header="Mặc định" Binding="{Binding IsDefaultText}" Width="90" />
                                 <DataGridTextColumn Header="Tổng" Binding="{Binding Total}" Width="80" />
                                 <DataGridTextColumn Header="Đang dùng" Binding="{Binding InUse}" Width="90" />
@@ -1022,7 +1039,12 @@
                                 </Style>
                             </DataGrid.RowStyle>
                             <DataGrid.ContextMenu>
-                                <ContextMenu>
+                                <ContextMenu FontSize="{DynamicResource MachineContextMenuFontSize}">
+                                    <ContextMenu.Resources>
+                                        <Style TargetType="MenuItem">
+                                            <Setter Property="Padding" Value="{DynamicResource MachineContextMenuItemPadding}" />
+                                        </Style>
+                                    </ContextMenu.Resources>
                                     <MenuItem x:Name="GroupMachinesAssignGroupMenuItem" Header="Chuyển nhóm máy">
                                         <MenuItem Header="Đang tải nhóm máy..." IsEnabled="False" />
                                     </MenuItem>
@@ -1031,7 +1053,8 @@
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Nhóm" Binding="{Binding GroupName}" Width="140" />
                                 <DataGridTextColumn Header="Tên máy" Binding="{Binding MachineName}" Width="150" />
-                                <DataGridTextColumn Header="Giá/giờ (VND)" Binding="{Binding HourlyRate, StringFormat={}{0:N0}}" Width="130" />
+                                <DataGridTextColumn Header="Giá khách (VND/giờ)" Binding="{Binding HourlyRate, StringFormat={}{0:N0}}" Width="145" />
+                                <DataGridTextColumn Header="Giá hội viên (VND/giờ)" Binding="{Binding MemberHourlyRate, StringFormat={}{0:N0}}" Width="160" />
                                 <DataGridTextColumn Header="Agent" Binding="{Binding AgentId}" Width="130" />
                                 <DataGridTextColumn Header="Trạng thái" Binding="{Binding StatusText}" Width="120" />
                                 <DataGridTextColumn Header="IP" Binding="{Binding IpAddress}" Width="120" />

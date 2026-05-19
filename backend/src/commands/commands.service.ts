@@ -1847,6 +1847,7 @@ export class CommandsService {
       data: {
         name: 'Mặc định',
         hourlyRate: 5000,
+        memberHourlyRate: 5000,
         isDefault: true,
       },
     });

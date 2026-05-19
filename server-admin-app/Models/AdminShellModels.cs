@@ -475,6 +475,7 @@ public sealed class GroupSummaryRow
     public string GroupId { get; set; } = string.Empty;
     public string GroupName { get; set; } = "M\u1eb7c \u0111\u1ecbnh";
     public decimal HourlyRate { get; set; }
+    public decimal MemberHourlyRate { get; set; }
     public bool IsDefault { get; set; }
     public string IsDefaultText => IsDefault ? "Có" : "-";
     public int Total { get; set; }
@@ -490,6 +491,7 @@ public sealed class GroupMachineRow
     public string GroupId { get; set; } = string.Empty;
     public string GroupName { get; set; } = "M\u1eb7c \u0111\u1ecbnh";
     public decimal HourlyRate { get; set; }
+    public decimal MemberHourlyRate { get; set; }
     public string MachineName { get; set; } = "-";
     public string AgentId { get; set; } = "-";
     public string StatusText { get; set; } = "-";
@@ -500,6 +502,7 @@ public sealed class GroupMachineRow
 public sealed class PricingSettingsResponse
 {
     public decimal DefaultRatePerHour { get; set; }
+    public decimal DefaultMemberRatePerHour { get; set; }
     public string? DefaultGroupId { get; set; }
     public List<PricingGroupItem> Groups { get; set; } = new();
 }
@@ -509,6 +512,7 @@ public sealed class PricingGroupItem
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public decimal HourlyRate { get; set; }
+    public decimal MemberHourlyRate { get; set; }
     public bool IsDefault { get; set; }
     public int MachineCount { get; set; }
 }

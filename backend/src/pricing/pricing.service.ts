@@ -17,6 +17,7 @@ import { UpdateGroupRateDto } from './dto/update-group-rate.dto';
 
 const DEFAULT_GROUP_NAME = 'Mặc định';
 const DEFAULT_HOURLY_RATE = 5000;
+const DEFAULT_MEMBER_HOURLY_RATE = 5000;
 const CLIENT_READY_AUTO_SHUTDOWN_KEY = '__CLIENT_READY_AUTO_SHUTDOWN_MINUTES__';
 const DEFAULT_READY_AUTO_SHUTDOWN_MINUTES = 3;
 const CLIENT_LOCK_SCREEN_BACKGROUND_MODE_KEY = '__CLIENT_LOCK_SCREEN_BACKGROUND_MODE__';
@@ -50,11 +51,13 @@ export class PricingService {
 
     return {
       defaultRatePerHour: Number(defaultGroup.hourlyRate),
+      defaultMemberRatePerHour: Number(defaultGroup.memberHourlyRate),
       defaultGroupId: defaultGroup.id,
       groups: groups.map((group) => ({
         id: group.id,
         name: group.name,
         hourlyRate: Number(group.hourlyRate),
+        memberHourlyRate: Number(group.memberHourlyRate),
         isDefault: group.isDefault,
         machineCount: group._count.pcs,
       })),
@@ -271,12 +274,16 @@ export class PricingService {
 
   async setDefaultRate(payload: SetDefaultRateDto) {
     const hourlyRate = this.roundRate(payload.hourlyRate);
+    const memberHourlyRate = payload.memberHourlyRate !== undefined
+      ? this.roundRate(payload.memberHourlyRate)
+      : undefined;
     const defaultGroup = await this.ensureDefaultGroup();
 
     const updated = await this.prisma.pcGroup.update({
       where: { id: defaultGroup.id },
       data: {
         hourlyRate,
+        ...(memberHourlyRate !== undefined ? { memberHourlyRate } : {}),
       },
     });
 
@@ -284,6 +291,7 @@ export class PricingService {
       id: updated.id,
       name: updated.name,
       hourlyRate: Number(updated.hourlyRate),
+      memberHourlyRate: Number(updated.memberHourlyRate),
       isDefault: updated.isDefault,
     };
   }
@@ -291,6 +299,7 @@ export class PricingService {
   async createGroup(payload: CreateGroupRateDto) {
     const name = payload.name.trim();
     const hourlyRate = this.roundRate(payload.hourlyRate);
+    const memberHourlyRate = this.roundRate(payload.memberHourlyRate);
     if (!name) {
       throw new BadRequestException('Tên nhóm không hợp lệ');
     }
@@ -300,6 +309,7 @@ export class PricingService {
         data: {
           name,
           hourlyRate,
+          memberHourlyRate,
           isDefault: false,
         },
       });
@@ -308,6 +318,7 @@ export class PricingService {
         id: created.id,
         name: created.name,
         hourlyRate: Number(created.hourlyRate),
+        memberHourlyRate: Number(created.memberHourlyRate),
         isDefault: created.isDefault,
       };
     } catch (error) {
@@ -344,11 +355,16 @@ export class PricingService {
       data.hourlyRate = this.roundRate(payload.hourlyRate);
     }
 
+    if (payload.memberHourlyRate !== undefined) {
+      data.memberHourlyRate = this.roundRate(payload.memberHourlyRate);
+    }
+
     if (Object.keys(data).length === 0) {
       return {
         id: existing.id,
         name: existing.name,
         hourlyRate: Number(existing.hourlyRate),
+        memberHourlyRate: Number(existing.memberHourlyRate),
         isDefault: existing.isDefault,
       };
     }
@@ -363,6 +379,7 @@ export class PricingService {
         id: updated.id,
         name: updated.name,
         hourlyRate: Number(updated.hourlyRate),
+        memberHourlyRate: Number(updated.memberHourlyRate),
         isDefault: updated.isDefault,
       };
     } catch (error) {
@@ -375,6 +392,48 @@ export class PricingService {
 
       throw error;
     }
+  }
+
+  async deleteGroup(groupId: string) {
+    const existing = await this.prisma.pcGroup.findUnique({
+      where: { id: groupId },
+      include: {
+        _count: {
+          select: { pcs: true },
+        },
+      },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('KhÃ´ng tÃ¬m tháº¥y nhÃ³m mÃ¡y');
+    }
+
+    if (existing.isDefault) {
+      throw new BadRequestException('KhÃ´ng thá»ƒ xÃ³a nhÃ³m máº·c Ä‘á»‹nh');
+    }
+
+    const defaultGroup = await this.ensureDefaultGroup();
+    if (defaultGroup.id === existing.id) {
+      throw new BadRequestException('KhÃ´ng thá»ƒ xÃ³a nhÃ³m máº·c Ä‘á»‹nh');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.pc.updateMany({
+        where: { groupId: existing.id },
+        data: { groupId: defaultGroup.id },
+      });
+
+      await tx.pcGroup.delete({
+        where: { id: existing.id },
+      });
+    });
+
+    return {
+      success: true,
+      deletedGroupId: existing.id,
+      reassignedMachineCount: existing._count.pcs,
+      defaultGroupId: defaultGroup.id,
+    };
   }
 
   async assignPcToGroup(pcId: string, payload: AssignPcGroupDto) {
@@ -403,6 +462,9 @@ export class PricingService {
       groupId: updatedPc.groupId,
       groupName: updatedPc.group?.name ?? null,
       hourlyRate: updatedPc.group ? Number(updatedPc.group.hourlyRate) : null,
+      memberHourlyRate: updatedPc.group
+        ? Number(updatedPc.group.memberHourlyRate)
+        : null,
     };
   }
 
@@ -583,6 +645,7 @@ export class PricingService {
       data: {
         name: DEFAULT_GROUP_NAME,
         hourlyRate: DEFAULT_HOURLY_RATE,
+        memberHourlyRate: DEFAULT_MEMBER_HOURLY_RATE,
         isDefault: true,
       },
     });

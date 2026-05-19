@@ -9,11 +9,13 @@ async function main() {
     where: { name: defaultGroupName },
     update: {
       hourlyRate: 5000,
+      memberHourlyRate: 5000,
       isDefault: true,
     },
     create: {
       name: defaultGroupName,
       hourlyRate: 5000,
+      memberHourlyRate: 5000,
       isDefault: true,
     },
   });

@@ -88,6 +88,11 @@ export class PricingController {
     return this.pricingService.updateGroup(groupId, payload);
   }
 
+  @Delete('groups/:groupId')
+  async deleteGroup(@Param('groupId') groupId: string) {
+    return this.pricingService.deleteGroup(groupId);
+  }
+
   @Post('pcs/:pcId/group')
   async assignPcToGroup(
     @Param('pcId') pcId: string,

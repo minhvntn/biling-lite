@@ -315,7 +315,11 @@ export class MembersService {
           where: { isDefault: true },
         });
         const baseRate = Number(
-          pc.group?.hourlyRate ?? defaultGroup?.hourlyRate ?? 12000,
+          pc.group?.memberHourlyRate ??
+            pc.group?.hourlyRate ??
+            defaultGroup?.memberHourlyRate ??
+            defaultGroup?.hourlyRate ??
+            12000,
         );
         // We need to call PcsService or duplicate the logic.
         // For simplicity, I'll duplicate the logic or inject PcsService if possible.
@@ -393,11 +397,15 @@ export class MembersService {
       const defaultGroup = await this.prisma.pcGroup.findFirst({
         where: { isDefault: true },
       });
+      const group = pc.groupId
+        ? await this.prisma.pcGroup.findUnique({ where: { id: pc.groupId } })
+        : null;
       const baseRate = Number(
-        pc.groupId
-          ? (await this.prisma.pcGroup.findUnique({ where: { id: pc.groupId } }))
-              ?.hourlyRate ?? defaultGroup?.hourlyRate ?? 12000
-          : defaultGroup?.hourlyRate ?? 12000,
+        group?.memberHourlyRate ??
+          group?.hourlyRate ??
+          defaultGroup?.memberHourlyRate ??
+          defaultGroup?.hourlyRate ??
+          12000,
       );
       const hourlyRate = await this.getEffectiveHourlyRate(baseRate);
       pricePerMinute = Number(hourlyRate) / 60;
@@ -801,10 +809,15 @@ export class MembersService {
             const defaultGroup = await tx.pcGroup.findFirst({
               where: { isDefault: true },
             });
+            const group = pc.groupId
+              ? await tx.pcGroup.findUnique({ where: { id: pc.groupId } })
+              : null;
             const baseRate = Number(
-              pc.groupId
-                ? (await tx.pcGroup.findUnique({ where: { id: pc.groupId } }))?.hourlyRate ?? defaultGroup?.hourlyRate ?? 12000
-                : defaultGroup?.hourlyRate ?? 12000,
+              group?.memberHourlyRate ??
+                group?.hourlyRate ??
+                defaultGroup?.memberHourlyRate ??
+                defaultGroup?.hourlyRate ??
+                12000,
             );
             const hourlyRate = await this.getEffectiveHourlyRate(baseRate);
             pricePerMinute = Number(hourlyRate) / 60;

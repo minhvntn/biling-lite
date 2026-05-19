@@ -9,4 +9,8 @@ export class CreateGroupRateDto {
   @IsNumber()
   @Min(1)
   hourlyRate!: number;
+
+  @IsNumber()
+  @Min(1)
+  memberHourlyRate!: number;
 }

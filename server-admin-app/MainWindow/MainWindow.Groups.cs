@@ -36,6 +36,9 @@ public partial class MainWindow : Window
                 Id = pricing?.DefaultGroupId ?? "default",
                 Name = "M\u1eb7c \u0111\u1ecbnh",
                 HourlyRate = pricing?.DefaultRatePerHour > 0 ? pricing.DefaultRatePerHour : 5000,
+                MemberHourlyRate = pricing?.DefaultMemberRatePerHour > 0
+                    ? pricing.DefaultMemberRatePerHour
+                    : (pricing?.DefaultRatePerHour > 0 ? pricing.DefaultRatePerHour : 5000),
                 IsDefault = true,
                 MachineCount = 0,
             });
@@ -66,6 +69,7 @@ public partial class MainWindow : Window
                     GroupId = group.Id,
                     GroupName = group.Name,
                     HourlyRate = group.HourlyRate,
+                    MemberHourlyRate = group.MemberHourlyRate > 0 ? group.MemberHourlyRate : group.HourlyRate,
                     IsDefault = group.IsDefault,
                     Total = machines.Count,
                     InUse = machines.Count(x => x.StatusCode == "IN_USE"),
@@ -105,6 +109,7 @@ public partial class MainWindow : Window
                 GroupId = row.Group.Id,
                 GroupName = row.Group.Name,
                 HourlyRate = row.Group.HourlyRate,
+                MemberHourlyRate = row.Group.MemberHourlyRate > 0 ? row.Group.MemberHourlyRate : row.Group.HourlyRate,
                 MachineName = row.Machine.Name,
                 AgentId = row.Machine.AgentId,
                 StatusText = row.Machine.StatusText,
@@ -125,8 +130,12 @@ public partial class MainWindow : Window
             }
         }
 
+        var defaultMemberHourlyRate = defaultGroup.MemberHourlyRate > 0
+            ? defaultGroup.MemberHourlyRate
+            : defaultGroup.HourlyRate;
         GroupInfoTextBlock.Text =
-            $"{I18n.GroupCountPrefix}: {groupSummaries.Count} - {I18n.TotalMachinePrefix}: {_allMachineRows.Count} - Gi\u00e1 m\u1eb7c \u0111\u1ecbnh: {defaultGroup.HourlyRate:N0} VND/gi\u1edd";
+            $"{I18n.GroupCountPrefix}: {groupSummaries.Count} - {I18n.TotalMachinePrefix}: {_allMachineRows.Count} - " +
+            $"Giá mặc định: {defaultGroup.HourlyRate:N0} VND/giờ | Giá hội viên: {defaultMemberHourlyRate:N0} VND/giờ";
     }
 
     private static PricingGroupItem ResolveGroup(
@@ -151,6 +160,9 @@ public partial class MainWindow : Window
     private async void SetDefaultRateGroupButton_Click(object sender, RoutedEventArgs e)
     {
         var current = _pricingSettings?.DefaultRatePerHour ?? 5000;
+        var currentMember = _pricingSettings?.DefaultMemberRatePerHour > 0
+            ? _pricingSettings.DefaultMemberRatePerHour
+            : current;
         var raw = PromptText(
             "Gi\u00e1 m\u1eb7c \u0111\u1ecbnh",
             "Nh\u1eadp gi\u00e1 gi\u1edd ch\u01a1i m\u1eb7c \u0111\u1ecbnh (VND/gi\u1edd):",
@@ -160,15 +172,33 @@ public partial class MainWindow : Window
             return;
         }
 
+        var memberRaw = PromptText(
+            "Giá giờ hội viên mặc định",
+            "Nhập giá giờ hội viên mặc định (VND/giờ):",
+            currentMember.ToString("0"));
+        if (string.IsNullOrWhiteSpace(memberRaw))
+        {
+            return;
+        }
+
         if (!decimal.TryParse(raw.Trim(), out var hourlyRate) || hourlyRate <= 0)
         {
             MessageBox.Show("Gi\u00e1 gi\u1edd ch\u01a1i kh\u00f4ng h\u1ee3p l\u1ec7.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
+        if (!decimal.TryParse(memberRaw.Trim(), out var memberHourlyRate) || memberHourlyRate <= 0)
+        {
+            MessageBox.Show("Giá giờ hội viên không hợp lệ.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
 
         using var response = await _httpClient.PutAsJsonAsync(
             BuildApiUrl("/pricing/default-rate"),
-            new { hourlyRate = Convert.ToDouble(hourlyRate) });
+            new
+            {
+                hourlyRate = Convert.ToDouble(hourlyRate),
+                memberHourlyRate = Convert.ToDouble(memberHourlyRate),
+            });
 
         if (!response.IsSuccessStatusCode)
         {
@@ -176,7 +206,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] C\u1eadp nh\u1eadt gi\u00e1 m\u1eb7c \u0111\u1ecbnh: {hourlyRate:N0} VND/gi\u1edd");
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Cập nhật giá mặc định: {hourlyRate:N0} VND/giờ | Giá hội viên: {memberHourlyRate:N0} VND/giờ");
         _pricingSettings = null;
         await RefreshMachinesAsync();
     }
@@ -204,6 +234,19 @@ public partial class MainWindow : Window
             MessageBox.Show("Gi\u00e1 gi\u1edd ch\u01a1i kh\u00f4ng h\u1ee3p l\u1ec7.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
+        var memberRateRaw = PromptText(
+            "Giá giờ hội viên",
+            $"Nhập giá giờ hội viên cho nhóm \"{name.Trim()}\" (VND/giờ):",
+            hourlyRate.ToString("0"));
+        if (string.IsNullOrWhiteSpace(memberRateRaw))
+        {
+            return;
+        }
+        if (!decimal.TryParse(memberRateRaw.Trim(), out var memberHourlyRate) || memberHourlyRate <= 0)
+        {
+            MessageBox.Show("Giá giờ hội viên không hợp lệ.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
 
         using var response = await _httpClient.PostAsJsonAsync(
             BuildApiUrl("/pricing/groups"),
@@ -211,6 +254,7 @@ public partial class MainWindow : Window
             {
                 name = name.Trim(),
                 hourlyRate = Convert.ToDouble(hourlyRate),
+                memberHourlyRate = Convert.ToDouble(memberHourlyRate),
             });
 
         if (!response.IsSuccessStatusCode)
@@ -219,7 +263,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] T\u1ea1o nh\u00f3m \"{name.Trim()}\" - {hourlyRate:N0} VND/gi\u1edd");
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Tạo nhóm \"{name.Trim()}\" - Giá mặc định: {hourlyRate:N0} VND/giờ | Giá hội viên: {memberHourlyRate:N0} VND/giờ");
         _pricingSettings = null;
         await RefreshGroupsAsync(forceReloadPricing: true);
     }
@@ -247,18 +291,43 @@ public partial class MainWindow : Window
             return;
         }
 
+        var currentMemberHourlyRate = selectedGroup.MemberHourlyRate > 0
+            ? selectedGroup.MemberHourlyRate
+            : selectedGroup.HourlyRate;
+        var memberRaw = PromptText(
+            "Đổi giá giờ hội viên",
+            $"Nhập giá giờ hội viên mới cho nhóm \"{selectedGroup.GroupName}\" (VND/giờ):",
+            currentMemberHourlyRate.ToString("0"));
+        if (string.IsNullOrWhiteSpace(memberRaw))
+        {
+            return;
+        }
+        if (!decimal.TryParse(memberRaw.Trim(), out var memberHourlyRate) || memberHourlyRate <= 0)
+        {
+            MessageBox.Show("Giá giờ hội viên không hợp lệ.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         HttpResponseMessage response;
         if (selectedGroup.IsDefault)
         {
             response = await _httpClient.PutAsJsonAsync(
                 BuildApiUrl("/pricing/default-rate"),
-                new { hourlyRate = Convert.ToDouble(hourlyRate) });
+                new
+                {
+                    hourlyRate = Convert.ToDouble(hourlyRate),
+                    memberHourlyRate = Convert.ToDouble(memberHourlyRate),
+                });
         }
         else
         {
             response = await _httpClient.PatchAsJsonAsync(
                 BuildApiUrl($"/pricing/groups/{selectedGroup.GroupId}"),
-                new { hourlyRate = Convert.ToDouble(hourlyRate) });
+                new
+                {
+                    hourlyRate = Convert.ToDouble(hourlyRate),
+                    memberHourlyRate = Convert.ToDouble(memberHourlyRate),
+                });
         }
 
         using (response)
@@ -270,7 +339,7 @@ public partial class MainWindow : Window
             }
         }
 
-        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] C\u1eadp nh\u1eadt gi\u00e1 nh\u00f3m \"{selectedGroup.GroupName}\": {hourlyRate:N0} VND/gi\u1edd");
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Cập nhật giá nhóm \"{selectedGroup.GroupName}\": Giá mặc định {hourlyRate:N0} VND/giờ | Giá hội viên {memberHourlyRate:N0} VND/giờ");
         _pricingSettings = null;
         await RefreshMachinesAsync();
     }
@@ -363,7 +432,7 @@ public partial class MainWindow : Window
             var isCurrent = string.Equals(selectedMachine.GroupId, group.GroupId, StringComparison.OrdinalIgnoreCase);
             var item = new MenuItem
             {
-                Header = $"{group.GroupName} ({group.HourlyRate:N0} VND/giờ)",
+                Header = $"{group.GroupName} (Mặc định {group.HourlyRate:N0}, Hội viên {group.MemberHourlyRate:N0})",
                 IsCheckable = true,
                 IsChecked = isCurrent,
                 IsEnabled = !isCurrent,
@@ -390,6 +459,222 @@ public partial class MainWindow : Window
 
         GroupSummaryDataGrid.SelectedItem = targetGroup;
         await AssignMachineToGroupAsync(selectedMachine, targetGroup);
+    }
+
+    private void GroupSummaryDataGridRow_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not DataGridRow row)
+        {
+            return;
+        }
+
+        row.IsSelected = true;
+        row.Focus();
+        if (row.Item is GroupSummaryRow group)
+        {
+            _selectedGroupSummaryId = group.GroupId;
+        }
+    }
+
+    private void GroupSummaryDataGrid_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        if (sender is not DataGrid dataGrid)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        GroupSummaryRow? selectedGroup = dataGrid.SelectedItem as GroupSummaryRow;
+        if (selectedGroup is null)
+        {
+            var rowFromPoint = TryGetDataGridRowItem<GroupSummaryRow>(e.OriginalSource as DependencyObject);
+            if (rowFromPoint is not null)
+            {
+                dataGrid.SelectedItem = rowFromPoint;
+                selectedGroup = rowFromPoint;
+            }
+        }
+
+        var canEdit = selectedGroup is not null;
+        if (GroupSummaryEditGuestRateMenuItem is not null)
+        {
+            GroupSummaryEditGuestRateMenuItem.IsEnabled = canEdit;
+        }
+
+        if (GroupSummaryEditMemberRateMenuItem is not null)
+        {
+            GroupSummaryEditMemberRateMenuItem.IsEnabled = canEdit;
+        }
+
+        if (GroupSummaryDeleteGroupMenuItem is not null)
+        {
+            GroupSummaryDeleteGroupMenuItem.IsEnabled = selectedGroup is not null && !selectedGroup.IsDefault;
+        }
+
+        if (!canEdit)
+        {
+            e.Handled = true;
+        }
+    }
+
+    private async void GroupSummaryEditGuestRateMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (GroupSummaryDataGrid.SelectedItem is not GroupSummaryRow selectedGroup)
+        {
+            MessageBox.Show("Vui lòng chọn nhóm máy trước.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var raw = PromptText(
+            "Sửa giá khách",
+            $"Nhập giá khách mới cho nhóm \"{selectedGroup.GroupName}\" (VND/giờ):",
+            selectedGroup.HourlyRate.ToString("0"));
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return;
+        }
+
+        if (!decimal.TryParse(raw.Trim(), out var guestRate) || guestRate <= 0)
+        {
+            MessageBox.Show("Giá khách không hợp lệ.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        HttpResponseMessage response;
+        if (selectedGroup.IsDefault)
+        {
+            response = await _httpClient.PutAsJsonAsync(
+                BuildApiUrl("/pricing/default-rate"),
+                new
+                {
+                    hourlyRate = Convert.ToDouble(guestRate),
+                });
+        }
+        else
+        {
+            response = await _httpClient.PatchAsJsonAsync(
+                BuildApiUrl($"/pricing/groups/{selectedGroup.GroupId}"),
+                new
+                {
+                    hourlyRate = Convert.ToDouble(guestRate),
+                });
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                MessageBox.Show($"Cập nhật giá khách thất bại ({(int)response.StatusCode})", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+        }
+
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Sửa giá khách nhóm \"{selectedGroup.GroupName}\": {guestRate:N0} VND/giờ");
+        _pricingSettings = null;
+        await RefreshMachinesAsync();
+    }
+
+    private async void GroupSummaryEditMemberRateMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (GroupSummaryDataGrid.SelectedItem is not GroupSummaryRow selectedGroup)
+        {
+            MessageBox.Show("Vui lòng chọn nhóm máy trước.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var currentMemberHourlyRate = selectedGroup.MemberHourlyRate > 0
+            ? selectedGroup.MemberHourlyRate
+            : selectedGroup.HourlyRate;
+        var raw = PromptText(
+            "Sửa giá hội viên",
+            $"Nhập giá hội viên mới cho nhóm \"{selectedGroup.GroupName}\" (VND/giờ):",
+            currentMemberHourlyRate.ToString("0"));
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return;
+        }
+
+        if (!decimal.TryParse(raw.Trim(), out var memberRate) || memberRate <= 0)
+        {
+            MessageBox.Show("Giá hội viên không hợp lệ.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        HttpResponseMessage response;
+        if (selectedGroup.IsDefault)
+        {
+            response = await _httpClient.PutAsJsonAsync(
+                BuildApiUrl("/pricing/default-rate"),
+                new
+                {
+                    hourlyRate = Convert.ToDouble(selectedGroup.HourlyRate),
+                    memberHourlyRate = Convert.ToDouble(memberRate),
+                });
+        }
+        else
+        {
+            response = await _httpClient.PatchAsJsonAsync(
+                BuildApiUrl($"/pricing/groups/{selectedGroup.GroupId}"),
+                new
+                {
+                    memberHourlyRate = Convert.ToDouble(memberRate),
+                });
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                MessageBox.Show($"Cập nhật giá hội viên thất bại ({(int)response.StatusCode})", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+        }
+
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Sửa giá hội viên nhóm \"{selectedGroup.GroupName}\": {memberRate:N0} VND/giờ");
+        _pricingSettings = null;
+        await RefreshMachinesAsync();
+    }
+
+    private async void GroupSummaryDeleteGroupMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (GroupSummaryDataGrid.SelectedItem is not GroupSummaryRow selectedGroup)
+        {
+            MessageBox.Show("Vui lòng chọn nhóm máy trước.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (selectedGroup.IsDefault)
+        {
+            MessageBox.Show("Không thể xóa nhóm mặc định.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            $"Xóa nhóm \"{selectedGroup.GroupName}\"?\n\nCác máy trong nhóm sẽ được chuyển về nhóm mặc định.",
+            "Server Admin",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        using var response = await _httpClient.DeleteAsync(
+            BuildApiUrl($"/pricing/groups/{selectedGroup.GroupId}"));
+
+        if (!response.IsSuccessStatusCode)
+        {
+            MessageBox.Show(
+                $"Xóa nhóm thất bại ({(int)response.StatusCode})",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Xóa nhóm \"{selectedGroup.GroupName}\" và chuyển máy về nhóm mặc định");
+        _pricingSettings = null;
+        await RefreshMachinesAsync();
     }
 
     private void GroupSummaryDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)

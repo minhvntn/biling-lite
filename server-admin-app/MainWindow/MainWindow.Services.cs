@@ -1967,6 +1967,7 @@ public partial class MainWindow : Window
             BorderBrush = new SolidColorBrush(Color.FromRgb(126, 34, 206)),
             Margin = new Thickness(0, 0, 8, 0),
             ToolTip = "Xác nhận các order chờ từ máy trạm đã chọn.",
+            IsEnabled = false,
         };
         var cancelPendingOrdersButton = new Button
         {
@@ -1979,6 +1980,7 @@ public partial class MainWindow : Window
             BorderBrush = new SolidColorBrush(Color.FromRgb(185, 28, 28)),
             Margin = new Thickness(0, 0, 8, 0),
             ToolTip = "Hủy các order chờ đã chọn (ví dụ khi hết hàng).",
+            IsEnabled = false,
         };
         var cancelButton = new Button
         {
@@ -2005,6 +2007,13 @@ public partial class MainWindow : Window
 
         ServiceOrderBatchInput? result = null;
 
+        void RefreshPendingOrderButtons()
+        {
+            var hasPendingOrders = pendingClientOrderRowsCollection.Count > 0;
+            confirmPendingOrdersButton.IsEnabled = hasPendingOrders;
+            cancelPendingOrdersButton.IsEnabled = hasPendingOrders;
+        }
+
         void RefreshPendingOrderSummary()
         {
             var totalPending = pendingClientOrderRowsCollection.Count;
@@ -2014,6 +2023,7 @@ public partial class MainWindow : Window
             pendingOrderSummaryTextBlock.Text = totalPending == 0
                 ? "Không có order chờ từ máy trạm."
                 : $"Đang chờ: {totalPending} | Đã chọn: {selectedPending.Count} | Tiền: {selectedAmount:N0} VND";
+            RefreshPendingOrderButtons();
         }
 
         void RefreshSummary()

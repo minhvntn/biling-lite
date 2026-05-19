@@ -30,13 +30,14 @@ model Pc {
 }
 
 model PcGroup {
-  id         String   @id @default(uuid()) @db.Uuid
-  name       String   @unique @db.VarChar(80)
-  hourlyRate Decimal  @map("hourly_rate") @db.Decimal(12, 2)
-  isDefault  Boolean  @default(false) @map("is_default")
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  pcs        Pc[]
+  id               String   @id @default(uuid()) @db.Uuid
+  name             String   @unique @db.VarChar(80)
+  hourlyRate       Decimal  @map("hourly_rate") @db.Decimal(12, 2)
+  memberHourlyRate Decimal  @map("member_hourly_rate") @db.Decimal(12, 2)
+  isDefault        Boolean  @default(false) @map("is_default")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  pcs              Pc[]
 
   @@index([isDefault], map: "idx_pc_groups_is_default")
   @@map("pc_groups")
