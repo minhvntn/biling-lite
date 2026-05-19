@@ -109,6 +109,8 @@ public sealed class MemberLoyaltyResponse
     public MemberLoginItem Member { get; set; } = new();
 
     public MemberLoyaltyItem Loyalty { get; set; } = new();
+
+    public MemberDailyCheckinStatus? DailyCheckin { get; set; }
 }
 
 public sealed class MemberLoyaltyRedeemResponse
@@ -135,6 +137,23 @@ public sealed class MemberLoyaltySpinResponse
     public int CostPoints { get; set; }
 
     public string? SpunAt { get; set; }
+}
+
+public sealed class MemberLoyaltyDailyCheckinResponse
+{
+    public MemberLoginItem Member { get; set; } = new();
+
+    public MemberLoyaltyItem Loyalty { get; set; } = new();
+
+    public MemberDailyCheckinStatus? DailyCheckin { get; set; }
+
+    public int GainedPoints { get; set; }
+
+    public int BonusPoints { get; set; }
+
+    public int StreakDays { get; set; }
+
+    public string? CheckedInAt { get; set; }
 }
 
 public sealed class MemberUsageSyncResponse
@@ -224,6 +243,33 @@ public sealed class MemberLoyaltyItem
     public int ProgressSeconds { get; set; }
 
     public double ProgressMinutes { get; set; }
+}
+
+public sealed class MemberDailyCheckinStatus
+{
+    public string Timezone { get; set; } = "Asia/Ho_Chi_Minh";
+
+    public int PointsPerCheckin { get; set; } = 1;
+
+    public int BonusEveryDays { get; set; } = 7;
+
+    public int BonusPoints { get; set; } = 3;
+
+    public string Today { get; set; } = string.Empty;
+
+    public bool CheckedInToday { get; set; }
+
+    public string? CheckedInAt { get; set; }
+
+    public int CurrentStreakDays { get; set; }
+
+    public int DaysUntilNextBonus { get; set; }
+
+    public bool BonusReadyToday { get; set; }
+
+    public string? LastCheckinDate { get; set; }
+
+    public string? LastCheckinAt { get; set; }
 }
 
 public sealed class ActiveMemberSession

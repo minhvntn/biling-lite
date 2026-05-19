@@ -3931,7 +3931,8 @@ LIMIT $limit;";
         MemberLoyaltyResponse loyaltyResponse)
     {
         var member = loyaltyResponse.Member;
-        var loyalty = loyaltyResponse.Loyalty;
+        var currentLoyalty = loyaltyResponse.Loyalty;
+        var dailyCheckin = loyaltyResponse.DailyCheckin;
 
         var dialog = new Window
         {
@@ -3995,7 +3996,7 @@ LIMIT $limit;";
 
         var pointsTextBlock = new TextBlock
         {
-            Text = $"Điểm hiện có: {loyalty.AvailablePoints} điểm",
+            Text = $"Điểm hiện có: {currentLoyalty.AvailablePoints} điểm",
             FontSize = 22,
             FontWeight = FontWeights.Bold,
             Foreground = new SolidColorBrush(Color.FromRgb(30, 90, 168)),
@@ -4007,7 +4008,7 @@ LIMIT $limit;";
         {
             Margin = new Thickness(0, 6, 0, 12),
             Text =
-                $"Đã tích lũy: {loyalty.ProgressMinutes:0.##}/{settings.MinutesPerPoint} phút để lên điểm kế tiếp.",
+                $"Đã tích lũy: {currentLoyalty.ProgressMinutes:0.##}/{settings.MinutesPerPoint} phút để lên điểm kế tiếp.",
             Foreground = Brushes.DimGray,
         };
         Grid.SetRow(progressTextBlock, 4);
@@ -4054,6 +4055,34 @@ LIMIT $limit;";
         Grid.SetRow(errorTextBlock, 7);
         root.Children.Add(errorTextBlock);
 
+        var dailyCheckinPanel = new StackPanel
+        {
+            Orientation = Orientation.Vertical,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            Margin = new Thickness(0, 4, 0, 8),
+        };
+        var dailyCheckinButton = new Button
+        {
+            Content = "Điểm danh hôm nay (+1 điểm)",
+            Width = 300,
+            Height = 30,
+            Margin = new Thickness(0, 0, 0, 6),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Background = new SolidColorBrush(Color.FromRgb(59, 130, 246)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
+            Foreground = Brushes.White,
+        };
+        var dailyCheckinStatusTextBlock = new TextBlock
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = Brushes.DimGray,
+            TextWrapping = TextWrapping.Wrap,
+        };
+        dailyCheckinPanel.Children.Add(dailyCheckinButton);
+        dailyCheckinPanel.Children.Add(dailyCheckinStatusTextBlock);
+        Grid.SetRow(dailyCheckinPanel, 8);
+        root.Children.Add(dailyCheckinPanel);
+
         var actionPanel = new UniformGrid
         {
             Columns = 4,
@@ -4065,11 +4094,11 @@ LIMIT $limit;";
         {
             Content = "Đổi tất cả",
             Margin = new Thickness(0, 0, 6, 0),
-            IsEnabled = loyalty.AvailablePoints > 0,
+            IsEnabled = currentLoyalty.AvailablePoints > 0,
         };
         redeemAllButton.Click += (_, _) =>
         {
-            pointsBox.Text = Math.Max(1, loyalty.AvailablePoints).ToString();
+            pointsBox.Text = Math.Max(1, currentLoyalty.AvailablePoints).ToString();
             pointsBox.Focus();
             pointsBox.SelectAll();
         };
@@ -4099,8 +4128,129 @@ LIMIT $limit;";
             Margin = new Thickness(0, 0, 6, 0),
             Background = new SolidColorBrush(Color.FromRgb(121, 201, 89)),
             BorderBrush = new SolidColorBrush(Color.FromRgb(63, 138, 46)),
-            IsEnabled = loyalty.AvailablePoints > 0,
+            IsEnabled = currentLoyalty.AvailablePoints > 0,
         };
+
+        void RefreshLoyaltyUi()
+        {
+            pointsTextBlock.Text = $"Điểm hiện có: {currentLoyalty.AvailablePoints} điểm";
+            progressTextBlock.Text =
+                $"Đã tích lũy: {currentLoyalty.ProgressMinutes:0.##}/{settings.MinutesPerPoint} phút để lên điểm kế tiếp.";
+            redeemAllButton.IsEnabled = currentLoyalty.AvailablePoints > 0;
+            redeemButton.IsEnabled = currentLoyalty.AvailablePoints > 0;
+        }
+
+        void RefreshDailyCheckinUi()
+        {
+            var pointsPerCheckin = Math.Max(1, dailyCheckin?.PointsPerCheckin ?? 1);
+            var bonusEveryDays = Math.Max(1, dailyCheckin?.BonusEveryDays ?? 7);
+            var bonusPoints = Math.Max(0, dailyCheckin?.BonusPoints ?? 0);
+            dailyCheckinButton.Content = bonusPoints > 0
+                ? $"Điểm danh hôm nay (+{pointsPerCheckin} điểm, mốc {bonusEveryDays} ngày +{bonusPoints})"
+                : $"Điểm danh hôm nay (+{pointsPerCheckin} điểm)";
+
+            if (dailyCheckin?.CheckedInToday == true)
+            {
+                var checkedInText = string.Empty;
+                if (DateTimeOffset.TryParse(dailyCheckin.CheckedInAt, out var checkedInAt))
+                {
+                    checkedInText = $" lúc {checkedInAt.ToLocalTime():HH:mm}";
+                }
+
+                var bonusTodayText = dailyCheckin.BonusReadyToday && bonusPoints > 0
+                    ? $" Đã nhận bonus +{bonusPoints} điểm."
+                    : string.Empty;
+                dailyCheckinStatusTextBlock.Text =
+                    $"Hôm nay bạn đã điểm danh{checkedInText}. Streak: {dailyCheckin.CurrentStreakDays} ngày.{bonusTodayText}";
+                dailyCheckinStatusTextBlock.Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74));
+                dailyCheckinButton.IsEnabled = false;
+                return;
+            }
+
+            var streakDays = Math.Max(0, dailyCheckin?.CurrentStreakDays ?? 0);
+            if (streakDays > 0)
+            {
+                var daysToBonus = Math.Max(0, dailyCheckin?.DaysUntilNextBonus ?? 0);
+                var bonusHint = bonusPoints > 0
+                    ? $" Còn {daysToBonus} ngày để nhận +{bonusPoints} điểm bonus."
+                    : string.Empty;
+                dailyCheckinStatusTextBlock.Text =
+                    $"Streak hiện tại: {streakDays} ngày.{bonusHint}";
+            }
+            else
+            {
+                dailyCheckinStatusTextBlock.Text = "Mỗi ngày điểm danh 1 lần để nhận điểm.";
+            }
+            dailyCheckinStatusTextBlock.Foreground = Brushes.DimGray;
+            dailyCheckinButton.IsEnabled = true;
+        }
+
+        RefreshLoyaltyUi();
+        RefreshDailyCheckinUi();
+
+        dailyCheckinButton.Click += async (_, _) =>
+        {
+            errorTextBlock.Text = string.Empty;
+            dailyCheckinButton.IsEnabled = false;
+            try
+            {
+                using var response = await _httpClient.PostAsJsonAsync(
+                    BuildApiUrl($"/members/{activeSession.MemberId}/loyalty/daily-checkin"),
+                    new
+                    {
+                        createdBy = "client.loyalty.checkin",
+                    });
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var message = await ReadErrorMessageAsync(response);
+                    errorTextBlock.Text = string.IsNullOrWhiteSpace(message)
+                        ? $"Điểm danh thất bại ({(int)response.StatusCode})"
+                        : message;
+                    return;
+                }
+
+                var payload = await response.Content.ReadFromJsonAsync<MemberLoyaltyDailyCheckinResponse>(
+                    new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true,
+                    });
+
+                if (payload?.Member is not null)
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        var usedSecondsNow = _mainWindow?.GetUsedSeconds() ?? 0;
+                        SynchronizeMemberBillingFromServer(payload.Member, usedSecondsNow);
+                        _mainWindow?.SetLastCommand(
+                            $"Điểm danh +{payload.GainedPoints} @ {DateTime.Now:HH:mm:ss}");
+                        _lastSyncedMemberUsedSeconds = usedSecondsNow;
+                    });
+                }
+
+                if (payload?.Loyalty is not null)
+                {
+                    currentLoyalty = payload.Loyalty;
+                }
+
+                dailyCheckin = payload?.DailyCheckin ?? dailyCheckin;
+                RefreshLoyaltyUi();
+                RefreshDailyCheckinUi();
+
+                MessageBox.Show(
+                    (payload?.BonusPoints ?? 0) > 0
+                        ? $"Điểm danh thành công: +{Math.Max(1, payload?.GainedPoints ?? 1)} điểm (gồm bonus +{payload?.BonusPoints ?? 0})."
+                        : $"Điểm danh thành công: +{Math.Max(1, payload?.GainedPoints ?? 1)} điểm.",
+                    "Điểm tích lũy",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            finally
+            {
+                RefreshDailyCheckinUi();
+            }
+        };
+
         redeemButton.Click += async (_, _) =>
         {
             errorTextBlock.Text = string.Empty;
@@ -4110,9 +4260,9 @@ LIMIT $limit;";
                 return;
             }
 
-            if (redeemPoints > loyalty.AvailablePoints)
+            if (redeemPoints > currentLoyalty.AvailablePoints)
             {
-                errorTextBlock.Text = $"Chỉ còn {loyalty.AvailablePoints} điểm.";
+                errorTextBlock.Text = $"Chỉ còn {currentLoyalty.AvailablePoints} điểm.";
                 return;
             }
 

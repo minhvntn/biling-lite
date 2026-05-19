@@ -119,9 +119,25 @@ model Member {
   identityNumber String?             @map("identity_number") @db.VarChar(30)
   totalTopup     Decimal             @default(0) @map("total_topup") @db.Decimal(12, 2)
   transactions   MemberTransaction[]
+  dailyCheckins  MemberDailyCheckin[]
 
   @@index([fullName], map: "idx_members_full_name")
   @@map("members")
+}
+
+model MemberDailyCheckin {
+  id          String   @id @default(uuid()) @db.Uuid
+  memberId    String   @map("member_id") @db.Uuid
+  checkinDate DateTime @map("checkin_date") @db.Date
+  createdBy   String   @map("created_by") @db.VarChar(100)
+  note        String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, checkinDate], map: "uq_member_daily_checkins_member_date")
+  @@index([memberId], map: "idx_member_daily_checkins_member_id")
+  @@index([checkinDate], map: "idx_member_daily_checkins_checkin_date")
+  @@map("member_daily_checkins")
 }
 
 model LoyaltyRankConfig {

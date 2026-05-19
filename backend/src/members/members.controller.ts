@@ -20,6 +20,7 @@ import { SetAdminPresenceDto } from './dto/set-admin-presence.dto';
 import { UpdateLoyaltyRankDto } from './dto/update-loyalty-rank.dto';
 import { UpdateSpinPrizeSettingsDto } from './dto/update-spin-prize-settings.dto';
 import { PetLoyaltyPointsDto } from './dto/pet-loyalty-points.dto';
+import { LoyaltyDailyCheckinDto } from './dto/loyalty-daily-checkin.dto';
 import { MembersService } from './members.service';
 
 @Controller('members')
@@ -168,6 +169,14 @@ export class MembersController {
     @Body() payload: PetLoyaltyPointsDto,
   ) {
     return this.membersService.applyPetLoyaltyPoints(memberId, payload);
+  }
+
+  @Post(':memberId/loyalty/daily-checkin')
+  async claimDailyLoyaltyCheckin(
+    @Param('memberId') memberId: string,
+    @Body() payload: LoyaltyDailyCheckinDto,
+  ) {
+    return this.membersService.claimDailyLoyaltyCheckin(memberId, payload);
   }
 
   @Get(':memberId/transactions')

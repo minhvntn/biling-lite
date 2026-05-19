@@ -572,8 +572,6 @@ public partial class MainWindow : Window
             Margin = new Thickness(4, 0, 4, 0),
             FontSize = 13,
             ItemsSource = items.Select(x => $"- {x.ServiceName}: {x.Quantity:N0} ({x.LineTotal:N0} VND)").ToList(),
-            IsHitTestVisible = false,
-            Focusable = false,
         };
         Grid.SetRow(listBox, 1);
         contentGrid.Children.Add(listBox);

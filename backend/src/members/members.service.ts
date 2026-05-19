@@ -35,6 +35,7 @@ import { SetAdminPresenceDto } from './dto/set-admin-presence.dto';
 import { UpdateLoyaltyRankDto } from './dto/update-loyalty-rank.dto';
 import { UpdateSpinPrizeSettingsDto } from './dto/update-spin-prize-settings.dto';
 import { PetLoyaltyPointsDto } from './dto/pet-loyalty-points.dto';
+import { LoyaltyDailyCheckinDto } from './dto/loyalty-daily-checkin.dto';
 
 const LOYALTY_CONFIG_KEY = '__LOYALTY_MEMBER_POINTS__';
 const LOYALTY_MINUTES_PER_POINT = 15;
@@ -47,6 +48,12 @@ const LOYALTY_REDEEM_NOTE_PREFIX = 'LOYALTY_REDEEM';
 const LOYALTY_PET_REWARD_NOTE_PREFIX = 'PET_REWARD';
 const LOYALTY_PET_SPEND_NOTE_PREFIX = `${LOYALTY_REDEEM_NOTE_PREFIX}_PET`;
 const LOYALTY_SPIN_CONFIG_KEY = '__LOYALTY_SPIN_CONFIG__';
+const LOYALTY_DAILY_CHECKIN_TIME_ZONE = 'Asia/Ho_Chi_Minh';
+const LOYALTY_DAILY_CHECKIN_POINTS = 1;
+const LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS = 7;
+const LOYALTY_DAILY_CHECKIN_BONUS_POINTS = 3;
+const LOYALTY_DAILY_CHECKIN_CREATED_BY = 'client.loyalty.checkin';
+const LOYALTY_DAILY_CHECKIN_NOTE_PREFIX = 'LOYALTY_DAILY_CHECKIN';
 const CLIENT_MEMBER_WITHDRAW_ENABLED_KEY = '__CLIENT_MEMBER_WITHDRAW_ENABLED__';
 const DEFAULT_MEMBER_WITHDRAW_ENABLED = true;
 const CLIENT_MEMBER_TOPUP_REQUEST_ENABLED_KEY = '__CLIENT_MEMBER_TOPUP_REQUEST_ENABLED__';
@@ -720,13 +727,17 @@ export class MembersService {
     }
 
     const settings = await this.getLoyaltySettingsItem();
-    const snapshot = await this.buildLoyaltySnapshot(member.id, this.prisma);
+    const [snapshot, dailyCheckin] = await Promise.all([
+      this.buildLoyaltySnapshot(member.id, this.prisma),
+      this.getDailyCheckinStatus(member.id, this.prisma),
+    ]);
 
     return {
       enabled: settings.enabled,
       config: settings,
       member: this.toMemberItem(member),
       loyalty: snapshot,
+      dailyCheckin,
       exchangeRate: {
         pointsToMinutes: settings.pointsToMinutes,
       },
@@ -895,6 +906,97 @@ export class MembersService {
         grantedMinutes: requestedPoints * loyaltySettings.pointsToMinutes,
         loyalty: after,
         redeemedAt: new Date().toISOString(),
+      };
+    });
+  }
+
+  async claimDailyLoyaltyCheckin(memberId: string, payload: LoyaltyDailyCheckinDto) {
+    const createdBy = payload.createdBy?.trim() || LOYALTY_DAILY_CHECKIN_CREATED_BY;
+
+    return this.prisma.$transaction(async (tx) => {
+      const member = await tx.member.findUnique({ where: { id: memberId } });
+      if (!member) {
+        throw new NotFoundException('Khong tim thay hoi vien');
+      }
+
+      const enabled = await this.getLoyaltyFeatureEnabled(tx);
+      if (!enabled) {
+        throw new BadRequestException('Tinh nang diem tich luy dang tat');
+      }
+
+      const todayDateKey = this.getDateKeyInTimeZone();
+      const todayDateValue = this.dateKeyToUtcDate(todayDateKey);
+      const note =
+        payload.note?.trim() || `${LOYALTY_DAILY_CHECKIN_NOTE_PREFIX}:${todayDateKey}`;
+
+      try {
+        await tx.memberDailyCheckin.create({
+          data: {
+            memberId: member.id,
+            checkinDate: todayDateValue,
+            createdBy,
+            note,
+          },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          throw new ConflictException(
+            'Hom nay ban da diem danh roi. Vui long quay lai vao ngay mai.',
+          );
+        }
+
+        throw error;
+      }
+
+      const streakAfterCheckin = await this.getCurrentDailyCheckinStreak(member.id, tx);
+      const bonusPoints =
+        streakAfterCheckin > 0 &&
+        streakAfterCheckin % LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS === 0
+          ? LOYALTY_DAILY_CHECKIN_BONUS_POINTS
+          : 0;
+      const totalGainedPoints = LOYALTY_DAILY_CHECKIN_POINTS + bonusPoints;
+      const loyaltySettings = await this.getLoyaltySettingsItem(tx);
+      const rewardSeconds = totalGainedPoints * loyaltySettings.minutesPerPoint * 60;
+      const noteWithBonus =
+        bonusPoints > 0
+          ? `${note}:STREAK_BONUS_${streakAfterCheckin}D_PLUS_${bonusPoints}`
+          : note;
+      const updatedMember = await tx.member.update({
+        where: { id: member.id },
+        data: {
+          playSeconds: {
+            decrement: rewardSeconds,
+          },
+        },
+      });
+
+      await tx.memberTransaction.create({
+        data: {
+          memberId: member.id,
+          type: MemberTransactionType.ADJUSTMENT,
+          amountDelta: 0,
+          playSecondsDelta: -rewardSeconds,
+          note: noteWithBonus,
+          createdBy: LOYALTY_USAGE_CREATED_BY,
+        },
+      });
+
+      const [loyalty, dailyCheckin] = await Promise.all([
+        this.buildLoyaltySnapshot(member.id, tx),
+        this.getDailyCheckinStatus(member.id, tx),
+      ]);
+
+      return {
+        member: this.toMemberItem(updatedMember),
+        loyalty,
+        dailyCheckin,
+        gainedPoints: totalGainedPoints,
+        bonusPoints,
+        streakDays: streakAfterCheckin,
+        checkedInAt: new Date().toISOString(),
       };
     });
   }
@@ -2413,6 +2515,140 @@ export class MembersService {
     });
 
     return config?.isActive ?? false;
+  }
+
+  private async getDailyCheckinStatus(
+    memberId: string,
+    tx: Prisma.TransactionClient | PrismaService,
+  ) {
+    const todayDateKey = this.getDateKeyInTimeZone();
+    const todayDateValue = this.dateKeyToUtcDate(todayDateKey);
+
+    const [todayCheckin, latestCheckin, dateRows] = await Promise.all([
+      tx.memberDailyCheckin.findUnique({
+        where: {
+          memberId_checkinDate: {
+            memberId,
+            checkinDate: todayDateValue,
+          },
+        },
+        select: {
+          createdAt: true,
+        },
+      }),
+      tx.memberDailyCheckin.findFirst({
+        where: { memberId },
+        orderBy: [{ checkinDate: 'desc' }, { createdAt: 'desc' }],
+        select: {
+          checkinDate: true,
+          createdAt: true,
+        },
+      }),
+      tx.memberDailyCheckin.findMany({
+        where: { memberId },
+        select: {
+          checkinDate: true,
+        },
+        orderBy: [{ checkinDate: 'desc' }],
+        take: 370,
+      }),
+    ]);
+    const dateKeys = dateRows.map((x) => x.checkinDate.toISOString().slice(0, 10));
+    const currentStreakDays = this.calculateCurrentDailyStreak(dateKeys, todayDateKey);
+    const daysUntilNextBonus =
+      currentStreakDays > 0
+        ? (LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS -
+            (currentStreakDays % LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS)) %
+          LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS
+        : LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS - 1;
+    const bonusReadyToday =
+      todayCheckin !== null &&
+      currentStreakDays > 0 &&
+      currentStreakDays % LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS === 0;
+
+    return {
+      timezone: LOYALTY_DAILY_CHECKIN_TIME_ZONE,
+      pointsPerCheckin: LOYALTY_DAILY_CHECKIN_POINTS,
+      bonusEveryDays: LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS,
+      bonusPoints: LOYALTY_DAILY_CHECKIN_BONUS_POINTS,
+      today: todayDateKey,
+      checkedInToday: todayCheckin !== null,
+      checkedInAt: todayCheckin?.createdAt.toISOString() ?? null,
+      currentStreakDays,
+      daysUntilNextBonus,
+      bonusReadyToday,
+      lastCheckinDate: latestCheckin
+        ? latestCheckin.checkinDate.toISOString().slice(0, 10)
+        : null,
+      lastCheckinAt: latestCheckin?.createdAt.toISOString() ?? null,
+    };
+  }
+
+  private async getCurrentDailyCheckinStreak(
+    memberId: string,
+    tx: Prisma.TransactionClient | PrismaService,
+  ): Promise<number> {
+    const rows = await tx.memberDailyCheckin.findMany({
+      where: { memberId },
+      select: {
+        checkinDate: true,
+      },
+      orderBy: [{ checkinDate: 'desc' }],
+      take: 370,
+    });
+    const todayDateKey = this.getDateKeyInTimeZone();
+    const dateKeys = rows.map((x) => x.checkinDate.toISOString().slice(0, 10));
+    return this.calculateCurrentDailyStreak(dateKeys, todayDateKey);
+  }
+
+  private calculateCurrentDailyStreak(
+    dateKeysDesc: string[],
+    todayDateKey: string,
+  ): number {
+    if (dateKeysDesc.length === 0) {
+      return 0;
+    }
+
+    const dateKeySet = new Set(dateKeysDesc);
+    const hasToday = dateKeySet.has(todayDateKey);
+    const anchorDateKey = hasToday
+      ? todayDateKey
+      : this.shiftDateKey(todayDateKey, -1);
+
+    let streak = 0;
+    let cursor = anchorDateKey;
+    while (dateKeySet.has(cursor)) {
+      streak += 1;
+      cursor = this.shiftDateKey(cursor, -1);
+    }
+
+    return streak;
+  }
+
+  private getDateKeyInTimeZone(date: Date = new Date()): string {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: LOYALTY_DAILY_CHECKIN_TIME_ZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+
+    return formatter.format(date);
+  }
+
+  private dateKeyToUtcDate(dateKey: string): Date {
+    const [yearRaw, monthRaw, dayRaw] = dateKey.split('-');
+    const year = Number(yearRaw);
+    const month = Number(monthRaw);
+    const day = Number(dayRaw);
+
+    return new Date(Date.UTC(year, month - 1, day));
+  }
+
+  private shiftDateKey(dateKey: string, dayDelta: number): string {
+    const base = this.dateKeyToUtcDate(dateKey);
+    base.setUTCDate(base.getUTCDate() + dayDelta);
+    return base.toISOString().slice(0, 10);
   }
 
   private async buildLoyaltySnapshot(

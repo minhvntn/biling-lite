@@ -1802,8 +1802,6 @@ public partial class MainWindow : Window
             MaxHeight = 220,
             ItemsSource = previouslyOrderedLines,
             FontSize = 14,
-            IsHitTestVisible = false,
-            Focusable = false,
         };
         previouslyOrderedPanelStack.Children.Add(previouslyOrderedListBox);
         previouslyOrderedPanelStack.Children.Add(new TextBlock
