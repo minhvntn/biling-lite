@@ -14,6 +14,19 @@ using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace Server.Admin.App;
+
+public sealed class StartupProgressEventArgs : EventArgs
+{
+    public StartupProgressEventArgs(string message, int progressPercent)
+    {
+        Message = message;
+        ProgressPercent = Math.Clamp(progressPercent, 0, 100);
+    }
+
+    public string Message { get; }
+    public int ProgressPercent { get; }
+}
+
 public partial class MainWindow : Window
 {
     private readonly HttpClient _httpClient = new();
@@ -102,6 +115,10 @@ public partial class MainWindow : Window
     private string _websiteLogsCacheKey = string.Empty;
     private WebsiteLogsResponse? _websiteLogsCacheResponse;
     private DateTime _websiteLogsCacheAtUtc = DateTime.MinValue;
+    private bool _startupInitialized;
+
+    public event EventHandler<StartupProgressEventArgs>? StartupProgressChanged;
+    public event EventHandler<bool>? StartupInitializationCompleted;
 
     public MainWindow()
     {
@@ -112,86 +129,135 @@ public partial class MainWindow : Window
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
-        _settings = LoadSettings();
-        UpdateServerIpDisplay();
-        ApplyUiFontSize(_settings.UiFontSize);
-        ApplyMachineTableFontSize(_settings.MachineTableFontSize);
-        ApplyMachineContextMenuPadding(_settings.MachineContextMenuItemPadding);
-        ApplyMachineContextMenuFontSize(_settings.MachineContextMenuFontSize);
+        if (_startupInitialized)
+        {
+            return;
+        }
 
-        MachinesDataGrid.ItemsSource = _machineRows;
-        MembersDataGrid.ItemsSource = _memberRows;
-        MemberTransactionsDataGrid.ItemsSource = _memberTransactionRows;
-        SystemLogsDataGrid.ItemsSource = _systemLogRows;
-        MachineTimelineListBox.ItemsSource = _machineTimelineRows;
-        SessionLogsDataGrid.ItemsSource = _sessionLogRows;
-        WebsiteLogsDataGrid.ItemsSource = _websiteLogRows;
-        GroupSummaryDataGrid.ItemsSource = _groupSummaryRows;
-        GroupMachinesDataGrid.ItemsSource = _groupMachineRows;
-        ServiceItemsDataGrid.ItemsSource = _serviceItemRows;
-        WebFilterDomainsListBox.ItemsSource = _webFilterDomainRows;
-        MiniGameSpinSettingsDataGrid.ItemsSource = _loyaltySpinSettingRows;
-        FontSizeSlider.Value = _settings.UiFontSize;
-        FontSizeValueTextBlock.Text = _settings.UiFontSize.ToString("0");
-        MachineTableFontSizeSlider.Value = _settings.MachineTableFontSize;
-        MachineTableFontSizeValueTextBlock.Text = _settings.MachineTableFontSize.ToString("0");
-        MachineContextMenuPaddingSlider.Value = _settings.MachineContextMenuItemPadding;
-        MachineContextMenuPaddingValueTextBlock.Text = _settings.MachineContextMenuItemPadding.ToString("0");
-        MachineContextMenuFontSizeSlider.Value = _settings.MachineContextMenuFontSize;
-        MachineContextMenuFontSizeValueTextBlock.Text = _settings.MachineContextMenuFontSize.ToString("0");
-        RevenueAnchorDatePicker.SelectedDate = DateTime.Today;
-        WebsiteLogFromDatePicker.SelectedDate = DateTime.Today.AddDays(-1);
-        WebsiteLogToDatePicker.SelectedDate = DateTime.Today;
-        RefreshWebsiteLogMachineFilterOptions();
-        InitializeSystemLogMachineFilter();
-        _fontSizeInitialized = true;
-        _machineTableFontSizeInitialized = true;
-        _machineContextMenuPaddingInitialized = true;
-        _machineContextMenuFontSizeInitialized = true;
-        _transactionReportInitialized = true;
-        InitializeLoyaltyRanksTab();
-        InitializeMiniGameTab();
-        InitializeAppBlockTab();
-        
-        _memberModalAutoCloseTimer.Interval = TimeSpan.FromMinutes(2);
-        _memberModalAutoCloseTimer.Tick += MemberModalAutoCloseTimer_Tick;
-        
-        ApplyUserRoleRestrictions();
+        _startupInitialized = true;
+        var startupSuccess = true;
 
-        _ = LoadServerUsersAsync();
-        _ = LoadDatabaseStorageStatsAsync();
+        try
+        {
+            ReportStartupProgress("Đang khởi tạo giao diện...", 10);
 
-        _healthTimer.Interval = TimeSpan.FromSeconds(5);
-        _healthTimer.Tick += HealthTimer_Tick;
-        _healthTimer.Start();
+            _settings = LoadSettings();
+            UpdateServerIpDisplay();
+            ApplyUiFontSize(_settings.UiFontSize);
+            ApplyMachineTableFontSize(_settings.MachineTableFontSize);
+            ApplyMachineContextMenuPadding(_settings.MachineContextMenuItemPadding);
+            ApplyMachineContextMenuFontSize(_settings.MachineContextMenuFontSize);
 
-        _machineSearchDebounceTimer.Interval = TimeSpan.FromMilliseconds(250);
-        _machineSearchDebounceTimer.Tick += MachineSearchDebounceTimer_Tick;
+            MachinesDataGrid.ItemsSource = _machineRows;
+            MembersDataGrid.ItemsSource = _memberRows;
+            MemberTransactionsDataGrid.ItemsSource = _memberTransactionRows;
+            SystemLogsDataGrid.ItemsSource = _systemLogRows;
+            MachineTimelineListBox.ItemsSource = _machineTimelineRows;
+            SessionLogsDataGrid.ItemsSource = _sessionLogRows;
+            WebsiteLogsDataGrid.ItemsSource = _websiteLogRows;
+            GroupSummaryDataGrid.ItemsSource = _groupSummaryRows;
+            GroupMachinesDataGrid.ItemsSource = _groupMachineRows;
+            ServiceItemsDataGrid.ItemsSource = _serviceItemRows;
+            WebFilterDomainsListBox.ItemsSource = _webFilterDomainRows;
+            MiniGameSpinSettingsDataGrid.ItemsSource = _loyaltySpinSettingRows;
+            FontSizeSlider.Value = _settings.UiFontSize;
+            FontSizeValueTextBlock.Text = _settings.UiFontSize.ToString("0");
+            MachineTableFontSizeSlider.Value = _settings.MachineTableFontSize;
+            MachineTableFontSizeValueTextBlock.Text = _settings.MachineTableFontSize.ToString("0");
+            MachineContextMenuPaddingSlider.Value = _settings.MachineContextMenuItemPadding;
+            MachineContextMenuPaddingValueTextBlock.Text = _settings.MachineContextMenuItemPadding.ToString("0");
+            MachineContextMenuFontSizeSlider.Value = _settings.MachineContextMenuFontSize;
+            MachineContextMenuFontSizeValueTextBlock.Text = _settings.MachineContextMenuFontSize.ToString("0");
+            RevenueAnchorDatePicker.SelectedDate = DateTime.Today;
+            WebsiteLogFromDatePicker.SelectedDate = DateTime.Today.AddDays(-1);
+            WebsiteLogToDatePicker.SelectedDate = DateTime.Today;
+            RefreshWebsiteLogMachineFilterOptions();
+            InitializeSystemLogMachineFilter();
+            _fontSizeInitialized = true;
+            _machineTableFontSizeInitialized = true;
+            _machineContextMenuPaddingInitialized = true;
+            _machineContextMenuFontSizeInitialized = true;
+            _transactionReportInitialized = true;
+            InitializeLoyaltyRanksTab();
+            InitializeMiniGameTab();
+            InitializeAppBlockTab();
 
-        _memberSearchDebounceTimer.Interval = TimeSpan.FromMilliseconds(300);
-        _memberSearchDebounceTimer.Tick += MemberSearchDebounceTimer_Tick;
+            _memberModalAutoCloseTimer.Interval = TimeSpan.FromMinutes(2);
+            _memberModalAutoCloseTimer.Tick += MemberModalAutoCloseTimer_Tick;
 
-        _machinesTimer.Interval = TimeSpan.FromSeconds(Math.Max(2, _settings.MachineRefreshSeconds));
-        _machinesTimer.Tick += MachinesTimer_Tick;
-        _machinesTimer.Start();
+            ApplyUserRoleRestrictions();
 
-        _systemLogsTimer.Interval = TimeSpan.FromSeconds(Math.Max(3, _settings.MachineRefreshSeconds));
-        _systemLogsTimer.Tick += SystemLogsTimer_Tick;
-        _systemLogsTimer.Start();
+            _ = LoadServerUsersAsync();
+            _ = LoadDatabaseStorageStatsAsync();
 
-        InitializeGuestLoginNotifications();
-        InitializeRealtimeMachineRefreshBridge();
-        await ConnectRealtimeMachineRefreshAsync();
+            _healthTimer.Interval = TimeSpan.FromSeconds(5);
+            _healthTimer.Tick += HealthTimer_Tick;
+            _healthTimer.Start();
 
-        await CheckBackendHealthAsync();
-        await RefreshAllDataAsync();
-        _loyaltySettingsInitialized = true;
-        _readyShutdownSettingsInitialized = true;
-        _webFilterSettingsInitialized = true;
-        _websiteLogSettingsInitialized = true;
-        _websiteLogFiltersInitialized = true;
-        _loyaltySpinSettingsInitialized = true;
-        _backupSettingsInitialized = true;
+            _machineSearchDebounceTimer.Interval = TimeSpan.FromMilliseconds(250);
+            _machineSearchDebounceTimer.Tick += MachineSearchDebounceTimer_Tick;
+
+            _memberSearchDebounceTimer.Interval = TimeSpan.FromMilliseconds(300);
+            _memberSearchDebounceTimer.Tick += MemberSearchDebounceTimer_Tick;
+
+            _machinesTimer.Interval = TimeSpan.FromSeconds(Math.Max(2, _settings.MachineRefreshSeconds));
+            _machinesTimer.Tick += MachinesTimer_Tick;
+            _machinesTimer.Start();
+
+            _systemLogsTimer.Interval = TimeSpan.FromSeconds(Math.Max(3, _settings.MachineRefreshSeconds));
+            _systemLogsTimer.Tick += SystemLogsTimer_Tick;
+            _systemLogsTimer.Start();
+
+            ReportStartupProgress("Đang kết nối realtime...", 40);
+            InitializeGuestLoginNotifications();
+            InitializeRealtimeMachineRefreshBridge();
+            _ = ConnectRealtimeMachineRefreshAsync();
+
+            ReportStartupProgress("Đang kiểm tra backend...", 60);
+            await CheckBackendHealthAsync();
+
+            ReportStartupProgress("Đang tải dữ liệu nền...", 80);
+            _ = ContinueStartupBackgroundLoadAsync();
+            ReportStartupProgress("Đã sẵn sàng. Dữ liệu sẽ tiếp tục cập nhật.", 100);
+        }
+        catch (Exception ex)
+        {
+            startupSuccess = false;
+            MessageBox.Show(
+                $"Khởi động ứng dụng gặp lỗi: {ex.Message}",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+        finally
+        {
+            StartupInitializationCompleted?.Invoke(this, startupSuccess);
+        }
+    }
+
+    private void ReportStartupProgress(string message, int progressPercent)
+    {
+        StartupProgressChanged?.Invoke(this, new StartupProgressEventArgs(message, progressPercent));
+    }
+
+    private async Task ContinueStartupBackgroundLoadAsync()
+    {
+        try
+        {
+            await RefreshAllDataAsync();
+            _loyaltySettingsInitialized = true;
+            _readyShutdownSettingsInitialized = true;
+            _webFilterSettingsInitialized = true;
+            _websiteLogSettingsInitialized = true;
+            _websiteLogFiltersInitialized = true;
+            _loyaltySpinSettingsInitialized = true;
+            _backupSettingsInitialized = true;
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Tải dữ liệu nền hoàn tất.");
+        }
+        catch (Exception ex)
+        {
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Tải dữ liệu nền lỗi: {ex.Message}");
+        }
     }
 
     private void ApplyUserRoleRestrictions()
@@ -296,6 +362,17 @@ public partial class MainWindow : Window
         else if (e.Source == LogsTabControl)
         {
             await RefreshActiveLogTabAsync();
+        }
+        else if (e.Source == StatsTabControl)
+        {
+            if (StatsTabControl.SelectedItem == RevenueStatsTabItem)
+            {
+                await RefreshStatisticsAsync();
+            }
+            else if (StatsTabControl.SelectedItem == PcMachineStatsTabItem)
+            {
+                await RefreshPcRevenueStatsAsync();
+            }
         }
     }
 

@@ -367,9 +367,7 @@ public partial class MainWindow : Window
             if (!response.IsSuccessStatusCode)
             {
                 var err = await response.Content.ReadAsStringAsync();
-                MemberModalErrorTextBlock.Text = string.IsNullOrWhiteSpace(err)
-                    ? $"{I18n.MemberCreateFailed} ({(int)response.StatusCode})"
-                    : err;
+                MemberModalErrorTextBlock.Text = FormatMemberCreateErrorMessage(err, (int)response.StatusCode);
                 return;
             }
 
@@ -382,6 +380,63 @@ public partial class MainWindow : Window
         {
             MemberModalErrorTextBlock.Text = ex.Message;
         }
+    }
+
+    private static string FormatMemberCreateErrorMessage(string rawError, int statusCode)
+    {
+        if (string.IsNullOrWhiteSpace(rawError))
+        {
+            return $"{I18n.MemberCreateFailed} ({statusCode})";
+        }
+
+        var normalized = rawError.Trim();
+
+        try
+        {
+            using var doc = JsonDocument.Parse(normalized);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                doc.RootElement.TryGetProperty("message", out var messageElement))
+            {
+                if (messageElement.ValueKind == JsonValueKind.Array)
+                {
+                    var parts = messageElement.EnumerateArray()
+                        .Where(x => x.ValueKind == JsonValueKind.String)
+                        .Select(x => (x.GetString() ?? string.Empty).Trim())
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .ToList();
+                    if (parts.Count > 0)
+                    {
+                        normalized = string.Join(Environment.NewLine, parts);
+                    }
+                }
+                else if (messageElement.ValueKind == JsonValueKind.String)
+                {
+                    normalized = (messageElement.GetString() ?? string.Empty).Trim();
+                }
+            }
+        }
+        catch
+        {
+            // Keep original string if payload is not JSON.
+        }
+
+        var lowered = normalized.ToLowerInvariant();
+        if (lowered.Contains("username da ton tai") || lowered.Contains("username already exists"))
+        {
+            return "Tên đăng nhập đã tồn tại. Vui lòng chọn tên khác.";
+        }
+
+        if (lowered.Contains("identity number") && lowered.Contains("ton tai"))
+        {
+            return "CCCD/CMND đã tồn tại trong hệ thống.";
+        }
+
+        if (lowered.Contains("phone") && lowered.Contains("ton tai"))
+        {
+            return "Số điện thoại đã tồn tại trong hệ thống.";
+        }
+
+        return normalized;
     }
 
     private async Task TopupMemberAsync()

@@ -14,11 +14,19 @@ namespace Server.Admin.App;
 public partial class MainWindow : Window
 {
     private string _currentStatsPeriod = "week";
+    private string _currentPcStatsPeriod = "week";
+    private DateTime _currentPcStatsDate = DateTime.Today;
+    private bool _isSyncingPcStatsDatePicker;
     private DateTime _lastRealtimeAlertFetchAt = DateTime.MinValue;
 
     private async Task RefreshStatisticsAsync()
     {
         await LoadStatisticsDataAsync(_currentStatsPeriod);
+    }
+
+    private async Task RefreshPcRevenueStatsAsync()
+    {
+        await LoadPcRevenueStatsAsync(_currentPcStatsPeriod, _currentPcStatsDate);
     }
 
     private async Task LoadStatisticsDataAsync(string period)
@@ -148,81 +156,29 @@ public partial class MainWindow : Window
                     .ToList();
 
                 TopServiceItemsItemsControl.ItemsSource = topServiceRows;
+                TopServiceEmptyTextBlock.Visibility = topServiceRows.Count == 0
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
 
-                RevenueBarsContainer.Children.Clear();
-                
-                decimal maxVal = 10000;
-                foreach (var day in response.DailyData)
-                {
-                    decimal tot = day.PlaytimeRevenue + day.ServiceRevenue;
-                    if (tot > maxVal) maxVal = tot;
-                }
+                RenderDailyRevenueChart(
+                    PlaytimeRevenueBarsContainer,
+                    response.DailyData,
+                    data => Math.Max(0m, data.PlaytimeRevenue),
+                    Color.FromRgb(96, 165, 250),
+                    Color.FromRgb(37, 99, 235),
+                    value => FormatCompactMoney(value),
+                    data => $"Doanh thu giờ chơi: {data.PlaytimeRevenue:N0} VND");
 
-                for (int i = 0; i < response.DailyData.Count; i++)
-                {
-                    var data = response.DailyData[i];
-                    decimal totalVal = data.PlaytimeRevenue + data.ServiceRevenue;
-                    double barHeight = maxVal > 0 ? (double)(totalVal / maxVal) * 180.0 : 0.0;
-                    if (barHeight < 10 && totalVal > 0) barHeight = 10;
+                RenderDailyRevenueChart(
+                    ServiceRevenueBarsContainer,
+                    response.DailyData,
+                    data => Math.Max(0m, data.ServiceRevenue),
+                    Color.FromRgb(52, 211, 153),
+                    Color.FromRgb(5, 150, 105),
+                    value => FormatCompactMoney(value),
+                    data => $"Doanh thu dịch vụ: {data.ServiceRevenue:N0} VND");
 
-                    var colGrid = new Grid { Margin = new Thickness(4, 0, 4, 0) };
-                    Grid.SetColumn(colGrid, i);
-                    
-                    colGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-                    colGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-                    var barStack = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
-                    Grid.SetRow(barStack, 0);
-
-                    var valLabel = new TextBlock
-                    {
-                        Text = totalVal >= 1000000m ? $"{totalVal / 1000000m:N1}M" : $"{totalVal / 1000m:N0}K",
-                        FontSize = 14,
-                        FontWeight = FontWeights.SemiBold,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        Margin = new Thickness(0, 0, 0, 4),
-                        Foreground = new SolidColorBrush(Color.FromRgb(75, 85, 99))
-                    };
-                    barStack.Children.Add(valLabel);
-
-                    var barContainer = new Grid { Height = barHeight, Width = 28, HorizontalAlignment = HorizontalAlignment.Center };
-                    
-                    var barBorder = new Border
-                    {
-                        Height = barHeight,
-                        Width = 24,
-                        CornerRadius = new CornerRadius(6, 6, 0, 0),
-                        ToolTip = $"Giờ chơi: {data.PlaytimeRevenue:N0} VND\nDịch vụ: {data.ServiceRevenue:N0} VND"
-                    };
-
-                    var gradient = new LinearGradientBrush
-                    {
-                        StartPoint = new Point(0, 0),
-                        EndPoint = new Point(0, 1)
-                    };
-                    gradient.GradientStops.Add(new GradientStop(Color.FromRgb(96, 165, 250), 0.0));
-                    gradient.GradientStops.Add(new GradientStop(Color.FromRgb(37, 99, 235), 1.0));
-                    barBorder.Background = gradient;
-
-                    barContainer.Children.Add(barBorder);
-                    barStack.Children.Add(barContainer);
-
-                    var xLabel = new TextBlock
-                    {
-                        Text = data.Label,
-                        FontSize = 14,
-                        FontWeight = FontWeights.SemiBold,
-                        Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        Margin = new Thickness(0, 8, 0, 0)
-                    };
-                    Grid.SetRow(xLabel, 1);
-
-                    colGrid.Children.Add(barStack);
-                    colGrid.Children.Add(xLabel);
-
-                    RevenueBarsContainer.Children.Add(colGrid);
-                }
+                RenderDailyStackedRevenueChart(RevenueBarsContainer, response.DailyData);
 
                 // Playtime insights (weekday/weekend, peak/off-peak, anomaly)
                 var weeklyDistribution = response.WeeklyDistribution ?? new List<DistributionData>();
@@ -318,75 +274,7 @@ public partial class MainWindow : Window
                     $"Khung giờ ít nhất: {(offPeakHour?.Label ?? "-")} ({offPeakHour?.PlayHours.ToString("0.#") ?? "0"}h). " +
                     anomalyText;
 
-                // Render Play Hours Chart
-                PlayHoursBarsContainer.Children.Clear();
-                var maxPlayHours = response.DailyData.Count == 0
-                    ? 1m
-                    : Math.Max(1m, response.DailyData.Max(x => x.PlayHours));
-                for (int i = 0; i < response.DailyData.Count; i++)
-                {
-                    var data = response.DailyData[i];
-                    var playHours = Math.Max(0m, data.PlayHours);
-                    double barHeight = maxPlayHours > 0m ? (double)(playHours / maxPlayHours) * 180.0 : 0.0;
-                    if (barHeight < 10 && playHours > 0m) barHeight = 10;
-
-                    var colGrid = new Grid { Margin = new Thickness(4, 0, 4, 0) };
-                    Grid.SetColumn(colGrid, i);
-
-                    colGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-                    colGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-                    var barStack = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
-                    Grid.SetRow(barStack, 0);
-
-                    var valLabel = new TextBlock
-                    {
-                        Text = $"{playHours:0.#}h",
-                        FontSize = 14,
-                        FontWeight = FontWeights.SemiBold,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        Margin = new Thickness(0, 0, 0, 4),
-                        Foreground = new SolidColorBrush(Color.FromRgb(75, 85, 99))
-                    };
-                    barStack.Children.Add(valLabel);
-
-                    var barContainer = new Grid { Height = barHeight, Width = 28, HorizontalAlignment = HorizontalAlignment.Center };
-                    var barBorder = new Border
-                    {
-                        Height = barHeight,
-                        Width = 24,
-                        CornerRadius = new CornerRadius(6, 6, 0, 0),
-                        ToolTip = $"Giờ chơi: {playHours:0.#} giờ"
-                    };
-
-                    var gradient = new LinearGradientBrush
-                    {
-                        StartPoint = new Point(0, 0),
-                        EndPoint = new Point(0, 1)
-                    };
-                    gradient.GradientStops.Add(new GradientStop(Color.FromRgb(52, 211, 153), 0.0));
-                    gradient.GradientStops.Add(new GradientStop(Color.FromRgb(5, 150, 105), 1.0));
-                    barBorder.Background = gradient;
-
-                    barContainer.Children.Add(barBorder);
-                    barStack.Children.Add(barContainer);
-
-                    var xLabel = new TextBlock
-                    {
-                        Text = data.Label,
-                        FontSize = 14,
-                        FontWeight = FontWeights.SemiBold,
-                        Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        Margin = new Thickness(0, 8, 0, 0)
-                    };
-                    Grid.SetRow(xLabel, 1);
-
-                    colGrid.Children.Add(barStack);
-                    colGrid.Children.Add(xLabel);
-
-                    PlayHoursBarsContainer.Children.Add(colGrid);
-                }
+                RenderDailyPlayHoursChart(PlayHoursBarsContainer, response.DailyData);
 
                 // Render Weekly Distribution Chart
                 WeeklyDistributionBarsContainer.Children.Clear();
@@ -537,12 +425,376 @@ public partial class MainWindow : Window
         }
     }
 
+    private void RenderDailyRevenueChart(
+        Grid targetContainer,
+        IReadOnlyList<DailyStatsData> dailyData,
+        Func<DailyStatsData, decimal> valueSelector,
+        Color startColor,
+        Color endColor,
+        Func<decimal, string> valueTextSelector,
+        Func<DailyStatsData, string> toolTipSelector)
+    {
+        RenderDailyMetricChart(
+            targetContainer,
+            dailyData,
+            valueSelector,
+            startColor,
+            endColor,
+            valueTextSelector,
+            toolTipSelector);
+    }
+
+    private void RenderDailyPlayHoursChart(Grid targetContainer, IReadOnlyList<DailyStatsData> dailyData)
+    {
+        RenderDailyMetricChart(
+            targetContainer,
+            dailyData,
+            data => Math.Max(0m, data.PlayHours),
+            Color.FromRgb(52, 211, 153),
+            Color.FromRgb(5, 150, 105),
+            value => $"{value:0.#}h",
+            data => $"Giờ chơi: {Math.Max(0m, data.PlayHours):0.#} giờ");
+    }
+
+    private void RenderDailyStackedRevenueChart(Grid targetContainer, IReadOnlyList<DailyStatsData> dailyData)
+    {
+        targetContainer.Children.Clear();
+
+        var maxTotal = dailyData.Count == 0
+            ? 1m
+            : Math.Max(1m, dailyData.Max(data => Math.Max(0m, data.PlaytimeRevenue + data.ServiceRevenue)));
+
+        for (int i = 0; i < dailyData.Count; i++)
+        {
+            var data = dailyData[i];
+            var playtimeRevenue = Math.Max(0m, data.PlaytimeRevenue);
+            var serviceRevenue = Math.Max(0m, data.ServiceRevenue);
+            var totalRevenue = playtimeRevenue + serviceRevenue;
+            var totalBarHeight = maxTotal > 0m ? (double)(totalRevenue / maxTotal) * 200.0 : 0.0;
+            if (totalBarHeight < 10 && totalRevenue > 0m)
+            {
+                totalBarHeight = 10;
+            }
+
+            var playtimeHeight = totalRevenue <= 0m ? 0.0 : totalBarHeight * (double)(playtimeRevenue / totalRevenue);
+            var serviceHeight = totalRevenue <= 0m ? 0.0 : totalBarHeight * (double)(serviceRevenue / totalRevenue);
+
+            if (playtimeRevenue > 0m && playtimeHeight < 2.0)
+            {
+                playtimeHeight = 2.0;
+            }
+
+            if (serviceRevenue > 0m && serviceHeight < 2.0)
+            {
+                serviceHeight = 2.0;
+            }
+
+            var normalizedTotal = playtimeHeight + serviceHeight;
+            if (normalizedTotal > totalBarHeight && normalizedTotal > 0.0)
+            {
+                var ratio = totalBarHeight / normalizedTotal;
+                playtimeHeight *= ratio;
+                serviceHeight *= ratio;
+            }
+
+            var colGrid = new Grid { Margin = new Thickness(4, 0, 4, 0) };
+            Grid.SetColumn(colGrid, i);
+            colGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            colGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var barStack = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
+            Grid.SetRow(barStack, 0);
+
+            var valLabel = new TextBlock
+            {
+                Text = FormatCompactMoney(totalRevenue),
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 4),
+                Foreground = new SolidColorBrush(Color.FromRgb(75, 85, 99))
+            };
+            barStack.Children.Add(valLabel);
+
+            var barContainer = new Grid
+            {
+                Height = totalBarHeight,
+                Width = 28,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                ToolTip = $"Giờ chơi: {playtimeRevenue:N0} VND\nDịch vụ: {serviceRevenue:N0} VND\nTổng: {totalRevenue:N0} VND"
+            };
+
+            var segmentStack = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Bottom,
+                Orientation = Orientation.Vertical
+            };
+
+            if (playtimeHeight > 0.0)
+            {
+                var playtimeSegment = new Border
+                {
+                    Height = playtimeHeight,
+                    Width = 24,
+                    Background = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
+                    CornerRadius = serviceHeight > 0.0
+                        ? new CornerRadius(0)
+                        : new CornerRadius(6, 6, 0, 0)
+                };
+                segmentStack.Children.Add(playtimeSegment);
+            }
+
+            if (serviceHeight > 0.0)
+            {
+                var serviceSegment = new Border
+                {
+                    Height = serviceHeight,
+                    Width = 24,
+                    Background = new SolidColorBrush(Color.FromRgb(5, 150, 105)),
+                    CornerRadius = new CornerRadius(6, 6, 0, 0)
+                };
+                segmentStack.Children.Add(serviceSegment);
+            }
+
+            barContainer.Children.Add(segmentStack);
+            barStack.Children.Add(barContainer);
+
+            var xLabel = new TextBlock
+            {
+                Text = data.Label,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 8, 0, 0)
+            };
+            Grid.SetRow(xLabel, 1);
+
+            colGrid.Children.Add(barStack);
+            colGrid.Children.Add(xLabel);
+            targetContainer.Children.Add(colGrid);
+        }
+    }
+
+    private void RenderDailyMetricChart(
+        Grid targetContainer,
+        IReadOnlyList<DailyStatsData> dailyData,
+        Func<DailyStatsData, decimal> valueSelector,
+        Color startColor,
+        Color endColor,
+        Func<decimal, string> valueTextSelector,
+        Func<DailyStatsData, string> toolTipSelector)
+    {
+        targetContainer.Children.Clear();
+
+        var maxValue = dailyData.Count == 0
+            ? 1m
+            : Math.Max(1m, dailyData.Max(valueSelector));
+
+        for (int i = 0; i < dailyData.Count; i++)
+        {
+            var data = dailyData[i];
+            var metricValue = Math.Max(0m, valueSelector(data));
+            var barHeight = maxValue > 0m ? (double)(metricValue / maxValue) * 200.0 : 0.0;
+            if (barHeight < 10 && metricValue > 0m)
+            {
+                barHeight = 10;
+            }
+
+            var colGrid = new Grid { Margin = new Thickness(4, 0, 4, 0) };
+            Grid.SetColumn(colGrid, i);
+
+            colGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            colGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var barStack = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
+            Grid.SetRow(barStack, 0);
+
+            var valLabel = new TextBlock
+            {
+                Text = valueTextSelector(metricValue),
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 4),
+                Foreground = new SolidColorBrush(Color.FromRgb(75, 85, 99))
+            };
+            barStack.Children.Add(valLabel);
+
+            var barContainer = new Grid { Height = barHeight, Width = 28, HorizontalAlignment = HorizontalAlignment.Center };
+            var barBorder = new Border
+            {
+                Height = barHeight,
+                Width = 24,
+                CornerRadius = new CornerRadius(6, 6, 0, 0),
+                ToolTip = toolTipSelector(data)
+            };
+
+            var gradient = new LinearGradientBrush
+            {
+                StartPoint = new Point(0, 0),
+                EndPoint = new Point(0, 1)
+            };
+            gradient.GradientStops.Add(new GradientStop(startColor, 0.0));
+            gradient.GradientStops.Add(new GradientStop(endColor, 1.0));
+            barBorder.Background = gradient;
+
+            barContainer.Children.Add(barBorder);
+            barStack.Children.Add(barContainer);
+
+            var xLabel = new TextBlock
+            {
+                Text = data.Label,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 8, 0, 0)
+            };
+            Grid.SetRow(xLabel, 1);
+
+            colGrid.Children.Add(barStack);
+            colGrid.Children.Add(xLabel);
+            targetContainer.Children.Add(colGrid);
+        }
+    }
+
+    private static string FormatCompactMoney(decimal value)
+    {
+        if (value <= 0m)
+        {
+            return "0";
+        }
+
+        if (value >= 1_000_000_000m)
+        {
+            return $"{value / 1_000_000_000m:0.#}B";
+        }
+
+        if (value >= 1_000_000m)
+        {
+            return $"{value / 1_000_000m:0.#}M";
+        }
+
+        if (value >= 1_000m)
+        {
+            return $"{value / 1_000m:0.#}K";
+        }
+
+        return $"{value:0}";
+    }
+
+    private async Task LoadPcRevenueStatsAsync(string period, DateTime anchorDate)
+    {
+        _currentPcStatsPeriod = NormalizePcStatsPeriod(period);
+        _currentPcStatsDate = anchorDate.Date;
+
+        Dispatcher.Invoke(() =>
+        {
+            PcStatsDayButton.Background = _currentPcStatsPeriod == "day" ? new SolidColorBrush(Color.FromRgb(37, 99, 235)) : new SolidColorBrush(Color.FromRgb(243, 244, 246));
+            PcStatsDayButton.Foreground = _currentPcStatsPeriod == "day" ? Brushes.White : new SolidColorBrush(Color.FromRgb(55, 65, 81));
+
+            PcStatsWeekButton.Background = _currentPcStatsPeriod == "week" ? new SolidColorBrush(Color.FromRgb(37, 99, 235)) : new SolidColorBrush(Color.FromRgb(243, 244, 246));
+            PcStatsWeekButton.Foreground = _currentPcStatsPeriod == "week" ? Brushes.White : new SolidColorBrush(Color.FromRgb(55, 65, 81));
+
+            PcStatsMonthButton.Background = _currentPcStatsPeriod == "month" ? new SolidColorBrush(Color.FromRgb(37, 99, 235)) : new SolidColorBrush(Color.FromRgb(243, 244, 246));
+            PcStatsMonthButton.Foreground = _currentPcStatsPeriod == "month" ? Brushes.White : new SolidColorBrush(Color.FromRgb(55, 65, 81));
+
+            PcStatsYearButton.Background = _currentPcStatsPeriod == "year" ? new SolidColorBrush(Color.FromRgb(37, 99, 235)) : new SolidColorBrush(Color.FromRgb(243, 244, 246));
+            PcStatsYearButton.Foreground = _currentPcStatsPeriod == "year" ? Brushes.White : new SolidColorBrush(Color.FromRgb(55, 65, 81));
+
+            _isSyncingPcStatsDatePicker = true;
+            PcStatsDatePicker.SelectedDate = _currentPcStatsDate;
+            _isSyncingPcStatsDatePicker = false;
+        });
+
+        try
+        {
+            var url =
+                BuildApiUrl($"/reports/pc-revenue-stats?period={Uri.EscapeDataString(_currentPcStatsPeriod)}&date={Uri.EscapeDataString(_currentPcStatsDate.ToString("yyyy-MM-dd"))}");
+
+            var response = await _httpClient.GetFromJsonAsync<PcRevenueStatsResponse>(url, JsonOptions());
+            if (response is null)
+            {
+                return;
+            }
+
+            Dispatcher.Invoke(() =>
+            {
+                PcStatsPeriodLabelTextBlock.Text =
+                    $"{response.PeriodLabel} | Mốc: {response.AnchorDate} | Từ {FormatDateTime(response.RangeStart)} đến {FormatDateTime(response.RangeEndExclusive)}";
+                PcStatsPlaytimeRevenueTextBlock.Text = $"{response.TotalPlaytimeRevenue:N0} VND";
+                PcStatsServiceRevenueTextBlock.Text = $"{response.TotalServiceRevenue:N0} VND";
+                PcStatsTotalRevenueTextBlock.Text = $"{response.TotalRevenue:N0} VND";
+                PcStatsTotalPlayHoursTextBlock.Text = $"{response.TotalPlayHours:0.#} giờ";
+
+                var rows = response.Items.Select((item, idx) => new PcRevenueMachineStatsRowViewModel
+                {
+                    RankText = (idx + 1).ToString(),
+                    PcName = item.PcName,
+                    PlayHoursText = $"{item.PlayHours:0.#}",
+                    PlaytimeRevenueText = $"{item.PlaytimeRevenue:N0}",
+                    ServiceRevenueText = $"{item.ServiceRevenue:N0}",
+                    TotalRevenueText = $"{item.TotalRevenue:N0}",
+                }).ToList();
+
+                PcStatsDataGrid.ItemsSource = rows;
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Failed to load pc revenue stats: {ex.Message}");
+            Dispatcher.Invoke(() =>
+            {
+                PcStatsPeriodLabelTextBlock.Text = $"Không tải được thống kê theo máy: {ex.Message}";
+                PcStatsDataGrid.ItemsSource = new List<PcRevenueMachineStatsRowViewModel>();
+            });
+        }
+    }
+
+    private static string NormalizePcStatsPeriod(string period)
+    {
+        var normalized = (period ?? string.Empty).Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "day" => "day",
+            "week" => "week",
+            "month" => "month",
+            "year" => "year",
+            _ => "week",
+        };
+    }
+
     private async void StatsFilterButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string period)
         {
             await LoadStatisticsDataAsync(period);
         }
+    }
+
+    private async void PcStatsFilterButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string period)
+        {
+            await LoadPcRevenueStatsAsync(period, _currentPcStatsDate);
+        }
+    }
+
+    private async void PcStatsDatePicker_SelectedDateChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isSyncingPcStatsDatePicker)
+        {
+            return;
+        }
+
+        var selected = PcStatsDatePicker.SelectedDate ?? DateTime.Today;
+        await LoadPcRevenueStatsAsync(_currentPcStatsPeriod, selected);
+    }
+
+    private async void RefreshPcStatsButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshPcRevenueStatsAsync();
     }
 
     private async Task RefreshRealtimeAlertsAsync(bool force = false)
@@ -855,9 +1107,24 @@ public class DashboardStatsResponse
     public List<TopMemberData> TopMembers { get; set; } = new();
     public List<TopPcData> TopPcs { get; set; } = new();
     public List<TopPcData> LeastPcs { get; set; } = new();
+    public List<PcRevenueStatsData> PcRevenueStats { get; set; } = new();
     public List<TopServiceItemData> TopServiceItems { get; set; } = new();
     public List<DistributionData> WeeklyDistribution { get; set; } = new();
     public List<DistributionData> HourlyDistribution { get; set; } = new();
+}
+
+public class PcRevenueStatsResponse
+{
+    public string Period { get; set; } = string.Empty;
+    public string AnchorDate { get; set; } = string.Empty;
+    public string PeriodLabel { get; set; } = string.Empty;
+    public string RangeStart { get; set; } = string.Empty;
+    public string RangeEndExclusive { get; set; } = string.Empty;
+    public decimal TotalPlayHours { get; set; }
+    public decimal TotalPlaytimeRevenue { get; set; }
+    public decimal TotalServiceRevenue { get; set; }
+    public decimal TotalRevenue { get; set; }
+    public List<PcRevenueStatsData> Items { get; set; } = new();
 }
 
 public class DistributionData
@@ -901,6 +1168,18 @@ public class TopPcData
     public int Progress { get; set; }
 }
 
+public class PcRevenueStatsData
+{
+    public string PcId { get; set; } = string.Empty;
+    public string PcName { get; set; } = string.Empty;
+    public decimal PlayHours { get; set; }
+    public decimal PlaytimeRevenue { get; set; }
+    public decimal ServiceRevenue { get; set; }
+    public decimal TotalRevenue { get; set; }
+    public int RevenueProgress { get; set; }
+    public int PlayHoursProgress { get; set; }
+}
+
 public class TopServiceItemData
 {
     public string Name { get; set; } = string.Empty;
@@ -931,6 +1210,16 @@ public class TopServiceItemRowViewModel
     public string RevenueText { get; set; } = string.Empty;
     public int ProgressValue { get; set; }
     public string BarColor { get; set; } = string.Empty;
+}
+
+public class PcRevenueMachineStatsRowViewModel
+{
+    public string RankText { get; set; } = string.Empty;
+    public string PcName { get; set; } = string.Empty;
+    public string PlayHoursText { get; set; } = string.Empty;
+    public string PlaytimeRevenueText { get; set; } = string.Empty;
+    public string ServiceRevenueText { get; set; } = string.Empty;
+    public string TotalRevenueText { get; set; } = string.Empty;
 }
 
 public class TimeBasedPromotionDto

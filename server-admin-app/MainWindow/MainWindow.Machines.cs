@@ -2428,7 +2428,7 @@ public partial class MainWindow : Window
         if (eligibleMachines.Count == 0)
         {
             MessageBox.Show(
-                "Ch? thanh toán cho máy khách vãng lai (dang s? d?ng ho?c dã t?t nhung chua thanh toán).",
+                "Chỉ thanh toán cho máy khách vãng lai (đang sử dụng hoặc đã tắt nhưng chưa thanh toán).",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -2439,7 +2439,7 @@ public partial class MainWindow : Window
         {
             MessageBox.Show(
                 $"Đã bỏ qua {skippedCount} máy hội viên hoặc không thuộc trạng thái cần thanh toán.\n" +
-                $"S? tính ti?n cho {eligibleMachines.Count} máy khách vãng lai.",
+                $"Sẽ tính tiền cho {eligibleMachines.Count} máy khách vãng lai.",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -3044,7 +3044,7 @@ public partial class MainWindow : Window
         if (status is not ("ONLINE" or "AVAILABLE"))
         {
             MessageBox.Show(
-                "Ch? m? máy khách vãng lai khi máy dang ? tr?ng thái S?n sàng.",
+                "Chỉ mở máy khách vãng lai khi máy đang ở trạng thái Sẵn sàng.",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -3053,9 +3053,9 @@ public partial class MainWindow : Window
 
         var amount = await ShowTopupModalAsync(
             member: null,
-            title: $"M? máy khách vãng lai - {selected.Name}",
+            title: $"Mở máy khách vãng lai - {selected.Name}",
             memberPrompt: $"Máy trạm: {selected.Name} - nhập số tiền khách trả trước:",
-            currentBalanceText: "S? ti?n khách tr? tru?c: - VND",
+            currentBalanceText: "Số tiền khách trả trước: - VND",
             allowDeduct: false);
 
         if (!amount.HasValue)
@@ -3066,7 +3066,7 @@ public partial class MainWindow : Window
         if (amount.Value < 1000)
         {
             MessageBox.Show(
-                "S? ti?n m? máy khách vãng lai t?i thi?u là 1.000 VND.",
+                "Số tiền mở máy khách vãng lai tối thiểu là 1.000 VND.",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
@@ -3088,7 +3088,7 @@ public partial class MainWindow : Window
                 var error = await response.Content.ReadAsStringAsync();
                 MessageBox.Show(
                     string.IsNullOrWhiteSpace(error)
-                        ? $"M? máy khách vãng lai th?t b?i ({(int)response.StatusCode})"
+                        ? $"Mở máy khách vãng lai thất bại ({(int)response.StatusCode})"
                         : error,
                     "Server Admin",
                     MessageBoxButton.OK,
@@ -3096,13 +3096,13 @@ public partial class MainWindow : Window
                 return;
             }
 
-            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] M? máy khách vãng lai {selected.Name} ({amount.Value:N0} VND)");
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Mở máy khách vãng lai {selected.Name} ({amount.Value:N0} VND)");
             await RefreshMachinesAsync();
             await RefreshTransactionLogsAsync();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"M? máy khách vãng lai l?i: {ex.Message}", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Mở máy khách vãng lai lỗi: {ex.Message}", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

@@ -1664,8 +1664,8 @@ public partial class MainWindow : Window
         serviceNameCellPanel.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
 
         var serviceImageBorder = new FrameworkElementFactory(typeof(Border));
-        serviceImageBorder.SetValue(Border.WidthProperty, 28d);
-        serviceImageBorder.SetValue(Border.HeightProperty, 28d);
+        serviceImageBorder.SetValue(Border.WidthProperty, 34d);
+        serviceImageBorder.SetValue(Border.HeightProperty, 34d);
         serviceImageBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
         serviceImageBorder.SetValue(Border.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(203, 213, 225)));
         serviceImageBorder.SetValue(Border.BorderThicknessProperty, new Thickness(1));

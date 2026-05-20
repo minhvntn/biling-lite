@@ -18,6 +18,14 @@ export class ReportsController {
     return this.reportsService.getDashboardStats(period);
   }
 
+  @Get('pc-revenue-stats')
+  async getPcRevenueStats(
+    @Query('period') period?: string,
+    @Query('date') date?: string,
+  ) {
+    return this.reportsService.getPcRevenueStats(period, date);
+  }
+
   @Get('revenue/daily')
   async getDailyRevenue(@Query('date') date?: string) {
     return this.reportsService.getDailyRevenue(date);

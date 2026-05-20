@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 type RevenuePeriod = 'day' | 'week' | 'month';
 type DashboardPeriod = 'week' | 'month' | 'year';
+type PcRevenuePeriod = 'day' | 'week' | 'month' | 'year';
 
 type TimeRange = {
   start: Date;
@@ -13,6 +14,8 @@ type TimeRange = {
 type PaidServiceOrderRecord = {
   orderId: string;
   paidAt: Date;
+  pcId: string;
+  pcName: string | null;
   serviceItemId: string;
   serviceItemName: string;
   serviceItemCategory: string | null;
@@ -99,6 +102,52 @@ export class ReportsService {
       sessionAmount,
       serviceAmount,
       totalAmount,
+      serverTime: new Date().toISOString(),
+    };
+  }
+
+  async getPcRevenueStats(periodRaw?: string, dateRaw?: string) {
+    const period = this.parsePcRevenuePeriod(periodRaw);
+    const anchorDate = this.parseDate(dateRaw);
+    const range = this.getPcRevenueRange(period, anchorDate);
+
+    const [paidServiceOrders, pcs] = await Promise.all([
+      this.getPaidServiceOrderRecords(range),
+      this.prisma.pc.findMany({
+        select: {
+          id: true,
+          name: true,
+          sessions: {
+            where: {
+              status: 'CLOSED',
+              endedAt: { gte: range.start, lt: range.endExclusive },
+            },
+            select: {
+              durationSeconds: true,
+              amount: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const items = this.buildPcRevenueStats(pcs, paidServiceOrders);
+    const totalPlayHours = items.reduce((sum, item) => sum + item.playHours, 0);
+    const totalPlaytimeRevenue = items.reduce((sum, item) => sum + item.playtimeRevenue, 0);
+    const totalServiceRevenue = items.reduce((sum, item) => sum + item.serviceRevenue, 0);
+    const totalRevenue = totalPlaytimeRevenue + totalServiceRevenue;
+
+    return {
+      period,
+      anchorDate: this.formatDate(anchorDate),
+      periodLabel: this.buildPcRevenuePeriodLabel(period, range.start, range.endExclusive),
+      rangeStart: range.start.toISOString(),
+      rangeEndExclusive: range.endExclusive.toISOString(),
+      totalPlayHours: Math.round(totalPlayHours * 10) / 10,
+      totalPlaytimeRevenue,
+      totalServiceRevenue,
+      totalRevenue,
+      items,
       serverTime: new Date().toISOString(),
     };
   }
@@ -276,6 +325,15 @@ export class ReportsService {
     }
 
     return 'day';
+  }
+
+  private parsePcRevenuePeriod(rawPeriod?: string): PcRevenuePeriod {
+    const value = rawPeriod?.trim().toLowerCase();
+    if (value === 'day' || value === 'week' || value === 'month' || value === 'year') {
+      return value;
+    }
+
+    return 'week';
   }
 
   private parseHistoryDays(raw?: string): number {
@@ -462,6 +520,19 @@ export class ReportsService {
     };
   }
 
+  private getPcRevenueRange(period: PcRevenuePeriod, anchorDate: Date): TimeRange {
+    if (period === 'year') {
+      const yearStart = new Date(anchorDate.getFullYear(), 0, 1, 0, 0, 0, 0);
+      const yearEnd = new Date(anchorDate.getFullYear() + 1, 0, 1, 0, 0, 0, 0);
+      return {
+        start: yearStart,
+        endExclusive: yearEnd,
+      };
+    }
+
+    return this.getRange(period, anchorDate);
+  }
+
   private formatDate(date: Date): string {
     const year = date.getFullYear();
     const month = `${date.getMonth() + 1}`.padStart(2, '0');
@@ -493,6 +564,36 @@ export class ReportsService {
 
     const month = `${start.getMonth() + 1}`.padStart(2, '0');
     return `Thang ${month}-${start.getFullYear()}`;
+  }
+
+  private buildPcRevenuePeriodLabel(
+    period: PcRevenuePeriod,
+    start: Date,
+    endExclusive: Date,
+  ): string {
+    const toDisplayDate = (value: Date) => {
+      const day = `${value.getDate()}`.padStart(2, '0');
+      const month = `${value.getMonth() + 1}`.padStart(2, '0');
+      const year = value.getFullYear();
+      return `${day}-${month}-${year}`;
+    };
+
+    if (period === 'day') {
+      return `Ngày ${toDisplayDate(start)}`;
+    }
+
+    if (period === 'week') {
+      const end = new Date(endExclusive);
+      end.setDate(end.getDate() - 1);
+      return `Tuần ${toDisplayDate(start)} đến ${toDisplayDate(end)}`;
+    }
+
+    if (period === 'month') {
+      const month = `${start.getMonth() + 1}`.padStart(2, '0');
+      return `Tháng ${month}-${start.getFullYear()}`;
+    }
+
+    return `Năm ${start.getFullYear()}`;
   }
 
   async getDashboardStats(periodRaw?: string) {
@@ -547,6 +648,7 @@ export class ReportsService {
             },
             select: {
               durationSeconds: true,
+              amount: true,
             },
           },
         },
@@ -634,6 +736,7 @@ export class ReportsService {
     }));
 
     const topServiceItems = this.buildTopServiceItems(currentPaidServiceOrders);
+    const pcRevenueStats = this.buildPcRevenueStats(pcs, currentPaidServiceOrders);
 
     return {
       period,
@@ -650,6 +753,7 @@ export class ReportsService {
       topPcs,
       leastPcs,
       topServiceItems,
+      pcRevenueStats,
       weeklyDistribution: this.buildWeeklyDistribution(currentSessions),
       hourlyDistribution: this.buildHourlyDistribution(currentSessions),
       serverTime: new Date().toISOString(),
@@ -1048,22 +1152,79 @@ export class ReportsService {
       }
     }
 
-    if (orderPaidAtMap.size === 0) {
-      return [];
+    if (orderPaidAtMap.size > 0) {
+      const orderIds = Array.from(orderPaidAtMap.keys());
+      const paidOrders = await this.prisma.pcServiceOrder.findMany({
+        where: {
+          id: {
+            in: orderIds,
+          },
+        },
+        select: {
+          id: true,
+          pcId: true,
+          serviceItemId: true,
+          quantity: true,
+          lineTotal: true,
+          pc: {
+            select: {
+              name: true,
+            },
+          },
+          serviceItem: {
+            select: {
+              name: true,
+              category: true,
+            },
+          },
+        },
+      });
+
+      return paidOrders
+        .map((order) => {
+          const paidAt = orderPaidAtMap.get(order.id);
+          if (!paidAt) {
+            return null;
+          }
+
+          return {
+            orderId: order.id,
+            paidAt,
+            pcId: order.pcId,
+            pcName: order.pc?.name ?? null,
+            serviceItemId: order.serviceItemId,
+            serviceItemName: order.serviceItem.name,
+            serviceItemCategory: order.serviceItem.category,
+            quantity: Math.max(0, order.quantity),
+            lineTotal: Number(order.lineTotal ?? 0),
+          };
+        })
+        .filter(
+          (item): item is PaidServiceOrderRecord =>
+            !!item && item.quantity > 0 && item.lineTotal > 0,
+        );
     }
 
-    const orderIds = Array.from(orderPaidAtMap.keys());
-    const orders = await this.prisma.pcServiceOrder.findMany({
+    // Fallback for old deployments/data where service.order.paid was not logged.
+    const fallbackOrders = await this.prisma.pcServiceOrder.findMany({
       where: {
-        id: {
-          in: orderIds,
+        createdAt: {
+          gte: range.start,
+          lt: range.endExclusive,
         },
       },
       select: {
         id: true,
+        createdAt: true,
+        pcId: true,
         serviceItemId: true,
         quantity: true,
         lineTotal: true,
+        pc: {
+          select: {
+            name: true,
+          },
+        },
         serviceItem: {
           select: {
             name: true,
@@ -1073,24 +1234,87 @@ export class ReportsService {
       },
     });
 
-    return orders
-      .map((order) => {
-        const paidAt = orderPaidAtMap.get(order.id);
-        if (!paidAt) {
-          return null;
-        }
+    return fallbackOrders
+      .map((order) => ({
+        orderId: order.id,
+        paidAt: order.createdAt,
+        pcId: order.pcId,
+        pcName: order.pc?.name ?? null,
+        serviceItemId: order.serviceItemId,
+        serviceItemName: order.serviceItem.name,
+        serviceItemCategory: order.serviceItem.category,
+        quantity: Math.max(0, order.quantity),
+        lineTotal: Number(order.lineTotal ?? 0),
+      }))
+      .filter((item) => item.quantity > 0 && item.lineTotal > 0);
+  }
 
-        return {
-          orderId: order.id,
-          paidAt,
-          serviceItemId: order.serviceItemId,
-          serviceItemName: order.serviceItem.name,
-          serviceItemCategory: order.serviceItem.category,
-          quantity: Math.max(0, order.quantity),
-          lineTotal: Number(order.lineTotal ?? 0),
-        };
+  private buildPcRevenueStats(
+    pcs: Array<{
+      id: string;
+      name: string;
+      sessions: Array<{
+        durationSeconds: number | null;
+        amount: unknown;
+      }>;
+    }>,
+    paidServiceOrders: PaidServiceOrderRecord[],
+  ) {
+    const serviceRevenueByPcId = new Map<string, number>();
+    for (const order of paidServiceOrders) {
+      if (!order.pcId) {
+        continue;
+      }
+      const current = serviceRevenueByPcId.get(order.pcId) ?? 0;
+      serviceRevenueByPcId.set(order.pcId, current + Math.max(0, order.lineTotal));
+    }
+
+    const stats = pcs.map((pc) => {
+      const totalSeconds = pc.sessions.reduce(
+        (sum, session) => sum + Math.max(0, session.durationSeconds ?? 0),
+        0,
+      );
+      const playHours = Math.round((totalSeconds / 3600) * 10) / 10;
+      const playtimeRevenue = pc.sessions.reduce(
+        (sum, session) => sum + Math.max(0, Number(session.amount ?? 0)),
+        0,
+      );
+      const serviceRevenue = serviceRevenueByPcId.get(pc.id) ?? 0;
+      const totalRevenue = playtimeRevenue + serviceRevenue;
+
+      return {
+        pcId: pc.id,
+        pcName: pc.name,
+        playHours,
+        playtimeRevenue,
+        serviceRevenue,
+        totalRevenue,
+      };
+    });
+
+    const maxTotalRevenue = Math.max(
+      1,
+      ...stats.map((item) => Math.max(0, item.totalRevenue)),
+    );
+    const maxPlayHours = Math.max(1, ...stats.map((item) => Math.max(0, item.playHours)));
+
+    return stats
+      .sort((a, b) => {
+        if (b.totalRevenue !== a.totalRevenue) {
+          return b.totalRevenue - a.totalRevenue;
+        }
+        if (b.playHours !== a.playHours) {
+          return b.playHours - a.playHours;
+        }
+        return a.pcName.localeCompare(b.pcName);
       })
-      .filter((item): item is PaidServiceOrderRecord => !!item);
+      .map((item) => ({
+        ...item,
+        revenueProgress:
+          item.totalRevenue <= 0 ? 0 : Math.round((item.totalRevenue / maxTotalRevenue) * 100),
+        playHoursProgress:
+          item.playHours <= 0 ? 0 : Math.round((item.playHours / maxPlayHours) * 100),
+      }));
   }
 
   private extractOrderIdsFromPayload(payload: unknown): string[] {

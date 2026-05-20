@@ -83,7 +83,82 @@
             </Setter>
         </Style>
 
-        <Style x:Key="DangerButtonStyle" TargetType="Button">
+        <Style x:Key="AppButtonBaseStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="#2563EB" />
+            <Setter Property="BorderBrush" Value="#1D4ED8" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonRoot"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.88" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Opacity" Value="0.76" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonRoot" Property="Background" Value="#CBD5E1" />
+                                <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="#94A3B8" />
+                                <Setter Property="Foreground" Value="#F8FAFC" />
+                                <Setter Property="Opacity" Value="0.6" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Content, RelativeSource={RelativeSource Self}}" Value="Hủy">
+                    <Setter Property="Background" Value="#DC2626" />
+                    <Setter Property="BorderBrush" Value="#B91C1C" />
+                    <Setter Property="Foreground" Value="White" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Content, RelativeSource={RelativeSource Self}}" Value="Huỷ">
+                    <Setter Property="Background" Value="#DC2626" />
+                    <Setter Property="BorderBrush" Value="#B91C1C" />
+                    <Setter Property="Foreground" Value="White" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Content, RelativeSource={RelativeSource Self}}" Value="Cancel">
+                    <Setter Property="Background" Value="#DC2626" />
+                    <Setter Property="BorderBrush" Value="#B91C1C" />
+                    <Setter Property="Foreground" Value="White" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Content, RelativeSource={RelativeSource Self}}" Value="Xóa">
+                    <Setter Property="Background" Value="#DC2626" />
+                    <Setter Property="BorderBrush" Value="#B91C1C" />
+                    <Setter Property="Foreground" Value="White" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Content, RelativeSource={RelativeSource Self}}" Value="Xoá">
+                    <Setter Property="Background" Value="#DC2626" />
+                    <Setter Property="BorderBrush" Value="#B91C1C" />
+                    <Setter Property="Foreground" Value="White" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Content, RelativeSource={RelativeSource Self}}" Value="Delete">
+                    <Setter Property="Background" Value="#DC2626" />
+                    <Setter Property="BorderBrush" Value="#B91C1C" />
+                    <Setter Property="Foreground" Value="White" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        
+        <Style TargetType="Button" BasedOn="{StaticResource AppButtonBaseStyle}" />
+
+        <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource AppButtonBaseStyle}">
             <Setter Property="Background" Value="#DC2626" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="BorderBrush" Value="#B91C1C" />
@@ -1549,8 +1624,8 @@
                                 <Button x:Name="StatsYearButton" Content="Năm nay" Style="{StaticResource ModernFilterButtonStyle}" Click="StatsFilterButton_Click" Tag="year" />
                             </StackPanel>
 
-                            <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,20">
-                                <Border Margin="0,0,12,0" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="12" Padding="16">
+                            <WrapPanel Grid.Row="1" Margin="0,0,0,20" ItemWidth="330" Orientation="Horizontal">
+                                <Border Margin="0,0,12,12" Width="330" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="12" Padding="16">
                                     <StackPanel>
                                         <TextBlock Text="Doanh thu Giờ chơi" Foreground="#1E40AF" FontSize="13" FontWeight="Medium" />
                                         <TextBlock x:Name="PlaytimeRevenueTextBlock" Text="-" FontSize="22" FontWeight="Bold" Foreground="#1E3A8A" Margin="0,8,0,0" />
@@ -1558,7 +1633,7 @@
                                     </StackPanel>
                                 </Border>
                                 
-                                <Border Margin="0,0,12,0" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="12" Padding="16">
+                                <Border Margin="0,0,12,12" Width="330" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="12" Padding="16">
                                     <StackPanel>
                                         <TextBlock Text="Doanh thu Dịch vụ" Foreground="#065F46" FontSize="13" FontWeight="Medium" />
                                         <TextBlock x:Name="ServiceRevenueTextBlock" Text="-" FontSize="22" FontWeight="Bold" Foreground="#064E3B" Margin="0,8,0,0" />
@@ -1566,7 +1641,7 @@
                                     </StackPanel>
                                 </Border>
 
-                                <Border Margin="0,0,12,0" Background="#FAF5FF" BorderBrush="#D8B4FE" BorderThickness="1" CornerRadius="12" Padding="16">
+                                <Border Margin="0,0,12,12" Width="330" Background="#FAF5FF" BorderBrush="#D8B4FE" BorderThickness="1" CornerRadius="12" Padding="16">
                                     <StackPanel>
                                         <TextBlock Text="Tổng Doanh thu" Foreground="#6B21A8" FontSize="13" FontWeight="Medium" />
                                         <TextBlock x:Name="TotalRevenueTextBlock" Text="-" FontSize="22" FontWeight="Bold" Foreground="#581C87" Margin="0,8,0,0" />
@@ -1574,14 +1649,14 @@
                                     </StackPanel>
                                 </Border>
 
-                                <Border Background="#FFF7ED" BorderBrush="#FED7AA" BorderThickness="1" CornerRadius="12" Padding="16">
+                                <Border Margin="0,0,12,12" Width="330" Background="#FFF7ED" BorderBrush="#FED7AA" BorderThickness="1" CornerRadius="12" Padding="16">
                                     <StackPanel>
                                         <TextBlock Text="Tổng Giờ chơi" Foreground="#9A3412" FontSize="13" FontWeight="Medium" />
                                         <TextBlock x:Name="TotalPlayHoursTextBlock" Text="-" FontSize="22" FontWeight="Bold" Foreground="#7C2D12" Margin="0,8,0,0" />
                                         <TextBlock x:Name="PlayHoursGrowthTextBlock" Text="+ +15.1% so với kỳ trước" FontSize="11" Foreground="#15803D" Margin="0,4,0,0" />
                                     </StackPanel>
                                 </Border>
-                            </UniformGrid>
+                            </WrapPanel>
 
                             <Border Grid.Row="2"
                                     Margin="0,0,0,20"
@@ -1612,60 +1687,131 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="3*" />
+                                    <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="16" />
-                                    <ColumnDefinition Width="2*" />
+                                    <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
 
                                 <Border Grid.Row="0" Grid.Column="0" Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="12" Padding="20">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="24" />
-                                            <RowDefinition Height="250" />
-                                            <RowDefinition Height="20" />
+                                            <RowDefinition Height="16" />
                                             <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="24" />
-                                            <RowDefinition Height="250" />
                                         </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="16" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
 
-                                        <TextBlock Grid.Row="0" Text="Biểu đồ Doanh thu" FontSize="16" FontWeight="Bold" Foreground="#1F2937" />
-                                        
-                                        <Grid Grid.Row="2" x:Name="RevenueBarsContainer">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                        </Grid>
+                                        <Border Grid.Row="0" Grid.Column="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="14">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="14" />
+                                                    <RowDefinition Height="250" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Grid.Row="0" Text="Biểu đồ Doanh thu giờ chơi" FontSize="16" FontWeight="Bold" Foreground="#1F2937" />
+                                                <Grid Grid.Row="2" x:Name="PlaytimeRevenueBarsContainer">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
 
-                                        <TextBlock Grid.Row="4" Text="Biểu đồ Giờ chơi" FontSize="16" FontWeight="Bold" Foreground="#1F2937" />
+                                        <Border Grid.Row="0" Grid.Column="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="14">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="14" />
+                                                    <RowDefinition Height="250" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Grid.Row="0" Text="Biểu đồ Doanh thu dịch vụ" FontSize="16" FontWeight="Bold" Foreground="#1F2937" />
+                                                <Grid Grid.Row="2" x:Name="ServiceRevenueBarsContainer">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
 
-                                        <Grid Grid.Row="6" x:Name="PlayHoursBarsContainer">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                        </Grid>
+                                        <Border Grid.Row="2" Grid.Column="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="14">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="14" />
+                                                    <RowDefinition Height="250" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Grid.Row="0" Text="Biểu đồ Tổng doanh thu (Giờ chơi + Dịch vụ)" FontSize="16" FontWeight="Bold" Foreground="#1F2937" TextWrapping="Wrap" />
+                                                <Grid Grid.Row="2" x:Name="RevenueBarsContainer">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
+
+                                        <Border Grid.Row="2" Grid.Column="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="14">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="14" />
+                                                    <RowDefinition Height="250" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Grid.Row="0" Text="Biểu đồ Giờ chơi" FontSize="16" FontWeight="Bold" Foreground="#1F2937" />
+                                                <Grid Grid.Row="2" x:Name="PlayHoursBarsContainer">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                </Grid>
+                                            </Grid>
+                                        </Border>
                                     </Grid>
                                 </Border>
 
@@ -1713,31 +1859,39 @@
 
                                         <TextBlock Grid.Row="4" Text="Doanh thu sản phẩm bán chạy" FontSize="16" FontWeight="Bold" Foreground="#1F2937" />
 
-                                        <ItemsControl Grid.Row="6" x:Name="TopServiceItemsItemsControl">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Grid Margin="0,0,0,12">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="32" />
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                        </Grid.ColumnDefinitions>
+                                        <Grid Grid.Row="6">
+                                            <ItemsControl x:Name="TopServiceItemsItemsControl">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,0,0,12">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="32" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
 
-                                                        <Border Grid.Column="0" Width="24" Height="24" CornerRadius="12" Background="{Binding RankBackground}" VerticalAlignment="Center" HorizontalAlignment="Left">
-                                                            <TextBlock Text="{Binding RankNumber}" FontSize="12" FontWeight="Bold" Foreground="{Binding RankForeground}" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                                        </Border>
+                                                            <Border Grid.Column="0" Width="24" Height="24" CornerRadius="12" Background="{Binding RankBackground}" VerticalAlignment="Center" HorizontalAlignment="Left">
+                                                                <TextBlock Text="{Binding RankNumber}" FontSize="12" FontWeight="Bold" Foreground="{Binding RankForeground}" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                            </Border>
 
-                                                        <StackPanel Grid.Column="1" Margin="0,0,10,0">
-                                                            <TextBlock Text="{Binding ServiceName}" FontSize="13" FontWeight="SemiBold" Foreground="#1F2937" />
-                                                            <TextBlock Text="{Binding MetaText}" FontSize="11" Foreground="#6B7280" Margin="0,2,0,0" />
-                                                            <ProgressBar Height="5" Margin="0,5,0,0" Minimum="0" Maximum="100" Value="{Binding ProgressValue}" Foreground="{Binding BarColor}" Background="#F3F4F6" BorderThickness="0" />
-                                                        </StackPanel>
+                                                            <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                                                <TextBlock Text="{Binding ServiceName}" FontSize="13" FontWeight="SemiBold" Foreground="#1F2937" />
+                                                                <TextBlock Text="{Binding MetaText}" FontSize="11" Foreground="#6B7280" Margin="0,2,0,0" />
+                                                                <ProgressBar Height="5" Margin="0,5,0,0" Minimum="0" Maximum="100" Value="{Binding ProgressValue}" Foreground="{Binding BarColor}" Background="#F3F4F6" BorderThickness="0" />
+                                                            </StackPanel>
 
-                                                        <TextBlock Grid.Column="2" Text="{Binding RevenueText}" FontSize="13" FontWeight="Bold" Foreground="#065F46" VerticalAlignment="Center" />
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
+                                                            <TextBlock Grid.Column="2" Text="{Binding RevenueText}" FontSize="13" FontWeight="Bold" Foreground="#065F46" VerticalAlignment="Center" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock x:Name="TopServiceEmptyTextBlock"
+                                                       Visibility="Collapsed"
+                                                       Text="Chưa có doanh thu sản phẩm trong kỳ đã chọn."
+                                                       Margin="0,4,0,0"
+                                                       FontSize="13"
+                                                       Foreground="#6B7280" />
+                                        </Grid>
                                     </Grid>
                                 </Border>
 
@@ -1821,6 +1975,111 @@
                                     </Grid>
                                 </Border>
                             </Grid>
+                        </Grid>
+                    </ScrollViewer>
+                </TabItem>
+
+                <TabItem x:Name="PcMachineStatsTabItem">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🖥" Margin="0,0,6,0" />
+                            <TextBlock Text="Theo từng máy" />
+                        </StackPanel>
+                    </TabItem.Header>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                        <Grid Margin="16">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,14">
+                                <TextBlock Text="Khoảng thời gian:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="14" Margin="0,0,12,0" />
+                                <Button x:Name="PcStatsDayButton" Content="Ngày" Margin="0,0,8,0" Style="{StaticResource ModernFilterButtonStyle}" Click="PcStatsFilterButton_Click" Tag="day" />
+                                <Button x:Name="PcStatsWeekButton" Content="Tuần" Margin="0,0,8,0" Style="{StaticResource ModernFilterButtonStyle}" Click="PcStatsFilterButton_Click" Tag="week" />
+                                <Button x:Name="PcStatsMonthButton" Content="Tháng" Margin="0,0,8,0" Style="{StaticResource ModernFilterButtonStyle}" Click="PcStatsFilterButton_Click" Tag="month" />
+                                <Button x:Name="PcStatsYearButton" Content="Năm" Margin="0,0,12,0" Style="{StaticResource ModernFilterButtonStyle}" Click="PcStatsFilterButton_Click" Tag="year" />
+                                <TextBlock Text="Ngày mốc:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="13" Margin="0,0,8,0" />
+                                <DatePicker x:Name="PcStatsDatePicker" Width="140" SelectedDateChanged="PcStatsDatePicker_SelectedDateChanged" />
+                                <Button Margin="8,0,0,0" Padding="12,6" Content="Tải lại" Click="RefreshPcStatsButton_Click" />
+                            </StackPanel>
+
+                            <TextBlock x:Name="PcStatsPeriodLabelTextBlock"
+                                       Grid.Row="1"
+                                       Margin="0,0,0,12"
+                                       Foreground="#475569"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Text="Đang tải dữ liệu theo máy..." />
+
+                            <WrapPanel Grid.Row="2" Margin="0,0,0,14" ItemWidth="290" Orientation="Horizontal">
+                                <Border Margin="0,0,12,10" Width="290" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="10" Padding="14">
+                                    <StackPanel>
+                                        <TextBlock Text="Doanh thu giờ chơi" Foreground="#1E40AF" FontSize="12" FontWeight="Medium" />
+                                        <TextBlock x:Name="PcStatsPlaytimeRevenueTextBlock" Text="0 VND" FontSize="20" FontWeight="Bold" Foreground="#1E3A8A" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Margin="0,0,12,10" Width="290" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="10" Padding="14">
+                                    <StackPanel>
+                                        <TextBlock Text="Doanh thu dịch vụ" Foreground="#065F46" FontSize="12" FontWeight="Medium" />
+                                        <TextBlock x:Name="PcStatsServiceRevenueTextBlock" Text="0 VND" FontSize="20" FontWeight="Bold" Foreground="#064E3B" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Margin="0,0,12,10" Width="290" Background="#FAF5FF" BorderBrush="#D8B4FE" BorderThickness="1" CornerRadius="10" Padding="14">
+                                    <StackPanel>
+                                        <TextBlock Text="Tổng doanh thu" Foreground="#6B21A8" FontSize="12" FontWeight="Medium" />
+                                        <TextBlock x:Name="PcStatsTotalRevenueTextBlock" Text="0 VND" FontSize="20" FontWeight="Bold" Foreground="#581C87" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Margin="0,0,12,10" Width="290" Background="#FFF7ED" BorderBrush="#FED7AA" BorderThickness="1" CornerRadius="10" Padding="14">
+                                    <StackPanel>
+                                        <TextBlock Text="Tổng giờ chơi" Foreground="#9A3412" FontSize="12" FontWeight="Medium" />
+                                        <TextBlock x:Name="PcStatsTotalPlayHoursTextBlock" Text="0 giờ" FontSize="20" FontWeight="Bold" Foreground="#7C2D12" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </WrapPanel>
+
+                            <Border Grid.Row="3" Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="12" Padding="14">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="8" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Danh sách doanh thu &amp; giờ chơi theo máy" FontSize="15" FontWeight="Bold" Foreground="#1F2937" />
+                                    <DataGrid Grid.Row="2"
+                                              x:Name="PcStatsDataGrid"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              HeadersVisibility="Column"
+                                              CanUserAddRows="False"
+                                              CanUserDeleteRows="False"
+                                              CanUserResizeColumns="True"
+                                              CanUserReorderColumns="False"
+                                              GridLinesVisibility="Horizontal"
+                                              HorizontalGridLinesBrush="#E5E7EB"
+                                              VerticalGridLinesBrush="#E5E7EB"
+                                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                              ColumnWidth="SizeToHeader"
+                                              MinColumnWidth="70"
+                                              FontSize="13"
+                                              RowHeight="34"
+                                              RowHeaderWidth="0"
+                                              AlternationCount="2">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="#" Binding="{Binding RankText}" Width="50" />
+                                            <DataGridTextColumn Header="Máy trạm" Binding="{Binding PcName}" Width="260" />
+                                            <DataGridTextColumn Header="Giờ chơi" Binding="{Binding PlayHoursText}" Width="120" />
+                                            <DataGridTextColumn Header="Giờ chơi (VND)" Binding="{Binding PlaytimeRevenueText}" Width="170" />
+                                            <DataGridTextColumn Header="Dịch vụ (VND)" Binding="{Binding ServiceRevenueText}" Width="170" />
+                                            <DataGridTextColumn Header="Tổng (VND)" Binding="{Binding TotalRevenueText}" Width="170" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </Border>
                         </Grid>
                     </ScrollViewer>
                 </TabItem>
@@ -2489,11 +2748,28 @@
                                                     <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
                                                 <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Thư mục lưu backup:" />
-                                                <TextBox x:Name="AutoBackupDirectoryTextBox"
-                                                         Grid.Column="1"
-                                                         Height="30"
-                                                         VerticalContentAlignment="Center"
-                                                         TextChanged="AutoBackupConfigTextChanged" />
+                                                <Grid Grid.Column="1">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBox x:Name="AutoBackupDirectoryTextBox"
+                                                             Grid.Column="0"
+                                                             Height="30"
+                                                             VerticalContentAlignment="Center"
+                                                             TextChanged="AutoBackupConfigTextChanged" />
+                                                    <Button Grid.Column="1"
+                                                            Margin="8,0,0,0"
+                                                            Padding="12,6"
+                                                            Content="Chọn thư mục..."
+                                                            Click="BrowseBackupDirectoryButton_Click" />
+                                                    <Button Grid.Column="2"
+                                                            Margin="8,0,0,0"
+                                                            Padding="12,6"
+                                                            Content="Mở thư mục"
+                                                            Click="OpenBackupDirectoryButton_Click" />
+                                                </Grid>
                                             </Grid>
 
                                             <Grid Grid.Row="5" Grid.ColumnSpan="2" Margin="0,10,0,0">
@@ -2578,7 +2854,13 @@
                                 <StackPanel Grid.Row="0" Margin="0,0,0,10">
                                     <DockPanel LastChildFill="False">
                                         <TextBlock FontSize="18" FontWeight="SemiBold" Text="Danh sách tài khoản Server Admin" DockPanel.Dock="Left" />
-                                        <Button Content="Đổi tài khoản ADMIN mặc định" DockPanel.Dock="Right" Padding="10,4" Click="ChangeAdminCredentialsButton_Click" Background="#F3F4F6"/>
+                                        <Button Content="Đổi tài khoản ADMIN mặc định"
+                                                DockPanel.Dock="Right"
+                                                Padding="10,4"
+                                                Click="ChangeAdminCredentialsButton_Click"
+                                                Background="#F59E0B"
+                                                BorderBrush="#D97706"
+                                                Foreground="White" />
                                     </DockPanel>
                                     <TextBlock Margin="0,6,0,0" Foreground="#666" Text="Bạn có thể tạo thêm tài khoản nhân viên. Tài khoản ADMIN không thể bị xóa." />
                                     <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
@@ -2753,7 +3035,18 @@
         </DockPanel>
 
         <Grid x:Name="MemberModalOverlay" Background="#80000000" Visibility="Collapsed" Panel.ZIndex="100">
-            <Border Width="460" Height="420" Background="White" BorderBrush="#CFCFCF" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="16">
+            <Border Width="460"
+                    MinHeight="420"
+                    MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Grid}}"
+                    Margin="0,16"
+                    Background="White"
+                    BorderBrush="#CFCFCF"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Padding="16">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" CanContentScroll="True">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -2790,6 +3083,7 @@
                         <Button Padding="10,5" Click="CancelMemberModalButton_Click" Content="Hủy" />
                     </StackPanel>
                 </Grid>
+                </ScrollViewer>
             </Border>
         </Grid>
 

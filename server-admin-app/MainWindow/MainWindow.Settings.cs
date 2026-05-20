@@ -23,7 +23,8 @@ public partial class MainWindow : Window
     {
         try
         {
-            using var response = await _httpClient.GetAsync(BuildApiUrl("/pcs"));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            using var response = await _httpClient.GetAsync(BuildApiUrl("/pcs"), cts.Token);
             if (response.IsSuccessStatusCode)
             {
                 SetHealthStatus(I18n.BackendOnline, "#16a34a");
@@ -31,6 +32,10 @@ public partial class MainWindow : Window
             }
 
             SetHealthStatus($"Backend: {((int)response.StatusCode)}", "#ef4444");
+        }
+        catch (OperationCanceledException)
+        {
+            SetHealthStatus($"{I18n.BackendOffline} (timeout)", "#ef4444");
         }
         catch
         {
@@ -1159,6 +1164,56 @@ public partial class MainWindow : Window
     private void AutoBackupConfigTextChanged(object sender, TextChangedEventArgs e)
     {
         AutoBackupConfigControl_Changed(sender, e);
+    }
+
+    private void BrowseBackupDirectoryButton_Click(object sender, RoutedEventArgs e)
+    {
+        var currentDirectory = (AutoBackupDirectoryTextBox.Text ?? string.Empty).Trim();
+        var initialDirectory = Directory.Exists(currentDirectory)
+            ? currentDirectory
+            : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+
+        var dialog = new OpenFolderDialog
+        {
+            Title = "Chọn thư mục lưu backup",
+            InitialDirectory = initialDirectory,
+            Multiselect = false,
+        };
+
+        if (dialog.ShowDialog(this) == true)
+        {
+            AutoBackupDirectoryTextBox.Text = dialog.FolderName ?? string.Empty;
+        }
+    }
+
+    private void OpenBackupDirectoryButton_Click(object sender, RoutedEventArgs e)
+    {
+        var directory = (AutoBackupDirectoryTextBox.Text ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            AutoBackupStatusTextBlock.Text = "Vui lòng nhập hoặc chọn thư mục backup trước.";
+            AutoBackupStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        try
+        {
+            if (!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = directory,
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            AutoBackupStatusTextBlock.Text = $"Không mở được thư mục backup: {ex.Message}";
+            AutoBackupStatusTextBlock.Foreground = Brushes.Firebrick;
+        }
     }
 
     private void UpdateBackupWeekdayEnableState()
