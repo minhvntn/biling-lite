@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -2663,6 +2664,19 @@ public partial class MainWindow : Window
     private async Task ShowMachineBillingDetailsAsync(MachineRow machine)
     {
         var latestMachine = FindMachineRowById(machine.Id) ?? machine;
+        decimal activePromotionDiscountPercent = 0m;
+        string activePromotionName = string.Empty;
+        try
+        {
+            var activePromotion = await GetCurrentActivePromotionAsync();
+            activePromotionDiscountPercent = activePromotion.DiscountPercent;
+            activePromotionName = activePromotion.PromotionName;
+        }
+        catch
+        {
+            activePromotionDiscountPercent = 0m;
+            activePromotionName = string.Empty;
+        }
 
         decimal serviceAmount;
         decimal clientServiceAmount;
@@ -2702,7 +2716,7 @@ public partial class MainWindow : Window
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         var detailsGrid = new Grid();
-        for (var i = 0; i < 15; i++)
+        for (var i = 0; i < 16; i++)
         {
             detailsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         }
@@ -2726,9 +2740,10 @@ public partial class MainWindow : Window
         var playAmountValueText = AddBillingLine(detailsGrid, 7, "Tiền giờ chơi (theo phiên)", "-");
         var currentRatePlayAmountValueText = AddBillingLine(detailsGrid, 8, "Tiền giờ chơi theo giá hiện tại (tham khảo)", "-");
         var discountPercentValueText = AddBillingLine(detailsGrid, 9, "Giảm giá phiên", "-");
-        var clientServiceAmountValueText = AddBillingLine(detailsGrid, 10, "Tiền dịch vụ từ máy trạm", $"{clientServiceAmount:N0} VND");
-        var serverServiceAmountValueText = AddBillingLine(detailsGrid, 11, "Tiền dịch vụ từ server", $"{serverServiceAmount:N0} VND");
-        var serviceAmountValueText = AddBillingLine(detailsGrid, 12, "Tổng tiền dịch vụ", $"{serviceAmount:N0} VND");
+        var discountSourceValueText = AddBillingLine(detailsGrid, 10, "Nguồn giảm giá", "-");
+        var clientServiceAmountValueText = AddBillingLine(detailsGrid, 11, "Tiền dịch vụ từ máy trạm", $"{clientServiceAmount:N0} VND");
+        var serverServiceAmountValueText = AddBillingLine(detailsGrid, 12, "Tiền dịch vụ từ server", $"{serverServiceAmount:N0} VND");
+        var serviceAmountValueText = AddBillingLine(detailsGrid, 13, "Tổng tiền dịch vụ", $"{serviceAmount:N0} VND");
 
         var totalText = new TextBlock
         {
@@ -2747,7 +2762,7 @@ public partial class MainWindow : Window
             Margin = new Thickness(0, 12, 0, 0),
             Child = totalText,
         };
-        Grid.SetRow(totalBorder, 13);
+        Grid.SetRow(totalBorder, 14);
         detailsGrid.Children.Add(totalBorder);
 
         var noteText = new TextBlock
@@ -2757,7 +2772,7 @@ public partial class MainWindow : Window
             Foreground = Brushes.DimGray,
             TextWrapping = TextWrapping.Wrap,
         };
-        Grid.SetRow(noteText, 14);
+        Grid.SetRow(noteText, 15);
         detailsGrid.Children.Add(noteText);
         Grid.SetRow(detailsGrid, 0);
         root.Children.Add(detailsGrid);
@@ -2851,15 +2866,20 @@ public partial class MainWindow : Window
             groupValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.GroupName) ? "-" : machineSnapshot.GroupName;
             startedAtValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.StartedAtText) ? "-" : machineSnapshot.StartedAtText;
             playDurationValueText.Text = playDurationText;
-            sessionRateValueText.Text = $"{sessionHourlyRate:N0} VND/giờ";
-            currentRateValueText.Text = $"{machineSnapshot.HourlyRate:N0} VND/giờ";
-            playAmountValueText.Text = $"{playAmount:N0} VND";
-            currentRatePlayAmountValueText.Text = $"{currentRatePlayAmount:N0} VND";
-            var discountPercent = CalculateSessionDiscountPercent(sessionHourlyRate, machineSnapshot.HourlyRate);
+            SetMoneyRateText(sessionRateValueText, sessionHourlyRate);
+            SetMoneyRateText(currentRateValueText, machineSnapshot.HourlyRate);
+            SetMoneyText(playAmountValueText, playAmount, new SolidColorBrush(Color.FromRgb(30, 64, 175)));
+            SetMoneyText(currentRatePlayAmountValueText, currentRatePlayAmount, new SolidColorBrush(Color.FromRgb(8, 145, 178)));
+            var discountPercent = activePromotionDiscountPercent > 0
+                ? activePromotionDiscountPercent
+                : CalculateSessionDiscountPercent(sessionHourlyRate, machineSnapshot.HourlyRate);
             discountPercentValueText.Text = discountPercent > 0 ? $"{discountPercent:0.##}%" : "0%";
-            clientServiceAmountValueText.Text = $"{clientServiceAmount:N0} VND";
-            serverServiceAmountValueText.Text = $"{serverServiceAmount:N0} VND";
-            serviceAmountValueText.Text = $"{serviceAmount:N0} VND";
+            discountSourceValueText.Text = activePromotionDiscountPercent > 0
+                ? $"Khuyến mãi: {activePromotionName}"
+                : "-";
+            SetMoneyText(clientServiceAmountValueText, clientServiceAmount, new SolidColorBrush(Color.FromRgb(5, 150, 105)));
+            SetMoneyText(serverServiceAmountValueText, serverServiceAmount, new SolidColorBrush(Color.FromRgb(107, 114, 128)));
+            SetMoneyText(serviceAmountValueText, serviceAmount, new SolidColorBrush(Color.FromRgb(15, 118, 110)));
             totalText.Text = $"Tổng thanh toán: {totalAmount:N0} VND";
             noteText.Text = hasSession
                 ? "Tiền dịch vụ đã tách nguồn: Máy trạm và Server. Tổng thanh toán lấy theo đơn giá của phiên đang chạy."
@@ -2914,6 +2934,101 @@ public partial class MainWindow : Window
 
         var discount = (1m - (sessionHourlyRate / currentHourlyRate)) * 100m;
         return Math.Round(discount, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private async Task<(decimal DiscountPercent, string PromotionName)> GetCurrentActivePromotionAsync()
+    {
+        var promotions = await _httpClient.GetFromJsonAsync<List<TimeBasedPromotionDto>>(
+            BuildApiUrl("/pricing/promotions"),
+            JsonOptions());
+
+        if (promotions is null || promotions.Count == 0)
+        {
+            return (0m, string.Empty);
+        }
+
+        var now = DateTime.Now;
+        // DTO daysOfWeek uses 1..7 where 7 is Sunday.
+        var currentDay = now.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)now.DayOfWeek;
+        var currentTime = now.TimeOfDay;
+
+        decimal bestDiscount = 0m;
+        string bestPromotionName = string.Empty;
+        foreach (var promo in promotions)
+        {
+            if (promo is null || !promo.IsActive)
+            {
+                continue;
+            }
+
+            if (promo.DaysOfWeek is null || promo.DaysOfWeek.Count == 0)
+            {
+                continue;
+            }
+
+            if (!promo.DaysOfWeek.Contains(currentDay))
+            {
+                continue;
+            }
+
+            if (!TryParsePromotionTime(promo.StartTime, out var start) ||
+                !TryParsePromotionTime(promo.EndTime, out var end))
+            {
+                continue;
+            }
+
+            bool inRange;
+            if (start <= end)
+            {
+                inRange = currentTime >= start && currentTime <= end;
+            }
+            else
+            {
+                // Handle ranges crossing midnight, e.g. 22:00-02:00
+                inRange = currentTime >= start || currentTime <= end;
+            }
+
+            if (!inRange)
+            {
+                continue;
+            }
+
+            if (promo.DiscountPercent > bestDiscount)
+            {
+                bestDiscount = promo.DiscountPercent;
+                bestPromotionName = (promo.Name ?? string.Empty).Trim();
+            }
+        }
+
+        return (Math.Max(0m, bestDiscount), bestPromotionName);
+    }
+
+    private static bool TryParsePromotionTime(string? raw, out TimeSpan time)
+    {
+        time = default;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        var normalized = raw.Trim();
+        return TimeSpan.TryParse(normalized, CultureInfo.InvariantCulture, out time) ||
+               TimeSpan.TryParse(normalized, out time);
+    }
+
+    private static void SetMoneyRateText(TextBlock target, decimal hourlyRate)
+    {
+        target.Inlines.Clear();
+        target.Inlines.Add(new Run($"{hourlyRate:N0}") { Foreground = new SolidColorBrush(Color.FromRgb(30, 64, 175)) });
+        target.Inlines.Add(new Run(" VND") { Foreground = new SolidColorBrush(Color.FromRgb(234, 88, 12)), FontWeight = FontWeights.SemiBold });
+        target.Inlines.Add(new Run("/giờ") { Foreground = Brushes.DimGray });
+    }
+
+    private static void SetMoneyText(TextBlock target, decimal amount, Brush amountBrush)
+    {
+        target.Inlines.Clear();
+        target.Inlines.Add(new Run($"{amount:N0}") { Foreground = amountBrush, FontWeight = FontWeights.SemiBold });
+        target.Inlines.Add(new Run(" VND") { Foreground = new SolidColorBrush(Color.FromRgb(234, 88, 12)), FontWeight = FontWeights.SemiBold });
     }
 
     private async Task OpenGuestMachineAsync(MachineRow? targetMachine = null)
@@ -3238,7 +3353,7 @@ public partial class MainWindow : Window
                 At = item.CreatedAt,
                 Order = new RealtimeServiceOrderInfo
                 {
-                    Id = item.Id,
+                    Id = item.Id ?? string.Empty,
                     ServiceItemId = item.ServiceItem?.Id ?? string.Empty,
                     ServiceName = item.ServiceItem?.Name ?? "Dịch vụ",
                     Quantity = item.Quantity,
@@ -3309,14 +3424,14 @@ public partial class MainWindow : Window
 
     private static TextBlock AddBillingLine(Grid root, int rowIndex, string label, string value)
     {
-        var rowGrid = new Grid { Margin = new Thickness(0, 3, 0, 3) };
+        var rowGrid = new Grid { Margin = new Thickness(0, 5, 0, 5) };
         rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
         rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         var labelText = new TextBlock
         {
             Text = $"{label}:",
-            FontSize = 14,
+            FontSize = 15,
             FontWeight = FontWeights.SemiBold,
             Foreground = Brushes.Black,
         };
@@ -3326,9 +3441,9 @@ public partial class MainWindow : Window
         var valueText = new TextBlock
         {
             Text = string.IsNullOrWhiteSpace(value) ? "-" : value,
-            FontSize = 14,
+            FontSize = 15,
             Foreground = Brushes.Black,
-            Margin = new Thickness(8, 0, 0, 0),
+            Margin = new Thickness(12, 0, 0, 0),
         };
         Grid.SetColumn(valueText, 1);
         rowGrid.Children.Add(valueText);

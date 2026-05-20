@@ -12,7 +12,6 @@ public partial class MainWindow
     private readonly ObservableCollection<ServerUserRow> _serverUserRows = new();
     private readonly ObservableCollection<DatabaseStorageTableRow> _dbStorageTableRows = new();
     private readonly ObservableCollection<DatabaseStorageHistoryRow> _dbStorageHistoryRows = new();
-    private bool _serverUsersInitialized;
 
     private async Task LoadServerUsersAsync()
     {

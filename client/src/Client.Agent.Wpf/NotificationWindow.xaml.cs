@@ -23,7 +23,7 @@ namespace Client.Agent.Wpf
             _timer.Start();
         }
 
-        private void Timer_Tick(object sender, EventArgs e)
+        private void Timer_Tick(object? sender, EventArgs e)
         {
             _secondsRemaining--;
             TimerTextBlock.Text = string.Format("T\u1ef1 \u0111\u1ed9ng \u0111\u00f3ng sau {0} gi\u00e2y", _secondsRemaining);

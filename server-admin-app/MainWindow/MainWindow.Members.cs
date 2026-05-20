@@ -1979,7 +1979,7 @@ public partial class MainWindow : Window
             IsCancel = true,
             FontSize = 15,
             FontWeight = FontWeights.SemiBold,
-            Style = (Style)FindResource("DangerButtonStyle"),
+            Style = TryFindResource("DangerButtonStyle") as Style,
         };
         actionsPanel.Children.Add(saveButton);
         actionsPanel.Children.Add(cancelButton);
@@ -2345,7 +2345,7 @@ public partial class MainWindow : Window
             Height = 36,
             Margin = new Thickness(0, 0, 8, 0),
             FontWeight = FontWeights.SemiBold,
-            Style = (Style)FindResource("DangerButtonStyle"),
+            Style = TryFindResource("DangerButtonStyle") as Style,
         };
         var cancelButton = new Button
         {
@@ -2354,7 +2354,7 @@ public partial class MainWindow : Window
             Height = 36,
             Margin = new Thickness(0, 0, 8, 0),
             IsCancel = true,
-            Style = (Style)FindResource("DangerButtonStyle"),
+            Style = TryFindResource("DangerButtonStyle") as Style,
         };
         var submitButton = new Button
         {
