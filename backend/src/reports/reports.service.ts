@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 
 type RevenuePeriod = 'day' | 'week' | 'month';
@@ -19,10 +20,32 @@ type PaidServiceOrderRecord = {
   lineTotal: number;
 };
 
+type DbStorageHistoryPoint = {
+  date: string;
+  sizeBytes: number;
+};
+
 @Injectable()
 export class ReportsService {
   private static readonly WEBSITE_VISIT_EVENT_TYPE = 'website.visit';
   private static readonly WEBSITE_LOG_SETTINGS_EVENT_TYPE = 'website.log.settings';
+  private static readonly WEB_FILTER_SETTINGS_EVENT_TYPE = 'web.filter.settings';
+  private static readonly SAFE_LOG_RETENTION_DAYS = 30;
+  private static readonly SAFE_DELETABLE_SYSTEM_EVENT_TYPES = [
+    'admin.notify.sent',
+    'backup.created',
+    'backup.failed',
+    'backup.restored',
+    'pc.registered',
+    'pc.screenshot.requested',
+    'pc.screenshot.captured',
+    'pc.wake.sent',
+    'session.preserved.offline_guest',
+    'session.transferred',
+  ] as const;
+  private static readonly SAFE_DELETABLE_SYSTEM_EVENT_PREFIXES = ['command.'] as const;
+  private static readonly DB_STORAGE_HISTORY_KEY = 'db.storage.history';
+  private static readonly DB_STORAGE_HISTORY_MAX_DAYS = 180;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -122,20 +145,128 @@ export class ReportsService {
 
   async clearSystemEvents() {
     const result = await this.prisma.eventLog.deleteMany({
-      where: {
-        eventType: {
-          notIn: [
-            ReportsService.WEBSITE_VISIT_EVENT_TYPE,
-            ReportsService.WEBSITE_LOG_SETTINGS_EVENT_TYPE,
-          ],
-        },
-      },
+      where: this.buildSafeSystemLogDeleteWhere(),
     });
 
     return {
       deletedCount: result.count,
       serverTime: new Date().toISOString(),
     };
+  }
+
+  async getDatabaseStorage(daysRaw?: string) {
+    const days = this.parseHistoryDays(daysRaw);
+    const [databaseRows, tableRows] = await Promise.all([
+      this.prisma.$queryRawUnsafe<
+        Array<{
+          db_name: string;
+          size_bytes: bigint | number | string;
+          size_pretty: string;
+        }>
+      >(`
+        SELECT
+          current_database() AS db_name,
+          pg_database_size(current_database()) AS size_bytes,
+          pg_size_pretty(pg_database_size(current_database())) AS size_pretty;
+      `),
+      this.prisma.$queryRawUnsafe<
+        Array<{
+          table_name: string;
+          total_bytes: bigint | number | string;
+          total_pretty: string;
+          table_bytes: bigint | number | string;
+          table_pretty: string;
+          index_toast_bytes: bigint | number | string;
+          index_toast_pretty: string;
+        }>
+      >(`
+        SELECT
+          relname AS table_name,
+          pg_total_relation_size((quote_ident(schemaname)||'.'||quote_ident(relname))::regclass) AS total_bytes,
+          pg_size_pretty(pg_total_relation_size((quote_ident(schemaname)||'.'||quote_ident(relname))::regclass)) AS total_pretty,
+          pg_relation_size((quote_ident(schemaname)||'.'||quote_ident(relname))::regclass) AS table_bytes,
+          pg_size_pretty(pg_relation_size((quote_ident(schemaname)||'.'||quote_ident(relname))::regclass)) AS table_pretty,
+          pg_total_relation_size((quote_ident(schemaname)||'.'||quote_ident(relname))::regclass)
+            - pg_relation_size((quote_ident(schemaname)||'.'||quote_ident(relname))::regclass) AS index_toast_bytes,
+          pg_size_pretty(
+            pg_total_relation_size((quote_ident(schemaname)||'.'||quote_ident(relname))::regclass)
+            - pg_relation_size((quote_ident(schemaname)||'.'||quote_ident(relname))::regclass)
+          ) AS index_toast_pretty
+        FROM pg_stat_user_tables
+        WHERE schemaname = 'public'
+        ORDER BY total_bytes DESC
+        LIMIT 12;
+      `),
+    ]);
+
+    const databaseRow = databaseRows[0];
+    const sizeBytes = this.numericToNumber(databaseRow?.size_bytes);
+    const normalizedTables = tableRows.map((item) => {
+      const totalBytes = this.numericToNumber(item.total_bytes);
+      const tableBytes = this.numericToNumber(item.table_bytes);
+      const indexToastBytes = this.numericToNumber(item.index_toast_bytes);
+      return {
+        tableName: item.table_name,
+        totalBytes,
+        totalPretty: item.total_pretty,
+        tableBytes,
+        tablePretty: item.table_pretty,
+        indexToastBytes,
+        indexToastPretty: item.index_toast_pretty,
+      };
+    });
+
+    const history = await this.captureAndReadDbStorageHistory(sizeBytes, days);
+    const dayDelta = this.buildDbStorageDayDelta(history);
+
+    return {
+      databaseName: databaseRow?.db_name ?? 'unknown',
+      sizeBytes,
+      sizePretty: databaseRow?.size_pretty ?? '0 bytes',
+      dayDeltaBytes: dayDelta.deltaBytes,
+      dayDeltaPercent: dayDelta.deltaPercent,
+      topTables: normalizedTables,
+      history,
+      serverTime: new Date().toISOString(),
+    };
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_1AM)
+  async snapshotDatabaseStorageDaily() {
+    try {
+      const rows = await this.prisma.$queryRawUnsafe<
+        Array<{ size_bytes: bigint | number | string }>
+      >(
+        `SELECT pg_database_size(current_database()) AS size_bytes;`,
+      );
+      const sizeBytes = this.numericToNumber(rows[0]?.size_bytes);
+      await this.captureAndReadDbStorageHistory(sizeBytes, ReportsService.DB_STORAGE_HISTORY_MAX_DAYS);
+    } catch {
+      // Ignore scheduler errors to avoid crashing the process.
+    }
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  async cleanupSafeSystemLogsDaily() {
+    try {
+      const cutoff = new Date(
+        Date.now() - ReportsService.SAFE_LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+      );
+      await this.prisma.eventLog.deleteMany({
+        where: {
+          AND: [
+            this.buildSafeSystemLogDeleteWhere(),
+            {
+              createdAt: {
+                lt: cutoff,
+              },
+            },
+          ],
+        },
+      });
+    } catch {
+      // Ignore scheduler errors to avoid crashing the process.
+    }
   }
 
   private parsePeriod(rawPeriod?: string): RevenuePeriod {
@@ -145,6 +276,124 @@ export class ReportsService {
     }
 
     return 'day';
+  }
+
+  private parseHistoryDays(raw?: string): number {
+    const parsed = Number(raw ?? '14');
+    if (!Number.isFinite(parsed)) {
+      return 14;
+    }
+    return Math.min(90, Math.max(7, Math.floor(parsed)));
+  }
+
+  private numericToNumber(value: bigint | number | string | null | undefined): number {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+    if (typeof value === 'bigint') {
+      return Number(value);
+    }
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  }
+
+  private async captureAndReadDbStorageHistory(
+    currentSizeBytes: number,
+    takeDays: number,
+  ): Promise<DbStorageHistoryPoint[]> {
+    const today = this.formatDate(new Date());
+    const setting = await this.prisma.appSetting.findUnique({
+      where: { key: ReportsService.DB_STORAGE_HISTORY_KEY },
+    });
+
+    const existing = this.parseDbStorageHistory(setting?.value);
+    const normalized = existing
+      .filter((item) => item.date && Number.isFinite(item.sizeBytes))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const todayIndex = normalized.findIndex((item) => item.date === today);
+    let hasChanged = false;
+    if (todayIndex >= 0) {
+      if (normalized[todayIndex].sizeBytes !== currentSizeBytes) {
+        normalized[todayIndex].sizeBytes = currentSizeBytes;
+        hasChanged = true;
+      }
+    } else {
+      normalized.push({ date: today, sizeBytes: currentSizeBytes });
+      hasChanged = true;
+    }
+
+    while (normalized.length > ReportsService.DB_STORAGE_HISTORY_MAX_DAYS) {
+      normalized.shift();
+      hasChanged = true;
+    }
+
+    if (hasChanged) {
+      await this.prisma.appSetting.upsert({
+        where: { key: ReportsService.DB_STORAGE_HISTORY_KEY },
+        create: {
+          key: ReportsService.DB_STORAGE_HISTORY_KEY,
+          value: JSON.stringify(normalized),
+        },
+        update: {
+          value: JSON.stringify(normalized),
+        },
+      });
+    }
+
+    return normalized.slice(-takeDays);
+  }
+
+  private parseDbStorageHistory(rawValue?: string): DbStorageHistoryPoint[] {
+    if (!rawValue) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue) as Array<{ date?: unknown; sizeBytes?: unknown }>;
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      return parsed
+        .map((item) => {
+          const date = typeof item.date === 'string' ? item.date.trim() : '';
+          const sizeBytes = this.numericToNumber(
+            typeof item.sizeBytes === 'string' ||
+              typeof item.sizeBytes === 'number' ||
+              typeof item.sizeBytes === 'bigint'
+              ? (item.sizeBytes as string | number | bigint)
+              : 0,
+          );
+          return { date, sizeBytes };
+        })
+        .filter((item) => !!item.date);
+    } catch {
+      return [];
+    }
+  }
+
+  private buildDbStorageDayDelta(history: DbStorageHistoryPoint[]) {
+    if (history.length < 2) {
+      return {
+        deltaBytes: 0,
+        deltaPercent: 0,
+      };
+    }
+
+    const latest = history[history.length - 1].sizeBytes;
+    const previous = history[history.length - 2].sizeBytes;
+    const deltaBytes = latest - previous;
+    const deltaPercent =
+      previous <= 0 ? 0 : Number((((latest - previous) / previous) * 100).toFixed(2));
+
+    return {
+      deltaBytes,
+      deltaPercent,
+    };
   }
 
   private parseDate(rawDate?: string): Date {
@@ -469,6 +718,7 @@ export class ReportsService {
     period: DashboardPeriod,
     sessions: Array<{
       amount: unknown;
+      durationSeconds: number | null;
       endedAt: Date | null;
       startedAt: Date;
     }>,
@@ -483,6 +733,7 @@ export class ReportsService {
         label,
         playtimeRevenue: 0,
         serviceRevenue: 0,
+        playHours: 0,
       }));
 
       for (const session of sessions) {
@@ -490,6 +741,7 @@ export class ReportsService {
         const monthIndex = at.getMonth();
         if (monthIndex >= 0 && monthIndex < 12) {
           buckets[monthIndex].playtimeRevenue += Number(session.amount ?? 0);
+          buckets[monthIndex].playHours += Math.max(0, session.durationSeconds ?? 0) / 3600;
         }
       }
 
@@ -500,7 +752,10 @@ export class ReportsService {
         }
       }
 
-      return buckets;
+      return buckets.map((bucket) => ({
+        ...bucket,
+        playHours: Math.round(bucket.playHours * 10) / 10,
+      }));
     }
 
     if (period === 'month') {
@@ -509,6 +764,7 @@ export class ReportsService {
         label: `Tuan ${index + 1}`,
         playtimeRevenue: 0,
         serviceRevenue: 0,
+        playHours: 0,
       }));
 
       for (const session of sessions) {
@@ -518,6 +774,7 @@ export class ReportsService {
           Math.max(0, Math.floor((at.getDate() - 1) / 7)),
         );
         buckets[weekIndex].playtimeRevenue += Number(session.amount ?? 0);
+        buckets[weekIndex].playHours += Math.max(0, session.durationSeconds ?? 0) / 3600;
       }
 
       for (const order of paidServiceOrders) {
@@ -528,7 +785,10 @@ export class ReportsService {
         buckets[weekIndex].serviceRevenue += order.lineTotal;
       }
 
-      return buckets;
+      return buckets.map((bucket) => ({
+        ...bucket,
+        playHours: Math.round(bucket.playHours * 10) / 10,
+      }));
     }
 
     const labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
@@ -536,12 +796,14 @@ export class ReportsService {
       label,
       playtimeRevenue: 0,
       serviceRevenue: 0,
+      playHours: 0,
     }));
 
     for (const session of sessions) {
       const at = session.endedAt ?? session.startedAt;
       const dayIndex = (at.getDay() + 6) % 7;
       buckets[dayIndex].playtimeRevenue += Number(session.amount ?? 0);
+      buckets[dayIndex].playHours += Math.max(0, session.durationSeconds ?? 0) / 3600;
     }
 
     for (const order of paidServiceOrders) {
@@ -549,7 +811,10 @@ export class ReportsService {
       buckets[dayIndex].serviceRevenue += order.lineTotal;
     }
 
-    return buckets;
+    return buckets.map((bucket) => ({
+      ...bucket,
+      playHours: Math.round(bucket.playHours * 10) / 10,
+    }));
   }
 
   private buildWeeklyDistribution(
@@ -570,7 +835,7 @@ export class ReportsService {
 
     return labels.map((label, dayIndex) => ({
       label,
-      playHours: Math.round(secondsByDay[dayIndex] / 3600),
+      playHours: Math.round((secondsByDay[dayIndex] / 3600) * 10) / 10,
       isWeekend: dayIndex >= 5,
     }));
   }
@@ -582,11 +847,11 @@ export class ReportsService {
     }>,
   ) {
     const buckets = [
-      { label: 'Sang (8h-12h)', seconds: 0 },
-      { label: 'Trua (12h-14h)', seconds: 0 },
-      { label: 'Chieu (14h-18h)', seconds: 0 },
-      { label: 'Toi (18h-22h)', seconds: 0 },
-      { label: 'Dem (22h-8h)', seconds: 0 },
+      { label: 'Sáng (8h-12h)', seconds: 0 },
+      { label: 'Trưa (12h-14h)', seconds: 0 },
+      { label: 'Chiều (14h-18h)', seconds: 0 },
+      { label: 'Tối (18h-22h)', seconds: 0 },
+      { label: 'Đêm (22h-8h)', seconds: 0 },
     ];
 
     for (const session of sessions) {
@@ -607,7 +872,7 @@ export class ReportsService {
 
     return buckets.map((item) => ({
       label: item.label,
-      playHours: Math.round(item.seconds / 3600),
+      playHours: Math.round((item.seconds / 3600) * 10) / 10,
     }));
   }
 
@@ -686,7 +951,54 @@ export class ReportsService {
     });
 
     if (groupedUsages.length === 0) {
-      return [];
+      // Fallback đúng bản chất "đã chơi": lấy theo lịch sử SESSION_USAGE
+      // (không giới hạn kỳ) thay vì lấy playSeconds còn lại.
+      const fallbackUsageRows = await this.prisma.memberTransaction.groupBy({
+        by: ['memberId'],
+        where: {
+          type: 'ADJUSTMENT',
+          playSecondsDelta: {
+            lt: 0,
+          },
+          note: {
+            startsWith: 'SESSION_USAGE',
+          },
+        },
+        _sum: {
+          playSecondsDelta: true,
+        },
+        orderBy: {
+          _sum: {
+            playSecondsDelta: 'asc',
+          },
+        },
+        take: 5,
+      });
+
+      if (fallbackUsageRows.length === 0) {
+        return [];
+      }
+
+      const fallbackMemberIds = fallbackUsageRows.map((item) => item.memberId);
+      const fallbackMembers = await this.prisma.member.findMany({
+        where: {
+          id: {
+            in: fallbackMemberIds,
+          },
+        },
+        select: {
+          id: true,
+          username: true,
+        },
+      });
+      const fallbackUsernameById = new Map(
+        fallbackMembers.map((item) => [item.id, item.username]),
+      );
+
+      return fallbackUsageRows.map((item) => ({
+        username: fallbackUsernameById.get(item.memberId) ?? 'unknown',
+        consumedSeconds: Math.abs(item._sum.playSecondsDelta ?? 0),
+      }));
     }
 
     const memberIds = groupedUsages.map((item) => item.memberId);
@@ -798,6 +1110,37 @@ export class ReportsService {
 
     return Array.from(new Set(normalized));
   }
+
+  private buildSafeSystemLogDeleteWhere() {
+    const safeTypeConditions = [
+      ...ReportsService.SAFE_DELETABLE_SYSTEM_EVENT_TYPES.map((eventType) => ({
+        eventType,
+      })),
+      ...ReportsService.SAFE_DELETABLE_SYSTEM_EVENT_PREFIXES.map((prefix) => ({
+        eventType: {
+          startsWith: prefix,
+        },
+      })),
+    ];
+
+    return {
+      AND: [
+        {
+          eventType: {
+            notIn: [
+              ReportsService.WEBSITE_VISIT_EVENT_TYPE,
+              ReportsService.WEBSITE_LOG_SETTINGS_EVENT_TYPE,
+              ReportsService.WEB_FILTER_SETTINGS_EVENT_TYPE,
+            ],
+          },
+        },
+        {
+          OR: safeTypeConditions,
+        },
+      ],
+    };
+  }
+
   private parseLimit(rawLimit?: string): number {
     const parsed = Number(rawLimit ?? '200');
     if (!Number.isFinite(parsed)) {

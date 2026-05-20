@@ -1805,7 +1805,7 @@ public partial class MainWindow : Window
         var formGrid = new Grid();
         formGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         formGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        for (var i = 0; i < 4; i++)
+        for (var i = 0; i < 5; i++)
         {
             formGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         }
@@ -1898,14 +1898,22 @@ public partial class MainWindow : Window
             VerticalContentAlignment = VerticalAlignment.Center,
         };
 
+        var totalTopupBox = new TextBox
+        {
+            Text = lifetimeTopup.ToString("0.##", CultureInfo.InvariantCulture),
+            Height = 32,
+            VerticalContentAlignment = VerticalAlignment.Center,
+        };
+
         AddField(formGrid, "Username", usernameBox, 0, 0);
         AddField(formGrid, "H\u1ecd t\u00ean", fullNameBox, 0, 1);
         AddField(formGrid, "S\u1ed1 \u0111i\u1ec7n tho\u1ea1i", phoneBox, 1, 0);
         AddField(formGrid, "CCCD/CMND", identityBox, 1, 1);
         AddField(formGrid, "S\u1ed1 d\u01b0 (VND)", balancePanel, 2, 0);
         AddField(formGrid, "\u0110i\u1ec3m t\u00edch l\u0169y", pointsBox, 2, 1);
-        AddField(formGrid, "L\u1ea7n \u0111\u0103ng nh\u1eadp g\u1ea7n \u0111\u00e2y", lastLoginBox, 3, 0);
-        AddField(formGrid, "T\u1ed5ng th\u1eddi gian s\u1eed d\u1ee5ng m\u00e1y", totalUsageBox, 3, 1);
+        AddField(formGrid, "T\u1ed5ng n\u1ea1p (VND)", totalTopupBox, 3, 0);
+        AddField(formGrid, "L\u1ea7n \u0111\u0103ng nh\u1eadp g\u1ea7n \u0111\u00e2y", lastLoginBox, 4, 0);
+        AddField(formGrid, "T\u1ed5ng th\u1eddi gian s\u1eed d\u1ee5ng m\u00e1y", totalUsageBox, 4, 1);
 
         Grid.SetRow(formGrid, 0);
         root.Children.Add(formGrid);
@@ -1971,10 +1979,7 @@ public partial class MainWindow : Window
             IsCancel = true,
             FontSize = 15,
             FontWeight = FontWeights.SemiBold,
-            Background = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
-            Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
-            BorderThickness = new Thickness(1),
+            Style = (Style)FindResource("DangerButtonStyle"),
         };
         actionsPanel.Children.Add(saveButton);
         actionsPanel.Children.Add(cancelButton);
@@ -1995,6 +2000,11 @@ public partial class MainWindow : Window
                 errorTextBlock.Text = "\u0110i\u1ec3m t\u00edch l\u0169y kh\u00f4ng h\u1ee3p l\u1ec7.";
                 return;
             }
+            if (!TryParseNonNegativeMoney(totalTopupBox.Text.Trim(), out var totalTopup))
+            {
+                errorTextBlock.Text = "T\u1ed5ng n\u1ea1p kh\u00f4ng h\u1ee3p l\u1ec7.";
+                return;
+            }
 
             var fullName = fullNameBox.Text.Trim();
             if (string.IsNullOrWhiteSpace(fullName))
@@ -2010,6 +2020,7 @@ public partial class MainWindow : Window
                 ["identityNumber"] = string.IsNullOrWhiteSpace(identityBox.Text) ? null : identityBox.Text.Trim(),
                 ["isActive"] = statusCheckBox.IsChecked == true,
                 ["balance"] = Convert.ToDouble(balance),
+                ["totalTopup"] = Convert.ToDouble(totalTopup),
                 ["availablePoints"] = points,
                 ["updatedBy"] = "admin.desktop",
                 ["note"] = "Cap nhat tu app server admin",
@@ -2334,6 +2345,7 @@ public partial class MainWindow : Window
             Height = 36,
             Margin = new Thickness(0, 0, 8, 0),
             FontWeight = FontWeights.SemiBold,
+            Style = (Style)FindResource("DangerButtonStyle"),
         };
         var cancelButton = new Button
         {
@@ -2342,6 +2354,7 @@ public partial class MainWindow : Window
             Height = 36,
             Margin = new Thickness(0, 0, 8, 0),
             IsCancel = true,
+            Style = (Style)FindResource("DangerButtonStyle"),
         };
         var submitButton = new Button
         {

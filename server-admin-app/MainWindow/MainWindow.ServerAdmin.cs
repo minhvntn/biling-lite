@@ -10,6 +10,8 @@ namespace Server.Admin.App;
 public partial class MainWindow
 {
     private readonly ObservableCollection<ServerUserRow> _serverUserRows = new();
+    private readonly ObservableCollection<DatabaseStorageTableRow> _dbStorageTableRows = new();
+    private readonly ObservableCollection<DatabaseStorageHistoryRow> _dbStorageHistoryRows = new();
     private bool _serverUsersInitialized;
 
     private async Task LoadServerUsersAsync()
@@ -45,6 +47,71 @@ public partial class MainWindow
         {
             StaffActionStatusTextBlock.Text = $"Lỗi: {ex.Message}";
             StaffActionStatusTextBlock.Foreground = Brushes.Firebrick;
+        }
+    }
+
+    private async Task LoadDatabaseStorageStatsAsync()
+    {
+        try
+        {
+            DbStorageSizeTextBlock.Text = "Tổng DB: đang tải...";
+            DbStorageUpdatedAtTextBlock.Text = "Cập nhật: đang tải...";
+            DbStorageDeltaTextBlock.Text = "Biến động hôm nay: -";
+            DbStorageDeltaTextBlock.Foreground = Brushes.DimGray;
+
+            var response = await _httpClient.GetFromJsonAsync<DatabaseStorageStatsResponse>(
+                BuildApiUrl("/reports/database/storage?days=14"),
+                JsonOptions());
+            if (response is null)
+            {
+                return;
+            }
+
+            DbStorageSizeTextBlock.Text = $"{response.DatabaseName}: {response.SizePretty}";
+            DbStorageUpdatedAtTextBlock.Text = $"Cập nhật: {FormatDateTime(response.ServerTime)}";
+
+            var deltaPrefix = response.DayDeltaBytes > 0 ? "+" : string.Empty;
+            DbStorageDeltaTextBlock.Text =
+                $"Biến động hôm nay: {deltaPrefix}{FormatBytes(response.DayDeltaBytes)} ({deltaPrefix}{response.DayDeltaPercent:0.##}%)";
+
+            if (response.DayDeltaBytes > 0)
+            {
+                DbStorageDeltaTextBlock.Foreground = new SolidColorBrush(Color.FromRgb(185, 28, 28));
+            }
+            else if (response.DayDeltaBytes < 0)
+            {
+                DbStorageDeltaTextBlock.Foreground = new SolidColorBrush(Color.FromRgb(5, 150, 105));
+            }
+            else
+            {
+                DbStorageDeltaTextBlock.Foreground = Brushes.DimGray;
+            }
+
+            _dbStorageTableRows.Clear();
+            foreach (var row in response.TopTables)
+            {
+                _dbStorageTableRows.Add(row);
+            }
+            DbStorageTablesDataGrid.ItemsSource = _dbStorageTableRows;
+
+            _dbStorageHistoryRows.Clear();
+            foreach (var row in response.History.OrderByDescending(x => x.Date))
+            {
+                _dbStorageHistoryRows.Add(new DatabaseStorageHistoryRow
+                {
+                    Date = row.Date,
+                    SizeBytes = row.SizeBytes,
+                    SizePretty = string.IsNullOrWhiteSpace(row.SizePretty) ? FormatBytes(row.SizeBytes) : row.SizePretty,
+                });
+            }
+            DbStorageHistoryDataGrid.ItemsSource = _dbStorageHistoryRows;
+        }
+        catch (Exception ex)
+        {
+            DbStorageSizeTextBlock.Text = "Tổng DB: không tải được";
+            DbStorageUpdatedAtTextBlock.Text = "Cập nhật: lỗi kết nối";
+            DbStorageDeltaTextBlock.Text = $"Biến động hôm nay: lỗi ({ex.Message})";
+            DbStorageDeltaTextBlock.Foreground = Brushes.Firebrick;
         }
     }
 
@@ -130,5 +197,39 @@ public partial class MainWindow
         {
             _ = LoadServerUsersAsync();
         }
+    }
+
+    private async void RefreshDatabaseStorageButton_Click(object sender, RoutedEventArgs e)
+    {
+        await LoadDatabaseStorageStatsAsync();
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        var abs = Math.Abs((double)bytes);
+        string unit;
+        double value;
+        if (abs >= 1024 * 1024 * 1024)
+        {
+            unit = "GB";
+            value = bytes / (1024d * 1024d * 1024d);
+        }
+        else if (abs >= 1024 * 1024)
+        {
+            unit = "MB";
+            value = bytes / (1024d * 1024d);
+        }
+        else if (abs >= 1024)
+        {
+            unit = "KB";
+            value = bytes / 1024d;
+        }
+        else
+        {
+            unit = "B";
+            value = bytes;
+        }
+
+        return $"{value:0.##} {unit}";
     }
 }

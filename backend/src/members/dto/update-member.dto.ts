@@ -51,6 +51,13 @@ export class UpdateMemberDto {
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
+  @Max(10000000000)
+  totalTopup?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
   @Max(1000000)
   playHours?: number;
 
@@ -73,4 +80,3 @@ export class UpdateMemberDto {
   @Max(1000000)
   availablePoints?: number;
 }
-

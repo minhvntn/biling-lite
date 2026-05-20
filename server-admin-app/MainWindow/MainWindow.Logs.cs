@@ -52,15 +52,11 @@ public partial class MainWindow : Window
                 return;
             }
 
-            ProcessMemberTransferNotifications(response.Items);
-
-            _systemLogRows.Clear();
-            foreach (var item in response.Items.Select(ToSystemLogRow))
-            {
-                _systemLogRows.Add(item);
-            }
-
-            SystemLogInfoTextBlock.Text = $"{I18n.LogsCountPrefix}: {response.Total} - {I18n.UpdatedAtPrefix} {DateTime.Now:HH:mm:ss}";
+            _latestSystemEventItems = response.Items?.ToList() ?? new List<SystemEventItem>();
+            ProcessMemberTransferNotifications(_latestSystemEventItems);
+            UpdateSystemLogMachineFilterOptions(_latestSystemEventItems);
+            ApplySystemLogMachineFilterAndTimeline(response.Total);
+            UpdateRealtimeAlertPanelFromEvents(_latestSystemEventItems);
         }
         catch
         {
@@ -535,6 +531,184 @@ public partial class MainWindow : Window
         return 0m;
     }
 
+    private void InitializeSystemLogMachineFilter()
+    {
+        if (SystemLogMachineFilterComboBox is null)
+        {
+            return;
+        }
+
+        _isUpdatingSystemLogMachineFilter = true;
+        SystemLogMachineFilterComboBox.Items.Clear();
+        SystemLogMachineFilterComboBox.Items.Add(new ComboBoxItem
+        {
+            Content = "Tất cả máy",
+            Tag = "__all__",
+            IsSelected = true
+        });
+        SystemLogMachineFilterComboBox.SelectedIndex = 0;
+        _isUpdatingSystemLogMachineFilter = false;
+
+        MachineTimelineInfoTextBlock.Text = "Chưa có dữ liệu timeline.";
+    }
+
+    private void UpdateSystemLogMachineFilterOptions(IReadOnlyList<SystemEventItem> items)
+    {
+        if (SystemLogMachineFilterComboBox is null)
+        {
+            return;
+        }
+
+        var currentKey = GetSelectedSystemLogMachineKey();
+        var machineOptions = items
+            .Where(item => !string.IsNullOrWhiteSpace(item.PcName) || !string.IsNullOrWhiteSpace(item.AgentId))
+            .GroupBy(BuildSystemLogMachineKey, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new
+            {
+                Key = group.Key,
+                Label = BuildSystemLogMachineLabel(group.First())
+            })
+            .OrderBy(x => x.Label, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        _isUpdatingSystemLogMachineFilter = true;
+        SystemLogMachineFilterComboBox.Items.Clear();
+        SystemLogMachineFilterComboBox.Items.Add(new ComboBoxItem
+        {
+            Content = "Tất cả máy",
+            Tag = "__all__",
+        });
+
+        foreach (var option in machineOptions)
+        {
+            SystemLogMachineFilterComboBox.Items.Add(new ComboBoxItem
+            {
+                Content = option.Label,
+                Tag = option.Key
+            });
+        }
+
+        var selectedIndex = 0;
+        if (!string.IsNullOrWhiteSpace(currentKey) && !string.Equals(currentKey, "__all__", StringComparison.OrdinalIgnoreCase))
+        {
+            for (int i = 1; i < SystemLogMachineFilterComboBox.Items.Count; i++)
+            {
+                if (SystemLogMachineFilterComboBox.Items[i] is ComboBoxItem item &&
+                    item.Tag is string tag &&
+                    string.Equals(tag, currentKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    selectedIndex = i;
+                    break;
+                }
+            }
+        }
+
+        SystemLogMachineFilterComboBox.SelectedIndex = selectedIndex;
+        _isUpdatingSystemLogMachineFilter = false;
+    }
+
+    private string GetSelectedSystemLogMachineKey()
+    {
+        if (SystemLogMachineFilterComboBox.SelectedItem is ComboBoxItem item && item.Tag is string tag)
+        {
+            return tag;
+        }
+
+        return "__all__";
+    }
+
+    private string GetSelectedSystemLogMachineLabel()
+    {
+        if (SystemLogMachineFilterComboBox.SelectedItem is ComboBoxItem item && item.Content is string text)
+        {
+            return text;
+        }
+
+        return "Tất cả máy";
+    }
+
+    private static string BuildSystemLogMachineKey(SystemEventItem item)
+    {
+        var pc = (item.PcName ?? string.Empty).Trim();
+        var agent = (item.AgentId ?? string.Empty).Trim();
+        return $"{pc}|{agent}";
+    }
+
+    private static string BuildSystemLogMachineLabel(SystemEventItem item)
+    {
+        var pc = (item.PcName ?? string.Empty).Trim();
+        var agent = (item.AgentId ?? string.Empty).Trim();
+
+        if (!string.IsNullOrWhiteSpace(pc) && !string.IsNullOrWhiteSpace(agent))
+        {
+            return $"{pc} ({agent})";
+        }
+
+        if (!string.IsNullOrWhiteSpace(pc))
+        {
+            return pc;
+        }
+
+        return string.IsNullOrWhiteSpace(agent) ? "-" : agent;
+    }
+
+    private void ApplySystemLogMachineFilterAndTimeline(int? originalTotal = null)
+    {
+        var selectedKey = GetSelectedSystemLogMachineKey();
+        var selectedLabel = GetSelectedSystemLogMachineLabel();
+
+        var filtered = string.Equals(selectedKey, "__all__", StringComparison.OrdinalIgnoreCase)
+            ? _latestSystemEventItems
+            : _latestSystemEventItems
+                .Where(item => string.Equals(BuildSystemLogMachineKey(item), selectedKey, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+        var sortedDesc = filtered
+            .OrderByDescending(item => ParseDateLocal(item.CreatedAt) ?? DateTime.MinValue)
+            .ToList();
+
+        _systemLogRows.Clear();
+        foreach (var row in sortedDesc.Select(ToSystemLogRow))
+        {
+            _systemLogRows.Add(row);
+        }
+
+        RenderMachineTimeline(sortedDesc);
+
+        var sourceTotal = originalTotal ?? _latestSystemEventItems.Count;
+        SystemLogInfoTextBlock.Text =
+            $"{I18n.LogsCountPrefix}: {sourceTotal} | Hiển thị: {sortedDesc.Count} | Bộ lọc: {selectedLabel} - {I18n.UpdatedAtPrefix} {DateTime.Now:HH:mm:ss}";
+    }
+
+    private void RenderMachineTimeline(IReadOnlyList<SystemEventItem> filteredEvents)
+    {
+        _machineTimelineRows.Clear();
+
+        var timelineItems = filteredEvents
+            .Take(20)
+            .OrderBy(item => ParseDateLocal(item.CreatedAt) ?? DateTime.MinValue)
+            .ToList();
+
+        foreach (var item in timelineItems)
+        {
+            var (eventName, details) = TranslateSystemEvent(item);
+            _machineTimelineRows.Add(new MachineTimelineRow
+            {
+                TimeText = FormatDateTime(item.CreatedAt),
+                EventText = eventName,
+                DetailsText = details,
+            });
+        }
+
+        if (_machineTimelineRows.Count == 0)
+        {
+            MachineTimelineInfoTextBlock.Text = "Không có hoạt động theo bộ lọc đang chọn.";
+            return;
+        }
+
+        MachineTimelineInfoTextBlock.Text = $"{_machineTimelineRows.Count} sự kiện gần nhất theo thứ tự thời gian.";
+    }
+
     private async Task RefreshTransactionLogsAsync()
     {
         try
@@ -617,8 +791,8 @@ public partial class MainWindow : Window
     {
         var confirm = MessageBox.Show(
             this,
-            "Bạn có chắc muốn xóa toàn bộ nhật ký hệ thống?\nDữ liệu đã xóa sẽ không thể khôi phục.",
-            "Xóa nhật ký hệ thống",
+            "Ban co chac muon xoa log an toan?\nChi xoa nhom log van hanh, khong xoa log tai chinh/thanh toan.",
+            "Xoa log an toan",
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
         if (confirm != MessageBoxResult.Yes)
@@ -633,7 +807,7 @@ public partial class MainWindow : Window
             {
                 MessageBox.Show(
                     this,
-                    $"Xóa nhật ký thất bại ({(int)response.StatusCode}).",
+                    $"Xoa log an toan that bai ({(int)response.StatusCode}).",
                     "Server Admin",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -645,12 +819,12 @@ public partial class MainWindow : Window
 
             InvalidateSystemLogsCache();
             _systemLogRows.Clear();
-            SystemLogInfoTextBlock.Text = $"Đã xóa {deletedCount} dòng - Cập nhật lúc {DateTime.Now:HH:mm:ss}";
+            SystemLogInfoTextBlock.Text = $"Da xoa {deletedCount} dong log an toan - Cap nhat luc {DateTime.Now:HH:mm:ss}";
             await RefreshSystemLogsAsync(forceRefresh: true);
 
             MessageBox.Show(
                 this,
-                $"Đã xóa {deletedCount} dòng nhật ký hệ thống.",
+                $"Da xoa {deletedCount} dong log an toan.\nLog quan trong van duoc giu lai.",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
@@ -659,7 +833,7 @@ public partial class MainWindow : Window
         {
             MessageBox.Show(
                 this,
-                $"Không thể xóa nhật ký: {ex.Message}",
+                $"Khong the xoa log an toan: {ex.Message}",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
@@ -684,6 +858,45 @@ public partial class MainWindow : Window
         }
 
         await RefreshSystemLogsAsync(forceRefresh: true);
+    }
+
+    private void SystemLogMachineFilterComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded || _isUpdatingSystemLogMachineFilter)
+        {
+            return;
+        }
+
+        ApplySystemLogMachineFilterAndTimeline();
+    }
+
+    private async void QuickRefreshAllDataButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshAllDataAsync();
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã chạy tác vụ nhanh: tải lại toàn bộ dữ liệu");
+    }
+
+    private async void QuickRefreshMachinesButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshMachinesAsync();
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã chạy tác vụ nhanh: làm mới danh sách máy trạm");
+    }
+
+    private async void QuickRefreshSystemLogsButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshSystemLogsAsync(forceRefresh: true);
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã chạy tác vụ nhanh: làm mới nhật ký hệ thống");
+    }
+
+    private void QuickGoToMachinesTabButton_Click(object sender, RoutedEventArgs e)
+    {
+        MainTabControl.SelectedItem = WorkstationsTab;
+    }
+
+    private void QuickGoToSystemLogsTabButton_Click(object sender, RoutedEventArgs e)
+    {
+        MainTabControl.SelectedItem = LogsTabItem;
+        LogsTabControl.SelectedItem = SystemLogsTabItem;
     }
 
     private async void RefreshTransactionLogsButton_Click(object sender, RoutedEventArgs e) => await RefreshTransactionLogsAsync();

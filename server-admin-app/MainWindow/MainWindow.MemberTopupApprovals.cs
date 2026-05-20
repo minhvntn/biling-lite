@@ -178,6 +178,7 @@ public partial class MainWindow : Window
                 Content = "Hủy",
                 Width = 96,
                 Margin = new Thickness(0, 0, 8, 0),
+                Style = (Style)FindResource("DangerButtonStyle"),
             };
 
             var approveButton = new Button

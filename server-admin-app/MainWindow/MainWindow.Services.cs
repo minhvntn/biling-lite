@@ -232,6 +232,7 @@ public partial class MainWindow : Window
             Margin = new Thickness(8, 0, 0, 0),
             Padding = new Thickness(10, 2, 10, 2),
             IsEnabled = false,
+            Style = (Style)FindResource("DangerButtonStyle"),
         };
         Grid.SetColumn(clearImageButton, 2);
         imagePickerGrid.Children.Add(clearImageButton);
@@ -299,6 +300,7 @@ public partial class MainWindow : Window
             Width = 80,
             Height = 30,
             IsCancel = true,
+            Style = (Style)FindResource("DangerButtonStyle"),
         };
 
         buttonPanel.Children.Add(createButton);
@@ -586,6 +588,7 @@ public partial class MainWindow : Window
             Margin = new Thickness(8, 0, 0, 0),
             Padding = new Thickness(10, 2, 10, 2),
             IsEnabled = !string.IsNullOrWhiteSpace(imageDataUrl),
+            Style = (Style)FindResource("DangerButtonStyle"),
         };
         Grid.SetColumn(clearImageButton, 2);
         imagePickerGrid.Children.Add(clearImageButton);
@@ -676,6 +679,7 @@ public partial class MainWindow : Window
             Width = 80,
             Height = 30,
             IsCancel = true,
+            Style = (Style)FindResource("DangerButtonStyle"),
         };
         buttonPanel.Children.Add(saveButton);
         buttonPanel.Children.Add(cancelButton);
@@ -1975,9 +1979,7 @@ public partial class MainWindow : Window
             Width = 170,
             Height = 34,
             FontWeight = FontWeights.SemiBold,
-            Foreground = Brushes.White,
-            Background = new SolidColorBrush(Color.FromRgb(220, 38, 38)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(185, 28, 28)),
+            Style = (Style)FindResource("DangerButtonStyle"),
             Margin = new Thickness(0, 0, 8, 0),
             ToolTip = "Hủy các order chờ đã chọn (ví dụ khi hết hàng).",
             IsEnabled = false,
@@ -1988,9 +1990,7 @@ public partial class MainWindow : Window
             Width = 90,
             Height = 34,
             FontWeight = FontWeights.SemiBold,
-            Foreground = Brushes.White,
-            Background = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(75, 85, 99)),
+            Style = (Style)FindResource("DangerButtonStyle"),
             IsCancel = true,
         };
 

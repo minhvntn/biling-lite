@@ -1566,6 +1566,7 @@ public partial class MainWindow : Window
             Content = "Huy",
             Width = 92,
             IsCancel = true,
+            Style = (Style)FindResource("DangerButtonStyle"),
         };
         actions.Children.Add(saveButton);
         actions.Children.Add(cancelButton);

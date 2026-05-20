@@ -2,6 +2,26 @@
 
 public static class I18n
 {
+    public const string MainWindowTitle = "Server Manager Admin";
+    public const string HeaderTitle = "Server Manager Billing [ADMIN]";
+    public const string Logout = "Đăng xuất";
+    public const string WorkstationsTab = "Máy trạm";
+    public const string Refresh = "Làm mới";
+    public const string OpenMachine = "Mở máy";
+    public const string LockMachine = "Khóa máy";
+    public const string ClearFilter = "Bỏ lọc";
+    public const string StatusLabel = "Trạng thái:";
+    public const string SearchMachineLabel = "Tìm máy:";
+    public const string SyncDefault = "Đồng bộ: -";
+    public const string SystemLogsTab = "Nhật ký hệ thống";
+    public const string SafeLogClear = "Xóa log an toàn";
+    public const string AllMachines = "Tất cả máy";
+    public const string TimelineEmpty = "Chưa có dữ liệu timeline.";
+    public const string DatabaseTab = "Database";
+    public const string DbLoading = "Tổng DB: đang tải...";
+    public const string DbUpdatedLoading = "Cập nhật: đang tải...";
+    public const string DbDeltaDefault = "Biến động hôm nay: -";
+
     public const string BackendChecking = "Backend: \u0111ang ki\u1ec3m tra";
     public const string BackendOnline = "Backend: \u0111ang ho\u1ea1t \u0111\u1ed9ng";
     public const string BackendOffline = "Backend: ngo\u1ea1i tuy\u1ebfn";

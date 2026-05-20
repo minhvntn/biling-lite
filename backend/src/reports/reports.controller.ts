@@ -28,6 +28,11 @@ export class ReportsController {
     return this.reportsService.getSystemEvents(limit);
   }
 
+  @Get('database/storage')
+  async getDatabaseStorage(@Query('days') days?: string) {
+    return this.reportsService.getDatabaseStorage(days);
+  }
+
   @Delete('events/system')
   async clearSystemEvents() {
     return this.reportsService.clearSystemEvents();

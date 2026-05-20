@@ -3937,26 +3937,28 @@ LIMIT $limit;";
         var dialog = new Window
         {
             Title = $"Điểm tích lũy - {activeSession.Username}",
-            Width = 430,
-            Height = 420,
+            Width = 560,
+            Height = 560,
             ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Owner = _mainWindow,
             ShowInTaskbar = false,
             WindowStyle = WindowStyle.SingleBorderWindow,
+            Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)),
         };
 
         var root = new Grid
         {
             Margin = new Thickness(16),
         };
-        for (var index = 0; index < 8; index++)
+        root.RowDefinitions.Add(new RowDefinition
         {
-            root.RowDefinitions.Add(new RowDefinition
-            {
-                Height = GridLength.Auto,
-            });
-        }
+            Height = GridLength.Auto,
+        });
+        root.RowDefinitions.Add(new RowDefinition
+        {
+            Height = GridLength.Auto,
+        });
         root.RowDefinitions.Add(new RowDefinition
         {
             Height = new GridLength(1, GridUnitType.Star),
@@ -3966,107 +3968,220 @@ LIMIT $limit;";
             Height = GridLength.Auto,
         });
 
+        var infoPanel = new StackPanel
+        {
+            Orientation = Orientation.Vertical,
+        };
         var titleTextBlock = new TextBlock
         {
             Text = $"Hội viên: {activeSession.Username}",
             FontWeight = FontWeights.SemiBold,
-            FontSize = 17,
-            Margin = new Thickness(0, 0, 0, 8),
+            FontSize = 14,
+            Margin = new Thickness(0, 0, 0, 6),
         };
-        Grid.SetRow(titleTextBlock, 0);
-        root.Children.Add(titleTextBlock);
-
-        var balanceTextBlock = new TextBlock
+        infoPanel.Children.Add(titleTextBlock);
+        var summaryTextBlock = new TextBlock
         {
-            Text = $"Số dư hiện tại: {member.Balance:N0} VND",
-            Foreground = Brushes.DimGray,
-            Margin = new Thickness(0, 0, 0, 4),
-        };
-        Grid.SetRow(balanceTextBlock, 1);
-        root.Children.Add(balanceTextBlock);
-
-        var playTimeTextBlock = new TextBlock
-        {
-            Text = $"Giờ chơi còn lại: {member.PlayHours:0.##} giờ",
-            Foreground = Brushes.DimGray,
-            Margin = new Thickness(0, 0, 0, 10),
-        };
-        Grid.SetRow(playTimeTextBlock, 2);
-        root.Children.Add(playTimeTextBlock);
-
-        var pointsTextBlock = new TextBlock
-        {
-            Text = $"Điểm hiện có: {currentLoyalty.AvailablePoints} điểm",
-            FontSize = 22,
-            FontWeight = FontWeights.Bold,
-            Foreground = new SolidColorBrush(Color.FromRgb(30, 90, 168)),
-        };
-        Grid.SetRow(pointsTextBlock, 3);
-        root.Children.Add(pointsTextBlock);
-
-        var progressTextBlock = new TextBlock
-        {
-            Margin = new Thickness(0, 6, 0, 12),
+            FontSize = 13,
+            FontWeight = FontWeights.Medium,
+            Foreground = new SolidColorBrush(Color.FromRgb(30, 64, 175)),
+            TextWrapping = TextWrapping.Wrap,
             Text =
-                $"Đã tích lũy: {currentLoyalty.ProgressMinutes:0.##}/{settings.MinutesPerPoint} phút để lên điểm kế tiếp.",
-            Foreground = Brushes.DimGray,
+                $"Số dư: {member.Balance:N0} VND | Điểm: {currentLoyalty.AvailablePoints:N0} | Tích lũy: {currentLoyalty.ProgressMinutes:0.##}/{settings.MinutesPerPoint} phút",
         };
-        Grid.SetRow(progressTextBlock, 4);
-        root.Children.Add(progressTextBlock);
-
-        var inputPanel = new StackPanel
+        infoPanel.Children.Add(summaryTextBlock);
+        var summaryCard = new Border
         {
-            Orientation = Orientation.Horizontal,
-            Margin = new Thickness(0, 4, 0, 8),
+            Background = Brushes.White,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(12),
+            Child = infoPanel,
+            Margin = new Thickness(0, 0, 0, 6),
         };
-        inputPanel.Children.Add(new TextBlock
-        {
-            Text = "Số điểm muốn đổi:",
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 8, 0),
-        });
-
-        var pointsBox = new TextBox
-        {
-            Width = 100,
-            Height = 30,
-            VerticalContentAlignment = VerticalAlignment.Center,
-            Text = "1",
-        };
-        inputPanel.Children.Add(pointsBox);
-        Grid.SetRow(inputPanel, 5);
-        root.Children.Add(inputPanel);
-
-        var helpText = new TextBlock
-        {
-            Text = "1 điểm = 1 phút chơi. Có thể đổi nhiều điểm một lần.",
-            Foreground = Brushes.DimGray,
-            Margin = new Thickness(0, 0, 0, 8),
-        };
-        Grid.SetRow(helpText, 6);
-        root.Children.Add(helpText);
+        Grid.SetRow(infoPanel, 0);
+        root.Children.Add(summaryCard);
 
         var errorTextBlock = new TextBlock
         {
             Foreground = Brushes.Firebrick,
             TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 0, 0, 6),
+            Margin = new Thickness(0, 0, 0, 8),
         };
-        Grid.SetRow(errorTextBlock, 7);
+        Grid.SetRow(errorTextBlock, 1);
         root.Children.Add(errorTextBlock);
+
+        var tabControl = new TabControl
+        {
+            Margin = new Thickness(0, 0, 0, 10),
+            TabStripPlacement = Dock.Left,
+            BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+            BorderThickness = new Thickness(1),
+            Background = Brushes.Transparent,
+        };
+        var leftTabItemStyle = new Style(typeof(TabItem));
+        leftTabItemStyle.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(12, 10, 12, 10)));
+        leftTabItemStyle.Setters.Add(new Setter(Control.MarginProperty, new Thickness(8, 6, 8, 0)));
+        leftTabItemStyle.Setters.Add(new Setter(Control.MinWidthProperty, 134d));
+        leftTabItemStyle.Setters.Add(new Setter(Control.FontSizeProperty, 14d));
+        leftTabItemStyle.Setters.Add(new Setter(Control.FontWeightProperty, FontWeights.SemiBold));
+        leftTabItemStyle.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush(Color.FromRgb(241, 245, 249))));
+        leftTabItemStyle.Setters.Add(new Setter(Control.ForegroundProperty, new SolidColorBrush(Color.FromRgb(15, 23, 42))));
+        leftTabItemStyle.Setters.Add(new Setter(Control.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(203, 213, 225))));
+        leftTabItemStyle.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(1)));
+        leftTabItemStyle.Setters.Add(new Setter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Left));
+        var tabItemTemplate = new ControlTemplate(typeof(TabItem));
+        var itemBorder = new FrameworkElementFactory(typeof(Border));
+        itemBorder.SetBinding(Border.BackgroundProperty, new Binding("Background")
+        {
+            RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent),
+        });
+        itemBorder.SetBinding(Border.BorderBrushProperty, new Binding("BorderBrush")
+        {
+            RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent),
+        });
+        itemBorder.SetBinding(Border.BorderThicknessProperty, new Binding("BorderThickness")
+        {
+            RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent),
+        });
+        itemBorder.SetBinding(Border.CornerRadiusProperty, new Binding("Tag")
+        {
+            RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent),
+        });
+        var headerPresenter = new FrameworkElementFactory(typeof(ContentPresenter));
+        headerPresenter.SetValue(ContentPresenter.ContentSourceProperty, "Header");
+        headerPresenter.SetBinding(ContentPresenter.MarginProperty, new Binding("Padding")
+        {
+            RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent),
+        });
+        headerPresenter.SetBinding(ContentPresenter.HorizontalAlignmentProperty, new Binding("HorizontalContentAlignment")
+        {
+            RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent),
+        });
+        headerPresenter.SetBinding(ContentPresenter.VerticalAlignmentProperty, new Binding("VerticalContentAlignment")
+        {
+            RelativeSource = new RelativeSource(RelativeSourceMode.TemplatedParent),
+        });
+        itemBorder.AppendChild(headerPresenter);
+        tabItemTemplate.VisualTree = itemBorder;
+        leftTabItemStyle.Setters.Add(new Setter(Control.TemplateProperty, tabItemTemplate));
+        leftTabItemStyle.Setters.Add(new Setter(FrameworkElement.TagProperty, new CornerRadius(8)));
+        var selectedTabTrigger = new Trigger
+        {
+            Property = TabItem.IsSelectedProperty,
+            Value = true,
+        };
+        selectedTabTrigger.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush(Color.FromRgb(37, 99, 235))));
+        selectedTabTrigger.Setters.Add(new Setter(Control.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(29, 78, 216))));
+        selectedTabTrigger.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.White));
+        leftTabItemStyle.Triggers.Add(selectedTabTrigger);
+        tabControl.ItemContainerStyle = leftTabItemStyle;
+
+        static StackPanel CreateLeftTabHeader(string icon, string label)
+        {
+            var panel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+            };
+            var iconText = new TextBlock
+            {
+                Text = icon,
+                Margin = new Thickness(0, 0, 6, 0),
+                FontSize = 14,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            iconText.SetBinding(
+                TextBlock.ForegroundProperty,
+                new Binding("Foreground")
+                {
+                    RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(TabItem), 1),
+                });
+            panel.Children.Add(iconText);
+
+            var labelText = new TextBlock
+            {
+                Text = label,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            labelText.SetBinding(
+                TextBlock.ForegroundProperty,
+                new Binding("Foreground")
+                {
+                    RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(TabItem), 1),
+                });
+            panel.Children.Add(labelText);
+            return panel;
+        }
+        Grid.SetRow(tabControl, 2);
+        root.Children.Add(tabControl);
+
+        var spinTabPanel = new StackPanel
+        {
+            Margin = new Thickness(16, 14, 16, 14),
+        };
+        spinTabPanel.Children.Add(new TextBlock
+        {
+            Text = "Vòng quay may mắn",
+            FontSize = 20,
+            FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(30, 64, 175)),
+            Margin = new Thickness(0, 0, 0, 8),
+        });
+        var spinHintTextBlock = new TextBlock
+        {
+            Text = "Thử vận may để nhận phút chơi thưởng. Mỗi lượt quay dùng 5 điểm.",
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = Brushes.DimGray,
+            Margin = new Thickness(0, 0, 0, 12),
+        };
+        spinTabPanel.Children.Add(spinHintTextBlock);
+        var spinPointsTextBlock = new TextBlock
+        {
+            Text = $"Điểm hiện có: {currentLoyalty.AvailablePoints:N0}",
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 14),
+        };
+        spinTabPanel.Children.Add(spinPointsTextBlock);
+        var spinButton = new Button
+        {
+            Content = "Mở vòng quay may mắn",
+            Width = 220,
+            Height = 40,
+            Background = new SolidColorBrush(Color.FromRgb(255, 204, 0)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(217, 119, 6)),
+        };
+        spinButton.Click += (_, _) =>
+        {
+            errorTextBlock.Text = string.Empty;
+            ShowLuckySpinDialogV2(activeSession, settings, loyaltyResponse);
+        };
+        spinTabPanel.Children.Add(spinButton);
+        tabControl.Items.Add(new TabItem
+        {
+            Header = CreateLeftTabHeader("🎡", "Vòng quay"),
+            Content = spinTabPanel,
+        });
 
         var dailyCheckinPanel = new StackPanel
         {
             Orientation = Orientation.Vertical,
-            VerticalAlignment = VerticalAlignment.Stretch,
-            Margin = new Thickness(0, 4, 0, 8),
+            Margin = new Thickness(16, 14, 16, 14),
         };
+        dailyCheckinPanel.Children.Add(new TextBlock
+        {
+            Text = "Điểm danh mỗi ngày",
+            FontSize = 20,
+            FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(30, 64, 175)),
+            Margin = new Thickness(0, 0, 0, 8),
+        });
         var dailyCheckinButton = new Button
         {
             Content = "Điểm danh hôm nay (+1 điểm)",
-            Width = 300,
-            Height = 30,
-            Margin = new Thickness(0, 0, 0, 6),
+            Width = 340,
+            Height = 40,
+            Margin = new Thickness(0, 0, 0, 10),
             HorizontalAlignment = HorizontalAlignment.Left,
             Background = new SolidColorBrush(Color.FromRgb(59, 130, 246)),
             BorderBrush = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
@@ -4077,24 +4192,68 @@ LIMIT $limit;";
             VerticalAlignment = VerticalAlignment.Center,
             Foreground = Brushes.DimGray,
             TextWrapping = TextWrapping.Wrap,
+            FontSize = 13,
         };
         dailyCheckinPanel.Children.Add(dailyCheckinButton);
         dailyCheckinPanel.Children.Add(dailyCheckinStatusTextBlock);
-        Grid.SetRow(dailyCheckinPanel, 8);
-        root.Children.Add(dailyCheckinPanel);
-
-        var actionPanel = new UniformGrid
+        tabControl.Items.Add(new TabItem
         {
-            Columns = 4,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            Margin = new Thickness(0, 12, 0, 0),
+            Header = CreateLeftTabHeader("📅", "Điểm danh"),
+            Content = dailyCheckinPanel,
+        });
+
+        var redeemPanel = new StackPanel
+        {
+            Margin = new Thickness(16, 14, 16, 14),
+        };
+        redeemPanel.Children.Add(new TextBlock
+        {
+            Text = "Đổi điểm lấy phút chơi",
+            FontSize = 20,
+            FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(30, 64, 175)),
+            Margin = new Thickness(0, 0, 0, 10),
+        });
+        var inputPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Margin = new Thickness(0, 4, 0, 10),
+        };
+        inputPanel.Children.Add(new TextBlock
+        {
+            Text = "Số điểm muốn đổi:",
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 8, 0),
+        });
+        var pointsBox = new TextBox
+        {
+            Width = 110,
+            Height = 34,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Text = "1",
+        };
+        inputPanel.Children.Add(pointsBox);
+        redeemPanel.Children.Add(inputPanel);
+        var helpText = new TextBlock
+        {
+            Text = "1 điểm = 1 phút chơi. Có thể đổi nhiều điểm một lần.",
+            Foreground = Brushes.DimGray,
+            Margin = new Thickness(0, 0, 0, 12),
+        };
+        redeemPanel.Children.Add(helpText);
+        var redeemActionsPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Margin = new Thickness(0, 8, 0, 0),
         };
 
         var redeemAllButton = new Button
         {
             Content = "Đổi tất cả",
-            Margin = new Thickness(0, 0, 6, 0),
+            Margin = new Thickness(0, 0, 8, 0),
             IsEnabled = currentLoyalty.AvailablePoints > 0,
+            Width = 110,
+            Height = 36,
         };
         redeemAllButton.Click += (_, _) =>
         {
@@ -4102,40 +4261,31 @@ LIMIT $limit;";
             pointsBox.Focus();
             pointsBox.SelectAll();
         };
-
-        var cancelButton = new Button
-        {
-            Content = "Đóng",
-            Margin = new Thickness(0, 0, 0, 0),
-        };
-        cancelButton.Click += (_, _) => dialog.Close();
-
-        var spinButton = new Button
-        {
-            Content = "V\u00f2ng quay",
-            Margin = new Thickness(0, 0, 6, 0),
-            Background = new SolidColorBrush(Color.FromRgb(255, 204, 0)),
-        };
-        spinButton.Content = "V\u00f2ng quay";
-        spinButton.Click += (_, _) =>
-        {
-            ShowLuckySpinDialogV2(activeSession, settings, loyaltyResponse);
-        };
+        redeemActionsPanel.Children.Add(redeemAllButton);
 
         var redeemButton = new Button
         {
             Content = "Đổi điểm",
-            Margin = new Thickness(0, 0, 6, 0),
+            Margin = new Thickness(0, 0, 0, 0),
             Background = new SolidColorBrush(Color.FromRgb(121, 201, 89)),
             BorderBrush = new SolidColorBrush(Color.FromRgb(63, 138, 46)),
             IsEnabled = currentLoyalty.AvailablePoints > 0,
+            Width = 110,
+            Height = 36,
         };
+        redeemActionsPanel.Children.Add(redeemButton);
+        redeemPanel.Children.Add(redeemActionsPanel);
+        tabControl.Items.Add(new TabItem
+        {
+            Header = CreateLeftTabHeader("💱", "Đổi điểm"),
+            Content = redeemPanel,
+        });
 
         void RefreshLoyaltyUi()
         {
-            pointsTextBlock.Text = $"Điểm hiện có: {currentLoyalty.AvailablePoints} điểm";
-            progressTextBlock.Text =
-                $"Đã tích lũy: {currentLoyalty.ProgressMinutes:0.##}/{settings.MinutesPerPoint} phút để lên điểm kế tiếp.";
+            summaryTextBlock.Text =
+                $"Số dư: {member.Balance:N0} VND | Điểm: {currentLoyalty.AvailablePoints:N0} | Tích lũy: {currentLoyalty.ProgressMinutes:0.##}/{settings.MinutesPerPoint} phút";
+            spinPointsTextBlock.Text = $"Điểm hiện có: {currentLoyalty.AvailablePoints:N0}";
             redeemAllButton.IsEnabled = currentLoyalty.AvailablePoints > 0;
             redeemButton.IsEnabled = currentLoyalty.AvailablePoints > 0;
         }
@@ -4318,12 +4468,22 @@ LIMIT $limit;";
             }
         };
 
-        actionPanel.Children.Add(spinButton);
-        actionPanel.Children.Add(redeemButton);
-        actionPanel.Children.Add(redeemAllButton);
-        actionPanel.Children.Add(cancelButton);
-        Grid.SetRow(actionPanel, 9);
-        root.Children.Add(actionPanel);
+        var footerPanel = new DockPanel
+        {
+            LastChildFill = false,
+        };
+        var closeButton = new Button
+        {
+            Content = "Đóng",
+            Width = 90,
+            Height = 30,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        closeButton.Click += (_, _) => dialog.Close();
+        DockPanel.SetDock(closeButton, Dock.Right);
+        footerPanel.Children.Add(closeButton);
+        Grid.SetRow(footerPanel, 3);
+        root.Children.Add(footerPanel);
 
         dialog.Content = root;
         dialog.ShowDialog();

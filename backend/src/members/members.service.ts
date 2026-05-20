@@ -1543,6 +1543,8 @@ export class MembersService {
 
       const balanceValue =
         payload.balance !== undefined ? this.roundMoneyZeroAllowed(payload.balance) : null;
+      const totalTopupValue =
+        payload.totalTopup !== undefined ? this.roundMoneyZeroAllowed(payload.totalTopup) : null;
       const playSecondsValue =
         payload.playHours !== undefined
           ? Math.max(0, Math.round(payload.playHours * 3600))
@@ -1550,6 +1552,10 @@ export class MembersService {
 
       if (balanceValue !== null) {
         data.balance = balanceValue;
+      }
+
+      if (totalTopupValue !== null) {
+        data.totalTopup = totalTopupValue;
       }
 
       if (playSecondsValue !== null) {

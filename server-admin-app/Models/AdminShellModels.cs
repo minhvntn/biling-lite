@@ -363,6 +363,13 @@ public sealed class SystemLogRow
     public string PayloadText { get; set; } = "-";
 }
 
+public sealed class MachineTimelineRow
+{
+    public string TimeText { get; set; } = "-";
+    public string EventText { get; set; } = "-";
+    public string DetailsText { get; set; } = "-";
+}
+
 public sealed class SessionsListResponse
 {
     public List<SessionItem> Items { get; set; } = new();
@@ -666,4 +673,34 @@ public class ServerUserRow
     public string Role { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
+}
+
+public sealed class DatabaseStorageStatsResponse
+{
+    public string DatabaseName { get; set; } = string.Empty;
+    public long SizeBytes { get; set; }
+    public string SizePretty { get; set; } = string.Empty;
+    public long DayDeltaBytes { get; set; }
+    public decimal DayDeltaPercent { get; set; }
+    public List<DatabaseStorageTableRow> TopTables { get; set; } = new();
+    public List<DatabaseStorageHistoryRow> History { get; set; } = new();
+    public string ServerTime { get; set; } = string.Empty;
+}
+
+public sealed class DatabaseStorageTableRow
+{
+    public string TableName { get; set; } = string.Empty;
+    public long TotalBytes { get; set; }
+    public string TotalPretty { get; set; } = string.Empty;
+    public long TableBytes { get; set; }
+    public string TablePretty { get; set; } = string.Empty;
+    public long IndexToastBytes { get; set; }
+    public string IndexToastPretty { get; set; } = string.Empty;
+}
+
+public sealed class DatabaseStorageHistoryRow
+{
+    public string Date { get; set; } = string.Empty;
+    public long SizeBytes { get; set; }
+    public string SizePretty { get; set; } = string.Empty;
 }

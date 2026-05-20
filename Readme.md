@@ -197,3 +197,17 @@ Log mac dinh:
 - PowerShell chan script: mo PowerShell Administrator va dieu chinh ExecutionPolicy cho phien hien tai neu can.
 - Desktop app khong ket noi backend: kiem tra `BackendApiBaseUrl` trong `server-admin-app/appsettings.json`.
 - Agent khong hien tren admin: kiem tra `Agent.ServerUrl`, firewall port `9000`, va log agent.
+
+
+Dùng prompt này mỗi lần mở project là ổn:
+
+Dùng skill `servermanagerbilling-project` cho toàn bộ task trong repo này.
+Trước khi sửa, xác định mình đang chạy backend ở `backend` hay `release/backend`.
+Sau khi sửa, build đúng component liên quan và báo rõ file đã đổi + bước restart cần thiết.
+Nếu muốn chi tiết hơn (khi làm task lớn), dùng bản này:
+
+Hãy dùng skill `servermanagerbilling-project`.
+1) Đọc nhanh code map và xác định runtime target (`backend` vs `release/backend/dist`).
+2) Thực hiện thay đổi tối thiểu, đúng module.
+3) Build/verify các component bị ảnh hưởng.
+4) Trả lời gồm: nguyên nhân, thay đổi chính, file đã sửa, cách test, có cần restart gì không.

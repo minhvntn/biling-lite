@@ -28,6 +28,7 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<MemberRow> _memberRows = new();
     private readonly ObservableCollection<MemberTransactionRow> _memberTransactionRows = new();
     private readonly ObservableCollection<SystemLogRow> _systemLogRows = new();
+    private readonly ObservableCollection<MachineTimelineRow> _machineTimelineRows = new();
     private readonly ObservableCollection<SessionLogRow> _sessionLogRows = new();
     private readonly ObservableCollection<WebsiteLogRow> _websiteLogRows = new();
     private readonly ObservableCollection<GroupSummaryRow> _groupSummaryRows = new();
@@ -96,6 +97,8 @@ public partial class MainWindow : Window
     private int _systemLogsCacheLimit = -1;
     private SystemEventsResponse? _systemLogsCacheResponse;
     private DateTime _systemLogsCacheAtUtc = DateTime.MinValue;
+    private List<SystemEventItem> _latestSystemEventItems = new();
+    private bool _isUpdatingSystemLogMachineFilter;
     private string _websiteLogsCacheKey = string.Empty;
     private WebsiteLogsResponse? _websiteLogsCacheResponse;
     private DateTime _websiteLogsCacheAtUtc = DateTime.MinValue;
@@ -120,6 +123,7 @@ public partial class MainWindow : Window
         MembersDataGrid.ItemsSource = _memberRows;
         MemberTransactionsDataGrid.ItemsSource = _memberTransactionRows;
         SystemLogsDataGrid.ItemsSource = _systemLogRows;
+        MachineTimelineListBox.ItemsSource = _machineTimelineRows;
         SessionLogsDataGrid.ItemsSource = _sessionLogRows;
         WebsiteLogsDataGrid.ItemsSource = _websiteLogRows;
         GroupSummaryDataGrid.ItemsSource = _groupSummaryRows;
@@ -139,6 +143,7 @@ public partial class MainWindow : Window
         WebsiteLogFromDatePicker.SelectedDate = DateTime.Today.AddDays(-1);
         WebsiteLogToDatePicker.SelectedDate = DateTime.Today;
         RefreshWebsiteLogMachineFilterOptions();
+        InitializeSystemLogMachineFilter();
         _fontSizeInitialized = true;
         _machineTableFontSizeInitialized = true;
         _machineContextMenuPaddingInitialized = true;
@@ -154,6 +159,7 @@ public partial class MainWindow : Window
         ApplyUserRoleRestrictions();
 
         _ = LoadServerUsersAsync();
+        _ = LoadDatabaseStorageStatsAsync();
 
         _healthTimer.Interval = TimeSpan.FromSeconds(5);
         _healthTimer.Tick += HealthTimer_Tick;
@@ -251,6 +257,11 @@ public partial class MainWindow : Window
                 else if (tabItem == MiniGameTabItem)
                 {
                     await RefreshMiniGameSpinSettingsAsync();
+                }
+                else if (tabItem == AdminTab)
+                {
+                    _ = LoadServerUsersAsync();
+                    _ = LoadDatabaseStorageStatsAsync();
                 }
                 else
                 {

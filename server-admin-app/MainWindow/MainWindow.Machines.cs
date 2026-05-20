@@ -2688,7 +2688,8 @@ public partial class MainWindow : Window
         {
             Title = $"Chi tiết thanh toán - {machine.Name}",
             Width = 600,
-            Height = 500,
+            SizeToContent = SizeToContent.Height,
+            MaxHeight = Math.Max(520, SystemParameters.WorkArea.Height - 48),
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             ResizeMode = ResizeMode.NoResize,
             WindowStyle = WindowStyle.SingleBorderWindow,
@@ -2697,11 +2698,11 @@ public partial class MainWindow : Window
         };
 
         var root = new Grid { Margin = new Thickness(16) };
-        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         var detailsGrid = new Grid();
-        for (var i = 0; i < 14; i++)
+        for (var i = 0; i < 15; i++)
         {
             detailsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         }
@@ -2724,9 +2725,10 @@ public partial class MainWindow : Window
         var currentRateValueText = AddBillingLine(detailsGrid, 6, "Đơn giá hiện tại (tham khảo)", "-");
         var playAmountValueText = AddBillingLine(detailsGrid, 7, "Tiền giờ chơi (theo phiên)", "-");
         var currentRatePlayAmountValueText = AddBillingLine(detailsGrid, 8, "Tiền giờ chơi theo giá hiện tại (tham khảo)", "-");
-        var clientServiceAmountValueText = AddBillingLine(detailsGrid, 9, "Tiền dịch vụ từ máy trạm", $"{clientServiceAmount:N0} VND");
-        var serverServiceAmountValueText = AddBillingLine(detailsGrid, 10, "Tiền dịch vụ từ server", $"{serverServiceAmount:N0} VND");
-        var serviceAmountValueText = AddBillingLine(detailsGrid, 11, "Tổng tiền dịch vụ", $"{serviceAmount:N0} VND");
+        var discountPercentValueText = AddBillingLine(detailsGrid, 9, "Giảm giá phiên", "-");
+        var clientServiceAmountValueText = AddBillingLine(detailsGrid, 10, "Tiền dịch vụ từ máy trạm", $"{clientServiceAmount:N0} VND");
+        var serverServiceAmountValueText = AddBillingLine(detailsGrid, 11, "Tiền dịch vụ từ server", $"{serverServiceAmount:N0} VND");
+        var serviceAmountValueText = AddBillingLine(detailsGrid, 12, "Tổng tiền dịch vụ", $"{serviceAmount:N0} VND");
 
         var totalText = new TextBlock
         {
@@ -2745,7 +2747,7 @@ public partial class MainWindow : Window
             Margin = new Thickness(0, 12, 0, 0),
             Child = totalText,
         };
-        Grid.SetRow(totalBorder, 12);
+        Grid.SetRow(totalBorder, 13);
         detailsGrid.Children.Add(totalBorder);
 
         var noteText = new TextBlock
@@ -2755,17 +2757,10 @@ public partial class MainWindow : Window
             Foreground = Brushes.DimGray,
             TextWrapping = TextWrapping.Wrap,
         };
-        Grid.SetRow(noteText, 13);
+        Grid.SetRow(noteText, 14);
         detailsGrid.Children.Add(noteText);
-
-        var detailsScroll = new ScrollViewer
-        {
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            Content = detailsGrid,
-        };
-        Grid.SetRow(detailsScroll, 0);
-        root.Children.Add(detailsScroll);
+        Grid.SetRow(detailsGrid, 0);
+        root.Children.Add(detailsGrid);
 
         var buttonPanel = new StackPanel
         {
@@ -2780,7 +2775,7 @@ public partial class MainWindow : Window
             Content = "Đóng",
             Width = 108,
             Height = 40,
-            FontSize = 10,
+            FontSize = 16,
             IsDefault = !hasActiveSession,
             IsCancel = true,
             Margin = new Thickness(0, 0, 10, 0),
@@ -2793,12 +2788,12 @@ public partial class MainWindow : Window
             var checkoutButton = new Button
             {
                 Content = "Thanh toán & Khóa máy",
-                Width = 200,
-                Height = 40,
+                Width = 230,
+                Height = 46,
                 Background = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
                 Foreground = Brushes.White,
                 FontWeight = FontWeights.Bold,
-                FontSize = 11,
+                FontSize = 16,
                 IsDefault = true,
             };
             checkoutButton.Click += async (_, _) =>
@@ -2860,6 +2855,8 @@ public partial class MainWindow : Window
             currentRateValueText.Text = $"{machineSnapshot.HourlyRate:N0} VND/giờ";
             playAmountValueText.Text = $"{playAmount:N0} VND";
             currentRatePlayAmountValueText.Text = $"{currentRatePlayAmount:N0} VND";
+            var discountPercent = CalculateSessionDiscountPercent(sessionHourlyRate, machineSnapshot.HourlyRate);
+            discountPercentValueText.Text = discountPercent > 0 ? $"{discountPercent:0.##}%" : "0%";
             clientServiceAmountValueText.Text = $"{clientServiceAmount:N0} VND";
             serverServiceAmountValueText.Text = $"{serverServiceAmount:N0} VND";
             serviceAmountValueText.Text = $"{serviceAmount:N0} VND";
@@ -2906,6 +2903,17 @@ public partial class MainWindow : Window
         var perMinute = hourlyRate / 60m;
         var amount = billableMinutes * perMinute;
         return Math.Round(amount, 0, MidpointRounding.AwayFromZero);
+    }
+
+    private static decimal CalculateSessionDiscountPercent(decimal sessionHourlyRate, decimal currentHourlyRate)
+    {
+        if (currentHourlyRate <= 0 || sessionHourlyRate <= 0 || sessionHourlyRate >= currentHourlyRate)
+        {
+            return 0m;
+        }
+
+        var discount = (1m - (sessionHourlyRate / currentHourlyRate)) * 100m;
+        return Math.Round(discount, 2, MidpointRounding.AwayFromZero);
     }
 
     private async Task OpenGuestMachineAsync(MachineRow? targetMachine = null)

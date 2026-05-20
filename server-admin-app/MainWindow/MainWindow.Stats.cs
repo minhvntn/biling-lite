@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,6 +14,7 @@ namespace Server.Admin.App;
 public partial class MainWindow : Window
 {
     private string _currentStatsPeriod = "week";
+    private DateTime _lastRealtimeAlertFetchAt = DateTime.MinValue;
 
     private async Task RefreshStatisticsAsync()
     {
@@ -175,7 +177,7 @@ public partial class MainWindow : Window
                     var valLabel = new TextBlock
                     {
                         Text = totalVal >= 1000000m ? $"{totalVal / 1000000m:N1}M" : $"{totalVal / 1000m:N0}K",
-                        FontSize = 10,
+                        FontSize = 14,
                         FontWeight = FontWeights.SemiBold,
                         HorizontalAlignment = HorizontalAlignment.Center,
                         Margin = new Thickness(0, 0, 0, 4),
@@ -208,7 +210,7 @@ public partial class MainWindow : Window
                     var xLabel = new TextBlock
                     {
                         Text = data.Label,
-                        FontSize = 11,
+                        FontSize = 14,
                         FontWeight = FontWeights.SemiBold,
                         Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
                         HorizontalAlignment = HorizontalAlignment.Center,
@@ -222,12 +224,176 @@ public partial class MainWindow : Window
                     RevenueBarsContainer.Children.Add(colGrid);
                 }
 
+                // Playtime insights (weekday/weekend, peak/off-peak, anomaly)
+                var weeklyDistribution = response.WeeklyDistribution ?? new List<DistributionData>();
+                var hourlyDistribution = response.HourlyDistribution ?? new List<DistributionData>();
+
+                var weekdayRows = weeklyDistribution.Where(x => !x.IsWeekend).ToList();
+                var weekendRows = weeklyDistribution.Where(x => x.IsWeekend).ToList();
+                var weekdayAverage = weekdayRows.Count == 0 ? 0m : weekdayRows.Average(x => x.PlayHours);
+                var weekendAverage = weekendRows.Count == 0 ? 0m : weekendRows.Average(x => x.PlayHours);
+
+                WeekdayPlaytimeTextBlock.Text = $"{weekdayAverage:0.#} giờ / ngày";
+                WeekendPlaytimeTextBlock.Text = $"{weekendAverage:0.#} giờ / ngày";
+
+                if (weekdayAverage > 0m && weekendAverage > 0m)
+                {
+                    var deltaPercent = weekdayAverage == 0m
+                        ? 0m
+                        : ((weekendAverage - weekdayAverage) / weekdayAverage) * 100m;
+                    if (deltaPercent >= 0m)
+                    {
+                        WeekdayPlaytimeHintTextBlock.Text = $"Thấp điểm hơn cuối tuần ({Math.Abs(deltaPercent):0.#}%)";
+                        WeekendPlaytimeHintTextBlock.Text = $"Cao điểm (+{Math.Abs(deltaPercent):0.#}%)";
+                        WeekendPlaytimeHintTextBlock.Foreground = new SolidColorBrush(Color.FromRgb(21, 128, 61));
+                    }
+                    else
+                    {
+                        WeekdayPlaytimeHintTextBlock.Text = $"Cao hơn cuối tuần (+{Math.Abs(deltaPercent):0.#}%)";
+                        WeekendPlaytimeHintTextBlock.Text = $"Cuối tuần thấp hơn ({Math.Abs(deltaPercent):0.#}%)";
+                        WeekendPlaytimeHintTextBlock.Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128));
+                    }
+                }
+                else
+                {
+                    WeekdayPlaytimeHintTextBlock.Text = "Chưa đủ dữ liệu so sánh ngày thường/cuối tuần";
+                    WeekendPlaytimeHintTextBlock.Text = "Chưa đủ dữ liệu so sánh ngày thường/cuối tuần";
+                    WeekendPlaytimeHintTextBlock.Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128));
+                }
+
+                var peakHour = hourlyDistribution.OrderByDescending(x => x.PlayHours).FirstOrDefault();
+                var offPeakHour = hourlyDistribution.OrderBy(x => x.PlayHours).FirstOrDefault();
+                if (peakHour is not null)
+                {
+                    GoldenHoursTextBlock.Text = $"{peakHour.Label} ({peakHour.PlayHours:0.#}h)";
+                    GoldenHoursHintTextBlock.Text = offPeakHour is null
+                        ? "Không có dữ liệu giờ thấp điểm"
+                        : $"Giờ thấp điểm: {offPeakHour.Label} ({offPeakHour.PlayHours:0.#}h)";
+                }
+                else
+                {
+                    GoldenHoursTextBlock.Text = "Chưa có dữ liệu";
+                    GoldenHoursHintTextBlock.Text = "Không xác định được giờ cao/thấp điểm";
+                }
+
+                var mostPlayedDay = weeklyDistribution.OrderByDescending(x => x.PlayHours).FirstOrDefault();
+                var leastPlayedDay = weeklyDistribution.OrderBy(x => x.PlayHours).FirstOrDefault();
+
+                var weeklyAverage = weeklyDistribution.Count == 0 ? 0d : weeklyDistribution.Average(x => (double)x.PlayHours);
+                var weeklyStd = weeklyDistribution.Count == 0
+                    ? 0d
+                    : Math.Sqrt(weeklyDistribution.Average(x =>
+                    {
+                        var d = (double)x.PlayHours - weeklyAverage;
+                        return d * d;
+                    }));
+                var weeklySpikeThreshold = weeklyAverage + (1.5d * weeklyStd);
+                var daySpikes = weeklyDistribution
+                    .Where(x => (double)x.PlayHours > weeklySpikeThreshold && x.PlayHours > 0)
+                    .Select(x => $"{x.Label} {x.PlayHours:0.#}h")
+                    .ToList();
+
+                var hourlyAverage = hourlyDistribution.Count == 0 ? 0d : hourlyDistribution.Average(x => (double)x.PlayHours);
+                var hourlyStd = hourlyDistribution.Count == 0
+                    ? 0d
+                    : Math.Sqrt(hourlyDistribution.Average(x =>
+                    {
+                        var d = (double)x.PlayHours - hourlyAverage;
+                        return d * d;
+                    }));
+                var hourlySpikeThreshold = hourlyAverage + (1.4d * hourlyStd);
+                var hourSpikes = hourlyDistribution
+                    .Where(x => (double)x.PlayHours > hourlySpikeThreshold && x.PlayHours > 0)
+                    .Select(x => $"{x.Label} {x.PlayHours:0.#}h")
+                    .ToList();
+
+                var anomalyText = (daySpikes.Count == 0 && hourSpikes.Count == 0)
+                    ? "Không phát hiện đột biến giờ chơi rõ rệt trong kỳ."
+                    : $"Đột biến: ngày [{string.Join(", ", daySpikes)}], khung giờ [{string.Join(", ", hourSpikes)}].";
+
+                PlaytimeInsightsTextBlock.Text =
+                    $"Ngày chơi nhiều nhất: {(mostPlayedDay?.Label ?? "-")} ({mostPlayedDay?.PlayHours.ToString("0.#") ?? "0"}h) | " +
+                    $"Ngày chơi ít nhất: {(leastPlayedDay?.Label ?? "-")} ({leastPlayedDay?.PlayHours.ToString("0.#") ?? "0"}h) | " +
+                    $"Khung giờ đông nhất: {(peakHour?.Label ?? "-")} ({peakHour?.PlayHours.ToString("0.#") ?? "0"}h) | " +
+                    $"Khung giờ ít nhất: {(offPeakHour?.Label ?? "-")} ({offPeakHour?.PlayHours.ToString("0.#") ?? "0"}h). " +
+                    anomalyText;
+
+                // Render Play Hours Chart
+                PlayHoursBarsContainer.Children.Clear();
+                var maxPlayHours = response.DailyData.Count == 0
+                    ? 1m
+                    : Math.Max(1m, response.DailyData.Max(x => x.PlayHours));
+                for (int i = 0; i < response.DailyData.Count; i++)
+                {
+                    var data = response.DailyData[i];
+                    var playHours = Math.Max(0m, data.PlayHours);
+                    double barHeight = maxPlayHours > 0m ? (double)(playHours / maxPlayHours) * 180.0 : 0.0;
+                    if (barHeight < 10 && playHours > 0m) barHeight = 10;
+
+                    var colGrid = new Grid { Margin = new Thickness(4, 0, 4, 0) };
+                    Grid.SetColumn(colGrid, i);
+
+                    colGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                    colGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+                    var barStack = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
+                    Grid.SetRow(barStack, 0);
+
+                    var valLabel = new TextBlock
+                    {
+                        Text = $"{playHours:0.#}h",
+                        FontSize = 14,
+                        FontWeight = FontWeights.SemiBold,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Margin = new Thickness(0, 0, 0, 4),
+                        Foreground = new SolidColorBrush(Color.FromRgb(75, 85, 99))
+                    };
+                    barStack.Children.Add(valLabel);
+
+                    var barContainer = new Grid { Height = barHeight, Width = 28, HorizontalAlignment = HorizontalAlignment.Center };
+                    var barBorder = new Border
+                    {
+                        Height = barHeight,
+                        Width = 24,
+                        CornerRadius = new CornerRadius(6, 6, 0, 0),
+                        ToolTip = $"Giờ chơi: {playHours:0.#} giờ"
+                    };
+
+                    var gradient = new LinearGradientBrush
+                    {
+                        StartPoint = new Point(0, 0),
+                        EndPoint = new Point(0, 1)
+                    };
+                    gradient.GradientStops.Add(new GradientStop(Color.FromRgb(52, 211, 153), 0.0));
+                    gradient.GradientStops.Add(new GradientStop(Color.FromRgb(5, 150, 105), 1.0));
+                    barBorder.Background = gradient;
+
+                    barContainer.Children.Add(barBorder);
+                    barStack.Children.Add(barContainer);
+
+                    var xLabel = new TextBlock
+                    {
+                        Text = data.Label,
+                        FontSize = 14,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Margin = new Thickness(0, 8, 0, 0)
+                    };
+                    Grid.SetRow(xLabel, 1);
+
+                    colGrid.Children.Add(barStack);
+                    colGrid.Children.Add(xLabel);
+
+                    PlayHoursBarsContainer.Children.Add(colGrid);
+                }
+
                 // Render Weekly Distribution Chart
                 WeeklyDistributionBarsContainer.Children.Clear();
-                double maxWeeklyVal = response.WeeklyDistribution.Any() ? response.WeeklyDistribution.Max(w => w.PlayHours) : 1;
-                for (int i = 0; i < response.WeeklyDistribution.Count; i++)
+                double maxWeeklyVal = weeklyDistribution.Count > 0 ? (double)weeklyDistribution.Max(w => w.PlayHours) : 1.0;
+                for (int i = 0; i < weeklyDistribution.Count; i++)
                 {
-                    var data = response.WeeklyDistribution[i];
+                    var data = weeklyDistribution[i];
                     double barHeight = maxWeeklyVal > 0 ? (double)data.PlayHours / maxWeeklyVal * 180.0 : 0.0;
                     if (barHeight < 10 && data.PlayHours > 0) barHeight = 10;
 
@@ -241,8 +407,8 @@ public partial class MainWindow : Window
 
                     var valLabel = new TextBlock
                     {
-                        Text = $"{data.PlayHours}h",
-                        FontSize = 10,
+                        Text = $"{data.PlayHours:0.#}h",
+                        FontSize = 13,
                         FontWeight = FontWeights.SemiBold,
                         HorizontalAlignment = HorizontalAlignment.Center,
                         Margin = new Thickness(0, 0, 0, 4),
@@ -278,7 +444,7 @@ public partial class MainWindow : Window
                     var xLabel = new TextBlock
                     {
                         Text = data.Label,
-                        FontSize = 10,
+                        FontSize = 13,
                         FontWeight = data.IsWeekend ? FontWeights.Bold : FontWeights.SemiBold,
                         Foreground = data.IsWeekend ? new SolidColorBrush(Color.FromRgb(234, 88, 12)) : new SolidColorBrush(Color.FromRgb(107, 114, 128)),
                         HorizontalAlignment = HorizontalAlignment.Center,
@@ -293,10 +459,10 @@ public partial class MainWindow : Window
 
                 // Render Hourly Distribution Chart
                 HourlyDistributionBarsContainer.Children.Clear();
-                double maxHourlyVal = response.HourlyDistribution.Any() ? response.HourlyDistribution.Max(h => h.PlayHours) : 1;
-                for (int i = 0; i < response.HourlyDistribution.Count; i++)
+                double maxHourlyVal = hourlyDistribution.Count > 0 ? (double)hourlyDistribution.Max(h => h.PlayHours) : 1.0;
+                for (int i = 0; i < hourlyDistribution.Count; i++)
                 {
-                    var data = response.HourlyDistribution[i];
+                    var data = hourlyDistribution[i];
                     double barHeight = maxHourlyVal > 0 ? (double)data.PlayHours / maxHourlyVal * 180.0 : 0.0;
                     if (barHeight < 10 && data.PlayHours > 0) barHeight = 10;
 
@@ -310,8 +476,8 @@ public partial class MainWindow : Window
 
                     var valLabel = new TextBlock
                     {
-                        Text = $"{data.PlayHours}h",
-                        FontSize = 10,
+                        Text = $"{data.PlayHours:0.#}h",
+                        FontSize = 13,
                         FontWeight = FontWeights.SemiBold,
                         HorizontalAlignment = HorizontalAlignment.Center,
                         Margin = new Thickness(0, 0, 0, 4),
@@ -329,7 +495,8 @@ public partial class MainWindow : Window
                     };
 
                     var gradient = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
-                    bool isGoldenHour = data.Label.Contains("Tối");
+                    var hourlyLabel = data.Label?.Trim().ToLowerInvariant() ?? string.Empty;
+                    bool isGoldenHour = hourlyLabel.Contains("tối") || hourlyLabel.Contains("toi") || hourlyLabel.Contains("18h-22h");
                     if (isGoldenHour)
                     {
                         gradient.GradientStops.Add(new GradientStop(Color.FromRgb(52, 211, 153), 0.0));
@@ -348,7 +515,7 @@ public partial class MainWindow : Window
                     var xLabel = new TextBlock
                     {
                         Text = data.Label,
-                        FontSize = 10,
+                        FontSize = 13,
                         FontWeight = isGoldenHour ? FontWeights.Bold : FontWeights.SemiBold,
                         Foreground = isGoldenHour ? new SolidColorBrush(Color.FromRgb(5, 150, 105)) : new SolidColorBrush(Color.FromRgb(107, 114, 128)),
                         HorizontalAlignment = HorizontalAlignment.Center,
@@ -361,6 +528,8 @@ public partial class MainWindow : Window
                     HourlyDistributionBarsContainer.Children.Add(colGrid);
                 }
             });
+
+            await RefreshRealtimeAlertsAsync();
         }
         catch (Exception ex)
         {
@@ -374,6 +543,96 @@ public partial class MainWindow : Window
         {
             await LoadStatisticsDataAsync(period);
         }
+    }
+
+    private async Task RefreshRealtimeAlertsAsync(bool force = false)
+    {
+        if (!force && (DateTime.UtcNow - _lastRealtimeAlertFetchAt) < TimeSpan.FromSeconds(8))
+        {
+            return;
+        }
+
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<SystemEventsResponse>(
+                BuildApiUrl("/reports/events/system?limit=120"),
+                JsonOptions());
+
+            _lastRealtimeAlertFetchAt = DateTime.UtcNow;
+            UpdateRealtimeAlertPanelFromEvents(response?.Items ?? new List<SystemEventItem>());
+        }
+        catch
+        {
+            RealtimeAlertSummaryTextBlock.Text = "Không tải được cảnh báo realtime.";
+            RealtimeAlertDetailsTextBlock.Text = "Vui lòng kiểm tra kết nối backend hoặc thử tải lại nhật ký hệ thống.";
+        }
+    }
+
+    private void UpdateRealtimeAlertPanelFromEvents(IReadOnlyList<SystemEventItem> items)
+    {
+        var recent = items
+            .OrderByDescending(item => ParseDateLocal(item.CreatedAt) ?? DateTime.MinValue)
+            .Take(120)
+            .ToList();
+
+        if (recent.Count == 0)
+        {
+            RealtimeAlertSummaryTextBlock.Text = "Chưa có dữ liệu cảnh báo.";
+            RealtimeAlertDetailsTextBlock.Text = "Hệ thống chưa ghi nhận sự kiện nào trong bộ log gần nhất.";
+            return;
+        }
+
+        var criticalEvents = recent.Where(IsCriticalSystemEvent).ToList();
+        var warningEvents = recent.Count(item =>
+            string.Equals(item.EventType, "member.withdraw.requested", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(item.EventType, "member.topup.requested", StringComparison.OrdinalIgnoreCase));
+
+        if (criticalEvents.Count > 0)
+        {
+            RealtimeAlertSummaryTextBlock.Text = $"Cảnh báo: {criticalEvents.Count} sự kiện rủi ro trong {recent.Count} log gần nhất.";
+            var latest = criticalEvents
+                .OrderByDescending(item => ParseDateLocal(item.CreatedAt) ?? DateTime.MinValue)
+                .First();
+            var (eventName, details) = TranslateSystemEvent(latest);
+            var machineText = BuildMachineText(latest);
+            RealtimeAlertDetailsTextBlock.Text =
+                $"Mới nhất: {eventName} | Máy: {machineText} | Lúc: {FormatDateTime(latest.CreatedAt)}. " +
+                $"{details}";
+            return;
+        }
+
+        RealtimeAlertSummaryTextBlock.Text = "Hệ thống ổn định, chưa có cảnh báo nghiêm trọng.";
+        RealtimeAlertDetailsTextBlock.Text =
+            warningEvents > 0
+                ? $"Có {warningEvents} yêu cầu nạp/rút đang phát sinh gần đây. Nên kiểm tra tab Nhật ký để xử lý sớm."
+                : "Không phát hiện timeout lệnh, mất kết nối đột ngột hoặc sự kiện offline bất thường.";
+    }
+
+    private static bool IsCriticalSystemEvent(SystemEventItem item)
+    {
+        var type = (item.EventType ?? string.Empty).Trim().ToLowerInvariant();
+        if (type.StartsWith("command.timeout", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(type, "session.closed.auto_offline", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.Equals(type, "pc.status.changed", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (item.Payload is not JsonElement payload || payload.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        var status = ReadJsonString(payload, "status");
+        return string.Equals(status, "OFFLINE", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task LoadPromotionsAsync()
@@ -604,7 +863,7 @@ public class DashboardStatsResponse
 public class DistributionData
 {
     public string Label { get; set; } = string.Empty;
-    public int PlayHours { get; set; }
+    public decimal PlayHours { get; set; }
     public bool IsWeekend { get; set; }
 }
 
@@ -613,6 +872,7 @@ public class DailyStatsData
     public string Label { get; set; } = string.Empty;
     public decimal PlaytimeRevenue { get; set; }
     public decimal ServiceRevenue { get; set; }
+    public decimal PlayHours { get; set; }
 }
 
 public class TopMemberData
