@@ -24,6 +24,8 @@ const CLIENT_LOCK_SCREEN_BACKGROUND_MODE_KEY = '__CLIENT_LOCK_SCREEN_BACKGROUND_
 const CLIENT_LOCK_SCREEN_BACKGROUND_URL_KEY = '__CLIENT_LOCK_SCREEN_BACKGROUND_URL__';
 const CLIENT_MEMBER_WITHDRAW_ENABLED_KEY = '__CLIENT_MEMBER_WITHDRAW_ENABLED__';
 const CLIENT_MEMBER_TOPUP_REQUEST_ENABLED_KEY = '__CLIENT_MEMBER_TOPUP_REQUEST_ENABLED__';
+const CLIENT_LOCK_SCREEN_INTERVAL_SECONDS_KEY = '__CLIENT_LOCK_SCREEN_INTERVAL_SECONDS__';
+const DEFAULT_LOCK_SCREEN_INTERVAL_SECONDS = 5;
 const DEFAULT_LOCK_SCREEN_BACKGROUND_MODE = 'none';
 const DEFAULT_MEMBER_WITHDRAW_ENABLED = true;
 const DEFAULT_MEMBER_TOPUP_REQUEST_ENABLED = true;
@@ -74,6 +76,7 @@ export class PricingService {
       minimumChargeSetting,
       memberWithdrawSetting,
       memberTopupRequestSetting,
+      intervalSetting,
     ] = await Promise.all([
       this.ensureClientRuntimeSettings(),
       this.prisma.appSetting.findUnique({
@@ -90,6 +93,9 @@ export class PricingService {
       }),
       this.ensureMemberWithdrawSetting(),
       this.ensureMemberTopupRequestSetting(),
+      this.prisma.appSetting.findUnique({
+        where: { key: CLIENT_LOCK_SCREEN_INTERVAL_SECONDS_KEY },
+      }),
     ]);
 
     return {
@@ -103,6 +109,9 @@ export class PricingService {
         modeSetting?.value,
       ),
       lockScreenBackgroundUrl: (urlSetting?.value ?? '').trim(),
+      lockScreenIntervalSeconds: intervalSetting
+        ? Math.max(1, Number(intervalSetting.value) || DEFAULT_LOCK_SCREEN_INTERVAL_SECONDS)
+        : DEFAULT_LOCK_SCREEN_INTERVAL_SECONDS,
       pricingStep: pricingStepSetting ? Number(pricingStepSetting.value) : 1000,
       minimumCharge: minimumChargeSetting ? Number(minimumChargeSetting.value) : 1000,
       allowMemberWithdraw: this.parseBooleanSetting(
@@ -123,13 +132,15 @@ export class PricingService {
     const hasLockScreenUrl = payload.lockScreenBackgroundUrl !== undefined;
     const hasAllowMemberWithdraw = payload.allowMemberWithdraw !== undefined;
     const hasAllowMemberTopupRequest = payload.allowMemberTopupRequest !== undefined;
+    const hasLockScreenInterval = payload.lockScreenIntervalSeconds !== undefined;
 
     if (
       !hasReadyMinutes &&
       !hasLockScreenMode &&
       !hasLockScreenUrl &&
       !hasAllowMemberWithdraw &&
-      !hasAllowMemberTopupRequest
+      !hasAllowMemberTopupRequest &&
+      !hasLockScreenInterval
     ) {
       throw new BadRequestException('Khong co du lieu cai dat de cap nhat');
     }
@@ -197,6 +208,15 @@ export class PricingService {
       });
     }
 
+    if (hasLockScreenInterval) {
+      const interval = Math.max(1, Math.round(payload.lockScreenIntervalSeconds as number));
+      await this.prisma.appSetting.upsert({
+        where: { key: CLIENT_LOCK_SCREEN_INTERVAL_SECONDS_KEY },
+        update: { value: interval.toString() },
+        create: { key: CLIENT_LOCK_SCREEN_INTERVAL_SECONDS_KEY, value: interval.toString() },
+      });
+    }
+
     return this.getClientRuntimeSettings();
   }
 
@@ -241,12 +261,9 @@ export class PricingService {
     await fs.writeFile(fullPath, file.buffer);
 
     const mediaUrl = `${apiBaseUrl}/pricing/client-settings/lock-screen-media/${encodeURIComponent(fileName)}`;
-    await this.setClientRuntimeSettings({
-      lockScreenBackgroundMode: mode,
+    return {
       lockScreenBackgroundUrl: mediaUrl,
-    });
-
-    return this.getClientRuntimeSettings();
+    } as any;
   }
 
   async writeLockScreenMediaToResponse(

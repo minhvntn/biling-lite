@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Linq;
 using System.Globalization;
 using System.IO;
 using System.Net;
@@ -273,6 +275,8 @@ public partial class MainWindow : Window
             ReadyAutoShutdownMinutesTextBox.Text = _readyAutoShutdownMinutes.ToString(CultureInfo.InvariantCulture);
             SetLockScreenBackgroundModeUi(_lockScreenBackgroundMode);
             LockScreenBackgroundUrlTextBox.Text = _lockScreenBackgroundUrl;
+            RebuildMediaContainerFromTextBox();
+            LockScreenIntervalTextBox.Text = Math.Max(1, response.LockScreenIntervalSeconds).ToString(CultureInfo.InvariantCulture);
 
             ReadyAutoShutdownStatusTextBlock.Text =
                 $"Dang bat: may San sang khong login qua {_readyAutoShutdownMinutes} phut se tu tat.";
@@ -313,12 +317,30 @@ public partial class MainWindow : Window
         try
         {
             var effectiveUrl = url;
-            if (mode != "none" && TryResolveLocalLockScreenFile(url, out var localFilePath))
+            if (mode != "none")
             {
-                LockScreenBackgroundStatusTextBlock.Text = "Dang upload media lock screen len server...";
-                LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
-                effectiveUrl = await UploadLockScreenMediaAsync(mode, localFilePath);
+                var segments = url.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                var resolvedUrls = new List<string>();
+                foreach (var rawSegment in segments)
+                {
+                    var segment = rawSegment.Trim();
+                    if (TryResolveLocalLockScreenFile(segment, out var localFilePath))
+                    {
+                        LockScreenBackgroundStatusTextBlock.Text = $"Dang upload file {Path.GetFileName(localFilePath)}...";
+                        LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+                        var uploadedUrl = await UploadLockScreenMediaAsync(mode, localFilePath);
+                        resolvedUrls.Add(uploadedUrl);
+                    }
+                    else
+                    {
+                        resolvedUrls.Add(segment);
+                    }
+                }
+                effectiveUrl = string.Join(",", resolvedUrls);
             }
+
+            int.TryParse(LockScreenIntervalTextBox.Text, out var intervalSeconds);
+            if (intervalSeconds <= 0) intervalSeconds = 5;
 
             using var response = await _httpClient.PatchAsJsonAsync(
                 BuildApiUrl("/pricing/client-settings"),
@@ -327,6 +349,7 @@ public partial class MainWindow : Window
                     readyAutoShutdownMinutes = minutes,
                     lockScreenBackgroundMode = mode,
                     lockScreenBackgroundUrl = effectiveUrl,
+                    lockScreenIntervalSeconds = intervalSeconds,
                     allowMemberWithdraw = MemberWithdrawEnabledCheckBox.IsChecked == true,
                     allowMemberTopupRequest = MemberTopupRequestEnabledCheckBox.IsChecked == true,
                 });
@@ -353,6 +376,8 @@ public partial class MainWindow : Window
             ReadyAutoShutdownMinutesTextBox.Text = _readyAutoShutdownMinutes.ToString(CultureInfo.InvariantCulture);
             SetLockScreenBackgroundModeUi(_lockScreenBackgroundMode);
             LockScreenBackgroundUrlTextBox.Text = _lockScreenBackgroundUrl;
+            RebuildMediaContainerFromTextBox();
+            LockScreenIntervalTextBox.Text = Math.Max(1, payload?.LockScreenIntervalSeconds ?? intervalSeconds).ToString(CultureInfo.InvariantCulture);
 
             ReadyAutoShutdownStatusTextBlock.Text =
                 $"Da luu: may San sang khong login qua {_readyAutoShutdownMinutes} phut se tu tat.";
@@ -419,6 +444,8 @@ public partial class MainWindow : Window
         LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
     }
 
+    private bool _isSyncingMediaContainer = false;
+
     private void LockScreenBackgroundUrlTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (!_readyShutdownSettingsInitialized || _isLoadingReadyShutdownSettings)
@@ -427,6 +454,165 @@ public partial class MainWindow : Window
         }
 
         LockScreenBackgroundStatusTextBlock.Text = "Da thay doi duong dan nen lock screen. Bam \"Luu cai dat\" de ap dung.";
+        LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+
+        RebuildMediaContainerFromTextBox();
+    }
+
+    private void RebuildMediaContainerFromTextBox()
+    {
+        if (_isSyncingMediaContainer) return;
+        _isSyncingMediaContainer = true;
+
+        LockScreenMediaContainer.Children.Clear();
+        var raw = LockScreenBackgroundUrlTextBox.Text ?? string.Empty;
+        var parts = raw.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+        {
+            AddMediaRow("");
+        }
+        else
+        {
+            foreach (var part in parts)
+            {
+                AddMediaRow(part.Trim());
+            }
+        }
+
+        _isSyncingMediaContainer = false;
+    }
+
+    private void AddMediaRow(string initialPath)
+    {
+        var grid = new Grid { Margin = new Thickness(0, 4, 0, 4) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var textBox = new TextBox
+        {
+            Height = 30,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Text = initialPath
+        };
+        textBox.TextChanged += (s, e) => {
+            SyncDynamicRowsToHiddenTextBox();
+        };
+        Grid.SetColumn(textBox, 0);
+        grid.Children.Add(textBox);
+
+        var browseBtn = new Button
+        {
+            Content = "Chọn file...",
+            Margin = new Thickness(6, 0, 0, 0),
+            Padding = new Thickness(10, 0, 10, 0),
+            Height = 30,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        browseBtn.Click += (s, e) => {
+            var mode = GetLockScreenBackgroundModeFromUi();
+            if (mode == "none")
+            {
+                LockScreenBackgroundStatusTextBlock.Text = "Hay chon loai nen image/video truoc khi chon file.";
+                LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
+                return;
+            }
+
+            var dialog = new OpenFileDialog
+            {
+                CheckFileExists = true,
+                Multiselect = false,
+                Filter = mode == "video"
+                    ? "Video files|*.mp4;*.webm;*.avi;*.mkv;*.mov|All files|*.*"
+                    : "Image files|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.webp|All files|*.*",
+                Title = mode == "video" ? "Chon video nen lock screen" : "Chon anh nen lock screen",
+            };
+
+            var current = textBox.Text.Trim();
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(current))
+                {
+                    var expanded = Environment.ExpandEnvironmentVariables(current);
+                    if (File.Exists(expanded))
+                    {
+                        dialog.InitialDirectory = Path.GetDirectoryName(expanded);
+                        dialog.FileName = Path.GetFileName(expanded);
+                    }
+                }
+            }
+            catch { }
+
+            if (dialog.ShowDialog(this) == true)
+            {
+                textBox.Text = dialog.FileName;
+            }
+        };
+        Grid.SetColumn(browseBtn, 1);
+        grid.Children.Add(browseBtn);
+
+        var deleteBtn = new Button
+        {
+            Content = "Xóa",
+            Margin = new Thickness(6, 0, 0, 0),
+            Padding = new Thickness(10, 0, 10, 0),
+            Height = 30,
+            VerticalAlignment = VerticalAlignment.Center,
+            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444")),
+            Foreground = Brushes.White
+        };
+        deleteBtn.Click += (s, e) => {
+            LockScreenMediaContainer.Children.Remove(grid);
+            SyncDynamicRowsToHiddenTextBox();
+        };
+        Grid.SetColumn(deleteBtn, 2);
+        grid.Children.Add(deleteBtn);
+
+        LockScreenMediaContainer.Children.Add(grid);
+    }
+
+    private void SyncDynamicRowsToHiddenTextBox()
+    {
+        if (_isSyncingMediaContainer) return;
+
+        _isSyncingMediaContainer = true;
+        var paths = new List<string>();
+        foreach (UIElement child in LockScreenMediaContainer.Children)
+        {
+            if (child is Grid grid)
+            {
+                var textBox = grid.Children.OfType<TextBox>().FirstOrDefault();
+                if (textBox != null)
+                {
+                    paths.Add(textBox.Text.Trim());
+                }
+            }
+        }
+
+        LockScreenBackgroundUrlTextBox.Text = string.Join(",", paths);
+        _isSyncingMediaContainer = false;
+
+        if (_readyShutdownSettingsInitialized && !_isLoadingReadyShutdownSettings)
+        {
+            LockScreenBackgroundStatusTextBlock.Text = "Da thay doi danh sach file lock screen. Bam \"Luu cai dat\" de ap dung.";
+            LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+        }
+    }
+
+    private void AddLockScreenMediaRowButton_Click(object sender, RoutedEventArgs e)
+    {
+        AddMediaRow("");
+        SyncDynamicRowsToHiddenTextBox();
+    }
+
+    private void LockScreenIntervalTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_readyShutdownSettingsInitialized || _isLoadingReadyShutdownSettings)
+        {
+            return;
+        }
+
+        LockScreenBackgroundStatusTextBlock.Text = "Da thay doi thoi gian cho lock screen. Bam \"Luu cai dat\" de ap dung.";
         LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
     }
 
@@ -527,13 +713,25 @@ public partial class MainWindow : Window
             return false;
         }
 
-        if (TryResolveLocalLockScreenFile(url, out _) || IsHttpOrHttpsUrl(url))
+        var segments = url.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0)
         {
-            return true;
+            error = "Vui long nhap duong dan file khi chon nen image/video.";
+            return false;
         }
 
-        error = "Chi ho tro file local/UNC ton tai, hoac URL http/https hop le.";
-        return false;
+        foreach (var rawSegment in segments)
+        {
+            var segment = rawSegment.Trim();
+            if (TryResolveLocalLockScreenFile(segment, out _) || IsHttpOrHttpsUrl(segment))
+            {
+                continue;
+            }
+            error = $"Duong dan khong hop le: \"{segment}\". Chi ho tro file local/UNC ton tai, hoac URL http/https hop le.";
+            return false;
+        }
+
+        return true;
     }
 
     private static bool IsHttpOrHttpsUrl(string value)

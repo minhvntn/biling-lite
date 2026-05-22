@@ -212,6 +212,7 @@ public sealed class ClientRuntimeSettingsResponse
     public int ReadyAutoShutdownMinutes { get; set; }
     public string LockScreenBackgroundMode { get; set; } = "none";
     public string LockScreenBackgroundUrl { get; set; } = string.Empty;
+    public int LockScreenIntervalSeconds { get; set; } = 5;
     public bool AllowMemberWithdraw { get; set; } = true;
     public bool AllowMemberTopupRequest { get; set; } = true;
     public string ServerTime { get; set; } = string.Empty;

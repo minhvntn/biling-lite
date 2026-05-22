@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
@@ -13,6 +13,10 @@ public partial class LockScreenWindow : Window
     private bool _manualUnlockMode;
     private string _backgroundMode = "none";
     private string _backgroundSource = string.Empty;
+    private int _slideshowIntervalSeconds = 5;
+    private System.Windows.Threading.DispatcherTimer? _slideshowTimer;
+    private System.Collections.Generic.List<string> _mediaSources = new();
+    private int _currentMediaIndex = 0;
 
     public LockScreenWindow()
     {
@@ -47,10 +51,17 @@ public partial class LockScreenWindow : Window
         ServerIpTextBox.Text = (serverUrl ?? string.Empty).Trim();
     }
 
-    public void ApplyBackgroundConfiguration(string? mode, string? source)
+    public void ApplyBackgroundConfiguration(string? mode, string? source, int intervalSeconds = 5)
     {
         _backgroundMode = NormalizeBackgroundMode(mode);
         _backgroundSource = (source ?? string.Empty).Trim();
+        _slideshowIntervalSeconds = System.Math.Max(1, intervalSeconds);
+
+        try
+        {
+            _slideshowTimer?.Stop();
+        }
+        catch {}
 
         if (_backgroundMode == "none" || string.IsNullOrWhiteSpace(_backgroundSource))
         {
@@ -58,15 +69,76 @@ public partial class LockScreenWindow : Window
             return;
         }
 
-        if (_backgroundMode == "image")
+        _mediaSources = _backgroundSource
+            .Split(new[] { ',' }, System.StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .ToList();
+
+        if (_mediaSources.Count == 0)
         {
-            BackgroundContainer.Visibility = Visibility.Visible;
-            TryApplyImageBackground(_backgroundSource);
+            ClearBackgroundMedia();
             return;
         }
 
-        BackgroundContainer.Visibility = Visibility.Visible;
-        TryApplyVideoBackground(_backgroundSource);
+        _currentMediaIndex = 0;
+        PlayMedia(_mediaSources[_currentMediaIndex]);
+
+        if (_mediaSources.Count > 1)
+        {
+            if (_slideshowTimer == null)
+            {
+                _slideshowTimer = new System.Windows.Threading.DispatcherTimer();
+                _slideshowTimer.Tick += SlideshowTimer_Tick;
+            }
+            _slideshowTimer.Interval = System.TimeSpan.FromSeconds(_slideshowIntervalSeconds);
+            _slideshowTimer.Start();
+        }
+    }
+
+    private void SlideshowTimer_Tick(object? sender, System.EventArgs e)
+    {
+        if (_mediaSources.Count <= 1)
+        {
+            try { _slideshowTimer?.Stop(); } catch {}
+            return;
+        }
+
+        _currentMediaIndex = (_currentMediaIndex + 1) % _mediaSources.Count;
+        PlayMedia(_mediaSources[_currentMediaIndex]);
+    }
+
+    private void PlayMedia(string source)
+    {
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return;
+        }
+
+        BackgroundContainer.Visibility = System.Windows.Visibility.Visible;
+
+        bool isVideo = IsVideoFile(source);
+        if (isVideo)
+        {
+            TryApplyVideoBackground(source);
+        }
+        else
+        {
+            TryApplyImageBackground(source);
+        }
+    }
+
+    private static bool IsVideoFile(string source)
+    {
+        try
+        {
+            var cleanSource = source.Split('?')[0];
+            var ext = System.IO.Path.GetExtension(cleanSource).ToLowerInvariant();
+            return ext == ".mp4" || ext == ".webm" || ext == ".avi" || ext == ".mkv" || ext == ".mov" || ext == ".wmv" || ext == ".m4v";
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public void PrepareForLock()
@@ -117,7 +189,7 @@ public partial class LockScreenWindow : Window
             }
         }
         
-        ApplyBackgroundConfiguration(_backgroundMode, _backgroundSource);
+        ApplyBackgroundConfiguration(_backgroundMode, _backgroundSource, _slideshowIntervalSeconds);
 
         // Force GC to clear unused assets and reduce RAM usage
         GC.Collect();
@@ -348,7 +420,7 @@ public partial class LockScreenWindow : Window
         var password = ManualUnlockPasswordBox.Password;
         if (string.IsNullOrEmpty(password))
         {
-            ErrorTextBlock.Text = "Vui l\u00f2ng nh\u1eadp m\u1eadt m\u00e3 \u0111\u00e3 \u0111\u1eb7t.";
+            ErrorTextBlock.Text = "Vui l\u00f2ng nh\u1eadp m\u1eadt m\u00e3 \u0111\u0103 \u0111\u1eb7t.";
             return;
         }
 
@@ -427,6 +499,14 @@ public partial class LockScreenWindow : Window
 
     private void ClearBackgroundMedia()
     {
+        try
+        {
+            _slideshowTimer?.Stop();
+        }
+        catch
+        {
+        }
+
         try
         {
             BackgroundVideoElement.Stop();

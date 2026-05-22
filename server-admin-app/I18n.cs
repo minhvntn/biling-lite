@@ -1,9 +1,9 @@
-﻿namespace Server.Admin.App;
+namespace Server.Admin.App;
 
 public static class I18n
 {
-    public const string MainWindowTitle = "Server Manager Admin";
-    public const string HeaderTitle = "Server Manager Billing [ADMIN]";
+    public const string MainWindowTitle = "CyberS Admin";
+    public const string HeaderTitle = "CyberS [ADMIN]";
     public const string Logout = "Đăng xuất";
     public const string WorkstationsTab = "Máy trạm";
     public const string Refresh = "Làm mới";

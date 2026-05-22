@@ -1,4 +1,4 @@
-﻿<Window x:Class="Client.Agent.Wpf.LockScreenWindow"
+<Window x:Class="Client.Agent.Wpf.LockScreenWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Machine Locked"
@@ -384,7 +384,7 @@
 
         <!-- Footer / Credits -->
         <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,32">
-            <TextBlock Text="SERVER MANAGER v2.0" 
+            <TextBlock Text="CyberS v2.0" 
                        Foreground="White" 
                        Opacity="0.4" 
                        FontSize="12" 

@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Globalization;
 using System.Net;
@@ -75,6 +75,7 @@ public partial class App : Application
     private int _readyAutoShutdownMinutes = 3;
     private string _lockScreenBackgroundMode = "none";
     private string _lockScreenBackgroundUrl = string.Empty;
+    private int _lockScreenIntervalSeconds = 5;
     private DateTime _lastRuntimeSettingsFetchUtc = DateTime.MinValue;
     private string _currentMachineState = "LOCKED";
     private bool _isWebFilterSyncRunning;
@@ -153,7 +154,7 @@ public partial class App : Application
         TrackMachineState("LOCKED");
 
         _lockScreenWindow = new LockScreenWindow();
-        _lockScreenWindow.ApplyBackgroundConfiguration(_lockScreenBackgroundMode, _lockScreenBackgroundUrl);
+        _lockScreenWindow.ApplyBackgroundConfiguration(_lockScreenBackgroundMode, _lockScreenBackgroundUrl, _lockScreenIntervalSeconds);
         _lockScreenWindow.SetCurrentServerUrl(_settings.ServerUrl);
         _lockScreenWindow.PrepareForLock();
 
@@ -2291,6 +2292,7 @@ public async void OpenLoyaltyPanelFromClientUi()
             _readyAutoShutdownMinutes = Math.Clamp(payload.ReadyAutoShutdownMinutes, 1, 240);
             _lockScreenBackgroundMode = NormalizeLockScreenBackgroundMode(payload.LockScreenBackgroundMode);
             _lockScreenBackgroundUrl = (payload.LockScreenBackgroundUrl ?? string.Empty).Trim();
+            _lockScreenIntervalSeconds = Math.Max(1, payload.LockScreenIntervalSeconds);
             _isMemberWithdrawEnabled = payload.AllowMemberWithdraw;
             _isMemberTopupRequestEnabled = payload.AllowMemberTopupRequest;
             Client.Agent.Wpf.MainWindow.PricingStep = payload.PricingStep;
@@ -2299,7 +2301,8 @@ public async void OpenLoyaltyPanelFromClientUi()
             {
                 _lockScreenWindow?.ApplyBackgroundConfiguration(
                     _lockScreenBackgroundMode,
-                    _lockScreenBackgroundUrl);
+                    _lockScreenBackgroundUrl,
+                    _lockScreenIntervalSeconds);
                 _mainWindow?.SetWithdrawActionVisible(_isMemberWithdrawEnabled);
                 _mainWindow?.SetTopupRequestActionVisible(_isMemberTopupRequestEnabled);
             });

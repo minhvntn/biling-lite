@@ -1,7 +1,7 @@
 <Window x:Class="Server.Admin.App.LoginWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Đăng nhập Server Admin" Height="380" Width="360"
+        Title="Đăng nhập CyberS Admin" Height="380" Width="360"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         Background="White"
@@ -73,7 +73,7 @@
         <Border Grid.Row="0" Background="#3B82F6">
              <StackPanel VerticalAlignment="Center">
                  <TextBlock Text="💻" FontSize="32" Foreground="White" HorizontalAlignment="Center"/>
-                 <TextBlock Text="SERVER MANAGER" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,3,0,0"/>
+                 <TextBlock Text="CYBERS" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,3,0,0"/>
              </StackPanel>
         </Border>
 

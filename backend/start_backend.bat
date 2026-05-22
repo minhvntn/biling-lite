@@ -1,5 +1,5 @@
 @echo off
-title SERVER MANAGER BILLING - BACKEND SERVICE
+title CyberS - BACKEND SERVICE
 color 0A
 cd /d "%~dp0"
 

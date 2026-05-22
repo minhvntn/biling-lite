@@ -2496,23 +2496,18 @@
                                             Padding="14,12">
                                         <Grid>
                                             <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="Auto" />
-                                            </Grid.RowDefinitions>
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                             </Grid.RowDefinitions>
 
                                             <TextBlock Grid.Row="0" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B" Text="Cài đặt máy trạm" />
 
@@ -2611,34 +2606,69 @@
                                             </Grid>
 
                                             <StackPanel Grid.Row="10" Margin="0,8,0,0">
-                                                <TextBlock Margin="0,0,0,4" Foreground="#334155" Text="Đường dẫn file image/video (local/UNC):" />
-                                                <TextBox x:Name="LockScreenBackgroundUrlTextBox"
-                                                         Height="30"
-                                                         VerticalContentAlignment="Center"
-                                                         TextChanged="LockScreenBackgroundUrlTextBox_TextChanged" />
-                                                <Button Margin="0,6,0,0"
-                                                        Width="130"
-                                                        HorizontalAlignment="Left"
-                                                        Content="Chọn file..."
-                                                        Click="BrowseLockScreenBackgroundFileButton_Click" />
-                                                <TextBlock x:Name="LockScreenBackgroundStatusTextBlock"
-                                                           Margin="0,8,0,0"
-                                                           Foreground="#64748B"
-                                                           Text="Chọn loại nền và nhập đường dẫn file local, sau đó bấm Lưu cài đặt." />
-                                            </StackPanel>
+                                                 <TextBlock Margin="0,0,0,4" Foreground="#334155" Text="Danh sach file image/video (local/UNC):" />
+                                                 <TextBox x:Name="LockScreenBackgroundUrlTextBox"
+                                                          Visibility="Collapsed"
+                                                          TextChanged="LockScreenBackgroundUrlTextBox_TextChanged" />
+                                                 <StackPanel x:Name="LockScreenMediaContainer" Margin="0,0,0,4" />
+                                                 <Button Content="Them file (+)"
+                                                         Width="130"
+                                                         HorizontalAlignment="Left"
+                                                         Margin="0,0,0,8"
+                                                         Click="AddLockScreenMediaRowButton_Click" />
+                                                  <Grid Margin="0,8,0,0">
+                                                      <Grid.ColumnDefinitions>
+                                                          <ColumnDefinition Width="260" />
+                                                          <ColumnDefinition Width="*" />
+                                                      </Grid.ColumnDefinitions>
+                                                      <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="So giay chay moi hinh/video (Slideshow):" />
+                                                      <TextBox x:Name="LockScreenIntervalTextBox"
+                                                               Grid.Column="1"
+                                                               Width="80"
+                                                               Height="30"
+                                                               HorizontalAlignment="Left"
+                                                               VerticalContentAlignment="Center"
+                                                               Text="5"
+                                                               TextChanged="LockScreenIntervalTextBox_TextChanged" />
+                                                  </Grid>
+                                                 <TextBlock x:Name="LockScreenBackgroundStatusTextBlock"
+                                                            Margin="0,8,0,0"
+                                                            Foreground="#64748B"
+                                                            Text="Chon loai nen va nhap duong dan file local, sau do bam Luu cai dat."
+                                                            HorizontalAlignment="Left" />
+                                             </StackPanel>
 
-                                            <TextBlock Grid.Row="11"
+                                            
+                                        </Grid>
+                                    </Border>
+                                </TabItem>
+                                 <TabItem Header="Wake-on-LAN">
+                                     <Border Margin="0,8,0,0"
+                                             Background="White"
+                                             BorderBrush="#E2E8F0"
+                                             BorderThickness="1"
+                                             CornerRadius="10"
+                                             Padding="14,12">
+                                         <Grid>
+                                             <Grid.RowDefinitions>
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                             </Grid.RowDefinitions>
+<TextBlock Grid.Row="0"
                                                        Margin="0,16,0,0"
                                                        FontWeight="SemiBold"
                                                        Foreground="#1E293B"
                                                        Text="Wake-on-LAN tự động (khởi động máy từ xa)" />
 
-                                            <TextBlock Grid.Row="12"
+                                            <TextBlock Grid.Row="1"
                                                        Margin="0,6,0,0"
                                                        Foreground="#64748B"
                                                        Text="Khai báo profile theo mã máy để bấm 1 lần là gửi WOL ngay, không cần nhập lại." />
 
-                                            <Grid Grid.Row="13" Margin="0,8,0,0">
+                                            <Grid Grid.Row="2" Margin="0,8,0,0">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="130" />
                                                     <ColumnDefinition Width="200" />
@@ -2685,7 +2715,7 @@
                                             </Grid>
 
                                             <DataGrid x:Name="WakeLanProfilesDataGrid"
-                                                      Grid.Row="14"
+                                                      Grid.Row="3"
                                                       Margin="0,8,0,0"
                                                       AutoGenerateColumns="False"
                                                       CanUserAddRows="False"
@@ -2702,7 +2732,7 @@
                                                 </DataGrid.Columns>
                                             </DataGrid>
 
-                                            <StackPanel Grid.Row="15" Orientation="Horizontal" Margin="0,8,0,0">
+                                            <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,8,0,0">
                                                 <Button Content="Lưu profile WOL"
                                                         Padding="12,6"
                                                         Margin="0,0,10,0"
@@ -2712,9 +2742,9 @@
                                                            Foreground="#64748B"
                                                            Text="Đang tải danh sách profile WOL..." />
                                             </StackPanel>
-                                        </Grid>
-                                    </Border>
-                                </TabItem>
+                                         </Grid>
+                                     </Border>
+                                 </TabItem>
 
                                 <TabItem Header="Tích lũy">
                                     <Border Margin="0,8,0,0"
@@ -3429,6 +3459,7 @@
                            TextWrapping="Wrap"
                            Foreground="#0F172A"
                            Text="Máy trạm vừa có khách đểng nhập." />
+                <ProgressBar x:Name="GuestLoginToastProgressBar" Height="4" Margin="0,8,0,0" Background="#DBEAFE" Foreground="#2563EB" BorderThickness="0" Minimum="0" />
             </StackPanel>
         </Border>
     </Grid>

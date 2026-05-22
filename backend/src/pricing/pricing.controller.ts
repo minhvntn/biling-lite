@@ -133,32 +133,41 @@ export class PricingController {
       return settings;
     }
 
-    let mediaUrl: URL;
-    try {
-      mediaUrl = new URL(rawUrl);
-    } catch {
-      return settings;
-    }
+    const urls = rawUrl.split(',').map((u) => u.trim()).filter(Boolean);
+    const rewrittenUrls: string[] = [];
 
-    if (!this.isLoopbackHost(mediaUrl.hostname)) {
-      return settings;
-    }
+    for (const urlStr of urls) {
+      let mediaUrl: URL;
+      try {
+        mediaUrl = new URL(urlStr);
+      } catch {
+        rewrittenUrls.push(urlStr);
+        continue;
+      }
 
-    const baseUrl = this.buildClientFacingApiBaseUrl(request);
-    let apiBase: URL;
-    try {
-      apiBase = new URL(baseUrl);
-    } catch {
-      return settings;
-    }
+      if (!this.isLoopbackHost(mediaUrl.hostname)) {
+        rewrittenUrls.push(urlStr);
+        continue;
+      }
 
-    mediaUrl.protocol = apiBase.protocol;
-    mediaUrl.hostname = apiBase.hostname;
-    mediaUrl.port = apiBase.port;
+      const baseUrl = this.buildClientFacingApiBaseUrl(request);
+      let apiBase: URL;
+      try {
+        apiBase = new URL(baseUrl);
+      } catch {
+        rewrittenUrls.push(urlStr);
+        continue;
+      }
+
+      mediaUrl.protocol = apiBase.protocol;
+      mediaUrl.hostname = apiBase.hostname;
+      mediaUrl.port = apiBase.port;
+      rewrittenUrls.push(mediaUrl.toString());
+    }
 
     return {
       ...settings,
-      lockScreenBackgroundUrl: mediaUrl.toString(),
+      lockScreenBackgroundUrl: rewrittenUrls.join(','),
     };
   }
 

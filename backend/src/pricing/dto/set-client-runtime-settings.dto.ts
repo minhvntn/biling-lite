@@ -36,4 +36,11 @@ export class SetClientRuntimeSettingsDto {
   @Type(() => Boolean)
   @IsBoolean()
   allowMemberTopupRequest?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(3600)
+  lockScreenIntervalSeconds?: number;
 }

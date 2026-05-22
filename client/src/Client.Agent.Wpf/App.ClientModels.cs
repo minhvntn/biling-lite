@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Windows.Media;
@@ -76,6 +76,7 @@ public sealed class ClientRuntimeSettingsResponse
     public int ReadyAutoShutdownMinutes { get; set; }
     public string LockScreenBackgroundMode { get; set; } = "none";
     public string LockScreenBackgroundUrl { get; set; } = string.Empty;
+    public int LockScreenIntervalSeconds { get; set; } = 5;
     public decimal PricingStep { get; set; } = 1000m;
     public decimal MinimumCharge { get; set; } = 1000m;
     public bool AllowMemberWithdraw { get; set; } = true;

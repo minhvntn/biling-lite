@@ -3,6 +3,7 @@ using System.IO;
 using System.Speech.Synthesis;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace Server.Admin.App;
 
@@ -15,6 +16,10 @@ public partial class MainWindow : Window
     private static readonly string[] PreferredVietnameseVoiceNameHints = ["hoaimy", "hoai my", "an", "mai"];
     private bool _guestLoginNotificationsInitialized;
     private bool _guestSessionSnapshotInitialized;
+    private DispatcherTimer? _guestLoginToastTimer;
+    private double _guestLoginToastSecondsRemaining;
+    private const double GuestLoginToastDurationSeconds = 20.0;
+    private const double GuestLoginToastTickIntervalMs = 100.0;
 
     private sealed class GuestSessionSnapshot
     {
@@ -91,11 +96,11 @@ public partial class MainWindow : Window
         var guestLabel = string.IsNullOrWhiteSpace(row.ActiveGuestDisplayName)
             ? "khách vãng lai"
             : row.ActiveGuestDisplayName.Trim();
-        var message = $"Máy trạm {machineLabel} có {guestLabel} đang sử dụng.";
+        var message = $"Máy trạm {machineLabel} có khách vừa đăng nhập.";
 
         ShowGuestLoginToast(message);
         _ = SpeakGuestLoginNotificationAsync(machineLabel);
-        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Alert guest login: {machineLabel} dang duoc su dung");
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Alert guest login: {machineLabel} đang được sử dụng");
     }
 
     private async Task SpeakGuestLoginNotificationAsync(string machineLabel)
@@ -371,6 +376,8 @@ public partial class MainWindow : Window
             WindowState = WindowState.Normal;
         }
         Activate();
+
+        StartGuestLoginToastTimer();
     }
 
     private void GuestLoginToastCloseButton_Click(object sender, RoutedEventArgs e)
@@ -380,6 +387,8 @@ public partial class MainWindow : Window
 
     private void HideGuestLoginToast()
     {
+        StopGuestLoginToastTimer();
+
         if (GuestLoginToastBorder is not null)
         {
             GuestLoginToastBorder.Visibility = Visibility.Collapsed;
@@ -388,6 +397,49 @@ public partial class MainWindow : Window
         if (GuestLoginToastMessageTextBlock is not null)
         {
             GuestLoginToastMessageTextBlock.Text = string.Empty;
+        }
+    }
+
+    private void StartGuestLoginToastTimer()
+    {
+        if (_guestLoginToastTimer is null)
+        {
+            _guestLoginToastTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(GuestLoginToastTickIntervalMs)
+            };
+            _guestLoginToastTimer.Tick += GuestLoginToastTimer_Tick;
+        }
+
+        _guestLoginToastTimer.Stop();
+        _guestLoginToastSecondsRemaining = GuestLoginToastDurationSeconds;
+
+        if (GuestLoginToastProgressBar is not null)
+        {
+            GuestLoginToastProgressBar.Maximum = GuestLoginToastDurationSeconds;
+            GuestLoginToastProgressBar.Value = GuestLoginToastDurationSeconds;
+        }
+
+        _guestLoginToastTimer.Start();
+    }
+
+    private void StopGuestLoginToastTimer()
+    {
+        _guestLoginToastTimer?.Stop();
+    }
+
+    private void GuestLoginToastTimer_Tick(object? sender, EventArgs e)
+    {
+        _guestLoginToastSecondsRemaining -= (GuestLoginToastTickIntervalMs / 1000.0);
+
+        if (GuestLoginToastProgressBar is not null)
+        {
+            GuestLoginToastProgressBar.Value = Math.Max(0, _guestLoginToastSecondsRemaining);
+        }
+
+        if (_guestLoginToastSecondsRemaining <= 0)
+        {
+            HideGuestLoginToast();
         }
     }
 
