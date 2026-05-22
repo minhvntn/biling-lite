@@ -4,7 +4,7 @@ namespace Server.Admin.App;
 
 public sealed class AdminShellSettings
 {
-    public string AdminBaseUrl { get; set; } = "http://localhost:5173";
+    public string AdminBaseUrl { get; set; } = "http://127.0.0.1:5400";
 
     public string BackendApiBaseUrl { get; set; } = "http://localhost:9000/api/v1";
 
