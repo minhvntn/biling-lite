@@ -1,4 +1,4 @@
-export type PcStatus = 'OFFLINE' | 'ONLINE' | 'IN_USE' | 'LOCKED';
+export type PcStatus = 'OFFLINE' | 'ONLINE' | 'IN_USE' | 'LOCKED' | 'BOOTING';
 
 export type PcListItem = {
   id: string;

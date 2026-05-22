@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { io } from 'socket.io-client';
 import { lockPc, openPc } from '../api/commands';
 import { fetchPcs } from '../api/pcs';
@@ -30,9 +30,11 @@ function statusText(status: string): string {
     case 'IN_USE':
       return 'Dang su dung';
     case 'LOCKED':
-      return 'Dang tat';
+      return 'Dang khoa';
     case 'ONLINE':
       return 'Online ranh';
+    case 'BOOTING':
+      return 'Dang khoi dong';
     default:
       return 'Offline';
   }
@@ -46,6 +48,8 @@ function statusClass(status: string): string {
       return 'status-cell status-locked';
     case 'ONLINE':
       return 'status-cell status-online';
+    case 'BOOTING':
+      return 'status-cell status-warning';
     default:
       return 'status-cell status-offline';
   }
@@ -61,7 +65,7 @@ export function PcsPage() {
     {},
   );
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'IN_USE' | 'LOCKED' | 'ONLINE' | 'OFFLINE'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'IN_USE' | 'LOCKED' | 'ONLINE' | 'OFFLINE' | 'BOOTING'>('ALL');
   const [search, setSearch] = useState('');
 
   const loadPcs = async () => {
@@ -141,7 +145,7 @@ export function PcsPage() {
   const summary = useMemo(() => {
     const total = pcs.length;
     const inUse = pcs.filter((pc) => pc.status === 'IN_USE').length;
-    const locked = pcs.filter((pc) => pc.status === 'LOCKED').length;
+    const locked = pcs.filter((pc) => pc.status === 'LOCKED' || pc.status === 'OFFLINE' || pc.status === 'BOOTING').length;
     const onlineIdle = pcs.filter((pc) => pc.status === 'ONLINE').length;
 
     const runningRevenue = pcs.reduce((acc, pc) => {
@@ -217,14 +221,16 @@ export function PcsPage() {
                   | 'IN_USE'
                   | 'LOCKED'
                   | 'ONLINE'
-                  | 'OFFLINE',
+                  | 'OFFLINE'
+                  | 'BOOTING',
               )
             }
           >
             <option value="ALL">Tat ca</option>
             <option value="IN_USE">Dang su dung</option>
-            <option value="LOCKED">Dang tat</option>
+            <option value="LOCKED">Dang khoa</option>
             <option value="ONLINE">Online ranh</option>
+            <option value="BOOTING">Dang khoi dong</option>
             <option value="OFFLINE">Offline</option>
           </select>
         </div>

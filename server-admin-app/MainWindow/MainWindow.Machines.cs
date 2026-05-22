@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -140,8 +140,9 @@ public partial class MainWindow : Window
         var statusText = item.Status switch
         {
             "IN_USE" => isAdminSession ? "Admin dang nh?p" : I18n.StatusInUse,
-            "LOCKED" => I18n.StatusLocked,
+            "LOCKED" => "Đang khóa",
             "ONLINE" => I18n.StatusReady,
+            "BOOTING" => "Đang khởi động",
             "OFFLINE" => hasUnpaidGuestSession ? "Mất kết nối" : I18n.StatusLocked,
             _ => "Offline",
         };
@@ -149,8 +150,9 @@ public partial class MainWindow : Window
         var statusBrush = item.Status switch
         {
             "IN_USE" => Brushes.RoyalBlue,
-            "LOCKED" => Brushes.Red,
+            "LOCKED" => Brushes.Orange,
             "ONLINE" => Brushes.DarkSlateBlue,
+            "BOOTING" => Brushes.Goldenrod,
             "OFFLINE" => Brushes.White,
             _ => Brushes.Gray,
         };
@@ -191,9 +193,15 @@ public partial class MainWindow : Window
         }
         else if (item.Status == "LOCKED")
         {
-            statusIconBrush = Brushes.Crimson;
+            statusIconBrush = Brushes.Orange;
             statusIconPath = "/Assets/pc-offline.svg";
             statusIconToolTip = "Đang bị khóa";
+        }
+        else if (item.Status == "BOOTING")
+        {
+            statusIconBrush = Brushes.Goldenrod;
+            statusIconPath = "/Assets/pc-default.svg";
+            statusIconToolTip = "Đang khởi động...";
         }
         else if (item.Status == "OFFLINE")
         {
@@ -511,7 +519,7 @@ public partial class MainWindow : Window
 
         var total = rows.Count;
         var usingCount = rows.Count(r => r.StatusCode == "IN_USE");
-        var lockedCount = rows.Count(r => r.StatusCode is "LOCKED" or "OFFLINE");
+        var lockedCount = rows.Count(r => r.StatusCode is "LOCKED" or "OFFLINE" or "BOOTING");
         var runningMoney = rows.Sum(r => ParseMoney(r.MoneyText) + r.ServiceAmountRaw);
 
         SummaryTotalTextBlock.Text = $"{I18n.TotalPcPrefix}: {total}";

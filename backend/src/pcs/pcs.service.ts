@@ -59,6 +59,7 @@ export type PcListItem = {
 
 @Injectable()
 export class PcsService {
+  public static readonly wakingPcIds = new Map<string, number>();
   private readonly macAddressByAgentId = new Map<string, string>();
 
   constructor(
@@ -189,6 +190,14 @@ export class PcsService {
         }
 
         const connectedSockets = this.realtime.countAgentSockets(pc.agentId);
+        let status: any = pc.status;
+        if (status === PcStatus.OFFLINE) {
+          const wakeTime = PcsService.wakingPcIds.get(pc.id);
+          if (wakeTime && (now - wakeTime) < 180000) {
+            status = 'BOOTING';
+          }
+        }
+
         return {
           id: pc.id,
           agentId: pc.agentId,
@@ -202,7 +211,7 @@ export class PcsService {
             this.macAddressByAgentId.get(pc.agentId.toUpperCase()) ?? null,
           connectedSockets,
           isConnected: connectedSockets > 0,
-          status: pc.status,
+          status,
           lastSeenAt: pc.lastSeenAt?.toISOString() ?? null,
           activeSession: activeSession
             ? {
@@ -382,6 +391,8 @@ export class PcsService {
       });
       return { pc: createdPc, previousStatus: null };
     }
+
+    PcsService.wakingPcIds.delete(existing.id);
 
     let nextStatus = existing.status;
     if (existing.status === PcStatus.OFFLINE) {

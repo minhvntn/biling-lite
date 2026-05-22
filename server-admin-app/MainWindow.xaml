@@ -3443,7 +3443,7 @@
                 <DockPanel LastChildFill="False">
                     <TextBlock DockPanel.Dock="Left"
                                VerticalAlignment="Center"
-                               Text="Thong bao may tram"
+                               Text="Thông báo máy trạm"
                                FontSize="13"
                                FontWeight="SemiBold"
                                Foreground="#1D4ED8" />

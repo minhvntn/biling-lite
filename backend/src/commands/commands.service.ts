@@ -13,6 +13,7 @@ import { randomUUID } from 'crypto';
 import * as dgram from 'dgram';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
+import { PcsService } from '../pcs/pcs.service';
 import { CommandAckPayload } from './types/command-ack.type';
 import { UploadPcScreenshotDto } from './dto/upload-pc-screenshot.dto';
 import { UploadPcLiveFrameDto } from './dto/upload-pc-live-frame.dto';
@@ -178,6 +179,17 @@ export class CommandsService {
     await this.sendWakePacket(packet, broadcastAddress, 9);
 
     const formattedMac = this.formatMacAddress(normalizedMacHex);
+    PcsService.wakingPcIds.set(pc.id, Date.now());
+
+    this.realtime.emitToAll('pc.status.changed', {
+      pcId: pc.id,
+      agentId: pc.agentId,
+      previousStatus: pc.status,
+      status: 'BOOTING',
+      at: new Date().toISOString(),
+      sourceEvent: 'command.wake',
+    });
+
     await this.logEvent(EventSource.ADMIN, 'pc.wake.sent', pc.id, {
       macAddress: formattedMac,
       broadcastAddress,

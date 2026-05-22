@@ -270,6 +270,11 @@ input[type='date'] {
   color: var(--locked);
 }
 
+.status-warning {
+  background: #fff3cd;
+  color: #856404;
+}
+
 .status-offline {
   background: #ececec;
   color: var(--offline);
