@@ -211,3 +211,20 @@ Hãy dùng skill `servermanagerbilling-project`.
 2) Thực hiện thay đổi tối thiểu, đúng module.
 3) Build/verify các component bị ảnh hưởng.
 4) Trả lời gồm: nguyên nhân, thay đổi chính, file đã sửa, cách test, có cần restart gì không.
+
+Wake On Lan cách dùng
+Vào Cài đặt → Máy trạm → khung Wake-on-LAN tự động.
+Nhập:
+Khóa máy: nên nhập AgentId hoặc tên máy (ví dụ PC-001).
+MAC Address: dạng AA:BB:CC:DD:EE:FF.
+Broadcast: có thể để trống (hệ thống tự suy ra), hoặc nhập như 192.168.1.255.
+Bấm Thêm/Cập nhật.
+Bấm Lưu profile WOL.
+Sau đó khi cần bật máy:
+
+Qua danh sách máy, bấm chuột phải Khởi động máy trạm từ xa.
+App sẽ tự lấy profile và gửi WOL ngay, không hỏi nữa.
+Mẹo:
+
+Nếu chưa biết MAC, có thể thử bật 1 lần khi máy vừa online gần đây để hệ thống học qua ARP, rồi quay lại bảng này kiểm tra/lưu lại.
+Mỗi máy chỉ cần cấu hình 1 lần.

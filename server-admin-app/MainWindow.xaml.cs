@@ -181,6 +181,7 @@ public partial class MainWindow : Window
             InitializeLoyaltyRanksTab();
             InitializeMiniGameTab();
             InitializeAppBlockTab();
+            InitializeWakeLanProfilesUi();
 
             _memberModalAutoCloseTimer.Interval = TimeSpan.FromMinutes(2);
             _memberModalAutoCloseTimer.Tick += MemberModalAutoCloseTimer_Tick;

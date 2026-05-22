@@ -1,6 +1,7 @@
 using Client.Agent.Wpf.Models;
 using SocketIOClient;
 using SocketIOClient.Transport;
+using System.Net.NetworkInformation;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -23,6 +24,7 @@ public sealed class AgentSocketService : IAsyncDisposable
     private readonly Action<MemberAccountChangedPayload>? _memberAccountChangedHandler;
     private readonly Action<ServiceOrdersChangedPayload>? _serviceOrdersChangedHandler;
     private readonly Action<WebFilterSettingsChangedPayload>? _webFilterSettingsChangedHandler;
+    private readonly string _deviceMacAddress;
 
     private global::SocketIOClient.SocketIO? _socket;
     private CancellationTokenSource? _heartbeatCts;
@@ -62,6 +64,7 @@ public sealed class AgentSocketService : IAsyncDisposable
         _memberAccountChangedHandler = memberAccountChangedHandler;
         _serviceOrdersChangedHandler = serviceOrdersChangedHandler;
         _webFilterSettingsChangedHandler = webFilterSettingsChangedHandler;
+        _deviceMacAddress = ResolvePrimaryMacAddress();
     }
 
     public async Task StartAsync()
@@ -415,6 +418,7 @@ public sealed class AgentSocketService : IAsyncDisposable
             agentId = _settings.AgentId,
             hostname = Environment.MachineName,
             ip = string.Empty,
+            macAddress = _deviceMacAddress,
             version = "0.1.0",
             at = DateTimeOffset.UtcNow.ToString("O"),
         });
@@ -430,8 +434,33 @@ public sealed class AgentSocketService : IAsyncDisposable
         await _socket.EmitAsync("agent.heartbeat", new
         {
             agentId = _settings.AgentId,
+            macAddress = _deviceMacAddress,
             at = DateTimeOffset.UtcNow.ToString("O"),
         });
+    }
+
+    private static string ResolvePrimaryMacAddress()
+    {
+        try
+        {
+            var candidates = NetworkInterface.GetAllNetworkInterfaces()
+                .Where(nic =>
+                    nic.OperationalStatus == OperationalStatus.Up &&
+                    nic.NetworkInterfaceType is not NetworkInterfaceType.Loopback &&
+                    nic.NetworkInterfaceType is not NetworkInterfaceType.Tunnel)
+                .Select(nic => nic.GetPhysicalAddress())
+                .Select(address => address.GetAddressBytes())
+                .Where(bytes => bytes.Length == 6)
+                .Select(bytes => string.Join(":", bytes.Select(x => x.ToString("X2"))))
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToList();
+
+            return candidates.FirstOrDefault() ?? string.Empty;
+        }
+        catch
+        {
+            return string.Empty;
+        }
     }
 
     private void StartHeartbeatLoop()

@@ -406,40 +406,63 @@
                                                             <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
                                                                 <Setter Property="Background" Value="#DC2626" />
                                                             </DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsOfflineUnpaidGuest}" Value="True">
+                                                                <Setter Property="Background" Value="#F59E0B" />
+                                                            </DataTrigger>
                                                             <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
                                                                 <Setter Property="Background" Value="#FACC15" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
-                                                <TextBlock Text="{Binding StatusText}"
-                                                           FontWeight="Bold"
-                                                           VerticalAlignment="Center"
-                                                           HorizontalAlignment="Center"
-                                                           TextTrimming="CharacterEllipsis">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="Gray" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding StatusCode}" Value="ONLINE">
-                                                                    <Setter Property="Foreground" Value="#16A34A" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
-                                                                    <Setter Property="Foreground" Value="#2563EB" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
-                                                                    <Setter Property="Foreground" Value="#DC2626" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
-                                                                    <Setter Property="Foreground" Value="White" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
-                                                                    <Setter Property="Foreground" Value="#DC2626" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
+                                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="4,2">
+                                                    <TextBlock Text="{Binding StatusText}"
+                                                               FontWeight="Bold"
+                                                               HorizontalAlignment="Center"
+                                                               TextAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="Gray" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding StatusCode}" Value="ONLINE">
+                                                                        <Setter Property="Foreground" Value="#16A34A" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
+                                                                        <Setter Property="Foreground" Value="#2563EB" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
+                                                                        <Setter Property="Foreground" Value="#DC2626" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
+                                                                        <Setter Property="Foreground" Value="White" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
+                                                                        <Setter Property="Foreground" Value="#DC2626" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                    <TextBlock Text="{Binding StatusSubText}"
+                                                               Margin="0,1,0,0"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"
+                                                               HorizontalAlignment="Center"
+                                                               TextAlignment="Center"
+                                                               Foreground="White">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding StatusSubText}" Value="">
+                                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </StackPanel>
                                             </Border>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -2484,6 +2507,11 @@
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
 
                                             <TextBlock Grid.Row="0" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B" Text="Cài đặt máy trạm" />
@@ -2597,6 +2625,92 @@
                                                            Margin="0,8,0,0"
                                                            Foreground="#64748B"
                                                            Text="Chọn loại nền và nhập đường dẫn file local, sau đó bấm Lưu cài đặt." />
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Row="11"
+                                                       Margin="0,16,0,0"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#1E293B"
+                                                       Text="Wake-on-LAN tự động (khởi động máy từ xa)" />
+
+                                            <TextBlock Grid.Row="12"
+                                                       Margin="0,6,0,0"
+                                                       Foreground="#64748B"
+                                                       Text="Khai báo profile theo mã máy để bấm 1 lần là gửi WOL ngay, không cần nhập lại." />
+
+                                            <Grid Grid.Row="13" Margin="0,8,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="130" />
+                                                    <ColumnDefinition Width="200" />
+                                                    <ColumnDefinition Width="140" />
+                                                    <ColumnDefinition Width="170" />
+                                                    <ColumnDefinition Width="80" />
+                                                    <ColumnDefinition Width="150" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Khóa máy:" />
+                                                <TextBox x:Name="WakeLanProfileKeyTextBox"
+                                                         Grid.Column="1"
+                                                         Height="30"
+                                                         Margin="6,0,12,0"
+                                                         VerticalContentAlignment="Center"
+                                                         ToolTip="Ví dụ: PC-001, agent-id hoặc machine-id" />
+
+                                                <TextBlock Grid.Column="2" VerticalAlignment="Center" Foreground="#334155" Text="MAC Address:" />
+                                                <TextBox x:Name="WakeLanProfileMacTextBox"
+                                                         Grid.Column="3"
+                                                         Height="30"
+                                                         Margin="6,0,12,0"
+                                                         VerticalContentAlignment="Center"
+                                                         ToolTip="Ví dụ: AA:BB:CC:DD:EE:FF" />
+
+                                                <TextBlock Grid.Column="4" VerticalAlignment="Center" Foreground="#334155" Text="Broadcast:" />
+                                                <TextBox x:Name="WakeLanProfileBroadcastTextBox"
+                                                         Grid.Column="5"
+                                                         Height="30"
+                                                         Margin="6,0,12,0"
+                                                         VerticalContentAlignment="Center"
+                                                         ToolTip="Để trống = tự suy ra từ IP hoặc 255.255.255.255" />
+
+                                                <StackPanel Grid.Column="6" Orientation="Horizontal">
+                                                    <Button Content="Thêm/Cập nhật"
+                                                            Padding="10,5"
+                                                            Margin="0,0,8,0"
+                                                            Click="AddOrUpdateWakeLanProfileButton_Click" />
+                                                    <Button Content="Xóa đã chọn"
+                                                            Padding="10,5"
+                                                            Click="RemoveWakeLanProfileButton_Click" />
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <DataGrid x:Name="WakeLanProfilesDataGrid"
+                                                      Grid.Row="14"
+                                                      Margin="0,8,0,0"
+                                                      AutoGenerateColumns="False"
+                                                      CanUserAddRows="False"
+                                                      HeadersVisibility="Column"
+                                                      GridLinesVisibility="Horizontal"
+                                                      RowHeaderWidth="0"
+                                                      AlternationCount="2"
+                                                      MinHeight="160"
+                                                      SelectionChanged="WakeLanProfilesDataGrid_SelectionChanged">
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn Header="Khóa máy" Binding="{Binding Key}" Width="1.3*" />
+                                                    <DataGridTextColumn Header="MAC Address" Binding="{Binding MacAddress}" Width="1.2*" />
+                                                    <DataGridTextColumn Header="Broadcast" Binding="{Binding BroadcastAddress}" Width="1*" />
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+
+                                            <StackPanel Grid.Row="15" Orientation="Horizontal" Margin="0,8,0,0">
+                                                <Button Content="Lưu profile WOL"
+                                                        Padding="12,6"
+                                                        Margin="0,0,10,0"
+                                                        Click="SaveWakeLanProfilesButton_Click" />
+                                                <TextBlock x:Name="WakeLanProfilesStatusTextBlock"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="#64748B"
+                                                           Text="Đang tải danh sách profile WOL..." />
                                             </StackPanel>
                                         </Grid>
                                     </Border>

@@ -19,6 +19,22 @@ public sealed class AdminShellSettings
     public double MachineContextMenuItemPadding { get; set; } = 12;
 
     public double MachineContextMenuFontSize { get; set; } = 14;
+
+    public Dictionary<string, WakeLanProfile> WakeLanProfiles { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
+}
+
+public sealed class WakeLanProfile
+{
+    public string MacAddress { get; set; } = string.Empty;
+    public string? BroadcastAddress { get; set; }
+}
+
+public sealed class WakeLanProfileRow
+{
+    public string Key { get; set; } = string.Empty;
+    public string MacAddress { get; set; } = string.Empty;
+    public string BroadcastAddress { get; set; } = string.Empty;
 }
 
 public sealed class PcListResponse
@@ -36,6 +52,7 @@ public sealed class PcListItem
     public decimal HourlyRate { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? IpAddress { get; set; }
+    public string? MacAddress { get; set; }
     public int ConnectedSockets { get; set; }
     public bool IsConnected { get; set; }
     public string? LastSeenAt { get; set; }
@@ -91,9 +108,12 @@ public sealed class MachineRow
     public string? GroupId { get; set; }
     public decimal HourlyRate { get; set; }
     public string IpAddress { get; set; } = "-";
+    public string MacAddress { get; set; } = string.Empty;
     public string LastSeenAtText { get; set; } = "-";
     public string StatusCode { get; set; } = string.Empty;
     public string StatusText { get; set; } = string.Empty;
+    public string StatusSubText { get; set; } = string.Empty;
+    public bool IsOfflineUnpaidGuest { get; set; }
     public Brush StatusBrush { get; set; } = Brushes.Gray;
     public Brush StatusIconBrush { get; set; } = Brushes.Gray;
     public string StatusIconPath { get; set; } = "/Assets/pc-default.svg";

@@ -28,6 +28,7 @@ export type PcListItem = {
   hourlyRate: number;
   hostname: string | null;
   ipAddress: string | null;
+  macAddress: string | null;
   connectedSockets: number;
   isConnected: boolean;
   status: PcStatus;
@@ -58,6 +59,8 @@ export type PcListItem = {
 
 @Injectable()
 export class PcsService {
+  private readonly macAddressByAgentId = new Map<string, string>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeService,
@@ -195,6 +198,8 @@ export class PcsService {
           hourlyRate,
           hostname: pc.hostname,
           ipAddress: pc.ipAddress,
+          macAddress:
+            this.macAddressByAgentId.get(pc.agentId.toUpperCase()) ?? null,
           connectedSockets,
           isConnected: connectedSockets > 0,
           status: pc.status,
@@ -348,6 +353,10 @@ export class PcsService {
     const seenAt = this.parseSeenAt(payload.at);
     const ipAddress = this.resolveIp(payload.ip, fallbackIp);
     const hostname = this.parseOptional(payload.hostname);
+    const macAddress = this.normalizeMacAddress(payload.macAddress);
+    if (macAddress) {
+      this.macAddressByAgentId.set(agentId.toUpperCase(), macAddress);
+    }
     const existing = await this.prisma.pc.findUnique({
       where: { agentId },
       include: { group: true },
@@ -728,6 +737,15 @@ export class PcsService {
   private parseOptional(value?: string): string | null {
     const trimmed = value?.trim();
     return trimmed ? trimmed : null;
+  }
+
+  private normalizeMacAddress(value?: string): string | null {
+    const compact = (value ?? '').replace(/[^0-9a-fA-F]/g, '').toUpperCase();
+    if (compact.length !== 12 || !/^[0-9A-F]{12}$/.test(compact)) {
+      return null;
+    }
+
+    return compact.match(/.{1,2}/g)?.join(':') ?? null;
   }
 
   private async ensureDefaultGroup() {

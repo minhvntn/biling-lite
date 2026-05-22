@@ -19,6 +19,8 @@ using Microsoft.Win32;
 namespace Server.Admin.App;
 public partial class MainWindow : Window
 {
+    private readonly ObservableCollection<WakeLanProfileRow> _wakeLanProfileRows = new();
+
     private async Task CheckBackendHealthAsync()
     {
         try
@@ -958,6 +960,198 @@ public partial class MainWindow : Window
         }
     }
 
+    private void InitializeWakeLanProfilesUi()
+    {
+        if (WakeLanProfilesDataGrid is null)
+        {
+            return;
+        }
+
+        WakeLanProfilesDataGrid.ItemsSource = _wakeLanProfileRows;
+        ReloadWakeLanProfilesGridFromSettings();
+    }
+
+    private void ReloadWakeLanProfilesGridFromSettings()
+    {
+        if (WakeLanProfilesDataGrid is null)
+        {
+            return;
+        }
+
+        _settings.WakeLanProfiles ??= new Dictionary<string, WakeLanProfile>(StringComparer.OrdinalIgnoreCase);
+
+        _wakeLanProfileRows.Clear();
+        foreach (var item in _settings.WakeLanProfiles
+                     .OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            var normalizedMac = NormalizeMacAddress(item.Value.MacAddress) ?? item.Value.MacAddress?.Trim() ?? string.Empty;
+            var broadcast = item.Value.BroadcastAddress?.Trim() ?? string.Empty;
+            _wakeLanProfileRows.Add(new WakeLanProfileRow
+            {
+                Key = item.Key,
+                MacAddress = normalizedMac,
+                BroadcastAddress = broadcast,
+            });
+        }
+
+        WakeLanProfilesStatusTextBlock.Text = _wakeLanProfileRows.Count == 0
+            ? "Chưa có profile WOL. Thêm máy rồi bấm Lưu profile WOL."
+            : $"Đã nạp {_wakeLanProfileRows.Count} profile WOL.";
+        WakeLanProfilesStatusTextBlock.Foreground = Brushes.DimGray;
+    }
+
+    private static string NormalizeWakeLanKey(string? raw)
+    {
+        return (raw ?? string.Empty).Trim();
+    }
+
+    private static bool TryNormalizeWakeLanBroadcast(string? raw, out string normalized, out string error)
+    {
+        normalized = string.Empty;
+        error = string.Empty;
+        var input = (raw ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return true;
+        }
+
+        if (!IPAddress.TryParse(input, out var ip) || ip.AddressFamily != AddressFamily.InterNetwork)
+        {
+            error = "Broadcast IP không hợp lệ (chỉ hỗ trợ IPv4).";
+            return false;
+        }
+
+        normalized = ip.ToString();
+        return true;
+    }
+
+    private bool TrySyncWakeLanProfilesFromGrid(out string error)
+    {
+        error = string.Empty;
+        var map = new Dictionary<string, WakeLanProfile>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in _wakeLanProfileRows)
+        {
+            var key = NormalizeWakeLanKey(row.Key);
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
+
+            var normalizedMac = NormalizeMacAddress(row.MacAddress);
+            if (string.IsNullOrWhiteSpace(normalizedMac))
+            {
+                error = $"MAC không hợp lệ ở profile '{key}'.";
+                return false;
+            }
+
+            if (!TryNormalizeWakeLanBroadcast(row.BroadcastAddress, out var normalizedBroadcast, out var broadcastError))
+            {
+                error = $"{broadcastError} (profile '{key}')";
+                return false;
+            }
+
+            map[key] = new WakeLanProfile
+            {
+                MacAddress = normalizedMac,
+                BroadcastAddress = string.IsNullOrWhiteSpace(normalizedBroadcast) ? null : normalizedBroadcast,
+            };
+        }
+
+        _settings.WakeLanProfiles = map;
+        return true;
+    }
+
+    private void WakeLanProfilesDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (WakeLanProfilesDataGrid.SelectedItem is not WakeLanProfileRow selected)
+        {
+            return;
+        }
+
+        WakeLanProfileKeyTextBox.Text = selected.Key;
+        WakeLanProfileMacTextBox.Text = selected.MacAddress;
+        WakeLanProfileBroadcastTextBox.Text = selected.BroadcastAddress;
+    }
+
+    private void AddOrUpdateWakeLanProfileButton_Click(object sender, RoutedEventArgs e)
+    {
+        var key = NormalizeWakeLanKey(WakeLanProfileKeyTextBox.Text);
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            WakeLanProfilesStatusTextBlock.Text = "Vui lòng nhập Khóa máy.";
+            WakeLanProfilesStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        var normalizedMac = NormalizeMacAddress(WakeLanProfileMacTextBox.Text);
+        if (string.IsNullOrWhiteSpace(normalizedMac))
+        {
+            WakeLanProfilesStatusTextBlock.Text = "MAC Address không hợp lệ. Ví dụ: AA:BB:CC:DD:EE:FF";
+            WakeLanProfilesStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        if (!TryNormalizeWakeLanBroadcast(WakeLanProfileBroadcastTextBox.Text, out var normalizedBroadcast, out var broadcastError))
+        {
+            WakeLanProfilesStatusTextBlock.Text = broadcastError;
+            WakeLanProfilesStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        var existing = _wakeLanProfileRows.FirstOrDefault(x =>
+            string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase));
+        if (existing is null)
+        {
+            var added = new WakeLanProfileRow
+            {
+                Key = key,
+                MacAddress = normalizedMac,
+                BroadcastAddress = normalizedBroadcast,
+            };
+            _wakeLanProfileRows.Add(added);
+            WakeLanProfilesDataGrid.SelectedItem = added;
+        }
+        else
+        {
+            existing.MacAddress = normalizedMac;
+            existing.BroadcastAddress = normalizedBroadcast;
+            WakeLanProfilesDataGrid.Items.Refresh();
+            WakeLanProfilesDataGrid.SelectedItem = existing;
+        }
+
+        WakeLanProfilesStatusTextBlock.Text = "Đã cập nhật profile trong danh sách. Bấm 'Lưu profile WOL' để áp dụng.";
+        WakeLanProfilesStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+    }
+
+    private void RemoveWakeLanProfileButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (WakeLanProfilesDataGrid.SelectedItem is not WakeLanProfileRow selected)
+        {
+            WakeLanProfilesStatusTextBlock.Text = "Vui lòng chọn profile cần xóa.";
+            WakeLanProfilesStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        _wakeLanProfileRows.Remove(selected);
+        WakeLanProfilesStatusTextBlock.Text = "Đã xóa profile khỏi danh sách. Bấm 'Lưu profile WOL' để áp dụng.";
+        WakeLanProfilesStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+    }
+
+    private void SaveWakeLanProfilesButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TrySyncWakeLanProfilesFromGrid(out var error))
+        {
+            WakeLanProfilesStatusTextBlock.Text = error;
+            WakeLanProfilesStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        SaveSettings();
+        WakeLanProfilesStatusTextBlock.Text = $"Đã lưu {_settings.WakeLanProfiles.Count} profile WOL.";
+        WakeLanProfilesStatusTextBlock.Foreground = Brushes.DarkGreen;
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã lưu cấu hình Wake-on-LAN ({_settings.WakeLanProfiles.Count} profile).");
+    }
+
     private async Task<bool> SaveBackupSettingsAsync(bool appendSuccessLog = true)
     {
         if (!TryReadBackupForm(
@@ -1460,6 +1654,13 @@ public partial class MainWindow : Window
 
     private async void SaveFontSizeButton_Click(object sender, RoutedEventArgs e)
     {
+        if (!TrySyncWakeLanProfilesFromGrid(out var wakeError))
+        {
+            WakeLanProfilesStatusTextBlock.Text = wakeError;
+            WakeLanProfilesStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
         SaveSettings();
         await SaveClientRuntimeSettingsAsync();
         await SaveLoyaltySettingsAsync();

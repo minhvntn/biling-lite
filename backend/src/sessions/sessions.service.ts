@@ -274,10 +274,11 @@ export class SessionsService {
     const shouldPreserveGuestSession =
       await this.hasActiveGuestPresenceForPc(pcId);
     if (shouldPreserveGuestSession) {
-      await this.logEvent('session.preserved.offline_guest', pcId, {
-        sessionId: activeSession.id,
+      await this.logPreservedGuestSessionIfStateChanged(
+        pcId,
+        activeSession.id,
         sourceEvent,
-      });
+      );
       return null;
     }
 
@@ -308,10 +309,11 @@ export class SessionsService {
       const shouldPreserveGuestSession =
         await this.hasActiveGuestPresenceForPc(session.pcId);
       if (shouldPreserveGuestSession) {
-        await this.logEvent('session.preserved.offline_guest', session.pcId, {
-          sessionId: session.id,
-          sourceEvent: 'offline.close_stale',
-        });
+        await this.logPreservedGuestSessionIfStateChanged(
+          session.pcId,
+          session.id,
+          'offline.close_stale',
+        );
         continue;
       }
 
@@ -347,6 +349,67 @@ export class SessionsService {
     } catch {
       // Ignore audit log failures.
     }
+  }
+
+  private async logPreservedGuestSessionIfStateChanged(
+    pcId: string,
+    sessionId: string,
+    sourceEvent: string,
+  ): Promise<void> {
+    const latestPreserved = await this.prisma.eventLog.findFirst({
+      where: {
+        pcId,
+        eventType: 'session.preserved.offline_guest',
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        createdAt: true,
+        payload: true,
+      },
+    });
+
+    if (!latestPreserved) {
+      await this.logEvent('session.preserved.offline_guest', pcId, {
+        sessionId,
+        sourceEvent,
+      });
+      return;
+    }
+
+    const latestPreservedSessionId = this.readJsonString(
+      latestPreserved.payload,
+      'sessionId',
+    );
+    if (latestPreservedSessionId !== sessionId) {
+      await this.logEvent('session.preserved.offline_guest', pcId, {
+        sessionId,
+        sourceEvent,
+      });
+      return;
+    }
+
+    const hasPresenceEventAfterLastPreserved =
+      (await this.prisma.eventLog.count({
+        where: {
+          pcId,
+          eventType: {
+            in: ['member.pc.presence', 'guest.pc.presence', 'admin.pc.presence'],
+          },
+          createdAt: {
+            gt: latestPreserved.createdAt,
+          },
+        },
+      })) > 0;
+
+    if (!hasPresenceEventAfterLastPreserved) {
+      // Same state as previous cycle; skip duplicate log.
+      return;
+    }
+
+    await this.logEvent('session.preserved.offline_guest', pcId, {
+      sessionId,
+      sourceEvent,
+    });
   }
 
   private async closeSessionAsAutoOffline(
@@ -592,5 +655,14 @@ export class SessionsService {
     }
 
     return 0;
+  }
+
+  private readJsonString(payload: Prisma.JsonValue | null | undefined, key: string): string {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return '';
+    }
+
+    const value = payload as Record<string, unknown>;
+    return this.readString(value[key]);
   }
 }

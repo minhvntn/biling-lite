@@ -136,12 +136,13 @@ public partial class MainWindow : Window
             item.Status == "OFFLINE" &&
             item.ActiveSession is not null &&
             activeMember is null;
+        var statusSubText = hasUnpaidGuestSession ? "Chưa thanh toán" : string.Empty;
         var statusText = item.Status switch
         {
             "IN_USE" => isAdminSession ? "Admin dang nh?p" : I18n.StatusInUse,
             "LOCKED" => I18n.StatusLocked,
             "ONLINE" => I18n.StatusReady,
-            "OFFLINE" => hasUnpaidGuestSession ? "Chưa thanh toán" : I18n.StatusLocked,
+            "OFFLINE" => hasUnpaidGuestSession ? "Mất kết nối" : I18n.StatusLocked,
             _ => "Offline",
         };
 
@@ -198,7 +199,7 @@ public partial class MainWindow : Window
         {
             statusIconBrush = Brushes.Crimson;
             statusIconPath = "/Assets/pc-offline.svg";
-            statusIconToolTip = hasUnpaidGuestSession ? "Chưa thanh toán" : "Đang tắt";
+            statusIconToolTip = hasUnpaidGuestSession ? "Mất kết nối (chưa thanh toán)" : "Đang tắt";
         }
         var isGuestSession = activeMember is null && activeGuest is not null;
         var guestMachineLabel = string.IsNullOrWhiteSpace(item.Name)
@@ -235,8 +236,11 @@ public partial class MainWindow : Window
             GroupId = item.GroupId,
             HourlyRate = item.HourlyRate,
             IpAddress = item.IpAddress ?? "-",
+            MacAddress = NormalizeMacAddress(item.MacAddress) ?? string.Empty,
             LastSeenAtText = FormatDateTime(item.LastSeenAt),
             StatusText = statusText,
+            StatusSubText = statusSubText,
+            IsOfflineUnpaidGuest = hasUnpaidGuestSession,
             StatusBrush = statusBrush,
             StatusIconBrush = statusIconBrush,
             StatusIconPath = statusIconPath,
@@ -1252,20 +1256,14 @@ public partial class MainWindow : Window
             return;
         }
 
-        var status = selected.StatusCode?.Trim().ToUpperInvariant() ?? string.Empty;
-        if (status is not "OFFLINE")
+        if (!TryResolveWakeLanPayload(selected, out var macAddress, out var broadcastAddress, out var sourceLabel))
         {
             MessageBox.Show(
-                "Ch? nên dùng tính nang này khi máy dang t?t (Offline).",
+                "Chưa lấy được MAC từ máy trạm, nên chưa thể gửi Wake-on-LAN.\n" +
+                "Vui lòng mở máy đó 1 lần để client gửi MAC lên server, sau đó bấm lại.",
                 "Server Admin",
                 MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return;
-        }
-
-        var wakeInput = ShowWakeRemoteMachineModal(selected);
-        if (wakeInput is null)
-        {
+                MessageBoxImage.Warning);
             return;
         }
 
@@ -1275,8 +1273,8 @@ public partial class MainWindow : Window
                 BuildApiUrl($"/pcs/{selected.Id}/wake"),
                 new
                 {
-                    macAddress = wakeInput.Value.MacAddress,
-                    broadcastAddress = wakeInput.Value.BroadcastAddress,
+                    macAddress,
+                    broadcastAddress,
                     requestedBy = "admin.desktop",
                 });
 
@@ -1294,12 +1292,8 @@ public partial class MainWindow : Window
             }
 
             AppendServiceLog(
-                $"[{DateTime.Now:HH:mm:ss}] Đã gửi WOL cho {selected.Name} (MAC: {wakeInput.Value.MacAddress}, Broadcast: {wakeInput.Value.BroadcastAddress})");
-            MessageBox.Show(
-                "Đã gửi gói khởi động từ xa (WOL). Máy có thể cần vài giây để lên trạng thái Online.",
-                "Server Admin",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                $"[{DateTime.Now:HH:mm:ss}] Đã gửi WOL cho {selected.Name} (MAC: {macAddress}, Broadcast: {broadcastAddress}, Source: {sourceLabel})");
+            _ = RefreshMachinesAsync();
         }
         catch (Exception ex)
         {
@@ -1311,150 +1305,197 @@ public partial class MainWindow : Window
         }
     }
 
-    private (string MacAddress, string BroadcastAddress)? ShowWakeRemoteMachineModal(MachineRow machine)
+    private bool TryResolveWakeLanPayload(
+        MachineRow machine,
+        out string macAddress,
+        out string broadcastAddress,
+        out string sourceLabel)
     {
-        var dialog = new Window
-        {
-            Title = $"Khởi động máy trạm từ xa - {machine.Name}",
-            Width = 520,
-            Height = 270,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            ResizeMode = ResizeMode.NoResize,
-            WindowStyle = WindowStyle.SingleBorderWindow,
-            ShowInTaskbar = false,
-            Owner = this,
-        };
+        macAddress = string.Empty;
+        broadcastAddress = ResolveBroadcastAddressFromMachineIp(machine.IpAddress) ?? "255.255.255.255";
+        sourceLabel = "auto";
 
-        (string MacAddress, string BroadcastAddress)? result = null;
-        var defaultBroadcast = ResolveBroadcastAddressFromMachineIp(machine.IpAddress) ?? "255.255.255.255";
+        var agentMac = NormalizeMacAddress(machine.MacAddress);
+        if (!string.IsNullOrWhiteSpace(agentMac))
+        {
+            macAddress = agentMac;
+            sourceLabel = "agent";
+            SaveWakeLanProfile(machine, macAddress, broadcastAddress);
+            return true;
+        }
 
-        var root = new Grid { Margin = new Thickness(14) };
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-        var machineLabel = new TextBlock
+        var profile = FindWakeLanProfileForMachine(machine);
+        if (profile is not null)
         {
-            Text = $"Máy: {machine.Name} | IP: {machine.IpAddress}",
-            Foreground = Brushes.DimGray,
-            Margin = new Thickness(0, 0, 0, 10),
-            TextWrapping = TextWrapping.Wrap,
-        };
-        Grid.SetRow(machineLabel, 0);
-        root.Children.Add(machineLabel);
-
-        var macLabel = new TextBlock
-        {
-            Text = "MAC Address (AA:BB:CC:DD:EE:FF):",
-            Margin = new Thickness(0, 0, 0, 4),
-        };
-        Grid.SetRow(macLabel, 1);
-        root.Children.Add(macLabel);
-
-        var macBox = new TextBox
-        {
-            Height = 32,
-            VerticalContentAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 10),
-        };
-        Grid.SetRow(macBox, 2);
-        root.Children.Add(macBox);
-
-        var broadcastLabel = new TextBlock
-        {
-            Text = "Broadcast IP:",
-            Margin = new Thickness(0, 0, 0, 4),
-        };
-        Grid.SetRow(broadcastLabel, 3);
-        root.Children.Add(broadcastLabel);
-
-        var broadcastBox = new TextBox
-        {
-            Height = 32,
-            VerticalContentAlignment = VerticalAlignment.Center,
-            Text = defaultBroadcast,
-            Margin = new Thickness(0, 0, 0, 10),
-        };
-        Grid.SetRow(broadcastBox, 4);
-        root.Children.Add(broadcastBox);
-
-        var errorText = new TextBlock
-        {
-            Foreground = Brushes.Firebrick,
-            Margin = new Thickness(0, 0, 0, 10),
-            TextWrapping = TextWrapping.Wrap,
-        };
-        Grid.SetRow(errorText, 5);
-        root.Children.Add(errorText);
-
-        var actions = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-        };
-        var cancelButton = new Button
-        {
-            Content = "H?y",
-            Width = 90,
-            Height = 34,
-            Margin = new Thickness(0, 0, 8, 0),
-            IsCancel = true,
-        };
-        var sendButton = new Button
-        {
-            Content = "G?i l?nh",
-            Width = 100,
-            Height = 34,
-            IsDefault = true,
-        };
-        actions.Children.Add(cancelButton);
-        actions.Children.Add(sendButton);
-        Grid.SetRow(actions, 6);
-        root.Children.Add(actions);
-
-        sendButton.Click += (_, _) =>
-        {
-            errorText.Text = string.Empty;
-            var macAddress = macBox.Text.Trim();
-            if (string.IsNullOrWhiteSpace(macAddress))
+            var normalizedProfileMac = NormalizeMacAddress(profile.MacAddress);
+            if (!string.IsNullOrWhiteSpace(normalizedProfileMac))
             {
-                errorText.Text = "Vui lòng nh?p MAC address.";
-                return;
+                macAddress = normalizedProfileMac;
+                if (IPAddress.TryParse(profile.BroadcastAddress, out var profileBroadcastIp) &&
+                    profileBroadcastIp.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                {
+                    broadcastAddress = profileBroadcastIp.ToString();
+                }
+
+                sourceLabel = "profile";
+                return true;
+            }
+        }
+
+        if (TryResolveMacFromArp(machine.IpAddress, out var arpMac))
+        {
+            macAddress = arpMac;
+            sourceLabel = "arp";
+            SaveWakeLanProfile(machine, macAddress, broadcastAddress);
+            return true;
+        }
+
+        return false;
+    }
+
+    private WakeLanProfile? FindWakeLanProfileForMachine(MachineRow machine)
+    {
+        var map = _settings.WakeLanProfiles;
+        if (map.Count == 0)
+        {
+            return null;
+        }
+
+        var candidates = new[]
+        {
+            machine.Id,
+            machine.AgentId,
+            machine.Name,
+            machine.IpAddress,
+        };
+        foreach (var candidate in candidates)
+        {
+            if (string.IsNullOrWhiteSpace(candidate))
+            {
+                continue;
             }
 
-            var compact = new string(macAddress.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
-            if (compact.Length != 12 || !compact.All(c => Uri.IsHexDigit(c)))
+            if (map.TryGetValue(candidate.Trim(), out var profile))
             {
-                errorText.Text = "MAC address không h?p l?.";
-                return;
+                return profile;
             }
+        }
 
-            var normalizedMac = string.Join(":", Enumerable.Range(0, 6).Select(i => compact.Substring(i * 2, 2)));
+        return null;
+    }
 
-            var broadcast = broadcastBox.Text.Trim();
-            if (string.IsNullOrWhiteSpace(broadcast))
-            {
-                broadcast = "255.255.255.255";
-            }
+    private void SaveWakeLanProfile(MachineRow machine, string macAddress, string broadcastAddress)
+    {
+        var normalized = NormalizeMacAddress(macAddress);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return;
+        }
 
-            if (!IPAddress.TryParse(broadcast, out var broadcastIp) ||
-                broadcastIp.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
-            {
-                errorText.Text = "Broadcast IP không h?p l? (ch? h? tr? IPv4).";
-                return;
-            }
-
-            result = (normalizedMac, broadcast);
-            dialog.DialogResult = true;
-            dialog.Close();
+        var keys = new[]
+        {
+            machine.Id,
+            machine.AgentId,
         };
 
-        dialog.Content = root;
-        return dialog.ShowDialog() == true ? result : null;
+        var changed = false;
+        foreach (var key in keys)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
+
+            _settings.WakeLanProfiles[key.Trim()] = new WakeLanProfile
+            {
+                MacAddress = normalized,
+                BroadcastAddress = broadcastAddress,
+            };
+            changed = true;
+        }
+
+        if (changed)
+        {
+            SaveSettings();
+            ReloadWakeLanProfilesGridFromSettings();
+        }
+    }
+
+    private static string? NormalizeMacAddress(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var compact = new string(raw.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+        if (compact.Length != 12 || !compact.All(Uri.IsHexDigit))
+        {
+            return null;
+        }
+
+        return string.Join(":", Enumerable.Range(0, 6).Select(i => compact.Substring(i * 2, 2)));
+    }
+
+    private static bool TryResolveMacFromArp(string? ipAddress, out string macAddress)
+    {
+        macAddress = string.Empty;
+        if (!IPAddress.TryParse(ipAddress, out var ip) ||
+            ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo
+            {
+                FileName = "arp",
+                Arguments = $"-a {ip}",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            });
+
+            if (process is null)
+            {
+                return false;
+            }
+
+            var output = process.StandardOutput.ReadToEnd();
+            process.WaitForExit(1200);
+
+            foreach (var line in output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var trimmed = line.Trim();
+                if (!trimmed.Contains(ip.ToString(), StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var parts = trimmed.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < 2)
+                {
+                    continue;
+                }
+
+                var normalized = NormalizeMacAddress(parts[1]);
+                if (string.IsNullOrWhiteSpace(normalized))
+                {
+                    continue;
+                }
+
+                macAddress = normalized;
+                return true;
+            }
+        }
+        catch
+        {
+            // Ignore arp lookup failures.
+        }
+
+        return false;
     }
 
     private static string? ResolveBroadcastAddressFromMachineIp(string? ipAddress)

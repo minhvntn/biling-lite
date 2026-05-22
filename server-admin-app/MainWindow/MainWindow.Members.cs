@@ -595,10 +595,14 @@ public partial class MainWindow : Window
 
         if (_topupModalIsDeduct && _topupModalAllowDeduct)
         {
-            TopupModeSubtractButton.Background = new SolidColorBrush(Color.FromRgb(254, 226, 226));
+            TopupModeSubtractButton.Background = new SolidColorBrush(Color.FromRgb(239, 68, 68));
             TopupModeSubtractButton.BorderBrush = new SolidColorBrush(Color.FromRgb(185, 28, 28));
-            TopupModeAddButton.Background = Brushes.White;
-            TopupModeAddButton.BorderBrush = new SolidColorBrush(Color.FromRgb(156, 163, 175));
+            TopupModeSubtractButton.Foreground = Brushes.White;
+
+            TopupModeAddButton.Background = new SolidColorBrush(Color.FromRgb(248, 250, 252));
+            TopupModeAddButton.BorderBrush = new SolidColorBrush(Color.FromRgb(148, 163, 184));
+            TopupModeAddButton.Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105));
+
             TopupSubmitButton.Content = "Trừ";
             TopupSubmitButton.Background = new SolidColorBrush(Color.FromRgb(220, 38, 38));
             TopupSubmitButton.BorderBrush = new SolidColorBrush(Color.FromRgb(153, 27, 27));
@@ -608,10 +612,13 @@ public partial class MainWindow : Window
         {
             if (_topupModalAllowDeduct)
             {
-                TopupModeAddButton.Background = new SolidColorBrush(Color.FromRgb(220, 252, 231));
-                TopupModeAddButton.BorderBrush = new SolidColorBrush(Color.FromRgb(22, 163, 74));
-                TopupModeSubtractButton.Background = Brushes.White;
-                TopupModeSubtractButton.BorderBrush = new SolidColorBrush(Color.FromRgb(156, 163, 175));
+                TopupModeAddButton.Background = new SolidColorBrush(Color.FromRgb(34, 197, 94));
+                TopupModeAddButton.BorderBrush = new SolidColorBrush(Color.FromRgb(21, 128, 61));
+                TopupModeAddButton.Foreground = Brushes.White;
+
+                TopupModeSubtractButton.Background = new SolidColorBrush(Color.FromRgb(248, 250, 252));
+                TopupModeSubtractButton.BorderBrush = new SolidColorBrush(Color.FromRgb(148, 163, 184));
+                TopupModeSubtractButton.Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105));
             }
 
             TopupSubmitButton.Content = "Nạp";
