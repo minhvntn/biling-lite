@@ -776,6 +776,7 @@
                                 <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="130" />
                                 <DataGridTextColumn Header="Họ tên" Binding="{Binding FullName}" Width="160" />
                                 <DataGridTextColumn Header="Bậc VIP" Binding="{Binding Rank}" Width="100" />
+                                <DataGridTextColumn Header="Loại hội viên" Binding="{Binding MemberTypeText}" Width="120" />
                                 <DataGridTextColumn Header="Tổng nạp" Binding="{Binding TotalTopupText}" Width="110" />
                                 <DataGridTextColumn Header="Điểm" Binding="{Binding AvailablePoints}" Width="80" />
                                 <DataGridTextColumn Header="SDT" Binding="{Binding Phone}" Width="120" />
@@ -2498,6 +2499,15 @@
                                                     </Border>
                                                 </StackPanel>
                                             </Grid>
+
+                                             <Grid Grid.Row="5" Margin="0,12,0,0">
+                                                 <Grid.ColumnDefinitions>
+                                                     <ColumnDefinition Width="340" />
+                                                     <ColumnDefinition Width="*" />
+                                                 </Grid.ColumnDefinitions>
+                                                 <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Điều chỉnh màu sắc trạng thái máy:" />
+                                                 <Button Grid.Column="1" Content="Cấu hình màu sắc..." Width="220" Height="32" HorizontalAlignment="Left" Click="ConfigureColorsButton_Click" />
+                                             </Grid>
                                         </Grid>
                                     </Border>
                                 </TabItem>

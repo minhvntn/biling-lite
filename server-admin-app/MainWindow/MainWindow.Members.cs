@@ -1980,6 +1980,23 @@ public partial class MainWindow : Window
             VerticalContentAlignment = VerticalAlignment.Center,
         };
 
+        var memberTypeComboBox = new ComboBox
+        {
+            Height = 32,
+            VerticalContentAlignment = VerticalAlignment.Center,
+        };
+        memberTypeComboBox.Items.Add(new ComboBoxItem { Content = "Th\u01b0\u1eddng", Tag = "REGULAR" });
+        memberTypeComboBox.Items.Add(new ComboBoxItem { Content = "VIP", Tag = "VIP" });
+
+        if (string.Equals(member.MemberType, "VIP", StringComparison.OrdinalIgnoreCase))
+        {
+            memberTypeComboBox.SelectedIndex = 1;
+        }
+        else
+        {
+            memberTypeComboBox.SelectedIndex = 0;
+        }
+
         AddField(formGrid, "Username", usernameBox, 0, 0);
         AddField(formGrid, "H\u1ecd t\u00ean", fullNameBox, 0, 1);
         AddField(formGrid, "S\u1ed1 \u0111i\u1ec7n tho\u1ea1i", phoneBox, 1, 0);
@@ -1987,6 +2004,7 @@ public partial class MainWindow : Window
         AddField(formGrid, "S\u1ed1 d\u01b0 (VND)", balancePanel, 2, 0);
         AddField(formGrid, "\u0110i\u1ec3m t\u00edch l\u0169y", pointsBox, 2, 1);
         AddField(formGrid, "T\u1ed5ng n\u1ea1p (VND)", totalTopupBox, 3, 0);
+        AddField(formGrid, "Lo\u1ea1i h\u1ed9i vi\u00ean", memberTypeComboBox, 3, 1);
         AddField(formGrid, "L\u1ea7n \u0111\u0103ng nh\u1eadp g\u1ea7n \u0111\u00e2y", lastLoginBox, 4, 0);
         AddField(formGrid, "T\u1ed5ng th\u1eddi gian s\u1eed d\u1ee5ng m\u00e1y", totalUsageBox, 4, 1);
 
@@ -2088,6 +2106,8 @@ public partial class MainWindow : Window
                 return;
             }
 
+            var selectedMemberType = (memberTypeComboBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "REGULAR";
+
             var payload = new Dictionary<string, object?>
             {
                 ["fullName"] = fullName,
@@ -2097,6 +2117,7 @@ public partial class MainWindow : Window
                 ["balance"] = Convert.ToDouble(balance),
                 ["totalTopup"] = Convert.ToDouble(totalTopup),
                 ["availablePoints"] = points,
+                ["memberType"] = selectedMemberType,
                 ["updatedBy"] = "admin.desktop",
                 ["note"] = "Cap nhat tu app server admin",
             };

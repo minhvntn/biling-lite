@@ -32,6 +32,12 @@ export class UpdateMemberDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(20)
+  @Transform(({ value }: { value?: string }) => value?.trim() || undefined)
+  memberType?: string;
+
+  @IsOptional()
+  @IsString()
   @MinLength(1)
   @MaxLength(100)
   password?: string;

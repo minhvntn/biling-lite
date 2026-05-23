@@ -2704,7 +2704,8 @@ public partial class MainWindow : Window
                 hasServiceLoadError = true;
             }
 
-            var playAmount = machine.ActiveSessionEstimatedAmount;
+            var isVip = machine.IsVipSession;
+            var playAmount = isVip ? 0m : machine.ActiveSessionEstimatedAmount;
             var totalAmount = playAmount + serviceAmount;
             var hasActiveSession = !string.IsNullOrWhiteSpace(machine.ActiveSessionId);
             var playDurationText = hasActiveSession
@@ -2720,13 +2721,13 @@ public partial class MainWindow : Window
                 PlayAmount = playAmount,
                 ServiceAmount = serviceAmount,
                 TotalAmount = totalAmount,
-                PlayAmountText = $"{playAmount:N0}",
+                PlayAmountText = isVip ? $"{machine.ActiveSessionEstimatedAmount:N0} (VIP)" : $"{playAmount:N0}",
                 ServiceAmountText = $"{serviceAmount:N0}",
                 TotalAmountText = $"{totalAmount:N0}",
                 HasServiceLoadError = hasServiceLoadError,
                 NoteText = hasServiceLoadError
                     ? "Lỗi tải tiền dịch vụ"
-                    : "-",
+                    : (isVip ? "Hội viên VIP (Giờ chơi tích lũy vào tổng nạp)" : "-"),
             };
         });
 
@@ -2931,11 +2932,12 @@ public partial class MainWindow : Window
             var sessionHourlyRate = machineSnapshot.ActiveSessionPricePerMinute > 0
                 ? machineSnapshot.ActiveSessionPricePerMinute * 60m
                 : machineSnapshot.HourlyRate;
+            var isVip = machineSnapshot.IsVipSession;
             var playAmount = machineSnapshot.ActiveSessionEstimatedAmount;
             var currentRatePlayAmount = CalculatePrecisePlayAmount(
                 displayedElapsedSeconds,
                 machineSnapshot.HourlyRate);
-            var totalAmount = playAmount + serviceAmount;
+            var totalAmount = isVip ? serviceAmount : (playAmount + serviceAmount);
 
             statusValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.StatusText) ? "-" : machineSnapshot.StatusText;
             groupValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.GroupName) ? "-" : machineSnapshot.GroupName;
@@ -2955,10 +2957,19 @@ public partial class MainWindow : Window
             SetMoneyText(clientServiceAmountValueText, clientServiceAmount, new SolidColorBrush(Color.FromRgb(5, 150, 105)));
             SetMoneyText(serverServiceAmountValueText, serverServiceAmount, new SolidColorBrush(Color.FromRgb(107, 114, 128)));
             SetMoneyText(serviceAmountValueText, serviceAmount, new SolidColorBrush(Color.FromRgb(15, 118, 110)));
-            totalText.Text = $"Tổng thanh toán: {totalAmount:N0} VND";
-            noteText.Text = hasSession
-                ? "Tiền dịch vụ đã tách nguồn: Máy trạm và Server. Tổng thanh toán lấy theo đơn giá của phiên đang chạy."
-                : "Máy chưa có phiên đang chạy. Tổng thanh toán hiện tại bằng 0 nếu chưa có dịch vụ gắn phiên.";
+
+            if (isVip)
+            {
+                totalText.Text = $"Tổng thanh toán: {totalAmount:N0} VND (Chỉ tiền DV)";
+                noteText.Text = "Hội viên VIP: Tiền giờ chơi được tính vào tổng nạp (tích lũy VIP), không thu tiền mặt tại đây. Khách chỉ cần thanh toán tiền dịch vụ.";
+            }
+            else
+            {
+                totalText.Text = $"Tổng thanh toán: {totalAmount:N0} VND";
+                noteText.Text = hasSession
+                    ? "Tiền dịch vụ đã tách nguồn: Máy trạm và Server. Tổng thanh toán lấy theo đơn giá của phiên đang chạy."
+                    : "Máy chưa có phiên đang chạy. Tổng thanh toán hiện tại bằng 0 nếu chưa có dịch vụ gắn phiên.";
+            }
         }
 
         RenderBillingDetails();

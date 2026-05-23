@@ -451,24 +451,47 @@ export class MembersService {
       });
 
       if (upfrontLoginCharge > 0) {
-        await this.prisma.member.update({
-          where: { id: member.id },
-          data: {
-            balance: {
-              decrement: upfrontLoginCharge,
+        const isVip = member.memberType === 'VIP';
+        if (isVip) {
+          await this.prisma.member.update({
+            where: { id: member.id },
+            data: {
+              totalTopup: {
+                increment: upfrontLoginCharge,
+              },
             },
-          },
-        });
+          });
 
-        await this.prisma.memberTransaction.create({
-          data: {
-            memberId: member.id,
-            type: 'ADJUSTMENT',
-            amountDelta: -upfrontLoginCharge,
-            note: 'UPFRONT_LOGIN_CHARGE',
-            createdBy: 'client.session',
-          },
-        });
+          await this.prisma.memberTransaction.create({
+            data: {
+              memberId: member.id,
+              type: 'ADJUSTMENT',
+              amountDelta: 0,
+              playSecondsDelta: 0,
+              note: 'UPFRONT_LOGIN_CHARGE:VIP',
+              createdBy: 'client.session',
+            },
+          });
+        } else {
+          await this.prisma.member.update({
+            where: { id: member.id },
+            data: {
+              balance: {
+                decrement: upfrontLoginCharge,
+              },
+            },
+          });
+
+          await this.prisma.memberTransaction.create({
+            data: {
+              memberId: member.id,
+              type: 'ADJUSTMENT',
+              amountDelta: -upfrontLoginCharge,
+              note: 'UPFRONT_LOGIN_CHARGE',
+              createdBy: 'client.session',
+            },
+          });
+        }
       }
 
       await this.prisma.session.create({
@@ -850,25 +873,48 @@ export class MembersService {
         const costAmount = Number(rawCost.toFixed(2));
 
         if (costAmount > 0) {
-          updatedMember = await tx.member.update({
-            where: { id: member.id },
-            data: {
-              balance: {
-                decrement: costAmount,
+          const isVip = member.memberType === 'VIP';
+          if (isVip) {
+            updatedMember = await tx.member.update({
+              where: { id: member.id },
+              data: {
+                totalTopup: {
+                  increment: costAmount,
+                },
               },
-            },
-          });
+            });
 
-          await tx.memberTransaction.create({
-            data: {
-              memberId: member.id,
-              type: MemberTransactionType.ADJUSTMENT,
-              amountDelta: -costAmount,
-              playSecondsDelta: -remainingSeconds,
-              note: `${note}:CASH_CHARGE`,
-              createdBy,
-            },
-          });
+            await tx.memberTransaction.create({
+              data: {
+                memberId: member.id,
+                type: MemberTransactionType.ADJUSTMENT,
+                amountDelta: 0,
+                playSecondsDelta: -remainingSeconds,
+                note: `${note}:VIP_CHARGE`,
+                createdBy,
+              },
+            });
+          } else {
+            updatedMember = await tx.member.update({
+              where: { id: member.id },
+              data: {
+                balance: {
+                  decrement: costAmount,
+                },
+              },
+            });
+
+            await tx.memberTransaction.create({
+              data: {
+                memberId: member.id,
+                type: MemberTransactionType.ADJUSTMENT,
+                amountDelta: -costAmount,
+                playSecondsDelta: -remainingSeconds,
+                note: `${note}:CASH_CHARGE`,
+                createdBy,
+              },
+            });
+          }
         }
       }
 
@@ -1339,6 +1385,10 @@ export class MembersService {
 
       if (payload.identityNumber !== undefined) {
         data.identityNumber = payload.identityNumber || null;
+      }
+
+      if (payload.memberType !== undefined) {
+        data.memberType = payload.memberType;
       }
 
       if (payload.password !== undefined) {
