@@ -395,26 +395,26 @@
                                                         <Setter Property="Background" Value="Transparent" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding StatusCode}" Value="ONLINE">
-                                                                <Setter Property="Background" Value="#ECFDF5" />
+                                                                <Setter Property="Background" Value="{DynamicResource ColorOnlineBgBrush}" />
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
-                                                                <Setter Property="Background" Value="#EFF6FF" />
+                                                                <Setter Property="Background" Value="{DynamicResource ColorInUseBgBrush}" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsVipSession}" Value="True">
+                                                                <Setter Property="Background" Value="#FEF3C7" />
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
                                                                 <Setter Property="Background" Value="#FEF2F2" />
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
-                                                                <Setter Property="Background" Value="#DC2626" />
+                                                                <Setter Property="Background" Value="{DynamicResource ColorOfflineBgBrush}" />
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding IsOfflineUnpaidGuest}" Value="True">
-                                                                <Setter Property="Background" Value="#F59E0B" />
+                                                                <Setter Property="Background" Value="{DynamicResource ColorTransferPayBgBrush}" />
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
-                                                                <Setter Property="Background" Value="#FACC15" />
+                                                                <Setter Property="Background" Value="{DynamicResource ColorAdminBgBrush}" />
                                                             </DataTrigger>
-                                                             <DataTrigger Binding="{Binding IsVipSession}" Value="True">
-                                                                 <Setter Property="Background" Value="#FEF3C7" />
-                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
@@ -429,23 +429,23 @@
                                                                 <Setter Property="Foreground" Value="Gray" />
                                                                 <Style.Triggers>
                                                                     <DataTrigger Binding="{Binding StatusCode}" Value="ONLINE">
-                                                                        <Setter Property="Foreground" Value="#16A34A" />
+                                                                        <Setter Property="Foreground" Value="{DynamicResource ColorOnlineFgBrush}" />
                                                                     </DataTrigger>
                                                                     <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
-                                                                        <Setter Property="Foreground" Value="#2563EB" />
+                                                                        <Setter Property="Foreground" Value="{DynamicResource ColorInUseFgBrush}" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding IsVipSession}" Value="True">
+                                                                        <Setter Property="Foreground" Value="#B45309" />
                                                                     </DataTrigger>
                                                                     <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
                                                                         <Setter Property="Foreground" Value="#DC2626" />
                                                                     </DataTrigger>
                                                                     <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
-                                                                        <Setter Property="Foreground" Value="White" />
+                                                                        <Setter Property="Foreground" Value="{DynamicResource ColorOfflineFgBrush}" />
                                                                     </DataTrigger>
                                                                     <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
-                                                                        <Setter Property="Foreground" Value="#DC2626" />
+                                                                        <Setter Property="Foreground" Value="{DynamicResource ColorAdminFgBrush}" />
                                                                     </DataTrigger>
-                                                                     <DataTrigger Binding="{Binding IsVipSession}" Value="True">
-                                                                         <Setter Property="Foreground" Value="#B45309" />
-                                                                     </DataTrigger>
                                                                 </Style.Triggers>
                                                             </Style>
                                                         </TextBlock.Style>
@@ -501,7 +501,7 @@
                                             <Border CornerRadius="0" Margin="-2">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="#FEF2F2" />
+                                                        <Setter Property="Background" Value="{DynamicResource ColorUsedTimeBgBrush}" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}}" Value="True">
                                                                 <Setter Property="Background" Value="Transparent" />
@@ -516,7 +516,7 @@
                                                            TextTrimming="CharacterEllipsis">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="#DC2626" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource ColorUsedTimeFgBrush}" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}}" Value="True">
                                                                     <Setter Property="Foreground" Value="White" />
@@ -535,7 +535,7 @@
                                             <Border CornerRadius="0" Margin="-2">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="#EFF6FF" />
+                                                        <Setter Property="Background" Value="{DynamicResource ColorRemainingTimeBgBrush}" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}}" Value="True">
                                                                 <Setter Property="Background" Value="Transparent" />
@@ -550,7 +550,7 @@
                                                            TextTrimming="CharacterEllipsis">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="#2563EB" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource ColorRemainingTimeFgBrush}" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}}" Value="True">
                                                                     <Setter Property="Foreground" Value="White" />
@@ -585,8 +585,11 @@
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="Transparent" />
                                                         <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding HasServiceDebtHighlight}" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource ColorServiceDebtBgBrush}" />
+                                                            </DataTrigger>
                                                             <DataTrigger Binding="{Binding HasPendingClientServiceOrderHighlight}" Value="True">
-                                                                <Setter Property="Background" Value="#8B5CF6" />
+                                                                <Setter Property="Background" Value="{DynamicResource ColorServiceCallBgBrush}" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -601,6 +604,9 @@
                                                             <Setter Property="Foreground" Value="#0F172A" />
                                                             <Setter Property="FontWeight" Value="SemiBold" />
                                                             <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding HasServiceDebtHighlight}" Value="True">
+                                                                    <Setter Property="Foreground" Value="White" />
+                                                                </DataTrigger>
                                                                 <DataTrigger Binding="{Binding HasPendingClientServiceOrderHighlight}" Value="True">
                                                                     <Setter Property="Foreground" Value="White" />
                                                                     <Setter Property="FontWeight" Value="SemiBold" />

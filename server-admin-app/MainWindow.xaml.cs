@@ -142,6 +142,7 @@ public partial class MainWindow : Window
             ReportStartupProgress("Đang khởi tạo giao diện...", 10);
 
             _settings = LoadSettings();
+            ApplyColorSettings();
             UpdateServerIpDisplay();
             ApplyUiFontSize(_settings.UiFontSize);
             ApplyMachineTableFontSize(_settings.MachineTableFontSize);

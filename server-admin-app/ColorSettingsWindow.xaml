@@ -1,0 +1,160 @@
+<Window x:Class="Server.Admin.App.ColorSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="【 Điều chỉnh màu 】"
+        Height="580"
+        Width="480"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="#F1F5F9"
+        FontFamily="Segoe UI">
+    <Window.Resources>
+        <!-- Standard Button Style -->
+        <Style x:Key="DialogButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="#334155" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#D1D5DB" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="MinWidth" Value="90" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource DialogButtonStyle}">
+            <Setter Property="Foreground" Value="#0F172A" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#3B82F6" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+
+        <!-- Color block preview style -->
+        <Style x:Key="ColorBlockStyle" TargetType="Border">
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Width" Value="120" />
+            <Setter Property="CornerRadius" Value="2" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#D1D5DB" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#2563EB" />
+                    <Setter Property="BorderThickness" Value="2" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="16,12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Color Options Grid -->
+        <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="16,10" Margin="0,0,0,16">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" /> <!-- Header -->
+                    <RowDefinition Height="Auto" /> <!-- ONLINE -->
+                    <RowDefinition Height="Auto" /> <!-- ADMIN -->
+                    <RowDefinition Height="Auto" /> <!-- DISCONNECTED -->
+                    <RowDefinition Height="Auto" /> <!-- AVAILABLE -->
+                    <RowDefinition Height="Auto" /> <!-- TG đã dùng -->
+                    <RowDefinition Height="Auto" /> <!-- TG còn lại -->
+                    <RowDefinition Height="Auto" /> <!-- Dưới 18 -->
+                    <RowDefinition Height="Auto" /> <!-- Gọi dịch vụ -->
+                    <RowDefinition Height="Auto" /> <!-- Nợ dịch vụ -->
+                    <RowDefinition Height="Auto" /> <!-- Chuyển thanh toán -->
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Headers -->
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="Màu nền" FontWeight="SemiBold" Foreground="#475569" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="Màu chữ" FontWeight="SemiBold" Foreground="#475569" HorizontalAlignment="Center" Margin="0,0,0,8" />
+
+                <!-- Row 1: ONLINE -->
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="ONLINE" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,8" />
+                <Border Grid.Row="1" Grid.Column="1" x:Name="OnlineBgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+                <Border Grid.Row="1" Grid.Column="2" x:Name="OnlineFgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+
+                <!-- Row 2: ADMIN -->
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="ADMIN" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,8" />
+                <Border Grid.Row="2" Grid.Column="1" x:Name="AdminBgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+                <Border Grid.Row="2" Grid.Column="2" x:Name="AdminFgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+
+                <!-- Row 3: DISCONNECTED -->
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="DISCONNECTED" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,8" />
+                <Border Grid.Row="3" Grid.Column="1" x:Name="OfflineBgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+                <Border Grid.Row="3" Grid.Column="2" x:Name="OfflineFgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+
+                <!-- Row 4: AVAILABLE -->
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="AVAILABLE" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,8" />
+                <Border Grid.Row="4" Grid.Column="1" x:Name="InUseBgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+                <Border Grid.Row="4" Grid.Column="2" x:Name="InUseFgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+
+                <!-- Row 5: TG đã dùng -->
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="TG đã dùng" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,8" />
+                <Border Grid.Row="5" Grid.Column="1" x:Name="UsedTimeBgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+                <Border Grid.Row="5" Grid.Column="2" x:Name="UsedTimeFgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+
+                <!-- Row 6: TG còn lại -->
+                <TextBlock Grid.Row="6" Grid.Column="0" Text="TG còn lại" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,8" />
+                <Border Grid.Row="6" Grid.Column="1" x:Name="RemainingTimeBgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+                <Border Grid.Row="6" Grid.Column="2" x:Name="RemainingTimeFgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+
+                <!-- Row 7: Dưới 18 -->
+                <TextBlock Grid.Row="7" Grid.Column="0" Text="Dưới 18" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,8" />
+                <Border Grid.Row="7" Grid.Column="1" x:Name="MinorBgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+                <Border Grid.Row="7" Grid.Column="2" x:Name="MinorFgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+
+                <!-- Row 8: Gọi dịch vụ -->
+                <TextBlock Grid.Row="8" Grid.Column="0" Text="Gọi dịch vụ" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,8" />
+                <Border Grid.Row="8" Grid.Column="1" x:Name="ServiceCallBgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+
+                <!-- Row 9: Nợ dịch vụ -->
+                <TextBlock Grid.Row="9" Grid.Column="0" Text="Nợ dịch vụ" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,8" />
+                <Border Grid.Row="9" Grid.Column="1" x:Name="ServiceDebtBgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+
+                <!-- Row 10: Chuyển thanh toán -->
+                <TextBlock Grid.Row="10" Grid.Column="0" Text="Chuyển thanh toán" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,8" />
+                <Border Grid.Row="10" Grid.Column="1" x:Name="TransferPayBgBlock" Style="{StaticResource ColorBlockStyle}" MouseDown="ColorBlock_MouseDown" Margin="0,8" />
+            </Grid>
+        </Border>
+
+        <!-- Actions -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0" Content="Mặc định" Style="{StaticResource DialogButtonStyle}" Click="DefaultButton_Click" />
+            
+            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <Button Content="✓ Đồng ý" Style="{StaticResource PrimaryButtonStyle}" Click="OkButton_Click" IsDefault="True" Margin="0,0,10,0" />
+                <Button Content="✕ Hủy" Style="{StaticResource DialogButtonStyle}" Click="CancelButton_Click" IsCancel="True" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

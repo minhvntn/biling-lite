@@ -216,6 +216,95 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ApplyColorSettings()
+    {
+        ApplyBrushSetting("ColorOnlineBgBrush", _settings.ColorOnlineBg, "#ECFDF5");
+        ApplyBrushSetting("ColorOnlineFgBrush", _settings.ColorOnlineFg, "#16A34A");
+        ApplyBrushSetting("ColorInUseBgBrush", _settings.ColorInUseBg, "#EFF6FF");
+        ApplyBrushSetting("ColorInUseFgBrush", _settings.ColorInUseFg, "#2563EB");
+        ApplyBrushSetting("ColorAdminBgBrush", _settings.ColorAdminBg, "#FACC15");
+        ApplyBrushSetting("ColorAdminFgBrush", _settings.ColorAdminFg, "#DC2626");
+        ApplyBrushSetting("ColorOfflineBgBrush", _settings.ColorOfflineBg, "#DC2626");
+        ApplyBrushSetting("ColorOfflineFgBrush", _settings.ColorOfflineFg, "#FFFFFF");
+        ApplyBrushSetting("ColorUsedTimeBgBrush", _settings.ColorUsedTimeBg, "#FEF2F2");
+        ApplyBrushSetting("ColorUsedTimeFgBrush", _settings.ColorUsedTimeFg, "#DC2626");
+        ApplyBrushSetting("ColorRemainingTimeBgBrush", _settings.ColorRemainingTimeBg, "#EFF6FF");
+        ApplyBrushSetting("ColorRemainingTimeFgBrush", _settings.ColorRemainingTimeFg, "#2563EB");
+        ApplyBrushSetting("ColorMinorBgBrush", _settings.ColorMinorBg, "#FFFFFF");
+        ApplyBrushSetting("ColorMinorFgBrush", _settings.ColorMinorFg, "#F97316");
+        ApplyBrushSetting("ColorServiceCallBgBrush", _settings.ColorServiceCallBg, "#8B5CF6");
+        ApplyBrushSetting("ColorServiceDebtBgBrush", _settings.ColorServiceDebtBg, "#0D9488");
+        ApplyBrushSetting("ColorTransferPayBgBrush", _settings.ColorTransferPayBg, "#F59E0B");
+    }
+
+    private void ApplyBrushSetting(string key, string hex, string fallbackHex)
+    {
+        Color color;
+        try
+        {
+            var cleanHex = string.IsNullOrWhiteSpace(hex) ? fallbackHex : hex.Trim();
+            color = (Color)ColorConverter.ConvertFromString(cleanHex);
+        }
+        catch
+        {
+            color = (Color)ColorConverter.ConvertFromString(fallbackHex);
+        }
+
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        this.Resources[key] = brush;
+    }
+
+    private void ConfigureColorsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var settingsCopy = new AdminShellSettings
+        {
+            ColorOnlineBg = _settings.ColorOnlineBg,
+            ColorOnlineFg = _settings.ColorOnlineFg,
+            ColorInUseBg = _settings.ColorInUseBg,
+            ColorInUseFg = _settings.ColorInUseFg,
+            ColorAdminBg = _settings.ColorAdminBg,
+            ColorAdminFg = _settings.ColorAdminFg,
+            ColorOfflineBg = _settings.ColorOfflineBg,
+            ColorOfflineFg = _settings.ColorOfflineFg,
+            ColorUsedTimeBg = _settings.ColorUsedTimeBg,
+            ColorUsedTimeFg = _settings.ColorUsedTimeFg,
+            ColorRemainingTimeBg = _settings.ColorRemainingTimeBg,
+            ColorRemainingTimeFg = _settings.ColorRemainingTimeFg,
+            ColorMinorBg = _settings.ColorMinorBg,
+            ColorMinorFg = _settings.ColorMinorFg,
+            ColorServiceCallBg = _settings.ColorServiceCallBg,
+            ColorServiceDebtBg = _settings.ColorServiceDebtBg,
+            ColorTransferPayBg = _settings.ColorTransferPayBg
+        };
+
+        var dialog = new ColorSettingsWindow(settingsCopy);
+        dialog.Owner = this;
+        if (dialog.ShowDialog() == true)
+        {
+            _settings.ColorOnlineBg = settingsCopy.ColorOnlineBg;
+            _settings.ColorOnlineFg = settingsCopy.ColorOnlineFg;
+            _settings.ColorInUseBg = settingsCopy.ColorInUseBg;
+            _settings.ColorInUseFg = settingsCopy.ColorInUseFg;
+            _settings.ColorAdminBg = settingsCopy.ColorAdminBg;
+            _settings.ColorAdminFg = settingsCopy.ColorAdminFg;
+            _settings.ColorOfflineBg = settingsCopy.ColorOfflineBg;
+            _settings.ColorOfflineFg = settingsCopy.ColorOfflineFg;
+            _settings.ColorUsedTimeBg = settingsCopy.ColorUsedTimeBg;
+            _settings.ColorUsedTimeFg = settingsCopy.ColorUsedTimeFg;
+            _settings.ColorRemainingTimeBg = settingsCopy.ColorRemainingTimeBg;
+            _settings.ColorRemainingTimeFg = settingsCopy.ColorRemainingTimeFg;
+            _settings.ColorMinorBg = settingsCopy.ColorMinorBg;
+            _settings.ColorMinorFg = settingsCopy.ColorMinorFg;
+            _settings.ColorServiceCallBg = settingsCopy.ColorServiceCallBg;
+            _settings.ColorServiceDebtBg = settingsCopy.ColorServiceDebtBg;
+            _settings.ColorTransferPayBg = settingsCopy.ColorTransferPayBg;
+
+            SaveSettings();
+            ApplyColorSettings();
+        }
+    }
+
     private static double ClampMachineContextMenuPadding(double value)
     {
         return Math.Clamp(value, 6, 24);

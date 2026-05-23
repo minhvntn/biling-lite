@@ -22,6 +22,24 @@ public sealed class AdminShellSettings
 
     public Dictionary<string, WakeLanProfile> WakeLanProfiles { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
+
+    public string ColorInUseBg { get; set; } = "#EFF6FF";
+    public string ColorInUseFg { get; set; } = "#2563EB";
+    public string ColorAdminBg { get; set; } = "#FACC15";
+    public string ColorAdminFg { get; set; } = "#DC2626";
+    public string ColorOfflineBg { get; set; } = "#DC2626";
+    public string ColorOfflineFg { get; set; } = "#FFFFFF";
+    public string ColorOnlineBg { get; set; } = "#ECFDF5";
+    public string ColorOnlineFg { get; set; } = "#16A34A";
+    public string ColorUsedTimeBg { get; set; } = "#FEF2F2";
+    public string ColorUsedTimeFg { get; set; } = "#DC2626";
+    public string ColorRemainingTimeBg { get; set; } = "#EFF6FF";
+    public string ColorRemainingTimeFg { get; set; } = "#2563EB";
+    public string ColorMinorBg { get; set; } = "#FFFFFF";
+    public string ColorMinorFg { get; set; } = "#F97316";
+    public string ColorServiceCallBg { get; set; } = "#8B5CF6";
+    public string ColorServiceDebtBg { get; set; } = "#0D9488";
+    public string ColorTransferPayBg { get; set; } = "#F59E0B";
 }
 
 public sealed class WakeLanProfile
@@ -127,6 +145,7 @@ public sealed class MachineRow
     public decimal ServiceAmountRaw { get; set; }
     public string ServiceAmountText { get; set; } = "-";
     public bool HasPendingClientServiceOrderHighlight { get; set; }
+    public bool HasServiceDebtHighlight { get; set; }
     public string DateText { get; set; } = "-";
     public string VersionText { get; set; } = "0.1.0";
     public string GroupName { get; set; } = "M\u1eb7c \u0111\u1ecbnh";

@@ -1,0 +1,109 @@
+<Window x:Class="Server.Admin.App.ColorPickerDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Chọn màu sắc"
+        Height="400"
+        Width="400"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="#F8FAFC"
+        FontFamily="Segoe UI">
+    <Window.Resources>
+        <!-- Standard Button Style -->
+        <Style x:Key="DialogButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="#475569" />
+            <Setter Property="Background" Value="#F1F5F9" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="MinHeight" Value="32" />
+            <Setter Property="MinWidth" Value="80" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource DialogButtonStyle}">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="#2563EB" />
+            <Setter Property="BorderBrush" Value="#1D4ED8" />
+        </Style>
+
+        <!-- Swatch Border Style -->
+        <Style x:Key="ColorSwatchStyle" TargetType="Border">
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Margin" Value="3" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#CBD5E1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#000000" />
+                    <Setter Property="BorderThickness" Value="2" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock Grid.Row="0" Text="Bảng màu chuẩn" FontSize="14" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,8" />
+
+        <!-- Swatches WrapPanel -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" Padding="6" Margin="0,0,0,12">
+            <WrapPanel x:Name="SwatchesPanel" HorizontalAlignment="Center" VerticalAlignment="Top" />
+        </ScrollViewer>
+
+        <!-- Custom Input & Preview -->
+        <Grid Grid.Row="2" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            
+            <StackPanel Grid.Column="0" Orientation="Vertical" Margin="0,0,12,0">
+                <TextBlock Text="Mã màu (HEX):" FontSize="12" Foreground="#64748B" Margin="0,0,0,4" />
+                <TextBox x:Name="HexTextBox" Height="36" Padding="8,4" FontSize="14" VerticalContentAlignment="Center" BorderBrush="#CBD5E1" BorderThickness="1" TextChanged="HexTextBox_TextChanged">
+                    <TextBox.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="6" />
+                        </Style>
+                    </TextBox.Resources>
+                </TextBox>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Vertical">
+                <TextBlock Text="Xem trước:" FontSize="12" Foreground="#64748B" Margin="0,0,0,4" />
+                <Border x:Name="PreviewBorder" Width="80" Height="36" CornerRadius="6" BorderBrush="#CBD5E1" BorderThickness="1" Background="#FFFFFF" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Action Buttons -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Đồng ý" Style="{StaticResource PrimaryButtonStyle}" Click="OkButton_Click" IsDefault="True" Margin="0,0,10,0" />
+            <Button Content="Hủy" Style="{StaticResource DialogButtonStyle}" Click="CancelButton_Click" IsCancel="True" />
+        </StackPanel>
+    </Grid>
+</Window>

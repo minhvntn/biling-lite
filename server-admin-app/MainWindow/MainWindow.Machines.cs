@@ -132,7 +132,7 @@ public partial class MainWindow : Window
         var activeMember = item.ActiveMember;
         var activeGuest = item.ActiveGuest;
         var isAdminSession = item.Status == "IN_USE" && activeAdmin is not null;
-        var isVipSession = item.Status == "IN_USE" && activeMember?.MemberType == "VIP";
+        var isVipSession = item.ActiveSession is not null && activeMember?.MemberType == "VIP";
         var hasActiveSessionOffline = item.Status == "OFFLINE" && item.ActiveSession is not null;
         var hasUnpaidGuestSession =
             hasActiveSessionOffline &&
@@ -184,7 +184,7 @@ public partial class MainWindow : Window
             {
                 var isVip = activeMember.MemberType == "VIP";
                 statusIconBrush = isVip ? Brushes.Goldenrod : Brushes.DodgerBlue;
-                statusIconPath = isVip ? "/Assets/pc-admin.svg" : "/Assets/pc-blue-user.svg";
+                statusIconPath = "/Assets/pc-blue-user.svg";
                 statusIconToolTip = isVip ? "Hội viên VIP đang sử dụng" : "Hội viên đang sử dụng";
             }
             else
@@ -218,8 +218,14 @@ public partial class MainWindow : Window
             : item.Name;
         var guestDisplayName = $"Khách {guestMachineLabel}";
         var remainingText = "-";
-        var hasGuestLikeSession = activeMember is null && item.ActiveSession is not null;
-        if (hasGuestLikeSession)
+        if (isVipSession)
+        {
+            var vipRemainingMinutesBase = GuestSessionStartingHours * MinutesPerHour;
+            var vipUsedMinutes = item.ActiveSession is null ? 0 : (int)Math.Floor(Math.Max(0, item.ActiveSession.ElapsedSeconds) / 60d);
+            var vipRemainingMinutes = Math.Max(0, vipRemainingMinutesBase - vipUsedMinutes);
+            remainingText = FormatRemainingMinutes(vipRemainingMinutes);
+        }
+        else if (activeMember is null && item.ActiveSession is not null)
         {
             var guestRemainingMinutesBase = GuestSessionStartingHours * MinutesPerHour;
             if (activeGuest is not null && activeGuest.PrepaidAmount > 0 && item.HourlyRate > 0)
@@ -268,6 +274,7 @@ public partial class MainWindow : Window
             ServiceAmountRaw = 0,
             ServiceAmountText = item.ActiveSession is null ? "-" : "0",
             HasPendingClientServiceOrderHighlight = false,
+            HasServiceDebtHighlight = false,
             DateText = now.ToString("dd-MM-yyyy"),
             VersionText = "0.1.0",
             GroupName = string.IsNullOrWhiteSpace(item.GroupName) ? "Mặc định" : item.GroupName,
@@ -830,6 +837,12 @@ public partial class MainWindow : Window
                 return;
 
             case "IN_USE":
+                if (selected.IsVipSession)
+                {
+                    await ShowMachineBillingDetailsAsync(selected);
+                    return;
+                }
+
                 if (!string.IsNullOrWhiteSpace(selected.ActiveMemberId) ||
                     !string.IsNullOrWhiteSpace(selected.ActiveMemberUsername))
                 {
@@ -841,6 +854,11 @@ public partial class MainWindow : Window
                 return;
 
             case "OFFLINE":
+                if (selected.IsVipSession)
+                {
+                    await ShowMachineBillingDetailsAsync(selected);
+                    return;
+                }
                 if (IsGuestBillingEligibleMachine(selected))
                 {
                     await ShowMachineBillingDetailsAsync(selected);
@@ -3214,6 +3232,7 @@ public partial class MainWindow : Window
                 row.ServiceAmountRaw = 0;
                 row.ServiceAmountText = "-";
                 row.HasPendingClientServiceOrderHighlight = false;
+                row.HasServiceDebtHighlight = false;
                 continue;
             }
 
@@ -3224,12 +3243,14 @@ public partial class MainWindow : Window
                 row.ServiceAmountRaw = cacheEntry.Amount;
                 row.ServiceAmountText = cacheEntry.Amount.ToString("N0");
                 row.HasPendingClientServiceOrderHighlight = cacheEntry.HasPendingClientOrderHighlight;
+                row.HasServiceDebtHighlight = cacheEntry.Amount > 0 && !cacheEntry.HasPendingClientOrderHighlight;
                 continue;
             }
 
             row.ServiceAmountRaw = 0;
             row.ServiceAmountText = "0";
             row.HasPendingClientServiceOrderHighlight = false;
+            row.HasServiceDebtHighlight = false;
             if (!toLoad.ContainsKey(cacheKey))
             {
                 toLoad[cacheKey] = row;
@@ -3282,6 +3303,7 @@ public partial class MainWindow : Window
             row.ServiceAmountRaw = cacheEntry.Amount;
             row.ServiceAmountText = cacheEntry.Amount.ToString("N0");
             row.HasPendingClientServiceOrderHighlight = cacheEntry.HasPendingClientOrderHighlight;
+            row.HasServiceDebtHighlight = cacheEntry.Amount > 0 && !cacheEntry.HasPendingClientOrderHighlight;
         }
 
         NotifyPendingClientServiceOrdersFromPolling(pendingClientOrders);
