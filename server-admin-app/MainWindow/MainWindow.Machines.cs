@@ -132,10 +132,11 @@ public partial class MainWindow : Window
         var activeMember = item.ActiveMember;
         var activeGuest = item.ActiveGuest;
         var isAdminSession = item.Status == "IN_USE" && activeAdmin is not null;
+        var hasActiveSessionOffline = item.Status == "OFFLINE" && item.ActiveSession is not null;
         var hasUnpaidGuestSession =
-            item.Status == "OFFLINE" &&
-            item.ActiveSession is not null &&
-            activeMember is null;
+            hasActiveSessionOffline &&
+            activeMember is null &&
+            (activeGuest is null || activeGuest.PrepaidAmount <= 0);
         var statusSubText = hasUnpaidGuestSession ? "Chưa thanh toán" : string.Empty;
         var statusText = item.Status switch
         {
@@ -143,7 +144,7 @@ public partial class MainWindow : Window
             "LOCKED" => "Đang khóa",
             "ONLINE" => I18n.StatusReady,
             "BOOTING" => "Đang khởi động",
-            "OFFLINE" => hasUnpaidGuestSession ? "Mất kết nối" : I18n.StatusLocked,
+            "OFFLINE" => hasActiveSessionOffline ? "Mất kết nối" : I18n.StatusLocked,
             _ => "Offline",
         };
 
@@ -219,6 +220,10 @@ public partial class MainWindow : Window
         if (hasGuestLikeSession)
         {
             var guestRemainingMinutesBase = GuestSessionStartingHours * MinutesPerHour;
+            if (activeGuest is not null && activeGuest.PrepaidAmount > 0 && item.HourlyRate > 0)
+            {
+                guestRemainingMinutesBase = (int)Math.Floor((activeGuest.PrepaidAmount / item.HourlyRate) * 60m);
+            }
             var guestUsedMinutes = (int)Math.Floor(Math.Max(0, item.ActiveSession!.ElapsedSeconds) / 60d);
             var guestRemainingMinutes = Math.Max(0, guestRemainingMinutesBase - guestUsedMinutes);
             remainingText = FormatRemainingMinutes(guestRemainingMinutes);

@@ -139,7 +139,7 @@ export class PcsService {
 
         const activeSession = pc.sessions[0] ?? null;
         const activeUser =
-          pc.status === PcStatus.IN_USE ? activeUsersByPc.get(pc.id) : null;
+          activeSession ? activeUsersByPc.get(pc.id) : null;
         const activeMemberBase =
           activeUser?.kind === 'MEMBER' ? activeUser.member : null;
         const activeMember = activeMemberBase
