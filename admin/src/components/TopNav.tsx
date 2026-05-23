@@ -10,6 +10,9 @@ export function TopNav() {
       <NavLink to="/pcs" className={({ isActive }) => linkClass(isActive)}>
         PCs
       </NavLink>
+      <NavLink to="/dashboard" className={({ isActive }) => linkClass(isActive)}>
+        Dashboard
+      </NavLink>
       <NavLink
         to="/history"
         className={({ isActive }) => linkClass(isActive)}

@@ -226,8 +226,16 @@ export class ServicesService {
       throw new NotFoundException('Khong tim thay may tram');
     }
 
+    const activeSession = await this.prisma.session.findFirst({
+      where: { pcId, status: 'ACTIVE' },
+      orderBy: { startedAt: 'desc' },
+    });
+
     const orders = await this.prisma.pcServiceOrder.findMany({
-      where: { pcId },
+      where: {
+        pcId,
+        sessionId: activeSession ? activeSession.id : null,
+      },
       include: {
         serviceItem: true,
       },

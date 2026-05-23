@@ -67,3 +67,18 @@ export async function fetchMemberTransactions(
   const response = await fetch(`${API_BASE_URL}/members/${memberId}/transactions`);
   return handleResponse<MemberTransactionsResponse>(response);
 }
+
+export async function setMemberPresence(
+  memberId: string,
+  agentId: string,
+  isActive: boolean,
+): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/members/presence`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ memberId, agentId, isActive }),
+  });
+
+  return handleResponse<any>(response);
+}
+

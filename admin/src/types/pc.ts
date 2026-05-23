@@ -4,6 +4,9 @@ export type PcListItem = {
   id: string;
   agentId: string;
   name: string;
+  groupName?: string;
+  macAddress?: string | null;
+  hourlyRate?: number;
   hostname: string | null;
   ipAddress: string | null;
   status: PcStatus;
@@ -14,6 +17,20 @@ export type PcListItem = {
     elapsedSeconds: number;
     billableMinutes: number;
     estimatedAmount: number;
+  } | null;
+  activeMember: {
+    id: string;
+    username: string;
+    fullName: string;
+    balance: number;
+  } | null;
+  activeGuest: {
+    displayName: string;
+    prepaidAmount: number;
+  } | null;
+  activeAdmin: {
+    username: string;
+    fullName: string;
   } | null;
 };
 

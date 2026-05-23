@@ -1674,6 +1674,69 @@ export class CommandsService {
       },
     });
 
+    // Auto-pay unpaid service orders associated with this session on close
+    try {
+      const sessionOrders = await tx.pcServiceOrder.findMany({
+        where: {
+          pcId,
+          sessionId: activeSession.id,
+        },
+      });
+
+      if (sessionOrders.length > 0) {
+        const paidEvents = await tx.eventLog.findMany({
+          where: {
+            pcId,
+            eventType: 'service.order.paid',
+          },
+          select: { payload: true },
+          orderBy: [{ createdAt: 'desc' }],
+          take: 500,
+        });
+
+        const paidOrderIds = new Set<string>();
+        for (const event of paidEvents) {
+          if (event.payload && typeof event.payload === 'object' && !Array.isArray(event.payload)) {
+            const payloadObj = event.payload as Record<string, unknown>;
+            const orderIdsRaw = payloadObj.orderIds;
+            if (Array.isArray(orderIdsRaw)) {
+              for (const id of orderIdsRaw) {
+                if (typeof id === 'string') {
+                  paidOrderIds.add(id.trim());
+                }
+              }
+            }
+          }
+        }
+
+        const unpaidOrders = sessionOrders.filter((item) => !paidOrderIds.has(item.id));
+        if (unpaidOrders.length > 0) {
+          const paidAmount = unpaidOrders.reduce(
+            (sum, item) => sum + Number(item.lineTotal ?? 0),
+            0,
+          );
+
+          await tx.eventLog.create({
+            data: {
+              source: EventSource.SERVER,
+              eventType: 'service.order.paid',
+              pcId,
+              payload: {
+                sessionId: activeSession.id,
+                orderIds: unpaidOrders.map((x) => x.id),
+                paidOrderCount: unpaidOrders.length,
+                paidAmount,
+                requestedBy: 'system.session_checkout',
+                note: 'Auto-paid on session close',
+              },
+            },
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error auto-paying service orders on session close:', err);
+    }
+
     return {
       sessionId: closedSession.id,
       amount,

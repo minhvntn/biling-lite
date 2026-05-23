@@ -226,5 +226,6 @@ Qua danh sách máy, bấm chuột phải Khởi động máy trạm từ xa.
 App sẽ tự lấy profile và gửi WOL ngay, không hỏi nữa.
 Mẹo:
 
-Nếu chưa biết MAC, có thể thử bật 1 lần khi máy vừa online gần đây để hệ thống học qua ARP, rồi quay lại bảng này kiểm tra/lưu lại.
+Nếu chưa biết MAC, có thể thử b
+quay lại bảng này kiểm tra/lưu lại.
 Mỗi máy chỉ cần cấu hình 1 lần.

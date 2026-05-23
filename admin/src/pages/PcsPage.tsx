@@ -1,42 +1,53 @@
 import { useEffect, useMemo, useState } from 'react';
 import { io } from 'socket.io-client';
-import { lockPc, openPc } from '../api/commands';
+import { lockPc, openPc, guestOpenPc, shutdownPc, restartPc, wakePc } from '../api/commands';
 import { fetchPcs } from '../api/pcs';
+import { fetchMembers, topupMember, setMemberPresence } from '../api/members';
+import {
+  fetchServiceItems,
+  createPcServiceOrder,
+  payPcServiceOrders,
+  fetchPcServiceOrders,
+  ServiceItem,
+  PcServiceOrder,
+} from '../api/services';
 import { TopNav } from '../components/TopNav';
 import { WS_BASE_URL } from '../lib/config';
-import { CommandUpdatedEvent } from '../types/command';
-import { PcListItem, PcStatusChangedEvent } from '../types/pc';
+import { PcListItem } from '../types/pc';
 
 function formatDuration(totalSeconds: number): string {
+  if (totalSeconds <= 0) return '0p';
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
-  return `${hours}h ${minutes}p`;
+  if (hours > 0) {
+    return `${hours}h ${minutes}p`;
+  }
+  return `${minutes}p`;
 }
 
 function formatClock(isoDate: string | null): string {
   if (!isoDate) {
     return '-';
   }
-
-  return new Date(isoDate).toLocaleTimeString();
+  return new Date(isoDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatMoney(amount: number): string {
-  return amount.toLocaleString('vi-VN');
+  return amount.toLocaleString('vi-VN') + ' đ';
 }
 
 function statusText(status: string): string {
   switch (status) {
     case 'IN_USE':
-      return 'Dang su dung';
+      return 'Đang dùng';
     case 'LOCKED':
-      return 'Dang khoa';
+      return 'Đang khóa';
     case 'ONLINE':
-      return 'Online ranh';
+      return 'Sẵn sàng';
     case 'BOOTING':
-      return 'Dang khoi dong';
+      return 'Đang khởi động';
     default:
-      return 'Offline';
+      return 'Đang tắt';
   }
 }
 
@@ -61,29 +72,57 @@ export function PcsPage() {
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
-  const [pendingPcActions, setPendingPcActions] = useState<Record<string, boolean>>(
-    {},
-  );
+  const [pendingPcActions, setPendingPcActions] = useState<Record<string, boolean>>({});
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'IN_USE' | 'LOCKED' | 'ONLINE' | 'OFFLINE' | 'BOOTING'>('ALL');
   const [search, setSearch] = useState('');
 
+  // Service items & Unpaid orders
+  const [serviceItems, setServiceItems] = useState<ServiceItem[]>([]);
+  const [selectedPc, setSelectedPc] = useState<PcListItem | null>(null);
+  const [showDrawer, setShowDrawer] = useState(false);
+  const [drawerTab, setDrawerTab] = useState<'session' | 'service' | 'topup'>('session');
+  
+  // Drawer data & action loading states
+  const [unpaidOrders, setUnpaidOrders] = useState<PcServiceOrder[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [drawerError, setDrawerError] = useState<string | null>(null);
+  const [drawerSuccess, setDrawerSuccess] = useState<string | null>(null);
+  const [actionPending, setActionPending] = useState(false);
+
+  // Form states in Drawer
+  const [openType, setOpenType] = useState<'guest' | 'member'>('guest');
+  const [guestAmount, setGuestAmount] = useState<string>('0');
+  const [memberSearch, setMemberSearch] = useState('');
+  const [matchingMembers, setMatchingMembers] = useState<any[]>([]);
+  const [selectedMember, setSelectedMember] = useState<any | null>(null);
+
+  // Order service form
+  const [selectedServiceId, setSelectedServiceId] = useState('');
+  const [serviceQty, setServiceQty] = useState(1);
+  const [serviceNote, setServiceNote] = useState('');
+
+  // Topup member form
+  const [topupSearch, setTopupSearch] = useState('');
+  const [topupMatchingMembers, setTopupMatchingMembers] = useState<any[]>([]);
+  const [selectedTopupMember, setSelectedTopupMember] = useState<any | null>(null);
+  const [topupAmountValue, setTopupAmountValue] = useState('50000');
+
   const loadPcs = async () => {
     try {
-      setError(null);
       const data = await fetchPcs();
       setPcs(data.items);
       setLastUpdatedAt(data.serverTime);
       setTick(0);
     } catch (loadError) {
-      const message =
-        loadError instanceof Error ? loadError.message : 'Unknown error';
-      setError(message);
+      const msg = loadError instanceof Error ? loadError.message : 'Unknown error';
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
+  // Initial load
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
@@ -94,28 +133,34 @@ export function PcsPage() {
         setTick(0);
       })
       .catch((loadError) => {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        const message =
-          loadError instanceof Error ? loadError.message : 'Unknown error';
-        setError(message);
+        if (controller.signal.aborted) return;
+        setError(loadError instanceof Error ? loadError.message : 'Unknown error');
       })
       .finally(() => setLoading(false));
+
+    // Pre-fetch service items once
+    fetchServiceItems()
+      .then((res) => {
+        setServiceItems(res.items);
+        if (res.items.length > 0) {
+          setSelectedServiceId(res.items[0].id);
+        }
+      })
+      .catch((err) => console.error('Failed to load service items', err));
 
     return () => controller.abort();
   }, []);
 
+  // Web socket sync
   useEffect(() => {
     const socket = io(`${WS_BASE_URL}/billing`, {
       transports: ['websocket'],
     });
 
-    socket.on('pc.status.changed', (_event: PcStatusChangedEvent) => {
+    socket.on('pc.status.changed', () => {
       void loadPcs();
     });
-    socket.on('command.updated', (_event: CommandUpdatedEvent) => {
+    socket.on('command.updated', () => {
       void loadPcs();
     });
 
@@ -124,14 +169,98 @@ export function PcsPage() {
     };
   }, []);
 
+  // Sync tick for elapsed seconds
   useEffect(() => {
     const interval = window.setInterval(() => setTick((v) => v + 1), 1000);
     return () => window.clearInterval(interval);
   }, []);
 
+  // Debounced Member Search for Mở máy
+  useEffect(() => {
+    if (openType !== 'member' || !memberSearch.trim()) {
+      setMatchingMembers([]);
+      return;
+    }
+    const delay = setTimeout(async () => {
+      try {
+        const res = await fetchMembers(memberSearch);
+        setMatchingMembers(res.items);
+        if (res.items.length > 0) {
+          setSelectedMember(res.items[0]);
+        } else {
+          setSelectedMember(null);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }, 300);
+    return () => clearTimeout(delay);
+  }, [memberSearch, openType]);
+
+  // Debounced Member Search for Top-up
+  useEffect(() => {
+    if (!topupSearch.trim()) {
+      setTopupMatchingMembers([]);
+      return;
+    }
+    const delay = setTimeout(async () => {
+      try {
+        const res = await fetchMembers(topupSearch);
+        setTopupMatchingMembers(res.items);
+        if (res.items.length > 0) {
+          setSelectedTopupMember(res.items[0]);
+        } else {
+          setSelectedTopupMember(null);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }, 300);
+    return () => clearTimeout(delay);
+  }, [topupSearch]);
+
+  // When drawer selected PC updates, refresh its unpaid orders
+  const loadUnpaidOrders = async (pcId: string) => {
+    setLoadingOrders(true);
+    try {
+      const res = await fetchPcServiceOrders(pcId);
+      setUnpaidOrders(res.items.filter((item) => !item.isPaid));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  // Open action drawer for a PC
+  const handleOpenDrawer = (pc: PcListItem) => {
+    setSelectedPc(pc);
+    setShowDrawer(true);
+    setDrawerTab('session');
+    setDrawerError(null);
+    setDrawerSuccess(null);
+    setMemberSearch('');
+    setMatchingMembers([]);
+    setSelectedMember(null);
+    setGuestAmount('0');
+    setServiceQty(1);
+    setServiceNote('');
+
+    // Pre-fill top-up if member is active on PC
+    if (pc.activeMember) {
+      setSelectedTopupMember(pc.activeMember);
+      setTopupSearch(pc.activeMember.username);
+    } else {
+      setSelectedTopupMember(null);
+      setTopupSearch('');
+    }
+
+    void loadUnpaidOrders(pc.id);
+  };
+
+  // Compute stats
   const filteredPcs = useMemo(() => {
     const keyword = search.trim().toLowerCase();
-
     return pcs.filter((pc) => {
       const statusOk = statusFilter === 'ALL' ? true : pc.status === statusFilter;
       const keywordOk = keyword
@@ -142,19 +271,8 @@ export function PcsPage() {
     });
   }, [pcs, search, statusFilter]);
 
-  const summary = useMemo(() => {
-    const total = pcs.length;
-    const inUse = pcs.filter((pc) => pc.status === 'IN_USE').length;
-    const locked = pcs.filter((pc) => pc.status === 'LOCKED' || pc.status === 'OFFLINE' || pc.status === 'BOOTING').length;
-    const onlineIdle = pcs.filter((pc) => pc.status === 'ONLINE').length;
 
-    const runningRevenue = pcs.reduce((acc, pc) => {
-      return acc + (pc.activeSession?.estimatedAmount ?? 0);
-    }, 0);
-
-    return { total, inUse, locked, onlineIdle, runningRevenue };
-  }, [pcs]);
-
+  // Quick Action from Desktop Table
   const applyAction = async (pcId: string, action: 'open' | 'lock') => {
     setPendingPcActions((prev) => ({ ...prev, [pcId]: true }));
     setActionMessage(null);
@@ -164,105 +282,290 @@ export function PcsPage() {
       } else {
         await lockPc(pcId);
       }
-      setActionMessage(`Lenh ${action.toUpperCase()} da gui`);
+      setActionMessage(`Đã gửi lệnh ${action.toUpperCase()}`);
       await loadPcs();
     } catch (applyError) {
-      const message =
-        applyError instanceof Error ? applyError.message : 'Unknown error';
-      setActionMessage(message);
+      setActionMessage(applyError instanceof Error ? applyError.message : 'Lỗi không xác định');
     } finally {
       setPendingPcActions((prev) => ({ ...prev, [pcId]: false }));
     }
   };
 
+  // Drawer Submit handlers
+  const handleWOL = async () => {
+    if (!selectedPc) return;
+    setActionPending(true);
+    setDrawerError(null);
+    setDrawerSuccess(null);
+    try {
+      const mac = selectedPc.macAddress || '';
+      if (!mac) {
+        throw new Error('Chưa cấu hình MAC address cho máy này');
+      }
+      await wakePc(selectedPc.id, mac);
+      setDrawerSuccess('Đã phát tín hiệu khởi động từ xa (Wake-on-LAN)');
+      await loadPcs();
+    } catch (e) {
+      setDrawerError(e instanceof Error ? e.message : 'Khởi động thất bại');
+    } finally {
+      setActionPending(false);
+    }
+  };
+
+  const handleOpenGuest = async () => {
+    if (!selectedPc) return;
+    setActionPending(true);
+    setDrawerError(null);
+    setDrawerSuccess(null);
+    try {
+      const amt = Number(guestAmount) || 0;
+      await guestOpenPc(selectedPc.id, amt);
+      setDrawerSuccess('Đã gửi lệnh mở máy khách vãng lai');
+      await loadPcs();
+      setTimeout(() => setShowDrawer(false), 800);
+    } catch (e) {
+      setDrawerError(e instanceof Error ? e.message : 'Mở máy thất bại');
+    } finally {
+      setActionPending(false);
+    }
+  };
+
+  const handleOpenMember = async () => {
+    if (!selectedPc || !selectedMember) return;
+    setActionPending(true);
+    setDrawerError(null);
+    setDrawerSuccess(null);
+    try {
+      await setMemberPresence(selectedMember.id, selectedPc.agentId, true);
+      setDrawerSuccess(`Đã đăng nhập hội viên ${selectedMember.username}`);
+      await loadPcs();
+      setTimeout(() => setShowDrawer(false), 800);
+    } catch (e) {
+      setDrawerError(e instanceof Error ? e.message : 'Đăng nhập thất bại');
+    } finally {
+      setActionPending(false);
+    }
+  };
+
+  const handleLock = async () => {
+    if (!selectedPc) return;
+    if (!window.confirm(`Xác nhận khóa máy & thanh toán cho ${selectedPc.name}?`)) return;
+    setActionPending(true);
+    setDrawerError(null);
+    setDrawerSuccess(null);
+    try {
+      await lockPc(selectedPc.id);
+      setDrawerSuccess('Đã khóa máy & kết thúc phiên chơi');
+      await loadPcs();
+      setTimeout(() => setShowDrawer(false), 800);
+    } catch (e) {
+      setDrawerError(e instanceof Error ? e.message : 'Khóa máy thất bại');
+    } finally {
+      setActionPending(false);
+    }
+  };
+
+  const handleShutdown = async () => {
+    if (!selectedPc) return;
+    if (!window.confirm(`Tắt máy ${selectedPc.name}?`)) return;
+    setActionPending(true);
+    setDrawerError(null);
+    setDrawerSuccess(null);
+    try {
+      await shutdownPc(selectedPc.id);
+      setDrawerSuccess('Đã gửi lệnh tắt máy');
+      await loadPcs();
+    } catch (e) {
+      setDrawerError(e instanceof Error ? e.message : 'Gửi lệnh thất bại');
+    } finally {
+      setActionPending(false);
+    }
+  };
+
+  const handleRestart = async () => {
+    if (!selectedPc) return;
+    if (!window.confirm(`Khởi động lại máy ${selectedPc.name}?`)) return;
+    setActionPending(true);
+    setDrawerError(null);
+    setDrawerSuccess(null);
+    try {
+      await restartPc(selectedPc.id);
+      setDrawerSuccess('Đã gửi lệnh khởi động lại');
+      await loadPcs();
+    } catch (e) {
+      setDrawerError(e instanceof Error ? e.message : 'Gửi lệnh thất bại');
+    } finally {
+      setActionPending(false);
+    }
+  };
+
+  const handleAddService = async () => {
+    if (!selectedPc || !selectedServiceId) return;
+    setActionPending(true);
+    setDrawerError(null);
+    setDrawerSuccess(null);
+    try {
+      await createPcServiceOrder(selectedPc.id, {
+        serviceItemId: selectedServiceId,
+        quantity: serviceQty,
+        note: serviceNote.trim() || undefined,
+        requestedBy: 'admin.web',
+      });
+      setDrawerSuccess('Đã gọi món / thêm dịch vụ thành công');
+      setServiceNote('');
+      setServiceQty(1);
+      void loadUnpaidOrders(selectedPc.id);
+      await loadPcs();
+    } catch (e) {
+      setDrawerError(e instanceof Error ? e.message : 'Thêm dịch vụ thất bại');
+    } finally {
+      setActionPending(false);
+    }
+  };
+
+  const handlePayServices = async () => {
+    if (!selectedPc || unpaidOrders.length === 0) return;
+    if (!window.confirm('Xác nhận thanh toán toàn bộ dịch vụ cho máy này?')) return;
+    setActionPending(true);
+    setDrawerError(null);
+    setDrawerSuccess(null);
+    try {
+      await payPcServiceOrders(selectedPc.id, {
+        requestedBy: 'admin.web',
+      });
+      setDrawerSuccess('Đã thanh toán toàn bộ dịch vụ');
+      setUnpaidOrders([]);
+      await loadPcs();
+    } catch (e) {
+      setDrawerError(e instanceof Error ? e.message : 'Thanh toán dịch vụ thất bại');
+    } finally {
+      setActionPending(false);
+    }
+  };
+
+  const handleTopupSubmit = async () => {
+    if (!selectedTopupMember) return;
+    setActionPending(true);
+    setDrawerError(null);
+    setDrawerSuccess(null);
+    try {
+      const amt = Number(topupAmountValue) || 0;
+      await topupMember(selectedTopupMember.id, {
+        amount: amt,
+        createdBy: 'admin.web',
+      });
+      setDrawerSuccess(`Đã nạp thành công ${formatMoney(amt)} cho hội viên ${selectedTopupMember.username}`);
+      await loadPcs();
+      // Update selected PC info in real-time if they are the active member
+      if (selectedPc?.activeMember?.id === selectedTopupMember.id) {
+        setSelectedPc((prev) => {
+          if (!prev || !prev.activeMember) return prev;
+          return {
+            ...prev,
+            activeMember: {
+              ...prev.activeMember,
+              balance: Number(prev.activeMember.balance) + amt,
+            },
+          };
+        });
+      }
+    } catch (e) {
+      setDrawerError(e instanceof Error ? e.message : 'Nạp tiền thất bại');
+    } finally {
+      setActionPending(false);
+    }
+  };
+
+  // Helper getters
+  const getUserName = (pc: PcListItem) => {
+    if (pc.activeMember) return pc.activeMember.username;
+    if (pc.activeGuest) return pc.activeGuest.displayName;
+    if (pc.activeAdmin) return `Admin (${pc.activeAdmin.username})`;
+    return '-';
+  };
+
+  const getRemainingTime = (pc: PcListItem) => {
+    if (pc.activeMember) {
+      const balance = Number(pc.activeMember.balance) || 0;
+      const rate = pc.hourlyRate || 10000;
+      const playSeconds = (pc.activeMember as any).playSeconds || 0;
+      const totalSeconds = playSeconds + (balance / rate) * 3600;
+      return formatDuration(totalSeconds);
+    }
+    return '-';
+  };
+
+  const getUnpaidServicesTotal = (orders: PcServiceOrder[]) => {
+    return orders.reduce((sum, item) => sum + item.lineTotal, 0);
+  };
+
   return (
     <main className="layout">
       <TopNav />
-      <section className="hero">
-        <h1>Dieu hanh may tram</h1>
-        <p>Phong cach bang don gian de van hanh nhanh</p>
-        <div className="meta">
-          <span>Dong bo luc: {formatClock(lastUpdatedAt)}</span>
-          <button onClick={() => void loadPcs()} disabled={loading}>
-            Lam moi
+      {error && <p className="error">{error}</p>}
+      {actionMessage && <p className="info">{actionMessage}</p>}
+
+      <section className="toolbar-row">
+        {/* Hiding filters temporarily as requested */}
+        {false && (
+          <>
+            <div className="toolbar-item">
+              <label htmlFor="status-filter">Trạng thái:</label>
+              <select
+                id="status-filter"
+                value={statusFilter}
+                onChange={(event) =>
+                  setStatusFilter(
+                    event.target.value as any
+                  )
+                }
+              >
+                <option value="ALL">Tất cả</option>
+                <option value="IN_USE">Đang sử dụng</option>
+                <option value="LOCKED">Đang khóa</option>
+                <option value="ONLINE">Sẵn sàng</option>
+                <option value="BOOTING">Đang khởi động</option>
+                <option value="OFFLINE">Offline</option>
+              </select>
+            </div>
+
+            <div className="toolbar-item toolbar-search">
+              <label htmlFor="search-pc">Tìm máy:</label>
+              <input
+                id="search-pc"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Nhập tên máy / agent id"
+              />
+            </div>
+          </>
+        )}
+
+        <div className="toolbar-item" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.5rem', alignSelf: 'flex-end', marginLeft: 'auto' }}>
+          <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }} className="desktop-only">
+            Đồng bộ: {formatClock(lastUpdatedAt)}
+          </span>
+          <button onClick={() => void loadPcs()} disabled={loading} style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}>
+            {loading ? '...' : 'Làm mới'}
           </button>
         </div>
       </section>
 
-      <section className="summary-grid">
-        <article className="summary-card">
-          <h2>{summary.total}</h2>
-          <p>Tong may</p>
-        </article>
-        <article className="summary-card">
-          <h2>{summary.inUse}</h2>
-          <p>Dang su dung</p>
-        </article>
-        <article className="summary-card">
-          <h2>{summary.locked}</h2>
-          <p>Dang tat</p>
-        </article>
-        <article className="summary-card">
-          <h2>{formatMoney(summary.runningRevenue)}</h2>
-          <p>Tien tam tinh</p>
-        </article>
-      </section>
+      {loading && <p className="info">Đang tải danh sách máy...</p>}
 
-      <section className="toolbar-row">
-        <div className="toolbar-item">
-          <label htmlFor="status-filter">Trang thai:</label>
-          <select
-            id="status-filter"
-            value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(
-                event.target.value as
-                  | 'ALL'
-                  | 'IN_USE'
-                  | 'LOCKED'
-                  | 'ONLINE'
-                  | 'OFFLINE'
-                  | 'BOOTING',
-              )
-            }
-          >
-            <option value="ALL">Tat ca</option>
-            <option value="IN_USE">Dang su dung</option>
-            <option value="LOCKED">Dang khoa</option>
-            <option value="ONLINE">Online ranh</option>
-            <option value="BOOTING">Dang khoi dong</option>
-            <option value="OFFLINE">Offline</option>
-          </select>
-        </div>
-
-        <div className="toolbar-item toolbar-search">
-          <label htmlFor="search-pc">Tim may:</label>
-          <input
-            id="search-pc"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Nhap ten may / agent id"
-          />
-        </div>
-      </section>
-
-      {loading && <p className="info">Dang tai danh sach may...</p>}
-      {error && <p className="error">{error}</p>}
-      {actionMessage && <p className="info">{actionMessage}</p>}
-
-      <section className="table-wrap">
-        <table className="history-table">
+      {/* Desktop Layout - Only shown on screen widths > 768px */}
+      <section className="table-wrap desktop-only" style={{ marginTop: '1rem' }}>
+        <table className="history-table" style={{ minWidth: '850px' }}>
           <thead>
             <tr>
-              <th>Ten may</th>
-              <th>Tinh trang</th>
-              <th>Nguoi su dung</th>
-              <th>Bat dau</th>
-              <th>Da su dung</th>
-              <th>Con lai</th>
-              <th>Tien</th>
-              <th>Nhom</th>
-              <th>Thao tac</th>
+              <th>Tên máy</th>
+              <th>Tình trạng</th>
+              <th>Người sử dụng</th>
+              <th>Bắt đầu lúc</th>
+              <th>Đã sử dụng</th>
+              <th>Còn lại</th>
+              <th>Tiền giờ tạm tính</th>
+              <th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
@@ -273,33 +576,37 @@ export function PcsPage() {
 
               return (
                 <tr key={pc.id}>
-                  <td>{pc.name}</td>
+                  <td><strong>{pc.name}</strong></td>
                   <td>
                     <span className={statusClass(pc.status)}>{statusText(pc.status)}</span>
                   </td>
-                  <td>-</td>
+                  <td>{getUserName(pc)}</td>
                   <td>{formatClock(pc.activeSession?.startedAt ?? null)}</td>
                   <td>{pc.activeSession ? formatDuration(elapsed) : '-'}</td>
-                  <td>-</td>
+                  <td>{getRemainingTime(pc)}</td>
                   <td>
-                    {pc.activeSession
-                      ? formatMoney(pc.activeSession.estimatedAmount)
-                      : '-'}
+                    {pc.activeSession ? formatMoney(pc.activeSession.estimatedAmount) : '-'}
                   </td>
-                  <td>Mac dinh</td>
                   <td>
                     <div className="actions">
                       <button
-                        disabled={pendingPcActions[pc.id]}
+                        disabled={pendingPcActions[pc.id] || pc.status === 'IN_USE' || pc.status === 'BOOTING'}
                         onClick={() => void applyAction(pc.id, 'open')}
                       >
-                        Mo
+                        Mở
                       </button>
                       <button
-                        disabled={pendingPcActions[pc.id]}
+                        disabled={pendingPcActions[pc.id] || pc.status === 'LOCKED' || pc.status === 'OFFLINE' || pc.status === 'BOOTING'}
                         onClick={() => void applyAction(pc.id, 'lock')}
+                        className="btn-danger"
                       >
-                        Khoa
+                        Khóa
+                      </button>
+                      <button
+                        onClick={() => handleOpenDrawer(pc)}
+                        className="btn-secondary"
+                      >
+                        Thao tác
                       </button>
                     </div>
                   </td>
@@ -308,12 +615,498 @@ export function PcsPage() {
             })}
             {!loading && filteredPcs.length === 0 && (
               <tr>
-                <td colSpan={9}>Khong co may phu hop bo loc</td>
+                <td colSpan={8}>Không có máy phù hợp bộ lọc</td>
               </tr>
             )}
           </tbody>
         </table>
       </section>
+
+      {/* Mobile Card Layout - Only shown on screen widths <= 768px */}
+      <section className="pc-card-grid mobile-only">
+        {filteredPcs.map((pc) => {
+          const elapsed = pc.activeSession
+            ? Math.max(0, pc.activeSession.elapsedSeconds + tick)
+            : 0;
+
+          return (
+            <div key={pc.id} className="pc-card-item" onClick={() => handleOpenDrawer(pc)}>
+              <div className="pc-card-header">
+                <span className="pc-card-title">{pc.name}</span>
+                <span className={statusClass(pc.status)}>{statusText(pc.status)}</span>
+              </div>
+              {getUserName(pc) !== '-' && (
+                <div className="pc-card-body">
+                  <div className="pc-card-row">
+                    <span className="pc-card-label">Người chơi:</span>
+                    <span className="pc-card-value">{getUserName(pc)}</span>
+                  </div>
+                  {pc.activeSession && (
+                    <>
+                      <div className="pc-card-row">
+                        <span className="pc-card-label">Thời gian đã dùng:</span>
+                        <span className="pc-card-value">{formatDuration(elapsed)}</span>
+                      </div>
+                      {pc.activeMember && (
+                        <div className="pc-card-row">
+                          <span className="pc-card-label">Thời gian còn lại:</span>
+                          <span className="pc-card-value highlight">{getRemainingTime(pc)}</span>
+                        </div>
+                      )}
+                      <div className="pc-card-row">
+                        <span className="pc-card-label">Tạm tính:</span>
+                        <span className="pc-card-value highlight">{formatMoney(pc.activeSession.estimatedAmount)}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              <div style={{ marginTop: '0.2rem', textAlign: 'right', fontSize: '0.72rem', color: '#0066cc', fontWeight: 'bold' }}>
+                Bấm để thao tác &raquo;
+              </div>
+            </div>
+          );
+        })}
+        {!loading && filteredPcs.length === 0 && (
+          <p className="info">Không có máy phù hợp bộ lọc</p>
+        )}
+      </section>
+
+      {/* Action Drawer Modal */}
+      {showDrawer && selectedPc && (
+        <div className="modal-backdrop" onClick={() => setShowDrawer(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Thao tác {selectedPc.name}</h2>
+              <button className="modal-close-btn" onClick={() => setShowDrawer(false)}>&times;</button>
+            </div>
+            
+            <div className="modal-tabs">
+              <button
+                className={`modal-tab-btn ${drawerTab === 'session' ? 'active' : ''}`}
+                onClick={() => setDrawerTab('session')}
+              >
+                Phiên máy
+              </button>
+              <button
+                className={`modal-tab-btn ${drawerTab === 'service' ? 'active' : ''}`}
+                onClick={() => setDrawerTab('service')}
+                disabled={selectedPc.status !== 'IN_USE'}
+              >
+                Dịch vụ {unpaidOrders.length > 0 ? `(${unpaidOrders.length})` : ''}
+              </button>
+              <button
+                className={`modal-tab-btn ${drawerTab === 'topup' ? 'active' : ''}`}
+                onClick={() => setDrawerTab('topup')}
+              >
+                Nạp hội viên
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {drawerError && <div className="error">{drawerError}</div>}
+              {drawerSuccess && <div className="info" style={{ color: '#155724' }}>{drawerSuccess}</div>}
+
+              {/* TAB 1: SESSION */}
+              {drawerTab === 'session' && (
+                <>
+                  {/* Info subcard */}
+                  <div className="active-member-info">
+                    <div>
+                      <span><strong>Tình trạng:</strong></span>
+                      <span>{statusText(selectedPc.status)}</span>
+                    </div>
+                    {selectedPc.activeSession && (
+                      <>
+                        <div style={{ marginTop: '0.25rem' }}>
+                          <span><strong>Loại khách:</strong></span>
+                          <span>{selectedPc.activeMember ? 'Hội viên' : 'Khách vãng lai'}</span>
+                        </div>
+                        {selectedPc.activeMember && (
+                          <div>
+                            <span><strong>Username:</strong></span>
+                            <span>{selectedPc.activeMember.username}</span>
+                          </div>
+                        )}
+                        <div>
+                          <span><strong>Thời gian dùng:</strong></span>
+                          <span>
+                            {formatDuration(selectedPc.activeSession.elapsedSeconds + tick)}
+                          </span>
+                        </div>
+                        {selectedPc.activeMember && (
+                          <div>
+                            <span><strong>Thời gian còn lại:</strong></span>
+                            <span>{getRemainingTime(selectedPc)}</span>
+                          </div>
+                        )}
+                        <div style={{ borderTop: '1px solid rgba(0,0,0,0.1)', marginTop: '0.4rem', paddingTop: '0.4rem' }}>
+                          <span><strong>Tiền máy tạm tính:</strong></span>
+                          <span><strong>{formatMoney(selectedPc.activeSession.estimatedAmount)}</strong></span>
+                        </div>
+                        {unpaidOrders.length > 0 && (
+                          <div>
+                            <span><strong>Tiền dịch vụ chưa trả:</strong></span>
+                            <span style={{ color: '#d32f2f' }}>
+                              +{formatMoney(getUnpaidServicesTotal(unpaidOrders))}
+                            </span>
+                          </div>
+                        )}
+                        <div style={{ borderTop: '1px dashed rgba(0,0,0,0.15)', marginTop: '0.4rem', paddingTop: '0.4rem', fontSize: '1.05rem', color: '#b42318' }}>
+                          <span><strong>Tổng thanh toán:</strong></span>
+                          <span><strong>{formatMoney(selectedPc.activeSession.estimatedAmount + getUnpaidServicesTotal(unpaidOrders))}</strong></span>
+                        </div>
+                      </>
+                    )}
+                    {selectedPc.ipAddress && (
+                      <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.25rem' }}>
+                        IP: {selectedPc.ipAddress} | MAC: {selectedPc.macAddress ?? 'Chưa rõ'}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions based on state */}
+                  {selectedPc.status === 'OFFLINE' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <button
+                        onClick={handleWOL}
+                        disabled={actionPending || !selectedPc.macAddress}
+                        style={{ background: '#2e7d32', borderColor: '#2e7d32' }}
+                      >
+                        {actionPending ? 'Đang gửi...' : 'Mở máy từ xa (Wake-on-LAN)'}
+                      </button>
+                      {!selectedPc.macAddress && (
+                        <p style={{ fontSize: '0.8rem', color: 'red', margin: 0 }}>
+                          * Máy này chưa có thông tin địa chỉ MAC nên không thể bật từ xa.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {(selectedPc.status === 'ONLINE' || selectedPc.status === 'LOCKED' || selectedPc.status === 'BOOTING') && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                      <div className="form-group">
+                        <label>Hình thức mở máy:</label>
+                        <div style={{ display: 'flex', gap: '1rem', marginTop: '0.2rem' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}>
+                            <input
+                              type="radio"
+                              name="openType"
+                              checked={openType === 'guest'}
+                              onChange={() => setOpenType('guest')}
+                            />
+                            Khách vãng lai
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}>
+                            <input
+                              type="radio"
+                              name="openType"
+                              checked={openType === 'member'}
+                              onChange={() => setOpenType('member')}
+                            />
+                            Hội viên
+                          </label>
+                        </div>
+                      </div>
+
+                      {openType === 'guest' ? (
+                        <>
+                          <div className="form-group">
+                            <label htmlFor="guest-amount">Nạp tiền giờ trước (để trống nếu không giới hạn):</label>
+                            <input
+                              id="guest-amount"
+                              type="number"
+                              min={0}
+                              step={1000}
+                              placeholder="Mở máy tự do"
+                              value={guestAmount}
+                              onChange={(e) => setGuestAmount(e.target.value)}
+                            />
+                          </div>
+                          <div className="preset-grid">
+                            {[0, 10000, 20000, 50000, 100000, 200000].map((preset) => (
+                              <button
+                                key={preset}
+                                type="button"
+                                className={`preset-btn ${Number(guestAmount) === preset ? 'active' : ''}`}
+                                onClick={() => setGuestAmount(preset.toString())}
+                              >
+                                {preset === 0 ? 'Tự do' : `${preset / 1000}k`}
+                              </button>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleOpenGuest}
+                            disabled={actionPending}
+                            style={{ background: '#2e7d32', borderColor: '#2e7d32', marginTop: '0.5rem' }}
+                          >
+                            {actionPending ? 'Đang mở máy...' : 'Xác nhận mở máy'}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="form-group">
+                            <label htmlFor="member-search">Tìm kiếm hội viên:</label>
+                            <input
+                              id="member-search"
+                              type="text"
+                              placeholder="Nhập tên đăng nhập hoặc số điện thoại..."
+                              value={memberSearch}
+                              onChange={(e) => setMemberSearch(e.target.value)}
+                            />
+                          </div>
+
+                          {matchingMembers.length > 0 && (
+                            <div className="member-search-results">
+                              {matchingMembers.map((m) => (
+                                <div
+                                  key={m.id}
+                                  className={`member-search-item ${selectedMember?.id === m.id ? 'selected' : ''}`}
+                                  onClick={() => setSelectedMember(m)}
+                                >
+                                  <span>{m.username} ({m.fullName})</span>
+                                  <span>SD: {formatMoney(m.balance)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {selectedMember && (
+                            <div className="active-member-info" style={{ background: '#f6ffed', borderColor: '#b7eb8f', color: '#389e0d' }}>
+                              <div><strong>Hội viên đã chọn:</strong> {selectedMember.username}</div>
+                              <div><strong>Tên thật:</strong> {selectedMember.fullName}</div>
+                              <div><strong>Số dư tài khoản:</strong> {formatMoney(selectedMember.balance)}</div>
+                              <div><strong>Giờ chơi tương đương:</strong> {selectedMember.playHours.toFixed(2)} giờ</div>
+                            </div>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={handleOpenMember}
+                            disabled={actionPending || !selectedMember}
+                            style={{ background: '#2e7d32', borderColor: '#2e7d32', marginTop: '0.5rem' }}
+                          >
+                            {actionPending ? 'Đang đăng nhập...' : 'Mở máy hội viên'}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {(selectedPc.status === 'IN_USE') && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.5rem' }}>
+                      <button
+                        onClick={handleLock}
+                        disabled={actionPending}
+                        className="btn-danger"
+                        style={{ padding: '0.75rem', fontSize: '1rem' }}
+                      >
+                        {actionPending ? 'Đang gửi...' : 'Tính tiền & Khóa máy'}
+                      </button>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          onClick={handleRestart}
+                          disabled={actionPending}
+                          className="btn-secondary"
+                          style={{ flex: 1 }}
+                        >
+                          Khởi động lại
+                        </button>
+                        <button
+                          onClick={handleShutdown}
+                          disabled={actionPending}
+                          className="btn-secondary"
+                          style={{ flex: 1, color: '#d32f2f' }}
+                        >
+                          Tắt máy
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* TAB 2: SERVICE */}
+              {drawerTab === 'service' && selectedPc.status === 'IN_USE' && (
+                <>
+                  <div className="form-group">
+                    <label htmlFor="service-select">Chọn dịch vụ:</label>
+                    <select
+                      id="service-select"
+                      value={selectedServiceId}
+                      onChange={(e) => setSelectedServiceId(e.target.value)}
+                    >
+                      {serviceItems.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} - {formatMoney(item.unitPrice)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Số lượng:</label>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => setServiceQty((q) => Math.max(1, q - 1))}
+                        style={{ padding: '0.4rem 0.8rem' }}
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        min={1}
+                        value={serviceQty}
+                        onChange={(e) => setServiceQty(Math.max(1, Number(e.target.value) || 1))}
+                        style={{ textAlign: 'center', width: '60px' }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => setServiceQty((q) => q + 1)}
+                        style={{ padding: '0.4rem 0.8rem' }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="service-note">Ghi chú:</label>
+                    <input
+                      id="service-note"
+                      type="text"
+                      placeholder="Không đường, ít đá..."
+                      value={serviceNote}
+                      onChange={(e) => setServiceNote(e.target.value)}
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleAddService}
+                    disabled={actionPending || !selectedServiceId}
+                    style={{ background: '#2e7d32', borderColor: '#2e7d32' }}
+                  >
+                    Gọi món dịch vụ
+                  </button>
+
+                  <h3 className="sub-section-title">Hóa đơn dịch vụ chưa thanh toán</h3>
+                  {loadingOrders ? (
+                    <p>Đang tải hóa đơn...</p>
+                  ) : unpaidOrders.length === 0 ? (
+                    <p style={{ color: '#666', fontSize: '0.9rem' }}>Chưa gọi dịch vụ hoặc đã trả hết.</p>
+                  ) : (
+                    <>
+                      <div className="drawer-order-list">
+                        {unpaidOrders.map((order) => (
+                          <div key={order.id} className="drawer-order-item">
+                            <div>
+                              <span className="drawer-order-name">{order.serviceItem.name}</span>
+                              <span style={{ color: '#666', marginLeft: '0.5rem' }}>x{order.quantity}</span>
+                            </div>
+                            <span className="drawer-order-total">{formatMoney(order.lineTotal)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '1rem', marginTop: '0.2rem' }}>
+                        <span>Tổng dịch vụ:</span>
+                        <span style={{ color: '#d32f2f' }}>{formatMoney(getUnpaidServicesTotal(unpaidOrders))}</span>
+                      </div>
+                      <button
+                        onClick={handlePayServices}
+                        disabled={actionPending}
+                        style={{ background: '#1976d2', borderColor: '#1976d2', marginTop: '0.4rem' }}
+                      >
+                        Thanh toán dịch vụ
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* TAB 3: TOPUP */}
+              {drawerTab === 'topup' && (
+                <>
+                  <div className="form-group">
+                    <label htmlFor="topup-search">Tìm kiếm hội viên:</label>
+                    <input
+                      id="topup-search"
+                      type="text"
+                      placeholder="Nhập tên đăng nhập hoặc số điện thoại..."
+                      value={topupSearch}
+                      onChange={(e) => setTopupSearch(e.target.value)}
+                    />
+                  </div>
+
+                  {topupMatchingMembers.length > 0 && (
+                    <div className="member-search-results">
+                      {topupMatchingMembers.map((m) => (
+                        <div
+                          key={m.id}
+                          className={`member-search-item ${selectedTopupMember?.id === m.id ? 'selected' : ''}`}
+                          onClick={() => setSelectedTopupMember(m)}
+                        >
+                          <span>{m.username} ({m.fullName})</span>
+                          <span>SD: {formatMoney(m.balance)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {selectedTopupMember ? (
+                    <div className="active-member-info" style={{ background: '#f9f0ff', borderColor: '#d3adf7', color: '#531dab' }}>
+                      <div><strong>Hội viên:</strong> {selectedTopupMember.username} ({selectedTopupMember.fullName})</div>
+                      <div><strong>Số dư hiện tại:</strong> {formatMoney(selectedTopupMember.balance)}</div>
+                    </div>
+                  ) : (
+                    <p style={{ color: '#d32f2f', fontSize: '0.85rem', margin: 0 }}>* Vui lòng tìm và chọn hội viên trước khi nạp.</p>
+                  )}
+
+                  <div className="form-group">
+                    <label htmlFor="topup-amount">Số tiền nạp (VND):</label>
+                    <input
+                      id="topup-amount"
+                      type="number"
+                      min={1000}
+                      step={1000}
+                      value={topupAmountValue}
+                      onChange={(e) => setTopupAmountValue(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="preset-grid">
+                    {[10000, 20000, 50000, 100000, 200000, 500000].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        className={`preset-btn ${Number(topupAmountValue) === preset ? 'active' : ''}`}
+                        onClick={() => setTopupAmountValue(preset.toString())}
+                      >
+                        {preset / 1000}k
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={handleTopupSubmit}
+                    disabled={actionPending || !selectedTopupMember}
+                    style={{ background: '#2e7d32', borderColor: '#2e7d32', marginTop: '0.5rem' }}
+                  >
+                    Xác nhận nạp tiền
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setShowDrawer(false)}>Đóng</button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

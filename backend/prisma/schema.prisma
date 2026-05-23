@@ -112,7 +112,6 @@ model Member {
   fullName       String              @map("full_name") @db.VarChar(120)
   phone          String?             @db.VarChar(30)
   balance        Decimal             @default(0) @db.Decimal(12, 2)
-  playSeconds    Int                 @default(0) @map("play_seconds")
   isActive       Boolean             @default(true) @map("is_active")
   createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -158,7 +157,6 @@ model MemberTransaction {
   memberId         String                @map("member_id") @db.Uuid
   type             MemberTransactionType
   amountDelta      Decimal               @default(0) @map("amount_delta") @db.Decimal(12, 2)
-  playSecondsDelta Int                   @default(0) @map("play_seconds_delta")
   note             String?
   createdBy        String                @map("created_by") @db.VarChar(100)
   createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
