@@ -15,7 +15,7 @@ public partial class LoginWindow : Window
         InitializeComponent();
         
         // Setup HttpClient with baseUrl
-        var baseAddress = "http://localhost:9000"; // Default
+        var baseAddress = "http://localhost:39090"; // Default
         try
         {
             var path = System.IO.Path.Combine(AppContext.BaseDirectory, "appsettings.json");

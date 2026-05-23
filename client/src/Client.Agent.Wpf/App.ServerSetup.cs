@@ -94,7 +94,7 @@ public partial class App : Application
 
         var descText = new TextBlock
         {
-            Text = "Vi du: 192.168.1.50 hoac 192.168.1.50:9000",
+            Text = "Vi du: 192.168.1.50 hoac 192.168.1.50:39090",
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 0, 0, 10),
         };

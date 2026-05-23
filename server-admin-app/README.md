@@ -11,7 +11,7 @@ This app uses **WPF + WebView2**:
 
 ## Run
 
-1. Start backend (`:9000`):
+1. Start backend (`:39090`):
 
 ```powershell
 cd i:\servermanagerbilling\backend
@@ -37,7 +37,7 @@ dotnet run
 Edit `appsettings.json`:
 
 - `AdminBaseUrl`: default `http://localhost:5173`
-- `BackendHealthUrl`: default `http://localhost:9000/api/v1/pcs`
+- `BackendHealthUrl`: default `http://localhost:39090/api/v1/pcs`
 - `StartPath`: default `/pcs`
 
 ## Build exe

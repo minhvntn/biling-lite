@@ -1,9 +1,9 @@
 const getBaseUrl = () => {
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
-    return `http://${host}:9000`;
+    return `http://${host}:39090`;
   }
-  return 'http://localhost:9000';
+  return 'http://localhost:39090';
 };
 
 export const API_BASE_URL =

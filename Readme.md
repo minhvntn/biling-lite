@@ -114,8 +114,8 @@ dotnet run
 
 ## 6. URL mac dinh
 
-- Backend API: `http://localhost:9000/api/v1`
-- Socket.IO namespace: `http://localhost:9000/billing`
+- Backend API: `http://localhost:39090/api/v1`
+- Socket.IO namespace: `http://localhost:39090/billing`
 - Admin Web: `http://localhost:5173`
 - Server Admin Desktop config: `server-admin-app/appsettings.json`
 - Client Agent config: `client/src/Client.Agent.Wpf/appsettings.json`
@@ -151,19 +151,19 @@ Backend ho tro gia theo nhom may va gia mac dinh.
 ```powershell
 # Dat gia mac dinh = 5000 VND/gio
 Invoke-RestMethod -Method Put `
-  -Uri "http://localhost:9000/api/v1/pricing/default-rate" `
+  -Uri "http://localhost:39090/api/v1/pricing/default-rate" `
   -ContentType "application/json" `
   -Body '{"hourlyRate":5000}'
 
 # Tao nhom gia = 7000 VND/gio
 $group = Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:9000/api/v1/pricing/groups" `
+  -Uri "http://localhost:39090/api/v1/pricing/groups" `
   -ContentType "application/json" `
   -Body '{"name":"Phong VIP","hourlyRate":7000}'
 
 # Gan PC vao nhom vua tao
 Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:9000/api/v1/pricing/pcs/<pcId>/group" `
+  -Uri "http://localhost:39090/api/v1/pricing/pcs/<pcId>/group" `
   -ContentType "application/json" `
   -Body ("{""groupId"":""" + $group.id + """}")
 ```
@@ -175,7 +175,7 @@ Chay PowerShell voi quyen Administrator:
 ```powershell
 cd I:\servermanagerbilling\client\scripts
 .\publish-day5.ps1 -Configuration Release -Runtime win-x64
-.\configure-day5.ps1 -ServerUrl "http://<server-ip>:9000" -AgentId "PC-001"
+.\configure-day5.ps1 -ServerUrl "http://<server-ip>:39090" -AgentId "PC-001"
 .\deploy-day5-local.ps1
 .\verify-day5.ps1
 ```
@@ -197,6 +197,45 @@ Log mac dinh:
 - PowerShell chan script: mo PowerShell Administrator va dieu chinh ExecutionPolicy cho phien hien tai neu can.
 - Desktop app khong ket noi backend: kiem tra `BackendApiBaseUrl` trong `server-admin-app/appsettings.json`.
 - Agent khong hien tren admin: kiem tra `Agent.ServerUrl`, firewall port `9000`, va log agent.
+
+## 12. Public web bang Cloudflare Tunnel
+
+Da co script setup san trong `scripts/cloudflare`.
+
+### A) Quick tunnel (khong can domain, URL thay doi moi lan)
+
+```powershell
+# Terminal 1: backend
+cd I:\servermanagerbilling\backend
+npm run start:dev
+
+# Terminal 2: admin web (da proxy /api va /billing ve backend:39090)
+cd I:\servermanagerbilling\admin
+npm run dev
+
+# Terminal 3: cloudflare quick tunnel
+cd I:\servermanagerbilling
+.\scripts\cloudflare\start-quick-tunnel.ps1
+```
+
+### B) Named tunnel (co domain rieng, on dinh)
+
+```powershell
+cd I:\servermanagerbilling
+.\scripts\cloudflare\setup-named-tunnel.ps1 -Hostname admin.yourdomain.com -TunnelName servermanagerbilling-admin
+```
+
+Sau khi setup xong, moi lan chay:
+
+```powershell
+cd I:\servermanagerbilling
+.\scripts\cloudflare\run-named-tunnel.ps1 -TunnelName servermanagerbilling-admin
+```
+
+Luu y:
+- May chu phai chay backend (`9000`) va admin (`5400`) truoc khi mo tunnel.
+- Quick tunnel phu hop demo nhanh.
+- Named tunnel phu hop van hanh on dinh.
 
 
 Dùng prompt này mỗi lần mở project là ổn:

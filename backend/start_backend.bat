@@ -40,7 +40,7 @@ if %errorlevel% neq 0 (
 
 :: 4. Start NestJS Backend
 echo [INFO] Dang khoi dong Backend Service...
-echo May chu dang chay tai: http://localhost:9000
+echo May chu dang chay tai: http://localhost:39090
 echo.
 call npm run start:dev
 pause

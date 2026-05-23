@@ -18,7 +18,7 @@ function readArg(name, fallback) {
   return process.argv[index + 1];
 }
 
-const serverUrl = readArg('server', process.env.SERVER_URL ?? 'http://localhost:9000');
+const serverUrl = readArg('server', process.env.SERVER_URL ?? 'http://localhost:39090');
 const count = Math.max(1, toInt(readArg('count', process.env.MOCK_COUNT ?? '10'), 10));
 const start = Math.max(1, toInt(readArg('start', process.env.MOCK_START ?? '1'), 1));
 const digits = Math.max(1, toInt(readArg('digits', process.env.AGENT_DIGITS ?? '3'), 3));

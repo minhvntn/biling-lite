@@ -30,7 +30,7 @@ Artifacts output:
 
 ```powershell
 cd i:\servermanagerbilling\client\scripts
-.\configure-day5.ps1 -ServerUrl "http://192.168.1.50:9000" -AgentId "PC-001"
+.\configure-day5.ps1 -ServerUrl "http://192.168.1.50:39090" -AgentId "PC-001"
 ```
 
 ### 3) Deploy + install (run PowerShell as Administrator)
@@ -58,7 +58,7 @@ cd i:\servermanagerbilling\client\scripts
 ```powershell
 cd i:\servermanagerbilling\client\scripts
 .\publish-day5.ps1 -Configuration Release -Runtime win-x64
-.\configure-day5.ps1 -ServerUrl "http://192.168.1.50:9000" -AgentId "PC-001"
+.\configure-day5.ps1 -ServerUrl "http://192.168.1.50:39090" -AgentId "PC-001"
 .\deploy-day5-local.ps1
 .\verify-day5.ps1
 ```

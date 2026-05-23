@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-const serverUrl = process.env.SERVER_URL ?? 'http://localhost:9000';
+const serverUrl = process.env.SERVER_URL ?? 'http://localhost:39090';
 const agentId = process.env.AGENT_ID ?? 'PC-001';
 const hostname = process.env.AGENT_HOSTNAME ?? `${agentId}-MOCK`;
 const heartbeatSeconds = Number(process.env.HEARTBEAT_SECONDS ?? '10');

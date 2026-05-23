@@ -385,7 +385,7 @@ public partial class MainWindow : Window
             ip = ip[7..];
         }
 
-        // Drop brackets/port styles like [::1]:9000 and 192.168.1.10:9000.
+        // Drop brackets/port styles like [::1]:39090 and 192.168.1.10:39090.
         if (ip.StartsWith("[", StringComparison.Ordinal))
         {
             var closeBracket = ip.IndexOf(']');
