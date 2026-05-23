@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { io } from 'socket.io-client';
 import { lockPc, openPc, guestOpenPc, shutdownPc, restartPc, wakePc } from '../api/commands';
 import { fetchPcs } from '../api/pcs';
-import { fetchMembers, topupMember, setMemberPresence } from '../api/members';
+import { fetchMembers, setMemberPresence } from '../api/members';
 import {
   fetchServiceItems,
   createPcServiceOrder,
@@ -103,9 +103,6 @@ export function PcsPage() {
   const [serviceNote, setServiceNote] = useState('');
 
   // Topup member form
-  const [topupSearch, setTopupSearch] = useState('');
-  const [topupMatchingMembers, setTopupMatchingMembers] = useState<any[]>([]);
-  const [selectedTopupMember, setSelectedTopupMember] = useState<any | null>(null);
   const [topupAmountValue, setTopupAmountValue] = useState('50000');
 
   const loadPcs = async () => {
@@ -197,28 +194,6 @@ export function PcsPage() {
     return () => clearTimeout(delay);
   }, [memberSearch, openType]);
 
-  // Debounced Member Search for Top-up
-  useEffect(() => {
-    if (!topupSearch.trim()) {
-      setTopupMatchingMembers([]);
-      return;
-    }
-    const delay = setTimeout(async () => {
-      try {
-        const res = await fetchMembers(topupSearch);
-        setTopupMatchingMembers(res.items);
-        if (res.items.length > 0) {
-          setSelectedTopupMember(res.items[0]);
-        } else {
-          setSelectedTopupMember(null);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }, 300);
-    return () => clearTimeout(delay);
-  }, [topupSearch]);
-
   // When drawer selected PC updates, refresh its unpaid orders
   const loadUnpaidOrders = async (pcId: string) => {
     setLoadingOrders(true);
@@ -245,15 +220,6 @@ export function PcsPage() {
     setGuestAmount('0');
     setServiceQty(1);
     setServiceNote('');
-
-    // Pre-fill top-up if member is active on PC
-    if (pc.activeMember) {
-      setSelectedTopupMember(pc.activeMember);
-      setTopupSearch(pc.activeMember.username);
-    } else {
-      setSelectedTopupMember(null);
-      setTopupSearch('');
-    }
 
     void loadUnpaidOrders(pc.id);
   };
@@ -443,32 +409,29 @@ export function PcsPage() {
     }
   };
 
-  const handleTopupSubmit = async () => {
-    if (!selectedTopupMember) return;
+  const handleGuestTopupSubmit = async () => {
+    if (!selectedPc || !selectedPc.activeGuest) return;
     setActionPending(true);
     setDrawerError(null);
     setDrawerSuccess(null);
     try {
-      const amt = Number(topupAmountValue) || 0;
-      await topupMember(selectedTopupMember.id, {
-        amount: amt,
-        createdBy: 'admin.web',
-      });
-      setDrawerSuccess(`Đã nạp thành công ${formatMoney(amt)} cho hội viên ${selectedTopupMember.username}`);
+      const additionalAmt = Number(topupAmountValue) || 0;
+      const currentAmt = selectedPc.activeGuest.prepaidAmount || 0;
+      const newTotal = currentAmt + additionalAmt;
+      await guestOpenPc(selectedPc.id, newTotal);
+      setDrawerSuccess(`Đã nạp thành công thêm ${formatMoney(additionalAmt)} cho khách vãng lai. Tổng tiền hiện tại: ${formatMoney(newTotal)}`);
       await loadPcs();
-      // Update selected PC info in real-time if they are the active member
-      if (selectedPc?.activeMember?.id === selectedTopupMember.id) {
-        setSelectedPc((prev) => {
-          if (!prev || !prev.activeMember) return prev;
-          return {
-            ...prev,
-            activeMember: {
-              ...prev.activeMember,
-              balance: Number(prev.activeMember.balance) + amt,
-            },
-          };
-        });
-      }
+      // Update selected PC info in real-time
+      setSelectedPc((prev) => {
+        if (!prev || !prev.activeGuest) return prev;
+        return {
+          ...prev,
+          activeGuest: {
+            ...prev.activeGuest,
+            prepaidAmount: newTotal,
+          },
+        };
+      });
     } catch (e) {
       setDrawerError(e instanceof Error ? e.message : 'Nạp tiền thất bại');
     } finally {
@@ -628,42 +591,34 @@ export function PcsPage() {
           const elapsed = pc.activeSession
             ? Math.max(0, pc.activeSession.elapsedSeconds + tick)
             : 0;
+          const userName = getUserName(pc);
 
           return (
             <div key={pc.id} className="pc-card-item" onClick={() => handleOpenDrawer(pc)}>
               <div className="pc-card-header">
                 <span className="pc-card-title">{pc.name}</span>
-                <span className={statusClass(pc.status)}>{statusText(pc.status)}</span>
+                <span className={statusClass(pc.status)} style={{ fontSize: '0.68rem', padding: '0.15rem 0.4rem' }}>{statusText(pc.status)}</span>
               </div>
-              {getUserName(pc) !== '-' && (
+              {userName !== '-' && (
                 <div className="pc-card-body">
                   <div className="pc-card-row">
-                    <span className="pc-card-label">Người chơi:</span>
-                    <span className="pc-card-value">{getUserName(pc)}</span>
+                    <span className="pc-card-icon">👤</span>
+                    <span className="pc-card-value">{userName}</span>
                   </div>
                   {pc.activeSession && (
                     <>
                       <div className="pc-card-row">
-                        <span className="pc-card-label">Thời gian đã dùng:</span>
+                        <span className="pc-card-icon">⏱</span>
                         <span className="pc-card-value">{formatDuration(elapsed)}</span>
                       </div>
-                      {pc.activeMember && (
-                        <div className="pc-card-row">
-                          <span className="pc-card-label">Thời gian còn lại:</span>
-                          <span className="pc-card-value highlight">{getRemainingTime(pc)}</span>
-                        </div>
-                      )}
                       <div className="pc-card-row">
-                        <span className="pc-card-label">Tạm tính:</span>
+                        <span className="pc-card-icon">💰</span>
                         <span className="pc-card-value highlight">{formatMoney(pc.activeSession.estimatedAmount)}</span>
                       </div>
                     </>
                   )}
                 </div>
               )}
-              <div style={{ marginTop: '0.2rem', textAlign: 'right', fontSize: '0.72rem', color: '#0066cc', fontWeight: 'bold' }}>
-                Bấm để thao tác &raquo;
-              </div>
             </div>
           );
         })}
@@ -695,12 +650,14 @@ export function PcsPage() {
               >
                 Dịch vụ {unpaidOrders.length > 0 ? `(${unpaidOrders.length})` : ''}
               </button>
-              <button
-                className={`modal-tab-btn ${drawerTab === 'topup' ? 'active' : ''}`}
-                onClick={() => setDrawerTab('topup')}
-              >
-                Nạp hội viên
-              </button>
+              {selectedPc.activeGuest && (selectedPc.activeGuest.prepaidAmount ?? 0) > 0 && (
+                <button
+                  className={`modal-tab-btn ${drawerTab === 'topup' ? 'active' : ''}`}
+                  onClick={() => setDrawerTab('topup')}
+                >
+                  Nạp tiền
+                </button>
+              )}
             </div>
 
             <div className="modal-body">
@@ -712,9 +669,9 @@ export function PcsPage() {
                 <>
                   {/* Info subcard */}
                   <div className="active-member-info">
-                    <div>
+                    <div className="status-summary-row">
                       <span><strong>Tình trạng:</strong></span>
-                      <span>{statusText(selectedPc.status)}</span>
+                      <span className="status-summary-value">{statusText(selectedPc.status)}</span>
                     </div>
                     {selectedPc.activeSession && (
                       <>
@@ -759,8 +716,9 @@ export function PcsPage() {
                       </>
                     )}
                     {selectedPc.ipAddress && (
-                      <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.25rem' }}>
-                        IP: {selectedPc.ipAddress} | MAC: {selectedPc.macAddress ?? 'Chưa rõ'}
+                      <div className="machine-network-meta">
+                        <span>IP: {selectedPc.ipAddress}</span>
+                        <span>MAC: {selectedPc.macAddress ?? 'Chưa rõ'}</span>
                       </div>
                     )}
                   </div>
@@ -787,8 +745,8 @@ export function PcsPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                       <div className="form-group">
                         <label>Hình thức mở máy:</label>
-                        <div style={{ display: 'flex', gap: '1rem', marginTop: '0.2rem' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}>
+                        <div className="open-type-options">
+                          <label className="open-type-option">
                             <input
                               type="radio"
                               name="openType"
@@ -797,7 +755,7 @@ export function PcsPage() {
                             />
                             Khách vãng lai
                           </label>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}>
+                          <label className="open-type-option">
                             <input
                               type="radio"
                               name="openType"
@@ -1028,45 +986,15 @@ export function PcsPage() {
               )}
 
               {/* TAB 3: TOPUP */}
-              {drawerTab === 'topup' && (
+              {drawerTab === 'topup' && selectedPc.activeGuest && (
                 <>
-                  <div className="form-group">
-                    <label htmlFor="topup-search">Tìm kiếm hội viên:</label>
-                    <input
-                      id="topup-search"
-                      type="text"
-                      placeholder="Nhập tên đăng nhập hoặc số điện thoại..."
-                      value={topupSearch}
-                      onChange={(e) => setTopupSearch(e.target.value)}
-                    />
+                  <div className="active-member-info" style={{ background: '#f6ffed', borderColor: '#b7eb8f', color: '#389e0d' }}>
+                    <div><strong>Loại tài khoản:</strong> Khách vãng lai</div>
+                    <div><strong>Tiền giờ hiện tại:</strong> {formatMoney(selectedPc.activeGuest.prepaidAmount)}</div>
                   </div>
 
-                  {topupMatchingMembers.length > 0 && (
-                    <div className="member-search-results">
-                      {topupMatchingMembers.map((m) => (
-                        <div
-                          key={m.id}
-                          className={`member-search-item ${selectedTopupMember?.id === m.id ? 'selected' : ''}`}
-                          onClick={() => setSelectedTopupMember(m)}
-                        >
-                          <span>{m.username} ({m.fullName})</span>
-                          <span>SD: {formatMoney(m.balance)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {selectedTopupMember ? (
-                    <div className="active-member-info" style={{ background: '#f9f0ff', borderColor: '#d3adf7', color: '#531dab' }}>
-                      <div><strong>Hội viên:</strong> {selectedTopupMember.username} ({selectedTopupMember.fullName})</div>
-                      <div><strong>Số dư hiện tại:</strong> {formatMoney(selectedTopupMember.balance)}</div>
-                    </div>
-                  ) : (
-                    <p style={{ color: '#d32f2f', fontSize: '0.85rem', margin: 0 }}>* Vui lòng tìm và chọn hội viên trước khi nạp.</p>
-                  )}
-
                   <div className="form-group">
-                    <label htmlFor="topup-amount">Số tiền nạp (VND):</label>
+                    <label htmlFor="topup-amount">Số tiền nạp thêm (VND):</label>
                     <input
                       id="topup-amount"
                       type="number"
@@ -1091,11 +1019,11 @@ export function PcsPage() {
                   </div>
 
                   <button
-                    onClick={handleTopupSubmit}
-                    disabled={actionPending || !selectedTopupMember}
+                    onClick={handleGuestTopupSubmit}
+                    disabled={actionPending || !topupAmountValue}
                     style={{ background: '#2e7d32', borderColor: '#2e7d32', marginTop: '0.5rem' }}
                   >
-                    Xác nhận nạp tiền
+                    {actionPending ? 'Đang nạp...' : 'Xác nhận nạp tiền'}
                   </button>
                 </>
               )}

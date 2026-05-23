@@ -59,6 +59,7 @@ public partial class App : Application
     private MainWindow? _mainWindow;
     private ActiveMemberSession? _activeMemberSession;
     private bool _isPostpaidGuestSession;
+    private int? _guestPrepaidTotalMinutes;
     private bool _isAdminSession;
     private bool _isMemberWithdrawEnabled = true;
     private bool _isMemberTopupRequestEnabled = true;
@@ -310,6 +311,21 @@ public partial class App : Application
 
         _socketService.GetRunningAppsHandler = HandleGetRunningAppsRequestedAsync;
         _socketService.KillProcessHandler = HandleKillProcessRequestedAsync;
+        _socketService.GuestPrepaidConfigureHandler = payload =>
+        {
+            if (payload.PrepaidAmount > 0 && payload.HourlyRate > 0)
+            {
+                _currentHourlyRate = payload.HourlyRate;
+                var totalMinutes = (int)Math.Floor((payload.PrepaidAmount / payload.HourlyRate) * 60m);
+                totalMinutes = Math.Max(1, totalMinutes);
+                _guestPrepaidTotalMinutes = totalMinutes;
+                Dispatcher.Invoke(() =>
+                {
+                    _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true);
+                    _mainWindow?.SetUpfrontUsedDuration();
+                });
+            }
+        };
 
         _ = Task.Run(async () =>
         {
@@ -385,18 +401,20 @@ public partial class App : Application
                     if (payload.HourlyRate is > 0)
                     {
                         _currentHourlyRate = payload.HourlyRate.Value;
-                        Dispatcher.Invoke(() =>
-                            _mainWindow?.ConfigureBilling(
-                                _settings.TotalSessionMinutes,
-                                _currentHourlyRate,
-                                true));
                     }
+                    var guestTotalMinutes = _guestPrepaidTotalMinutes ?? _settings.TotalSessionMinutes;
+                    Dispatcher.Invoke(() =>
+                        _mainWindow?.ConfigureBilling(
+                            guestTotalMinutes,
+                            _currentHourlyRate,
+                            true));
                     Dispatcher.Invoke(UnlockMachine);
                     return (true, "opened");
 
                 case "LOCK":
                     await TrackAndClearMemberSessionAsync("SERVER_LOCK");
                     _isPostpaidGuestSession = false;
+                    _guestPrepaidTotalMinutes = null;
                     Dispatcher.Invoke(() => LockMachine(force: true));
                     return (true, "locked");
 
@@ -438,6 +456,7 @@ public partial class App : Application
 
                 case "RESUME":
                     _isPostpaidGuestSession = false;
+                    _guestPrepaidTotalMinutes = null;
                     if (payload.HourlyRate is > 0)
                     {
                         _currentHourlyRate = payload.HourlyRate.Value;
@@ -660,6 +679,7 @@ public partial class App : Application
             };
             _isAdminSession = false;
             _isPostpaidGuestSession = false;
+            _guestPrepaidTotalMinutes = null;
             _lastSyncedMemberUsedSeconds = 60;
             ResetMemberRemainingWarnings();
 
@@ -670,6 +690,7 @@ public partial class App : Application
             {
                 _activeMemberSession = null;
                 _isPostpaidGuestSession = false;
+                _guestPrepaidTotalMinutes = null;
                 _isAdminSession = false;
                 _lastSyncedMemberUsedSeconds = 0;
                 ResetMemberRemainingWarnings();
@@ -773,6 +794,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             _activeMemberSession = null;
             _isAdminSession = false;
             _isPostpaidGuestSession = true;
+            _guestPrepaidTotalMinutes = null;
             _suppressGuestPresenceForAutoResumedUnpaidSession = false;
             _lastSyncedMemberUsedSeconds = 0;
             ResetMemberRemainingWarnings();
@@ -3349,6 +3371,7 @@ LIMIT $limit;";
 
         _activeMemberSession = null;
         _isPostpaidGuestSession = false;
+        _guestPrepaidTotalMinutes = null;
         _isAdminSession = false;
         _suppressGuestPresenceForAutoResumedUnpaidSession = false;
         _lastSyncedMemberUsedSeconds = 0;
@@ -5818,6 +5841,7 @@ LIMIT $limit;";
     {
         await TrackAndClearMemberSessionAsync(auditReason);
         _isAdminSession = true;
+        _guestPrepaidTotalMinutes = null;
         _suppressGuestPresenceForAutoResumedUnpaidSession = false;
         await ReportAdminPresenceAsync(true, username);
         _activeMemberSession = null;
@@ -6690,7 +6714,4 @@ LIMIT $limit;";
         }
     }
 }
-
-
-
 

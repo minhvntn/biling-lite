@@ -31,6 +31,7 @@ public sealed class AgentSocketService : IAsyncDisposable
 
     public Func<AdminGetRunningAppsPayload, Task>? GetRunningAppsHandler { get; set; }
     public Func<AdminKillProcessPayload, Task>? KillProcessHandler { get; set; }
+    public Action<GuestPrepaidConfigurePayload>? GuestPrepaidConfigureHandler { get; set; }
 
     public AgentSocketService(
         AgentSettings settings,
@@ -268,6 +269,21 @@ public sealed class AgentSocketService : IAsyncDisposable
             catch (Exception ex)
             {
                 await _logger.ErrorAsync("Failed to parse web.filter.settings.changed payload", ex);
+            }
+        });
+
+        _socket.On("guest.prepaid.configure", async response =>
+        {
+            try
+            {
+                var payload = response.GetValue<GuestPrepaidConfigurePayload>();
+                await _logger.InfoAsync(
+                    $"Received guest.prepaid.configure prepaidAmount={payload.PrepaidAmount} hourlyRate={payload.HourlyRate}");
+                GuestPrepaidConfigureHandler?.Invoke(payload);
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync("Failed to parse guest.prepaid.configure payload", ex);
             }
         });
 
@@ -676,6 +692,21 @@ public sealed class ServiceOrdersChangedPayload
 
     [JsonPropertyName("at")]
     public string? At { get; set; }
+}
+
+public sealed class GuestPrepaidConfigurePayload
+{
+    [JsonPropertyName("pcId")]
+    public string PcId { get; set; } = string.Empty;
+
+    [JsonPropertyName("prepaidAmount")]
+    public decimal PrepaidAmount { get; set; }
+
+    [JsonPropertyName("hourlyRate")]
+    public decimal HourlyRate { get; set; }
+
+    [JsonPropertyName("issuedAt")]
+    public string? IssuedAt { get; set; }
 }
 
 public sealed class WebFilterSettingsChangedPayload

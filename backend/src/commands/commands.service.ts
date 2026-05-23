@@ -139,6 +139,18 @@ export class CommandsService {
       at: new Date().toISOString(),
     });
 
+    // Emit prepaid amount to the client agent so it can compute the correct session time
+    const hourlyRate = await this.resolveHourlyRateForPc(command.pcId);
+    const targetPc = await this.prisma.pc.findUnique({ where: { id: command.pcId } });
+    if (targetPc) {
+      this.realtime.emitToAgent(targetPc.agentId, 'guest.prepaid.configure', {
+        pcId: command.pcId,
+        prepaidAmount: normalizedAmount,
+        hourlyRate,
+        issuedAt: new Date().toISOString(),
+      });
+    }
+
     return command;
   }
 
