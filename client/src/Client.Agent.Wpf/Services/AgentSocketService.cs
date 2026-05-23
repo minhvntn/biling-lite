@@ -101,6 +101,13 @@ public sealed class AgentSocketService : IAsyncDisposable
 
         _socket.OnReconnectAttempt += async (_, attempt) =>
         {
+            if (_socket?.Connected == true)
+            {
+                // SocketIOClient can raise reconnect callbacks during transient transport churn
+                // even when namespace is still connected; keep UI state stable.
+                return;
+            }
+
             _connectionStatusChanged($"Reconnecting ({attempt})");
             await _logger.InfoAsync($"Reconnect attempt #{attempt}");
         };

@@ -124,6 +124,7 @@ public partial class App : Application
         _currentHourlyRate = _settings.HourlyRate > 0 ? _settings.HourlyRate : 12000;
         _logger = new FileLogger(Path.Combine(GetLogDirectory(), "client-agent.log"));
         _ = _logger.InfoAsync("Client agent starting");
+        _ = _logger.InfoAsync($"Client agent server endpoint: {_settings.ServerUrl}");
 
         if (_settings.EnableAutoStartup)
         {
@@ -6714,4 +6715,3 @@ LIMIT $limit;";
         }
     }
 }
-

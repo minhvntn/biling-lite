@@ -241,7 +241,7 @@ public partial class App : Application
 
         if (builder.Port <= 0)
         {
-            builder.Port = 9000;
+            builder.Port = 39090;
         }
 
         normalizedUrl = builder.Uri.GetLeftPart(UriPartial.Authority).TrimEnd('/');
