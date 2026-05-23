@@ -178,6 +178,75 @@
                     <TextBlock x:Name="MachineStateTextBlock" Text="Đang sử dụng" />
                 </Grid>
 
+                <!-- Promotion Banner -->
+                <Border x:Name="PromotionBannerBorder"
+                        Visibility="Collapsed"
+                        Margin="0,0,0,8"
+                        Padding="10,8"
+                        CornerRadius="12"
+                        BorderThickness="1"
+                        BorderBrush="#FEE2E2">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#FFF1F2" Offset="0" />
+                            <GradientStop Color="#FFE4E6" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="🎁" FontSize="20" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="PromotionNameTextBlock"
+                                       Foreground="#E11D48"
+                                       FontWeight="Bold"
+                                       FontSize="13"
+                                       TextTrimming="CharacterEllipsis"
+                                       Text="Khuyến mãi giờ vàng" />
+                            <TextBlock x:Name="PromotionDiscountTextBlock"
+                                       Foreground="#BE123C"
+                                       FontSize="11"
+                                       Text="Giảm 20% tiền giờ chơi" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Loyalty Promotion Banner -->
+                <Border x:Name="LoyaltyPromotionBannerBorder"
+                        Visibility="Collapsed"
+                        Margin="0,0,0,8"
+                        Padding="10,8"
+                        CornerRadius="12"
+                        BorderThickness="1"
+                        BorderBrush="#FEF08A">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#FEF9C3" Offset="0" />
+                            <GradientStop Color="#FEF08A" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="🚀" FontSize="20" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Foreground="#854D0E"
+                                       FontWeight="Bold"
+                                       FontSize="13"
+                                       TextTrimming="CharacterEllipsis"
+                                       Text="Khuyến mãi điểm thưởng" />
+                            <TextBlock x:Name="LoyaltyPromotionDiscountTextBlock"
+                                       Foreground="#A16207"
+                                       FontSize="11"
+                                       Text="Hệ số nhân điểm: x2" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
                 <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="12" Padding="10" Margin="0,0,0,8">
                     <StackPanel>
                         <Grid Margin="0,0,0,8">

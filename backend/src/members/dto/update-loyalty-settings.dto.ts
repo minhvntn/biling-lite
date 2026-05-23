@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 export class UpdateLoyaltySettingsDto {
   @IsBoolean()
@@ -22,6 +22,24 @@ export class UpdateLoyaltySettingsDto {
   @Min(1)
   @Max(10000)
   pointsToMinutes?: number;
+
+  @IsOptional()
+  @Transform(({ value }: { value?: unknown }) =>
+    value === undefined || value === null || value === '' ? undefined : Number(value),
+  )
+  @IsNumber()
+  @Min(0.1)
+  @Max(100)
+  weekdayMultiplier?: number;
+
+  @IsOptional()
+  @Transform(({ value }: { value?: unknown }) =>
+    value === undefined || value === null || value === '' ? undefined : Number(value),
+  )
+  @IsNumber()
+  @Min(0.1)
+  @Max(100)
+  weekendMultiplier?: number;
 
   @IsOptional()
   @IsString()

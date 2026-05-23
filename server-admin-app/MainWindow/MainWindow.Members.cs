@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -139,6 +139,8 @@ public partial class MainWindow : Window
             TotalTopupText = item.TotalTopup.ToString("N0", CultureInfo.InvariantCulture),
             PasswordState = item.HasPassword ? "\u0110\u00e3 \u0111\u1eb7t" : "Ch\u01b0a \u0111\u1eb7t",
             ActiveText = item.IsActive ? "Ho\u1ea1t \u0111\u1ed9ng" : "T\u1ea1m kh\u00f3a",
+            MemberType = item.MemberType ?? "REGULAR",
+            MemberTypeText = string.Equals(item.MemberType, "VIP", StringComparison.OrdinalIgnoreCase) ? "VIP" : "Thường",
             CreatedAtText = FormatDateTime(item.CreatedAt),
         };
     }
@@ -346,6 +348,7 @@ public partial class MainWindow : Window
 
         if (string.IsNullOrEmpty(password))
         {
+
             MemberModalErrorTextBlock.Text = I18n.MemberPasswordTooShort;
             return;
         }
@@ -354,6 +357,14 @@ public partial class MainWindow : Window
         {
             MemberModalErrorTextBlock.Text = string.Empty;
 
+            var memberType = "REGULAR";
+            if (MemberTypeComboBox.SelectedItem is ComboBoxItem selectedType &&
+                selectedType.Tag is string tag &&
+                !string.IsNullOrWhiteSpace(tag))
+            {
+                memberType = tag;
+            }
+
             var body = new
             {
                 username,
@@ -361,6 +372,7 @@ public partial class MainWindow : Window
                 fullName = username,
                 phone = string.IsNullOrWhiteSpace(phone) ? null : phone,
                 identityNumber = string.IsNullOrWhiteSpace(identityNumber) ? null : identityNumber,
+                memberType,
             };
 
             using var response = await _httpClient.PostAsJsonAsync(BuildApiUrl("/members"), body);
@@ -1100,6 +1112,7 @@ public partial class MainWindow : Window
         MemberPhoneTextBox.Text = string.Empty;
         MemberIdentityTextBox.Text = string.Empty;
         MemberModalErrorTextBlock.Text = string.Empty;
+        MemberTypeComboBox.SelectedIndex = 0;
         ResetMemberModalTimer();
         MemberModalOverlay.Visibility = Visibility.Visible;
         MemberUsernameTextBox.Focus();

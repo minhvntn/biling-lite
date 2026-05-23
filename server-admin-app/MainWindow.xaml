@@ -412,6 +412,9 @@
                                                             <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
                                                                 <Setter Property="Background" Value="#FACC15" />
                                                             </DataTrigger>
+                                                             <DataTrigger Binding="{Binding IsVipSession}" Value="True">
+                                                                 <Setter Property="Background" Value="#FEF3C7" />
+                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
                                                 </Border.Style>
@@ -440,6 +443,9 @@
                                                                     <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
                                                                         <Setter Property="Foreground" Value="#DC2626" />
                                                                     </DataTrigger>
+                                                                     <DataTrigger Binding="{Binding IsVipSession}" Value="True">
+                                                                         <Setter Property="Foreground" Value="#B45309" />
+                                                                     </DataTrigger>
                                                                 </Style.Triggers>
                                                             </Style>
                                                         </TextBlock.Style>
@@ -2798,6 +2804,40 @@
                                                          VerticalContentAlignment="Center"
                                                          TextChanged="LoyaltyRateTextBox_TextChanged" />
                                             </Grid>
+                                            <Grid Margin="0,8,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="280" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="#334155"
+                                                           Text="H&#x1ec7; s&#x1ed1; t&#x00ed;ch l&#x0169;y ng&#x00e0;y th&#x01b0;&#x1edd;ng:" />
+                                                <TextBox x:Name="LoyaltyWeekdayMultiplierTextBox"
+                                                         Grid.Column="1"
+                                                         Width="140"
+                                                         Height="30"
+                                                         HorizontalAlignment="Left"
+                                                         VerticalContentAlignment="Center"
+                                                         TextChanged="LoyaltyRateTextBox_TextChanged" />
+                                            </Grid>
+                                            <Grid Margin="0,8,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="280" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="#334155"
+                                                           Text="H&#x1ec7; s&#x1ed1; t&#x00ed;ch l&#x0169;y cu&#x1ed1;i tu&#x1ea7;n:" />
+                                                <TextBox x:Name="LoyaltyWeekendMultiplierTextBox"
+                                                         Grid.Column="1"
+                                                         Width="140"
+                                                         Height="30"
+                                                         HorizontalAlignment="Left"
+                                                         VerticalContentAlignment="Center"
+                                                         TextChanged="LoyaltyRateTextBox_TextChanged" />
+                                            </Grid>
                                             <TextBlock x:Name="LoyaltySettingsStatusTextBlock"
                                                        Margin="0,8,0,0"
                                                        Foreground="#64748B"
@@ -3205,6 +3245,9 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
@@ -3221,11 +3264,17 @@
                     <TextBox x:Name="MemberPhoneTextBox" Grid.Row="6" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,10" />
 
                     <TextBlock Grid.Row="7" Text="CCCD/CMND (không bắt buộc)" Margin="0,0,0,4" />
-                    <TextBox x:Name="MemberIdentityTextBox" Grid.Row="8" Height="32" VerticalContentAlignment="Center" />
+                    <TextBox x:Name="MemberIdentityTextBox" Grid.Row="8" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,10" />
 
-                    <TextBlock x:Name="MemberModalErrorTextBlock" Grid.Row="9" VerticalAlignment="Top" Foreground="#B42318" Margin="0,8,0,0" TextWrapping="Wrap" />
+                    <TextBlock Grid.Row="9" Text="Loại hội viên" Margin="0,0,0,4" />
+                    <ComboBox x:Name="MemberTypeComboBox" Grid.Row="10" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,10" SelectedIndex="0">
+                        <ComboBoxItem Content="Thường" Tag="REGULAR" />
+                        <ComboBoxItem Content="VIP" Tag="VIP" />
+                    </ComboBox>
 
-                    <StackPanel Grid.Row="10" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                    <TextBlock x:Name="MemberModalErrorTextBlock" Grid.Row="11" VerticalAlignment="Top" Foreground="#B42318" Margin="0,8,0,0" TextWrapping="Wrap" />
+
+                    <StackPanel Grid.Row="12" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
                         <Button Padding="10,5" Margin="0,0,8,0" Click="CreateMemberConfirmButton_Click" Content="Tạo" />
                         <Button Padding="10,5" Click="CancelMemberModalButton_Click" Content="Hủy" />
                     </StackPanel>

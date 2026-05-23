@@ -1,4 +1,5 @@
 export type TimeBasedPromotionLite = {
+  name?: string;
   daysOfWeek: number[];
   startTime: string;
   endTime: string;
@@ -86,6 +87,25 @@ export function getEffectiveHourlyRateAt(
   }
 
   return Math.round(baseHourlyRate * (1 - bestDiscount / 100));
+}
+
+export function getActivePromotionAt(
+  at: Date,
+  promotions: TimeBasedPromotionLite[],
+): TimeBasedPromotionLite | null {
+  let bestDiscount = 0;
+  let activePromo: TimeBasedPromotionLite | null = null;
+  for (const promotion of promotions) {
+    if (!isPromotionActiveAt(at, promotion)) {
+      continue;
+    }
+    const discount = Number(promotion.discountPercent ?? 0);
+    if (Number.isFinite(discount) && discount > bestDiscount) {
+      bestDiscount = discount;
+      activePromo = promotion;
+    }
+  }
+  return activePromo;
 }
 
 function nextMinuteBoundaryMs(currentMs: number): number {

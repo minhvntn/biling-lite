@@ -878,6 +878,7 @@ public partial class MainWindow : Window
             ? $"Nen image file: {url}"
             : $"Nen video file: {url}";
     }
+
     private async Task LoadLoyaltySettingsAsync()
     {
         try
@@ -898,8 +899,10 @@ public partial class MainWindow : Window
             LoyaltyPointsEnabledCheckBox.IsChecked = response.Enabled;
             LoyaltyMinutesPerPointTextBox.Text = Math.Max(1, response.MinutesPerPoint).ToString(CultureInfo.InvariantCulture);
             LoyaltyPointsToMinutesTextBox.Text = Math.Max(1, response.PointsToMinutes).ToString(CultureInfo.InvariantCulture);
+            LoyaltyWeekdayMultiplierTextBox.Text = response.WeekdayMultiplier.ToString(CultureInfo.InvariantCulture);
+            LoyaltyWeekendMultiplierTextBox.Text = response.WeekendMultiplier.ToString(CultureInfo.InvariantCulture);
             LoyaltySettingsStatusTextBlock.Text = response.Enabled
-                ? $"Đang bật tích lũy: {response.MinutesPerPoint} phút = 1 điểm, 1 điểm = {response.PointsToMinutes} phút chơi."
+                ? $"Đang bật tích lũy: {response.MinutesPerPoint} phút = 1 điểm, 1 điểm = {response.PointsToMinutes} phút chơi. (Ngày thường x{response.WeekdayMultiplier}, Cuối tuần x{response.WeekendMultiplier})"
                 : "Đang tắt tích lũy điểm cho hội viên.";
             LoyaltySettingsStatusTextBlock.Foreground = response.Enabled
                 ? Brushes.DarkGreen
@@ -933,6 +936,26 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!double.TryParse(LoyaltyWeekdayMultiplierTextBox.Text.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var weekdayMultiplier) || weekdayMultiplier <= 0)
+        {
+            if (!double.TryParse(LoyaltyWeekdayMultiplierTextBox.Text.Trim(), NumberStyles.Any, CultureInfo.CurrentCulture, out weekdayMultiplier) || weekdayMultiplier <= 0)
+            {
+                LoyaltySettingsStatusTextBlock.Text = "Hệ số tích lũy ngày thường không hợp lệ (phải là số > 0).";
+                LoyaltySettingsStatusTextBlock.Foreground = Brushes.Firebrick;
+                return;
+            }
+        }
+
+        if (!double.TryParse(LoyaltyWeekendMultiplierTextBox.Text.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var weekendMultiplier) || weekendMultiplier <= 0)
+        {
+            if (!double.TryParse(LoyaltyWeekendMultiplierTextBox.Text.Trim(), NumberStyles.Any, CultureInfo.CurrentCulture, out weekendMultiplier) || weekendMultiplier <= 0)
+            {
+                LoyaltySettingsStatusTextBlock.Text = "Hệ số tích lũy cuối tuần không hợp lệ (phải là số > 0).";
+                LoyaltySettingsStatusTextBlock.Foreground = Brushes.Firebrick;
+                return;
+            }
+        }
+
         try
         {
             using var response = await _httpClient.PatchAsJsonAsync(
@@ -942,6 +965,8 @@ public partial class MainWindow : Window
                     enabled,
                     minutesPerPoint,
                     pointsToMinutes,
+                    weekdayMultiplier,
+                    weekendMultiplier,
                     updatedBy = "admin.desktop",
                 });
 
@@ -956,10 +981,16 @@ public partial class MainWindow : Window
             var payload = await response.Content.ReadFromJsonAsync<LoyaltySettingsResponse>(JsonOptions());
             var effectiveMinutesPerPoint = payload?.MinutesPerPoint ?? minutesPerPoint;
             var effectivePointsToMinutes = payload?.PointsToMinutes ?? pointsToMinutes;
+            var effectiveWeekdayMultiplier = payload?.WeekdayMultiplier ?? weekdayMultiplier;
+            var effectiveWeekendMultiplier = payload?.WeekendMultiplier ?? weekendMultiplier;
+
             LoyaltyMinutesPerPointTextBox.Text = effectiveMinutesPerPoint.ToString(CultureInfo.InvariantCulture);
             LoyaltyPointsToMinutesTextBox.Text = effectivePointsToMinutes.ToString(CultureInfo.InvariantCulture);
+            LoyaltyWeekdayMultiplierTextBox.Text = effectiveWeekdayMultiplier.ToString(CultureInfo.InvariantCulture);
+            LoyaltyWeekendMultiplierTextBox.Text = effectiveWeekendMultiplier.ToString(CultureInfo.InvariantCulture);
+
             LoyaltySettingsStatusTextBlock.Text = enabled
-                ? $"Đã bật tích lũy: {effectiveMinutesPerPoint} phút = 1 điểm, 1 điểm = {effectivePointsToMinutes} phút chơi."
+                ? $"Đã bật tích lũy: {effectiveMinutesPerPoint} phút = 1 điểm, 1 điểm = {effectivePointsToMinutes} phút chơi. (Ngày thường x{effectiveWeekdayMultiplier}, Cuối tuần x{effectiveWeekendMultiplier})"
                 : "Đã tắt tích lũy điểm cho hội viên.";
             LoyaltySettingsStatusTextBlock.Foreground = enabled ? Brushes.DarkGreen : Brushes.DimGray;
             AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã lưu cài đặt điểm tích lũy: {(enabled ? "BẬT" : "TẮT")}");
@@ -971,6 +1002,7 @@ public partial class MainWindow : Window
             AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Lỗi kết nối khi lưu cài đặt điểm tích lũy");
         }
     }
+
 
     private void LoyaltyPointsEnabledCheckBox_Checked(object sender, RoutedEventArgs e)
     {

@@ -312,6 +312,13 @@ public partial class App : Application
 
         _socketService.GetRunningAppsHandler = HandleGetRunningAppsRequestedAsync;
         _socketService.KillProcessHandler = HandleKillProcessRequestedAsync;
+        _socketService.PromotionChangedHandler = (promoName, discount) =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _mainWindow?.UpdatePromotion(promoName, discount);
+            });
+        };
         _socketService.GuestPrepaidConfigureHandler = payload =>
         {
             if (payload.PrepaidAmount > 0 && payload.HourlyRate > 0)
@@ -677,6 +684,7 @@ public partial class App : Application
                 Username = member.Username,
                 FullName = member.FullName,
                 Rank = member.Rank,
+                MemberType = member.MemberType ?? "REGULAR",
             };
             _isAdminSession = false;
             _isPostpaidGuestSession = false;
@@ -700,8 +708,10 @@ public partial class App : Application
 
             Dispatcher.Invoke(() =>
             {
-                var totalMinutes = ComputeMinutesFromBalance(member.Balance, _currentHourlyRate);
-                if (totalMinutes <= 0)
+                var totalMinutes = member.MemberType == "VIP"
+                    ? _settings.TotalSessionMinutes
+                    : ComputeMinutesFromBalance(member.Balance, _currentHourlyRate);
+                if (totalMinutes <= 0 && member.MemberType != "VIP")
                 {
                     totalMinutes = Math.Max(1, member.PlaySeconds / 60);
                 }
@@ -883,6 +893,10 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
     private int ComputeRemainingMinutesFromMemberSnapshot(MemberLoginItem member)
     {
+        if (member.MemberType == "VIP")
+        {
+            return _settings.TotalSessionMinutes;
+        }
         var balanceMinutes = ComputeMinutesFromBalance(member.Balance, _currentHourlyRate);
         var playSecondsMinutes = ComputeMinutesFromPlaySeconds(member.PlaySeconds);
         return Math.Max(0, balanceMinutes + playSecondsMinutes);
@@ -2288,6 +2302,28 @@ public async void OpenLoyaltyPanelFromClientUi()
         }
 
         await RefreshClientRuntimeSettingsAsync();
+        await RefreshLoyaltySettingsPeriodicAsync();
+    }
+
+    private async Task RefreshLoyaltySettingsPeriodicAsync()
+    {
+        try
+        {
+            var settings = await GetLoyaltySettingsAsync();
+            if (settings is null)
+            {
+                return;
+            }
+
+            Dispatcher.Invoke(() =>
+            {
+                _mainWindow?.UpdateLoyaltyMultiplier(settings.CurrentMultiplier);
+            });
+        }
+        catch
+        {
+            // Ignore background fetch errors
+        }
     }
 
     private async Task RefreshClientRuntimeSettingsAsync()
@@ -3597,7 +3633,7 @@ LIMIT $limit;";
             return;
         }
 
-        if (_activeMemberSession is null || _isAdminSession || _isPostpaidGuestSession)
+        if (_activeMemberSession is null || _isAdminSession || _isPostpaidGuestSession || _activeMemberSession.MemberType == "VIP")
         {
             return;
         }
@@ -4014,7 +4050,7 @@ LIMIT $limit;";
             Foreground = new SolidColorBrush(Color.FromRgb(30, 64, 175)),
             TextWrapping = TextWrapping.Wrap,
             Text =
-                $"Số dư: {member.Balance:N0} VND | Điểm: {currentLoyalty.AvailablePoints:N0} | Tích lũy: {currentLoyalty.ProgressMinutes:0.##}/{settings.MinutesPerPoint} phút",
+                $"Số dư: {member.Balance:N0} VND | Điểm: {currentLoyalty.AvailablePoints:N0} | Tích lũy: {currentLoyalty.ProgressMinutes:0.##}/{settings.MinutesPerPoint} phút (Hệ số: x{settings.CurrentMultiplier:0.##})",
         };
         infoPanel.Children.Add(summaryTextBlock);
         var summaryCard = new Border
@@ -6014,10 +6050,12 @@ LIMIT $limit;";
             Balance = snapshot.Balance,
             PlaySeconds = Math.Max(0, snapshot.PlaySeconds),
             Rank = string.IsNullOrWhiteSpace(snapshot.Rank) ? activeSession.Rank : snapshot.Rank,
+            MemberType = snapshot.MemberType ?? activeSession.MemberType,
         };
 
         activeSession.Username = updatedMember.Username;
         activeSession.Rank = updatedMember.Rank;
+        activeSession.MemberType = updatedMember.MemberType;
 
         var usedSecondsNow = GetUsedSecondsOnUiThread();
         SynchronizeMemberBillingFromServer(updatedMember, usedSecondsNow);

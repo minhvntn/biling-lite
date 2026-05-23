@@ -32,6 +32,7 @@ public sealed class AgentSocketService : IAsyncDisposable
     public Func<AdminGetRunningAppsPayload, Task>? GetRunningAppsHandler { get; set; }
     public Func<AdminKillProcessPayload, Task>? KillProcessHandler { get; set; }
     public Action<GuestPrepaidConfigurePayload>? GuestPrepaidConfigureHandler { get; set; }
+    public Action<string?, decimal>? PromotionChangedHandler { get; set; }
 
     public AgentSocketService(
         AgentSettings settings,
@@ -210,6 +211,32 @@ public sealed class AgentSocketService : IAsyncDisposable
             {
                 _resumeGuestSessionHandler?.Invoke(resumeGuest.GetBoolean());
             }
+
+            if (element.TryGetProperty("activePromotion", out var promoElement) && promoElement.ValueKind == JsonValueKind.Object)
+            {
+                string? promoName = null;
+                if (promoElement.TryGetProperty("name", out var nameProp))
+                {
+                    promoName = nameProp.GetString();
+                }
+                decimal discount = 0m;
+                if (promoElement.TryGetProperty("discountPercent", out var discountProp))
+                {
+                    if (discountProp.ValueKind == JsonValueKind.Number)
+                    {
+                        discount = discountProp.GetDecimal();
+                    }
+                    else if (discountProp.ValueKind == JsonValueKind.String && decimal.TryParse(discountProp.GetString(), out var val))
+                    {
+                        discount = val;
+                    }
+                }
+                PromotionChangedHandler?.Invoke(promoName, discount);
+            }
+            else
+            {
+                PromotionChangedHandler?.Invoke(null, 0m);
+            }
         });
 
         _socket.On("agent.heartbeat.ack", response =>
@@ -226,6 +253,32 @@ public sealed class AgentSocketService : IAsyncDisposable
             if (element.TryGetProperty("elapsedSeconds", out var elapsed))
             {
                 _elapsedSecondsHandler?.Invoke(elapsed.GetInt32());
+            }
+
+            if (element.TryGetProperty("activePromotion", out var promoElement) && promoElement.ValueKind == JsonValueKind.Object)
+            {
+                string? promoName = null;
+                if (promoElement.TryGetProperty("name", out var nameProp))
+                {
+                    promoName = nameProp.GetString();
+                }
+                decimal discount = 0m;
+                if (promoElement.TryGetProperty("discountPercent", out var discountProp))
+                {
+                    if (discountProp.ValueKind == JsonValueKind.Number)
+                    {
+                        discount = discountProp.GetDecimal();
+                    }
+                    else if (discountProp.ValueKind == JsonValueKind.String && decimal.TryParse(discountProp.GetString(), out var val))
+                    {
+                        discount = val;
+                    }
+                }
+                PromotionChangedHandler?.Invoke(promoName, discount);
+            }
+            else
+            {
+                PromotionChangedHandler?.Invoke(null, 0m);
             }
         });
 
@@ -684,6 +737,9 @@ public sealed class MemberAccountSnapshot
 
     [JsonPropertyName("rank")]
     public string? Rank { get; set; }
+
+    [JsonPropertyName("memberType")]
+    public string MemberType { get; set; } = "REGULAR";
 }
 
 public sealed class ServiceOrdersChangedPayload

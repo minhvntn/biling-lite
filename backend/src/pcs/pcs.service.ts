@@ -10,6 +10,7 @@ import { AgentHeartbeatPayload, AgentHelloPayload } from './types/agent-events.t
 import {
   calculateSessionAmountByPromotions,
   getEffectiveHourlyRateAt,
+  getActivePromotionAt,
 } from '../pricing/time-based-billing.util';
 
 type PresencePayload = AgentHelloPayload | AgentHeartbeatPayload;
@@ -46,6 +47,7 @@ export type PcListItem = {
     username: string;
     fullName: string;
     balance: number;
+    memberType: string;
   } | null;
   activeGuest: {
     displayName: string;
@@ -100,11 +102,15 @@ export class PcsService {
           select: {
             id: true,
             balance: true,
+            memberType: true,
           },
         })
       : [];
     const activeMemberBalanceById = new Map(
       activeMembers.map((member) => [member.id, Number(member.balance)]),
+    );
+    const activeMemberTypeById = new Map(
+      activeMembers.map((member) => [member.id, member.memberType]),
     );
 
     const pricingStepSetting = await this.prisma.appSetting.findUnique({
@@ -146,6 +152,7 @@ export class PcsService {
           ? {
               ...activeMemberBase,
               balance: activeMemberBalanceById.get(activeMemberBase.memberId) ?? 0,
+              memberType: activeMemberTypeById.get(activeMemberBase.memberId) ?? 'REGULAR',
             }
           : null;
         const activeGuest =
@@ -250,6 +257,29 @@ export class PcsService {
       new Date(),
       promotions,
     );
+  }
+
+  async getActivePromotion(): Promise<{ name: string; discountPercent: number } | null> {
+    const promotions = await this.prisma.timeBasedPromotion.findMany({
+      where: { isActive: true },
+      select: {
+        name: true,
+        daysOfWeek: true,
+        startTime: true,
+        endTime: true,
+        discountPercent: true,
+        isActive: true,
+      },
+    });
+
+    const activePromo = getActivePromotionAt(new Date(), promotions);
+    if (!activePromo) {
+      return null;
+    }
+    return {
+      name: activePromo.name ?? '',
+      discountPercent: Number(activePromo.discountPercent ?? 0),
+    };
   }
 
   async getGuestLoginEnabled(): Promise<boolean> {

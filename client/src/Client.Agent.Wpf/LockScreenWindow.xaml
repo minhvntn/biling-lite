@@ -181,6 +181,7 @@
                         <Border Height="4" Width="40" Background="#4F46E5" CornerRadius="2" Margin="0,12,0,0" />
                     </StackPanel>
 
+
                     <!-- Manual Unlock Panel (Temporary Lock) -->
                     <StackPanel x:Name="ManualUnlockPanel"
                                 Visibility="Collapsed">

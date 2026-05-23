@@ -60,6 +60,7 @@ public sealed class MemberLoginItem
     public double PlayHours { get; set; }
 
     public string? Rank { get; set; }
+    public string MemberType { get; set; } = "REGULAR";
 }
 
 public sealed class LoyaltySettingsResponse
@@ -69,6 +70,12 @@ public sealed class LoyaltySettingsResponse
     public int MinutesPerPoint { get; set; }
 
     public int PointsToMinutes { get; set; }
+
+    public double WeekdayMultiplier { get; set; }
+
+    public double WeekendMultiplier { get; set; }
+
+    public double CurrentMultiplier { get; set; }
 }
 
 public sealed class ClientRuntimeSettingsResponse
@@ -282,6 +289,7 @@ public sealed class ActiveMemberSession
     public string FullName { get; set; } = string.Empty;
 
     public string? Rank { get; set; }
+    public string MemberType { get; set; } = "REGULAR";
 }
 
 public sealed class ClientPcListResponse

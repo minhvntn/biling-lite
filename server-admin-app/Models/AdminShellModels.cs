@@ -68,6 +68,7 @@ public sealed class ActiveMemberInfo
     public string Username { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public decimal Balance { get; set; }
+    public string MemberType { get; set; } = "REGULAR";
 }
 
 public sealed class ActiveGuestInfo
@@ -140,6 +141,7 @@ public sealed class MachineRow
     public bool IsGuestSession { get; set; }
     public string? ActiveGuestDisplayName { get; set; }
     public decimal ActiveGuestPrepaidAmount { get; set; }
+    public bool IsVipSession { get; set; }
 }
 
 public sealed class MemberListResponse
@@ -162,6 +164,7 @@ public sealed class MemberItem
     public string Rank { get; set; } = string.Empty;
     public decimal TotalTopup { get; set; }
     public int AvailablePoints { get; set; }
+    public string MemberType { get; set; } = "REGULAR";
     public string CreatedAt { get; set; } = string.Empty;
 }
 
@@ -189,6 +192,8 @@ public sealed class LoyaltySettingsResponse
     public bool Enabled { get; set; }
     public int MinutesPerPoint { get; set; }
     public int PointsToMinutes { get; set; }
+    public double WeekdayMultiplier { get; set; }
+    public double WeekendMultiplier { get; set; }
     public string UpdatedAt { get; set; } = string.Empty;
 }
 
@@ -339,6 +344,8 @@ public sealed class MemberRow
     public string TotalTopupText { get; set; } = "0";
     public string PasswordState { get; set; } = "Ch\u01b0a \u0111\u1eb7t";
     public string ActiveText { get; set; } = "Ho\u1ea1t \u0111\u1ed9ng";
+    public string MemberType { get; set; } = "REGULAR";
+    public string MemberTypeText { get; set; } = "Thường";
     public string CreatedAtText { get; set; } = "-";
 }
 

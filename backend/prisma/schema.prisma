@@ -118,6 +118,8 @@ model Member {
   passwordHash   String?             @map("password_hash") @db.VarChar(255)
   identityNumber String?             @map("identity_number") @db.VarChar(30)
   totalTopup     Decimal             @default(0) @map("total_topup") @db.Decimal(12, 2)
+  playSeconds    Int                 @default(0) @map("play_seconds")
+  memberType     String              @default("REGULAR") @map("member_type") @db.VarChar(20)
   transactions   MemberTransaction[]
   dailyCheckins  MemberDailyCheckin[]
 
@@ -157,6 +159,7 @@ model MemberTransaction {
   memberId         String                @map("member_id") @db.Uuid
   type             MemberTransactionType
   amountDelta      Decimal               @default(0) @map("amount_delta") @db.Decimal(12, 2)
+  playSecondsDelta Int                   @default(0) @map("play_seconds_delta")
   note             String?
   createdBy        String                @map("created_by") @db.VarChar(100)
   createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)

@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class CreateMemberDto {
   @IsString()
@@ -33,4 +33,10 @@ export class CreateMemberDto {
   @MaxLength(30)
   @Transform(({ value }: { value?: string }) => value?.trim() || undefined)
   identityNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['REGULAR', 'VIP'])
+  @Transform(({ value }: { value?: string }) => value?.trim().toUpperCase() || 'REGULAR')
+  memberType?: string;
 }

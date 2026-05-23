@@ -132,6 +132,7 @@ public partial class MainWindow : Window
         var activeMember = item.ActiveMember;
         var activeGuest = item.ActiveGuest;
         var isAdminSession = item.Status == "IN_USE" && activeAdmin is not null;
+        var isVipSession = item.Status == "IN_USE" && activeMember?.MemberType == "VIP";
         var hasActiveSessionOffline = item.Status == "OFFLINE" && item.ActiveSession is not null;
         var hasUnpaidGuestSession =
             hasActiveSessionOffline &&
@@ -140,7 +141,7 @@ public partial class MainWindow : Window
         var statusSubText = hasUnpaidGuestSession ? "Chưa thanh toán" : string.Empty;
         var statusText = item.Status switch
         {
-            "IN_USE" => isAdminSession ? "Admin dang nh?p" : I18n.StatusInUse,
+            "IN_USE" => isAdminSession ? "Admin dang nh?p" : (isVipSession ? "Hội viên VIP" : I18n.StatusInUse),
             "LOCKED" => "Đang khóa",
             "ONLINE" => I18n.StatusReady,
             "BOOTING" => "Đang khởi động",
@@ -181,9 +182,10 @@ public partial class MainWindow : Window
             }
             else if (activeMember != null)
             {
-                statusIconBrush = Brushes.DodgerBlue;
-                statusIconPath = "/Assets/pc-blue-user.svg";
-                statusIconToolTip = "H?i viên dang s? d?ng";
+                var isVip = activeMember.MemberType == "VIP";
+                statusIconBrush = isVip ? Brushes.Goldenrod : Brushes.DodgerBlue;
+                statusIconPath = isVip ? "/Assets/pc-admin.svg" : "/Assets/pc-blue-user.svg";
+                statusIconToolTip = isVip ? "Hội viên VIP đang sử dụng" : "Hội viên đang sử dụng";
             }
             else
             {
@@ -281,6 +283,7 @@ public partial class MainWindow : Window
             IsGuestSession = isGuestSession,
             ActiveGuestDisplayName = isGuestSession ? guestDisplayName : null,
             ActiveGuestPrepaidAmount = isGuestSession ? activeGuest!.PrepaidAmount : 0,
+            IsVipSession = isVipSession,
         };
     }
 

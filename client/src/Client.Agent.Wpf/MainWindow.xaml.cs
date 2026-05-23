@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -653,6 +653,33 @@ public partial class MainWindow : Window
 
         GameCostValueTextBlock.Text = gameCost.ToString("N0", CultureInfo.InvariantCulture);
         ServiceCostValueTextBlock.Text = _serviceCost.ToString("N0", CultureInfo.InvariantCulture);
+    }
+
+    public void UpdatePromotion(string? promotionName, decimal discountPercent)
+    {
+        if (string.IsNullOrWhiteSpace(promotionName))
+        {
+            PromotionBannerBorder.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            PromotionNameTextBlock.Text = promotionName;
+            PromotionDiscountTextBlock.Text = $"Giảm {discountPercent:0.#}% tiền giờ chơi";
+            PromotionBannerBorder.Visibility = Visibility.Visible;
+        }
+    }
+
+    public void UpdateLoyaltyMultiplier(double multiplier)
+    {
+        if (multiplier > 1.0)
+        {
+            LoyaltyPromotionDiscountTextBlock.Text = $"Hệ số nhân điểm: x{multiplier:0.##}";
+            LoyaltyPromotionBannerBorder.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            LoyaltyPromotionBannerBorder.Visibility = Visibility.Collapsed;
+        }
     }
 
     private static string FormatMinutes(int totalMinutes)
