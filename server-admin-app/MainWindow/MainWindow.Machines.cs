@@ -559,6 +559,16 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (action == "lock" && selected.IsVipSession)
+        {
+            MessageBox.Show(
+                "Không thể khóa máy trạm đang chạy ở chế độ hội viên VIP.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
         try
         {
             using var response = await _httpClient.PostAsJsonAsync(
@@ -1038,8 +1048,8 @@ public partial class MainWindow : Window
             open: !isInUse && !isLocked,
             openGuest: isReady,
             adminLogin: !isInUse && !isOffline,
-            lockMachine: !isLocked && !isGuestInUse,
-            topupMember: isInUse && hasActiveMember,
+            lockMachine: !isLocked && !isGuestInUse && !selectedMachine.IsVipSession,
+            topupMember: isInUse && hasActiveMember && !selectedMachine.IsVipSession,
             restart: true,
             wakeRemote: isOffline,
             shutdownSelected: true,
@@ -2868,14 +2878,14 @@ public partial class MainWindow : Window
             Width = 108,
             Height = 40,
             FontSize = 16,
-            IsDefault = !hasActiveSession,
+            IsDefault = !hasActiveSession || machineSnapshot.IsVipSession,
             IsCancel = true,
             Margin = new Thickness(0, 0, 10, 0),
         };
         closeButton.Click += (_, _) => dialog.Close();
         buttonPanel.Children.Add(closeButton);
 
-        if (hasActiveSession)
+        if (hasActiveSession && !machineSnapshot.IsVipSession)
         {
             var checkoutButton = new Button
             {
@@ -3216,6 +3226,16 @@ public partial class MainWindow : Window
         if (selected is null)
         {
             MessageBox.Show(I18n.PleaseSelectPc, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (selected.IsVipSession)
+        {
+            MessageBox.Show(
+                "Không thể nạp tiền cho hội viên VIP trực tiếp từ máy trạm.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
 
