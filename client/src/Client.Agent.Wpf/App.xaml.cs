@@ -934,7 +934,9 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
     {
         var remainingMinutes = ComputeRemainingMinutesFromMemberSnapshot(member);
         var usedMinutes = ComputeUsedMinutesFromSeconds(usedSecondsNow);
-        var totalMinutes = Math.Max(1, remainingMinutes + usedMinutes);
+        var totalMinutes = member.MemberType == "VIP" 
+            ? remainingMinutes 
+            : Math.Max(1, remainingMinutes + usedMinutes);
 
         Dispatcher.Invoke(() =>
         {
