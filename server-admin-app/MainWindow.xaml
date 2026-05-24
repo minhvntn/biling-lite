@@ -177,48 +177,44 @@
 
     <Grid>
         <DockPanel>
-            <Border DockPanel.Dock="Top" Background="#1B4C86" Padding="8,6">
+            <!-- Collapsed Status Server controls to satisfy code-behind references -->
+            <StackPanel Visibility="Collapsed">
+                <Ellipse x:Name="HealthIndicator" />
+                <TextBlock x:Name="HealthTextBlock" />
+                <TextBlock x:Name="ServerIpTextBlock" />
+            </StackPanel>
+
+            <Border DockPanel.Dock="Top" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Column="0"
-                               VerticalAlignment="Center"
-                               Foreground="White"
-                               FontSize="15"
-                               FontWeight="SemiBold"
-                               Text="{x:Static local:I18n.HeaderTitle}" />
+                    <Menu Grid.Column="0" Background="Transparent" FontSize="13.5">
+                        <MenuItem Header="Công cụ" Padding="12,5" Height="32" VerticalContentAlignment="Center">
+                            <MenuItem Header="Mở máy trạm" Click="OpenWakeUpMachinesDialog_Click" Padding="10,6" />
+                            <MenuItem Header="Thông tin" Click="ShowServerInfoMenuItem_Click" Padding="10,6" />
+                        </MenuItem>
+                    </Menu>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Ellipse x:Name="HealthIndicator" Width="12" Height="12" Fill="#9ca3af" Margin="0,0,6,0" />
-                        <TextBlock x:Name="HealthTextBlock" Foreground="White" Text="{x:Static local:I18n.BackendChecking}" />
-                        <TextBlock Margin="10,0,8,0" Foreground="#93C5FD" Text="|" />
-                        <TextBlock x:Name="ServerIpTextBlock" Foreground="#DBEAFE" Text="Server IP: -" />
-                        <TextBlock Margin="10,0,8,0" Foreground="#93C5FD" Text="|" />
-                        <Button x:Name="LogoutButton" 
-                                Margin="4,0,0,0" 
-                                Padding="8,2" 
-                                Click="LogoutButton_Click" 
-                                Background="Transparent" 
-                                BorderThickness="0" 
-                                Cursor="Hand" 
-                                ToolTip="{x:Static local:I18n.Logout}">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="🚪" Foreground="White" FontSize="14" VerticalAlignment="Center" />
-                                <TextBlock Text="{x:Static local:I18n.Logout}" Foreground="White" VerticalAlignment="Center" Margin="4,0,0,0" FontSize="13" />
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
+                    <Button Grid.Column="1"
+                            x:Name="LogoutButton" 
+                            Margin="0,0,12,0" 
+                            Padding="8,2" 
+                            Click="LogoutButton_Click" 
+                            Background="Transparent" 
+                            BorderThickness="0" 
+                            Cursor="Hand" 
+                            VerticalAlignment="Center"
+                            ToolTip="{x:Static local:I18n.Logout}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🚪" Foreground="#334155" FontSize="14" VerticalAlignment="Center" />
+                            <TextBlock Text="{x:Static local:I18n.Logout}" Foreground="#334155" VerticalAlignment="Center" Margin="4,0,0,0" FontSize="13" FontWeight="Medium" />
+                        </StackPanel>
+                    </Button>
                 </Grid>
             </Border>
-
-            <Menu DockPanel.Dock="Top" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" FontSize="13.5">
-                <MenuItem Header="Công cụ" Padding="12,5" Height="32" VerticalContentAlignment="Center">
-                    <MenuItem Header="Mở máy trạm" Click="OpenWakeUpMachinesDialog_Click" Padding="10,6" />
-                </MenuItem>
-            </Menu>
 
             <TabControl x:Name="MainTabControl" Margin="8" SelectionChanged="MainTabControl_SelectionChanged">
                 <TabItem x:Name="WorkstationsTab">
@@ -802,6 +798,8 @@
                                     <Separator />
                                     <MenuItem Header="Tiền trả lại" Click="ContextRefundMemberMenuItem_Click" />
                                     <MenuItem Header="Tặng tiền miễn phí" Click="ContextGiftMemberMenuItem_Click" />
+                                    <Separator />
+                                    <MenuItem Header="Xóa hội viên" Click="ContextDeleteMemberMenuItem_Click" />
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
                             <DataGrid.Columns>

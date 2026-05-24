@@ -1105,6 +1105,93 @@ public partial class MainWindow : Window
         await RefreshMembersAsync(forceRefresh: true);
     }
 
+    private async Task DeleteMemberAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_selectedMemberId))
+        {
+            MessageBox.Show(I18n.PleaseSelectMember, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var selectedMember =
+            MembersDataGrid.SelectedItem as MemberRow ??
+            _memberRows.FirstOrDefault(x => string.Equals(x.Id, _selectedMemberId, StringComparison.OrdinalIgnoreCase));
+
+        if (selectedMember is null)
+        {
+            MessageBox.Show(I18n.PleaseSelectMember, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (selectedMember.MemberType == "VIP")
+        {
+            MessageBox.Show("Không thể xóa hội viên VIP.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (selectedMember.BalanceRaw >= 1000m)
+        {
+            MessageBox.Show("Chỉ được xóa hội viên có số dư dưới 1,000 VND.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            $"Bạn có chắc chắn muốn xóa hội viên '{selectedMember.Username}' không?",
+            "Xác nhận xóa hội viên",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            using var response = await _httpClient.DeleteAsync(BuildApiUrl($"/members/{selectedMember.Id}"));
+            if (response.IsSuccessStatusCode)
+            {
+                AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã xóa hội viên {selectedMember.Username} ({selectedMember.Id})");
+                InvalidateMembersCache();
+                await RefreshMembersAsync(forceRefresh: true);
+                MessageBox.Show($"Đã xóa hội viên '{selectedMember.Username}' thành công.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                var errorText = await response.Content.ReadAsStringAsync();
+                var message = "Xóa hội viên thất bại.";
+                if (!string.IsNullOrWhiteSpace(errorText))
+                {
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(errorText);
+                        var root = doc.RootElement;
+                        if (root.TryGetProperty("message", out var msgProp))
+                        {
+                            if (msgProp.ValueKind == JsonValueKind.Array)
+                            {
+                                message = string.Join("\n", msgProp.EnumerateArray().Select(x => x.GetString()));
+                            }
+                            else
+                            {
+                                message = msgProp.GetString() ?? message;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        message = errorText;
+                    }
+                }
+                MessageBox.Show(message, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Đã xảy ra lỗi khi xóa hội viên: {ex.Message}", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private void ShowAddMemberModal()
     {
         MemberUsernameTextBox.Text = string.Empty;
@@ -1225,6 +1312,7 @@ public partial class MainWindow : Window
     private async void ContextGiftMemberMenuItem_Click(object sender, RoutedEventArgs e) => await GiftMemberAsync();
     private async void ContextTransferMemberMenuItem_Click(object sender, RoutedEventArgs e) => await TransferMemberBalanceAsync();
     private async void ContextRefundMemberMenuItem_Click(object sender, RoutedEventArgs e) => await RefundMemberAsync();
+    private async void ContextDeleteMemberMenuItem_Click(object sender, RoutedEventArgs e) => await DeleteMemberAsync();
     private async void ContextMemberTransactionsMenuItem_Click(object sender, RoutedEventArgs e)
         => await OpenSelectedMemberTransactionsDialogAsync();
 

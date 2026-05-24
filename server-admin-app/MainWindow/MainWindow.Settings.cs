@@ -2219,6 +2219,18 @@ public partial class MainWindow : Window
         dialog.Content = root;
         dialog.ShowDialog();
     }
+
+    private void ShowServerInfoMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var status = HealthTextBlock?.Text ?? "Không rõ";
+        var ipDetails = ServerIpTextBlock?.Text ?? "Không rõ";
+        
+        MessageBox.Show(
+            $"Trạng thái máy chủ:\n- {status}\n\nChi tiết:\n- {ipDetails}",
+            "Thông tin máy chủ",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
 }
 
 

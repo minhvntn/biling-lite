@@ -3227,5 +3227,35 @@ export class MembersService {
 
     return DEFAULT_MEMBER_TOPUP_REQUEST_ENABLED;
   }
+
+  async deleteMember(memberId: string) {
+    const member = await this.prisma.member.findUnique({
+      where: { id: memberId },
+    });
+
+    if (!member) {
+      throw new NotFoundException('Không tìm thấy hội viên');
+    }
+
+    if (member.memberType === 'VIP') {
+      throw new BadRequestException('Hội viên VIP không được phép xóa');
+    }
+
+    const balanceNum = Number(member.balance);
+    if (balanceNum >= 1000) {
+      throw new BadRequestException('Chỉ được xóa hội viên có số dư dưới 1,000 VND');
+    }
+
+    const activePc = await this.findMemberActivePc(member.id);
+    if (activePc) {
+      throw new BadRequestException(`Không thể xóa hội viên đang sử dụng máy trạm: ${activePc.pcName}`);
+    }
+
+    await this.prisma.member.delete({
+      where: { id: memberId },
+    });
+
+    return { ok: true };
+  }
 }
 

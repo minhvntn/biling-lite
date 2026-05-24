@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { BuyPlaytimeDto } from './dto/buy-playtime.dto';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { TopupMemberDto } from './dto/topup-member.dto';
@@ -219,6 +219,11 @@ export class MembersController {
     @Body() payload: UpdateMemberDto,
   ) {
     return this.membersService.updateMember(memberId, payload);
+  }
+
+  @Delete(':memberId')
+  async deleteMember(@Param('memberId') memberId: string) {
+    return this.membersService.deleteMember(memberId);
   }
 
   @Post(':memberId/transfer')
