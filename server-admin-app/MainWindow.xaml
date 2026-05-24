@@ -188,7 +188,7 @@
                 <TextBlock x:Name="ServerIpTextBlock" />
             </StackPanel>
 
-            <Border DockPanel.Dock="Top" Background="#2A48F5" BorderBrush="#2563EB" BorderThickness="0">
+            <Border DockPanel.Dock="Top" Background="#0066cc" BorderBrush="#2563EB" BorderThickness="0">
                 <Border.Resources>
                     <Style x:Key="TopLevelMenuItemStyle" TargetType="MenuItem">
                         <Setter Property="Foreground" Value="White" />
@@ -205,9 +205,51 @@
                                                 <Border.Resources>
                                                     <Style TargetType="MenuItem">
                                                         <Setter Property="Foreground" Value="Black" />
-                                                        <Setter Property="FontWeight" Value="Normal" />
+                                                        <Setter Property="FontWeight" Value="Medium" />
                                                         <Setter Property="Padding" Value="10,6" />
                                                         <Setter Property="Cursor" Value="Hand" />
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="MenuItem">
+                                                                    <Border x:Name="Bd" Background="Transparent" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                                        <Grid>
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="Auto" SharedSizeGroup="Icon" MinWidth="24"/>
+                                                                                <ColumnDefinition Width="*" />
+                                                                                <ColumnDefinition Width="Auto" SharedSizeGroup="Shortcut" />
+                                                                                <ColumnDefinition Width="16" />
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <ContentPresenter x:Name="Icon" ContentSource="Icon" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                                            <ContentPresenter ContentSource="Header" Grid.Column="1" VerticalAlignment="Center" RecognizesAccessKey="True" />
+                                                                            <TextBlock Text="{TemplateBinding InputGestureText}" Grid.Column="2" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="#888" />
+                                                                            <Path x:Name="RightArrow" Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Right" Data="M 0 0 L 4 4 L 0 8 Z" Fill="Black" Visibility="Collapsed" />
+                                                                            <Popup x:Name="PART_Popup" Placement="Right" IsOpen="{TemplateBinding IsSubmenuOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                                                                                <Border Background="White" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="6" Padding="4" Margin="2,0,0,0">
+                                                                                    <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
+                                                                                </Border>
+                                                                            </Popup>
+                                                                        </Grid>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="Role" Value="SubmenuHeader">
+                                                                            <Setter TargetName="RightArrow" Property="Visibility" Value="Visible"/>
+                                                                        </Trigger>
+                                                                        <Trigger Property="IsHighlighted" Value="True">
+                                                                            <Setter TargetName="Bd" Property="Background" Value="#F1F5F9" />
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                    <Style TargetType="Separator">
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="Separator">
+                                                                    <Border Height="1" Background="#E2E8F0" Margin="0,4" />
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
                                                     </Style>
                                                 </Border.Resources>
                                                 <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
@@ -261,8 +303,21 @@
 
                     <Menu Grid.Column="0" Background="Transparent" FontSize="13.5" Margin="4,2">
                         <MenuItem Header="Công cụ" Style="{StaticResource TopLevelMenuItemStyle}" Padding="12,5" Height="32" VerticalContentAlignment="Center">
-                            <MenuItem Header="Mở máy trạm" Click="OpenWakeUpMachinesDialog_Click" Padding="10,6" Foreground="Black" />
-                            <MenuItem Header="Thông tin" Click="ShowServerInfoMenuItem_Click" Padding="10,6" Foreground="Black" />
+                            <MenuItem Header="Mở máy trạm" Click="OpenWakeUpMachinesDialog_Click" />
+                            <MenuItem Header="Thông tin" Click="ShowServerInfoMenuItem_Click" />
+                            <Separator />
+                            <MenuItem Header="Hiển thị máy trạm">
+                                <MenuItem x:Name="ViewModeListMenuItem" Header="Dạng danh sách" Click="ViewModeList_Click" FontWeight="Bold">
+                                    <MenuItem.Icon>
+                                        <TextBlock Text="✔" Foreground="Black" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem x:Name="ViewModeIconMenuItem" Header="Dạng biểu tượng" Click="ViewModeIcon_Click">
+                                    <MenuItem.Icon>
+                                        <TextBlock Text="" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                            </MenuItem>
                         </MenuItem>
                     </Menu>
 
@@ -761,6 +816,109 @@
                                 </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
+
+                        <!-- Icon View (toggled via Công cụ > Hiển thị máy trạm) -->
+                        <ScrollViewer x:Name="MachinesIconView"
+                                      Grid.Row="2"
+                                      Visibility="Collapsed"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl x:Name="MachinesIconItemsControl">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="IconCard"
+                                                Width="120" Height="120"
+                                                Margin="6"
+                                                CornerRadius="8"
+                                                BorderThickness="1"
+                                                BorderBrush="#CBD5E1"
+                                                Background="#F8FAFC"
+                                                Cursor="Hand"
+                                                MouseLeftButtonDown="MachineIconCard_MouseLeftButtonDown"
+                                                MouseRightButtonDown="MachineIconCard_MouseRightButtonDown">
+                                            <Border.ToolTip>
+                                                <ToolTip MaxWidth="320">
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="14" Margin="0,0,0,4" />
+                                                        <TextBlock Text="{Binding StatusText}" FontWeight="SemiBold" Foreground="{Binding StatusBrush}" />
+                                                        <TextBlock Text="{Binding StatusSubText}" Foreground="#DC2626" FontSize="11" Margin="0,2,0,0">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding StatusSubText}" Value="">
+                                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                        <Separator Margin="0,4" />
+                                                        <TextBlock FontSize="12"><Run FontWeight="SemiBold" Text="Người dùng: " /><Run Text="{Binding UserName, Mode=OneWay}" /></TextBlock>
+                                                        <TextBlock FontSize="12"><Run FontWeight="SemiBold" Text="Bắt đầu: " /><Run Text="{Binding StartedAtText, Mode=OneWay}" /></TextBlock>
+                                                        <TextBlock FontSize="12"><Run FontWeight="SemiBold" Text="Đã dùng: " /><Run Text="{Binding UsedText, Mode=OneWay}" /></TextBlock>
+                                                        <TextBlock FontSize="12"><Run FontWeight="SemiBold" Text="Còn lại: " /><Run Text="{Binding RemainingText, Mode=OneWay}" /></TextBlock>
+                                                        <TextBlock FontSize="12"><Run FontWeight="SemiBold" Text="Tiền: " /><Run Text="{Binding MoneyText, Mode=OneWay}" /></TextBlock>
+                                                        <TextBlock FontSize="12"><Run FontWeight="SemiBold" Text="IP: " /><Run Text="{Binding IpAddress, Mode=OneWay}" /></TextBlock>
+                                                        <TextBlock FontSize="12"><Run FontWeight="SemiBold" Text="Nhóm: " /><Run Text="{Binding GroupName, Mode=OneWay}" /></TextBlock>
+                                                    </StackPanel>
+                                                </ToolTip>
+                                            </Border.ToolTip>
+                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                <svgc:SvgViewbox Source="{Binding StatusIconPath}"
+                                                                 Width="48" Height="48"
+                                                                 HorizontalAlignment="Center"
+                                                                 ToolTip="{Binding StatusIconToolTip}" />
+                                                <TextBlock Text="{Binding Name}"
+                                                           HorizontalAlignment="Center"
+                                                           TextAlignment="Center"
+                                                           FontSize="12"
+                                                           FontWeight="SemiBold"
+                                                           Margin="0,4,0,0"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           MaxWidth="110" />
+                                                <TextBlock Text="{Binding StatusText}"
+                                                           HorizontalAlignment="Center"
+                                                           TextAlignment="Center"
+                                                           FontSize="10"
+                                                           Margin="0,1,0,0"
+                                                           Foreground="{Binding StatusBrush}"
+                                                           FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           MaxWidth="110" />
+                                            </StackPanel>
+                                        </Border>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
+                                                <Setter TargetName="IconCard" Property="Background" Value="#EFF6FF" />
+                                                <Setter TargetName="IconCard" Property="BorderBrush" Value="#93C5FD" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding StatusCode}" Value="ONLINE">
+                                                <Setter TargetName="IconCard" Property="Background" Value="#ECFDF5" />
+                                                <Setter TargetName="IconCard" Property="BorderBrush" Value="#86EFAC" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
+                                                <Setter TargetName="IconCard" Property="Background" Value="#FEF2F2" />
+                                                <Setter TargetName="IconCard" Property="BorderBrush" Value="#FCA5A5" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
+                                                <Setter TargetName="IconCard" Property="Background" Value="#F1F5F9" />
+                                                <Setter TargetName="IconCard" Property="BorderBrush" Value="#94A3B8" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
+                                                <Setter TargetName="IconCard" Property="Background" Value="#FEF9C3" />
+                                                <Setter TargetName="IconCard" Property="BorderBrush" Value="#FDE047" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
 
                         <Grid Grid.Row="3" Margin="0,8,0,0">
                             <Grid.ColumnDefinitions>

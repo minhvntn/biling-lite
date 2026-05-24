@@ -552,7 +552,7 @@ public partial class MainWindow : Window
         await SendCommandAsync(action, null);
     }
 
-    private async Task SendCommandAsync(string action, MachineRow? targetMachine)
+    private async Task SendCommandAsync(string action, MachineRow? targetMachine, bool forceLock = false)
     {
         var selected = targetMachine ?? MachinesDataGrid.SelectedItem as MachineRow;
         if (selected is null)
@@ -561,7 +561,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (action == "lock" && selected.IsVipSession)
+        if (!forceLock && action == "lock" && selected.IsVipSession)
         {
             MessageBox.Show(
                 "Không thể khóa máy trạm đang chạy ở chế độ hội viên VIP.",
@@ -2574,7 +2574,7 @@ public partial class MainWindow : Window
         var hasActiveMember =
             !string.IsNullOrWhiteSpace(machine.ActiveMemberId) ||
             !string.IsNullOrWhiteSpace(machine.ActiveMemberUsername);
-        return !hasActiveMember;
+        return !hasActiveMember || machine.IsVipSession;
     }
 
     private async Task ShowMultipleMachinesBillingDetailsAsync(IReadOnlyList<MachineRow> machines)
@@ -2880,14 +2880,14 @@ public partial class MainWindow : Window
             Width = 108,
             Height = 40,
             FontSize = 16,
-            IsDefault = !hasActiveSession || machineSnapshot.IsVipSession,
+            IsDefault = !hasActiveSession,
             IsCancel = true,
             Margin = new Thickness(0, 0, 10, 0),
         };
         closeButton.Click += (_, _) => dialog.Close();
         buttonPanel.Children.Add(closeButton);
 
-        if (hasActiveSession && !machineSnapshot.IsVipSession)
+        if (hasActiveSession)
         {
             var checkoutButton = new Button
             {
@@ -2903,7 +2903,7 @@ public partial class MainWindow : Window
             checkoutButton.Click += async (_, _) =>
             {
                 dialog.Close();
-                await SendCommandAsync("lock", machine);
+                await SendCommandAsync("lock", machine, forceLock: true);
             };
             buttonPanel.Children.Add(checkoutButton);
         }
@@ -4564,4 +4564,87 @@ public class LatestRunningAppsResponse
     public string? Reason { get; set; }
 }
 
+// ─── View Mode Toggle (List / Icon) ───────────────────────────────
 
+public partial class MainWindow
+{
+    private bool _isIconViewMode;
+
+    private void ViewModeList_Click(object sender, RoutedEventArgs e)
+    {
+        SetMachineViewMode(isIconView: false);
+    }
+
+    private void ViewModeIcon_Click(object sender, RoutedEventArgs e)
+    {
+        SetMachineViewMode(isIconView: true);
+    }
+
+    private void SetMachineViewMode(bool isIconView)
+    {
+        _isIconViewMode = isIconView;
+
+        if (isIconView)
+        {
+            MachinesDataGrid.Visibility = Visibility.Collapsed;
+            MachinesIconView.Visibility = Visibility.Visible;
+            MachinesIconItemsControl.ItemsSource = _machineRows;
+
+            ViewModeListMenuItem.Header = "     Dạng danh sách";
+            ViewModeListMenuItem.FontWeight = FontWeights.Normal;
+            ViewModeIconMenuItem.Header = "✔  Dạng biểu tượng";
+            ViewModeIconMenuItem.FontWeight = FontWeights.Bold;
+        }
+        else
+        {
+            MachinesDataGrid.Visibility = Visibility.Visible;
+            MachinesIconView.Visibility = Visibility.Collapsed;
+
+            ViewModeListMenuItem.Header = "✔  Dạng danh sách";
+            ViewModeListMenuItem.FontWeight = FontWeights.Bold;
+            ViewModeIconMenuItem.Header = "     Dạng biểu tượng";
+            ViewModeIconMenuItem.FontWeight = FontWeights.Normal;
+        }
+    }
+
+    private void MachineIconCard_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is MachineRow row)
+        {
+            // Select the machine in the DataGrid so downstream logic works
+            _selectedMachineId = row.Id;
+            _selectedMachineIds.Clear();
+            _selectedMachineIds.Add(row.Id);
+            SelectionTextBlock.Text = $"{I18n.SelectedPcPrefix}: {row.Name} ({row.StatusText})";
+
+            if (e.ClickCount == 2)
+            {
+                // Double-click → same as DataGrid double-click
+                MachinesDataGrid_MouseDoubleClick(MachinesDataGrid, null!);
+            }
+        }
+    }
+
+    private void MachineIconCard_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is MachineRow row)
+        {
+            _selectedMachineId = row.Id;
+            _selectedMachineIds.Clear();
+            _selectedMachineIds.Add(row.Id);
+            SelectionTextBlock.Text = $"{I18n.SelectedPcPrefix}: {row.Name} ({row.StatusText})";
+
+            // Select the row in the DataGrid so context-menu actions find the selected item
+            MachinesDataGrid.SelectedItem = row;
+
+            // Show the same context menu as the DataGrid
+            var contextMenu = MachinesDataGrid.ContextMenu;
+            if (contextMenu != null)
+            {
+                MachinesDataGrid_ContextMenuOpening(MachinesDataGrid, null!);
+                contextMenu.PlacementTarget = fe;
+                contextMenu.IsOpen = true;
+            }
+        }
+    }
+}

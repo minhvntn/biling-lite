@@ -963,25 +963,31 @@ export class MembersService {
 
       const loyaltySettings = await this.getLoyaltySettingsItem(tx);
       const playSecondsDelta = requestedPoints * loyaltySettings.pointsToMinutes * 60;
-      const updatedMember = await tx.member.update({
-        where: { id: member.id },
-        data: {
-          playSeconds: {
-            increment: playSecondsDelta,
-          },
-        },
-      });
+      let updatedMember = member;
 
-      await tx.memberTransaction.create({
-        data: {
-          memberId: member.id,
-          type: MemberTransactionType.ADJUSTMENT,
-          amountDelta: 0,
-          playSecondsDelta,
-          note,
-          createdBy,
-        },
-      });
+      if (member.memberType === 'VIP') {
+        await this.applyVipTimeDiscount(tx, member.id, playSecondsDelta, note, createdBy);
+      } else {
+        updatedMember = await tx.member.update({
+          where: { id: member.id },
+          data: {
+            playSeconds: {
+              increment: playSecondsDelta,
+            },
+          },
+        });
+
+        await tx.memberTransaction.create({
+          data: {
+            memberId: member.id,
+            type: MemberTransactionType.ADJUSTMENT,
+            amountDelta: 0,
+            playSecondsDelta,
+            note,
+            createdBy,
+          },
+        });
+      }
 
       const after = await this.buildLoyaltySnapshot(member.id, tx);
 
@@ -1050,18 +1056,28 @@ export class MembersService {
         bonusPoints > 0
           ? `${note}:STREAK_BONUS_${streakAfterCheckin}D_PLUS_${bonusPoints}`
           : note;
-      const updatedMember = member;
+      let updatedMember = member;
 
-      await tx.memberTransaction.create({
-        data: {
-          memberId: member.id,
-          type: MemberTransactionType.ADJUSTMENT,
-          amountDelta: 0,
-          playSecondsDelta: -rewardSeconds,
-          note: noteWithBonus,
-          createdBy: LOYALTY_USAGE_CREATED_BY,
-        },
-      });
+      if (member.memberType === 'VIP') {
+        await this.applyVipTimeDiscount(tx, member.id, rewardSeconds, noteWithBonus, LOYALTY_USAGE_CREATED_BY);
+      } else {
+        updatedMember = await tx.member.update({
+          where: { id: member.id },
+          data: {
+            playSeconds: { increment: rewardSeconds },
+          },
+        });
+        await tx.memberTransaction.create({
+          data: {
+            memberId: member.id,
+            type: MemberTransactionType.ADJUSTMENT,
+            amountDelta: 0,
+            playSecondsDelta: rewardSeconds,
+            note: noteWithBonus,
+            createdBy: LOYALTY_USAGE_CREATED_BY,
+          },
+        });
+      }
 
       const [loyalty, dailyCheckin] = await Promise.all([
         this.buildLoyaltySnapshot(member.id, tx),
@@ -1117,32 +1133,46 @@ export class MembersService {
 
       if (action === 'SPEND') {
         const secondsToSpend = points * spendSecondsPerPoint;
-        await tx.memberTransaction.create({
-          data: {
-            memberId,
-            type: MemberTransactionType.ADJUSTMENT,
-            amountDelta: 0,
-            playSecondsDelta: secondsToSpend,
-            note:
-              payload.note?.trim() ||
-              `${LOYALTY_PET_SPEND_NOTE_PREFIX}: spend ${points} points`,
-            createdBy: LOYALTY_REDEEM_CREATED_BY,
-          },
-        });
+        const note = payload.note?.trim() || `${LOYALTY_PET_SPEND_NOTE_PREFIX}: spend ${points} points`;
+        if (member.memberType === 'VIP') {
+          await this.applyVipTimeDiscount(tx, memberId, -secondsToSpend, note, LOYALTY_REDEEM_CREATED_BY);
+        } else {
+          await tx.member.update({
+            where: { id: memberId },
+            data: { playSeconds: { decrement: secondsToSpend } },
+          });
+          await tx.memberTransaction.create({
+            data: {
+              memberId,
+              type: MemberTransactionType.ADJUSTMENT,
+              amountDelta: 0,
+              playSecondsDelta: -secondsToSpend,
+              note,
+              createdBy: LOYALTY_REDEEM_CREATED_BY,
+            },
+          });
+        }
       } else {
         const secondsToReward = points * earnSecondsPerPoint;
-        await tx.memberTransaction.create({
-          data: {
-            memberId,
-            type: MemberTransactionType.ADJUSTMENT,
-            amountDelta: 0,
-            playSecondsDelta: -secondsToReward,
-            note:
-              payload.note?.trim() ||
-              `${LOYALTY_PET_REWARD_NOTE_PREFIX}: reward ${points} points`,
-            createdBy: LOYALTY_USAGE_CREATED_BY,
-          },
-        });
+        const note = payload.note?.trim() || `${LOYALTY_PET_REWARD_NOTE_PREFIX}: reward ${points} points`;
+        if (member.memberType === 'VIP') {
+          await this.applyVipTimeDiscount(tx, memberId, secondsToReward, note, LOYALTY_USAGE_CREATED_BY);
+        } else {
+          await tx.member.update({
+            where: { id: memberId },
+            data: { playSeconds: { increment: secondsToReward } },
+          });
+          await tx.memberTransaction.create({
+            data: {
+              memberId,
+              type: MemberTransactionType.ADJUSTMENT,
+              amountDelta: 0,
+              playSecondsDelta: secondsToReward,
+              note,
+              createdBy: LOYALTY_USAGE_CREATED_BY,
+            },
+          });
+        }
       }
 
       await tx.eventLog.create({
@@ -3257,5 +3287,71 @@ export class MembersService {
 
     return { ok: true };
   }
-}
 
+  private async applyVipTimeDiscount(
+    tx: Prisma.TransactionClient,
+    memberId: string,
+    secondsDelta: number,
+    note: string,
+    createdBy: string,
+  ): Promise<void> {
+    const latestPresenceLogs = await tx.eventLog.findMany({
+      where: { eventType: 'member.pc.presence' },
+      orderBy: { createdAt: 'desc' },
+      take: 2000,
+    });
+    
+    const activeLog = latestPresenceLogs.find((log) => {
+      const payload = log.payload as any;
+      return payload && payload.memberId === memberId && payload.isActive === true;
+    });
+
+    let appliedToSession = false;
+
+    if (activeLog && activeLog.pcId) {
+      const activeSession = await tx.session.findFirst({
+        where: { pcId: activeLog.pcId, status: 'ACTIVE' },
+        orderBy: { startedAt: 'desc' },
+      });
+
+      if (activeSession) {
+        const newStartedAt = new Date(activeSession.startedAt.getTime() + secondsDelta * 1000);
+        await tx.session.update({
+          where: { id: activeSession.id },
+          data: { startedAt: newStartedAt },
+        });
+
+        await tx.memberTransaction.create({
+          data: {
+            memberId,
+            type: MemberTransactionType.ADJUSTMENT,
+            amountDelta: 0,
+            playSecondsDelta: 0,
+            note: `${note} (VIP: Dịch chuyển Bắt đầu ${secondsDelta > 0 ? '+' : ''}${secondsDelta}s)`,
+            createdBy,
+          },
+        });
+        
+        appliedToSession = true;
+      }
+    }
+
+    if (!appliedToSession) {
+      await tx.member.update({
+        where: { id: memberId },
+        data: { playSeconds: { increment: secondsDelta } },
+      });
+
+      await tx.memberTransaction.create({
+        data: {
+          memberId,
+          type: MemberTransactionType.ADJUSTMENT,
+          amountDelta: 0,
+          playSecondsDelta: secondsDelta,
+          note: `${note} (VIP: Dự phòng cộng vào tài khoản do không có phiên đang chạy)`,
+          createdBy,
+        },
+      });
+    }
+  }
+}
