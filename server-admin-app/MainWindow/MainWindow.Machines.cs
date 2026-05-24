@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -9,6 +10,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -4320,6 +4322,224 @@ public partial class MainWindow : Window
 
         dialog.Content = root;
         dialog.ShowDialog();
+    }
+
+    private void OpenWakeUpMachinesDialog_Click(object sender, RoutedEventArgs e)
+    {
+        var offlineMachines = _allMachineRows.Where(x => x.StatusCode?.Trim().ToUpperInvariant() == "OFFLINE").ToList();
+
+        if (offlineMachines.Count == 0)
+        {
+            MessageBox.Show("Hiện không có máy trạm nào ở trạng thái ngoại tuyến (chưa khởi động).", "Mở máy trạm từ xa", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var targetRows = new ObservableCollection<WakeTargetRow>(
+            offlineMachines.Select(m => new WakeTargetRow { Id = m.Id, Name = m.Name, Machine = m, IsChecked = false })
+        );
+
+        var dialog = new Window
+        {
+            Title = "【 Các máy chưa khởi động 】",
+            Width = 420,
+            Height = 500,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStyle = WindowStyle.SingleBorderWindow,
+            ShowInTaskbar = false,
+            Owner = this,
+        };
+
+        var mainGrid = new Grid { Margin = new Thickness(12) };
+        mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var dataGrid = new DataGrid
+        {
+            AutoGenerateColumns = false,
+            CanUserAddRows = false,
+            HeadersVisibility = DataGridHeadersVisibility.Column,
+            Background = Brushes.White,
+            RowHeight = 32,
+            FontSize = 13,
+            GridLinesVisibility = DataGridGridLinesVisibility.None,
+            ItemsSource = targetRows,
+            Margin = new Thickness(0, 0, 0, 10),
+            SelectionMode = DataGridSelectionMode.Single,
+            SelectionUnit = DataGridSelectionUnit.FullRow
+        };
+
+        var checkCol = new DataGridCheckBoxColumn
+        {
+            Header = "",
+            Binding = new Binding("IsChecked") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged },
+            Width = new DataGridLength(40)
+        };
+        var checkboxStyle = new Style(typeof(CheckBox));
+        checkboxStyle.Setters.Add(new Setter(CheckBox.HorizontalAlignmentProperty, HorizontalAlignment.Center));
+        checkboxStyle.Setters.Add(new Setter(CheckBox.VerticalAlignmentProperty, VerticalAlignment.Center));
+        checkCol.ElementStyle = checkboxStyle;
+        checkCol.EditingElementStyle = checkboxStyle;
+
+        var nameCol = new DataGridTextColumn
+        {
+            Header = "Tên máy",
+            Binding = new Binding("Name"),
+            Width = new DataGridLength(1, DataGridLengthUnitType.Star),
+            IsReadOnly = true
+        };
+
+        dataGrid.Columns.Add(checkCol);
+        dataGrid.Columns.Add(nameCol);
+
+        Grid.SetRow(dataGrid, 0);
+        mainGrid.Children.Add(dataGrid);
+
+        var bottomGrid = new Grid();
+        bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var selectAllCheckBox = new CheckBox
+        {
+            Content = "Chọn tất cả",
+            VerticalAlignment = VerticalAlignment.Center,
+            FontSize = 13,
+            FontWeight = FontWeights.SemiBold
+        };
+        selectAllCheckBox.Checked += (s, ev) => {
+            foreach (var row in targetRows) row.IsChecked = true;
+        };
+        selectAllCheckBox.Unchecked += (s, ev) => {
+            foreach (var row in targetRows) row.IsChecked = false;
+        };
+        Grid.SetColumn(selectAllCheckBox, 0);
+        bottomGrid.Children.Add(selectAllCheckBox);
+
+        var actionsPanel = new StackPanel { Orientation = Orientation.Horizontal };
+        Grid.SetColumn(actionsPanel, 2);
+
+        var wakeButton = new Button
+        {
+            Content = "Khởi động",
+            Width = 100,
+            Height = 32,
+            Margin = new Thickness(0, 0, 8, 0),
+            Background = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
+            Foreground = Brushes.White,
+            FontWeight = FontWeights.Bold,
+            FontSize = 13,
+            IsDefault = true
+        };
+        wakeButton.Click += async (s, ev) =>
+        {
+            var checkedTargets = targetRows.Where(x => x.IsChecked).ToList();
+            if (checkedTargets.Count == 0)
+            {
+                MessageBox.Show("Vui lòng chọn ít nhất một máy trạm để khởi động.", "Mở máy trạm từ xa", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            dialog.Close();
+
+            _ = Task.Run(async () =>
+            {
+                int successCount = 0;
+                int failCount = 0;
+                var skippedMachines = new List<string>();
+
+                foreach (var target in checkedTargets)
+                {
+                    if (!TryResolveWakeLanPayload(target.Machine, out var macAddress, out var broadcastAddress, out var sourceLabel))
+                    {
+                        skippedMachines.Add(target.Name);
+                        failCount++;
+                        continue;
+                    }
+
+                    try
+                    {
+                        using var response = await _httpClient.PostAsJsonAsync(
+                            BuildApiUrl($"/pcs/{target.Id}/wake"),
+                            new
+                            {
+                                macAddress,
+                                broadcastAddress,
+                                requestedBy = "admin.desktop",
+                            });
+
+                        if (response.IsSuccessStatusCode)
+                        {
+                            successCount++;
+                            Dispatcher.Invoke(() =>
+                            {
+                                AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã gửi WOL cho {target.Name} (MAC: {macAddress}, Broadcast: {broadcastAddress}, Source: {sourceLabel})");
+                            });
+                        }
+                        else
+                        {
+                            failCount++;
+                        }
+                    }
+                    catch
+                    {
+                        failCount++;
+                    }
+                }
+
+                Dispatcher.Invoke(() =>
+                {
+                    var msg = $"Đã gửi lệnh khởi động từ xa:\n- Thành công: {successCount} máy\n- Thất bại: {failCount} máy";
+                    if (skippedMachines.Count > 0)
+                    {
+                        msg += $"\n\nCác máy sau chưa lấy được MAC nên không thể wake: {string.Join(", ", skippedMachines)}";
+                    }
+                    MessageBox.Show(msg, "Kết quả khởi động từ xa", MessageBoxButton.OK, MessageBoxImage.Information);
+                });
+            });
+        };
+        actionsPanel.Children.Add(wakeButton);
+
+        var closeButton = new Button
+        {
+            Content = "Đóng",
+            Width = 80,
+            Height = 32,
+            FontSize = 13,
+            IsCancel = true
+        };
+        closeButton.Click += (s, ev) => dialog.Close();
+        actionsPanel.Children.Add(closeButton);
+
+        bottomGrid.Children.Add(actionsPanel);
+
+        Grid.SetRow(bottomGrid, 1);
+        mainGrid.Children.Add(bottomGrid);
+
+        dialog.Content = mainGrid;
+        dialog.ShowDialog();
+    }
+
+    private sealed class WakeTargetRow : INotifyPropertyChanged
+    {
+        private bool _isChecked;
+        public bool IsChecked
+        {
+            get => _isChecked;
+            set
+            {
+                if (_isChecked != value)
+                {
+                    _isChecked = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked)));
+                }
+            }
+        }
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public MachineRow Machine { get; set; } = null!;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }
 
