@@ -835,6 +835,64 @@ export class PcsService {
     });
   }
 
+  async getActiveMemberForPc(
+    pcId: string,
+  ): Promise<{ memberId: string; username: string; fullName: string; memberType: string; rank: string } | null> {
+    const latestPresence = await this.prisma.eventLog.findFirst({
+      where: {
+        pcId,
+        eventType: 'member.pc.presence',
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (!latestPresence) {
+      return null;
+    }
+
+    const memberPayload = this.parseMemberPresencePayload(latestPresence.payload);
+    if (!memberPayload) {
+      return null;
+    }
+
+    const member = await this.prisma.member.findUnique({
+      where: { id: memberPayload.memberId },
+      select: {
+        id: true,
+        username: true,
+        fullName: true,
+        memberType: true,
+        totalTopup: true,
+      },
+    });
+
+    if (!member) {
+      return null;
+    }
+
+    const rankConfigs = await this.prisma.loyaltyRankConfig.findMany({
+      orderBy: { minTopup: 'desc' },
+    });
+
+    let rank = 'Sắt';
+    if (rankConfigs.length > 0) {
+      const matched = rankConfigs.find((c) => Number(member.totalTopup) >= Number(c.minTopup));
+      if (matched) {
+        rank = matched.rankName;
+      }
+    }
+
+    return {
+      memberId: member.id,
+      username: member.username,
+      fullName: member.fullName,
+      memberType: member.memberType,
+      rank,
+    };
+  }
+
   private async logEvent(
     eventType: string,
     pcId?: string,

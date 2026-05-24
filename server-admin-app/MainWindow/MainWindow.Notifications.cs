@@ -51,6 +51,9 @@ public partial class MainWindow : Window
 
         _guestSessionSnapshotByPcId.Clear();
         _guestSessionSnapshotInitialized = false;
+
+        _vipSessionSnapshotByPcId.Clear();
+        _vipSessionSnapshotInitialized = false;
     }
 
     private void TrackGuestSessionNotifications(IReadOnlyList<MachineRow> currentRows)
@@ -446,6 +449,105 @@ public partial class MainWindow : Window
     private static bool IsGuestSessionActive(MachineRow row)
     {
         return row.IsGuestSession &&
+               row.StatusCode.Equals("IN_USE", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private readonly Dictionary<string, VipSessionSnapshot> _vipSessionSnapshotByPcId = new(StringComparer.OrdinalIgnoreCase);
+    private bool _vipSessionSnapshotInitialized;
+
+    private sealed class VipSessionSnapshot
+    {
+        public string StatusCode { get; init; } = string.Empty;
+        public bool IsVipSession { get; init; }
+        public string? ActiveSessionId { get; init; }
+    }
+
+    private void TrackVipSessionNotifications(IReadOnlyList<MachineRow> currentRows)
+    {
+        if (_vipSessionSnapshotInitialized)
+        {
+            foreach (var row in currentRows)
+            {
+                if (!IsVipSessionActive(row))
+                {
+                    continue;
+                }
+
+                if (_vipSessionSnapshotByPcId.TryGetValue(row.Id, out var previousSnapshot) &&
+                    previousSnapshot.IsVipSession &&
+                    !string.IsNullOrWhiteSpace(row.ActiveSessionId) &&
+                    string.Equals(previousSnapshot.ActiveSessionId, row.ActiveSessionId, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                NotifyVipSessionStarted(row);
+            }
+        }
+
+        _vipSessionSnapshotByPcId.Clear();
+        foreach (var row in currentRows)
+        {
+            _vipSessionSnapshotByPcId[row.Id] = new VipSessionSnapshot
+            {
+                StatusCode = row.StatusCode,
+                IsVipSession = row.IsVipSession,
+                ActiveSessionId = row.ActiveSessionId,
+            };
+        }
+
+        _vipSessionSnapshotInitialized = true;
+    }
+
+    private void NotifyVipSessionStarted(MachineRow row)
+    {
+        var machineLabel = string.IsNullOrWhiteSpace(row.Name) ? row.AgentId : row.Name;
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Alert VIP member login: {machineLabel} đang được sử dụng");
+        _ = PlayVipLoginNotificationAudioAsync();
+    }
+
+    private async Task PlayVipLoginNotificationAudioAsync()
+    {
+        await _guestLoginSpeechLock.WaitAsync();
+        try
+        {
+            var fileNames = new[] { "vip-login.mp3", "vip-login.wav" };
+            var roots = new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, "audio"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ServerManagerBilling", "audio"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "Music"),
+            };
+
+            foreach (var root in roots)
+            {
+                if (string.IsNullOrWhiteSpace(root)) continue;
+                foreach (var fileName in fileNames)
+                {
+                    var path = Path.Combine(root, fileName);
+                    if (File.Exists(path) && TryPlayAudioFile(path))
+                    {
+                        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Played VIP login audio: {path}");
+                        return;
+                    }
+                }
+            }
+
+            System.Media.SystemSounds.Asterisk.Play();
+        }
+        catch
+        {
+            // Fallback
+        }
+        finally
+        {
+            _guestLoginSpeechLock.Release();
+        }
+    }
+
+    private static bool IsVipSessionActive(MachineRow row)
+    {
+        return row.IsVipSession &&
                row.StatusCode.Equals("IN_USE", StringComparison.OrdinalIgnoreCase);
     }
 }

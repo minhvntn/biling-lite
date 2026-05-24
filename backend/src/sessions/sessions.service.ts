@@ -282,6 +282,17 @@ export class SessionsService {
       return null;
     }
 
+    const shouldPreserveVipSession =
+      await this.hasActiveVipPresenceForPc(pcId);
+    if (shouldPreserveVipSession) {
+      await this.logPreservedVipSessionIfStateChanged(
+        pcId,
+        activeSession.id,
+        sourceEvent,
+      );
+      return null;
+    }
+
     return this.closeSessionAsAutoOffline(activeSession, sourceEvent);
   }
 
@@ -310,6 +321,17 @@ export class SessionsService {
         await this.hasActiveGuestPresenceForPc(session.pcId);
       if (shouldPreserveGuestSession) {
         await this.logPreservedGuestSessionIfStateChanged(
+          session.pcId,
+          session.id,
+          'offline.close_stale',
+        );
+        continue;
+      }
+
+      const shouldPreserveVipSession =
+        await this.hasActiveVipPresenceForPc(session.pcId);
+      if (shouldPreserveVipSession) {
+        await this.logPreservedVipSessionIfStateChanged(
           session.pcId,
           session.id,
           'offline.close_stale',
@@ -500,6 +522,105 @@ export class SessionsService {
     });
 
     return Number(defaultGroup?.hourlyRate ?? 0);
+  }
+
+  private async hasActiveVipPresenceForPc(
+    pcId: string,
+  ): Promise<boolean> {
+    const latestPresence = await this.prisma.eventLog.findFirst({
+      where: {
+        pcId,
+        eventType: {
+          in: ['member.pc.presence', 'guest.pc.presence', 'admin.pc.presence'],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        eventType: true,
+        payload: true,
+      },
+    });
+
+    if (
+      !latestPresence ||
+      latestPresence.eventType !== 'member.pc.presence' ||
+      !this.isActivePresencePayload(latestPresence.payload)
+    ) {
+      return false;
+    }
+
+    const payload = latestPresence.payload as Record<string, unknown>;
+    const memberId = this.readString(payload.memberId);
+    if (!memberId) {
+      return false;
+    }
+
+    const member = await this.prisma.member.findUnique({
+      where: { id: memberId },
+      select: { memberType: true },
+    });
+
+    return member?.memberType === 'VIP';
+  }
+
+  private async logPreservedVipSessionIfStateChanged(
+    pcId: string,
+    sessionId: string,
+    sourceEvent: string,
+  ): Promise<void> {
+    const latestPreserved = await this.prisma.eventLog.findFirst({
+      where: {
+        pcId,
+        eventType: 'session.preserved.offline_vip',
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        createdAt: true,
+        payload: true,
+      },
+    });
+
+    if (!latestPreserved) {
+      await this.logEvent('session.preserved.offline_vip', pcId, {
+        sessionId,
+        sourceEvent,
+      });
+      return;
+    }
+
+    const latestPreservedSessionId = this.readJsonString(
+      latestPreserved.payload,
+      'sessionId',
+    );
+    if (latestPreservedSessionId !== sessionId) {
+      await this.logEvent('session.preserved.offline_vip', pcId, {
+        sessionId,
+        sourceEvent,
+      });
+      return;
+    }
+
+    const hasPresenceEventAfterLastPreserved =
+      (await this.prisma.eventLog.count({
+        where: {
+          pcId,
+          eventType: {
+            in: ['member.pc.presence', 'guest.pc.presence', 'admin.pc.presence'],
+          },
+          createdAt: {
+            gt: latestPreserved.createdAt,
+          },
+        },
+      })) > 0;
+
+    if (!hasPresenceEventAfterLastPreserved) {
+      return;
+    }
+
+    await this.logEvent('session.preserved.offline_vip', pcId, {
+      sessionId,
+      sourceEvent,
+    });
   }
 
   private async hasActiveGuestPresenceForPc(

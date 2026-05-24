@@ -109,6 +109,23 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
       ? Math.max(0, Math.floor((Date.now() - activeSession.startedAt.getTime()) / 1000))
       : 0;
 
+    let resumeMemberSession = false;
+    let memberInfo = null;
+
+    if (activeSession && activePresenceKind === 'MEMBER') {
+      const activeMember = await this.pcsService.getActiveMemberForPc(transition.pc.id);
+      if (activeMember && activeMember.memberType === 'VIP') {
+        resumeMemberSession = true;
+        memberInfo = {
+          memberId: activeMember.memberId,
+          username: activeMember.username,
+          fullName: activeMember.fullName,
+          memberType: activeMember.memberType,
+          rank: activeMember.rank,
+        };
+      }
+    }
+
     client.emit('agent.hello.ack', {
       ok: true,
       pcId: transition.pc.id,
@@ -116,6 +133,8 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
       hourlyRate,
       isGuestLoginEnabled,
       resumeGuestSession,
+      resumeMemberSession,
+      memberInfo,
       elapsedSeconds,
       activePromotion: activePromo,
       serverTime: new Date().toISOString(),

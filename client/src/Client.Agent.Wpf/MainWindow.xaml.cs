@@ -27,6 +27,9 @@ public partial class MainWindow : Window
     private decimal _serviceCost;
     private int _serviceOrderCount;
     private bool _isMemberSession;
+    private bool _isVipSession;
+    private bool _withdrawActionEnabledSetting = true;
+    private bool _topupActionEnabledSetting = true;
     private TimeSpan _usedDuration = TimeSpan.Zero;
     private DateTime? _runningStartedAtUtc;
 
@@ -260,16 +263,25 @@ public partial class MainWindow : Window
         LastCommandTextBlock.Text = $"L\u1ec7nh g\u1ea7n nh\u1ea5t: {value}";
     }
 
-    public void SetMemberInfo(string? username, string? rank)
+    public void SetMemberInfo(string? username, string? rank, string? memberType = null)
     {
         _isMemberSession = !string.IsNullOrWhiteSpace(username);
         var isAdminSession = string.Equals(username, "Admin", StringComparison.OrdinalIgnoreCase) ||
                              string.Equals(rank, "ADMIN", StringComparison.OrdinalIgnoreCase);
-        SetLogoutActionVisible(_isMemberSession || isAdminSession);
+        _isVipSession = string.Equals(memberType, "VIP", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(rank, "VIP", StringComparison.OrdinalIgnoreCase);
+        SetLogoutActionVisible((_isMemberSession || isAdminSession) && !_isVipSession);
+        SetTransferActionVisible(_isMemberSession && !isAdminSession);
+        SetWithdrawActionVisible(_withdrawActionEnabledSetting);
+        SetTopupRequestActionVisible(_topupActionEnabledSetting);
         if (string.IsNullOrWhiteSpace(username))
         {
             UserInfoPanel.Visibility = Visibility.Collapsed;
             MemberRankBorder.Visibility = Visibility.Collapsed;
+            if (VipIconImage is not null)
+            {
+                VipIconImage.Visibility = Visibility.Collapsed;
+            }
             ApplyRankPulseAnimation(false);
             UpdateUsageUi();
             return;
@@ -278,6 +290,15 @@ public partial class MainWindow : Window
         UserInfoPanel.Visibility = Visibility.Visible;
         MemberRankBorder.Visibility = Visibility.Visible;
         MemberUsernameTextBlock.Text = username;
+
+        if (VipIconImage is not null)
+        {
+            VipIconImage.Visibility = _isVipSession ? Visibility.Visible : Visibility.Collapsed;
+            if (_isVipSession && VipIconImage.Source is null)
+            {
+                VipIconImage.Source = ResolveRankIconSource("vip.png");
+            }
+        }
 
         var rankStr = string.IsNullOrWhiteSpace(rank) ? "SAT" : rank;
         var rankUpper = rankStr.ToUpperInvariant();
@@ -507,24 +528,36 @@ public partial class MainWindow : Window
         LogoutActionButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
     }
 
+    public void SetTransferActionVisible(bool visible)
+    {
+        if (TransferActionButton is null)
+        {
+            return;
+        }
+
+        TransferActionButton.Visibility = (visible && !_isVipSession) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     public void SetWithdrawActionVisible(bool visible)
     {
+        _withdrawActionEnabledSetting = visible;
         if (WithdrawActionButton is null)
         {
             return;
         }
 
-        WithdrawActionButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        WithdrawActionButton.Visibility = (visible && !_isVipSession) ? Visibility.Visible : Visibility.Collapsed;
     }
 
     public void SetTopupRequestActionVisible(bool visible)
     {
+        _topupActionEnabledSetting = visible;
         if (TopupRequestActionButton is null)
         {
             return;
         }
 
-        TopupRequestActionButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        TopupRequestActionButton.Visibility = (visible && !_isVipSession) ? Visibility.Visible : Visibility.Collapsed;
     }
 
     public void AllowShutdown()
@@ -795,6 +828,12 @@ public partial class MainWindow : Window
 
     private void LogoutButton_Click(object sender, RoutedEventArgs e)
     {
+        if (_isVipSession)
+        {
+            MessageBox.Show("Hội viên VIP không được sử dụng chức năng đăng xuất.", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         if (Application.Current is App app)
         {
             app.RequestLockFromClientUi("Đăng xuất máy");

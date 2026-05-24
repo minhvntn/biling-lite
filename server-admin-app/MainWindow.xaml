@@ -400,9 +400,7 @@
                                                             <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
                                                                 <Setter Property="Background" Value="{DynamicResource ColorInUseBgBrush}" />
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding IsVipSession}" Value="True">
-                                                                <Setter Property="Background" Value="#FEF3C7" />
-                                                            </DataTrigger>
+                                                            
                                                             <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
                                                                 <Setter Property="Background" Value="#FEF2F2" />
                                                             </DataTrigger>
@@ -433,9 +431,6 @@
                                                                     </DataTrigger>
                                                                     <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
                                                                         <Setter Property="Foreground" Value="{DynamicResource ColorInUseFgBrush}" />
-                                                                    </DataTrigger>
-                                                                    <DataTrigger Binding="{Binding IsVipSession}" Value="True">
-                                                                        <Setter Property="Foreground" Value="#B45309" />
                                                                     </DataTrigger>
                                                                     <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
                                                                         <Setter Property="Foreground" Value="#DC2626" />
@@ -476,11 +471,42 @@
                                 <DataGridTemplateColumn Header="Người sử dụng" Width="1.1*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding UserName}"
-                                                       VerticalAlignment="Center"
-                                                       HorizontalAlignment="Center"
-                                                       TextAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis" />
+                                            <Border CornerRadius="0" Margin="-8,0">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsVipSession}" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource ColorVipBgBrush}" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}}" Value="True">
+                                                                <Setter Property="Background" Value="Transparent" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Text="{Binding UserName}"
+                                                           VerticalAlignment="Center"
+                                                           HorizontalAlignment="Center"
+                                                           TextAlignment="Center"
+                                                           FontWeight="SemiBold"
+                                                           Margin="8,6"
+                                                           TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#1E293B" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsVipSession}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource ColorVipFgBrush}" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}}" Value="True">
+                                                                    <Setter Property="Foreground" Value="White" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -578,9 +604,9 @@
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border Padding="3,2"
-                                                    CornerRadius="4"
-                                                    HorizontalAlignment="Stretch"
-                                                    VerticalAlignment="Center">
+                                                    CornerRadius="0"
+                                                    Margin="-8,0"
+                                                    HorizontalAlignment="Stretch">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="Transparent" />

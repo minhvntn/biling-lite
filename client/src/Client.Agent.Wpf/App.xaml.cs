@@ -206,16 +206,20 @@ public partial class App : Application
             _activeMemberSession is null &&
             !_isAdminSession;
 
+        var shouldPreserveVipSessionOnExit =
+            _activeMemberSession is not null &&
+            _activeMemberSession.MemberType == "VIP";
+
         try
         {
-            if (!_skipSessionClearOnExit && !shouldPreserveGuestSessionOnExit)
+            if (!_skipSessionClearOnExit && !shouldPreserveGuestSessionOnExit && !shouldPreserveVipSessionOnExit)
             {
                 Task.Run(() => TrackAndClearMemberSessionAsync("APP_EXIT")).GetAwaiter().GetResult();
             }
-            else if (shouldPreserveGuestSessionOnExit)
+            else if (shouldPreserveGuestSessionOnExit || shouldPreserveVipSessionOnExit)
             {
                 _ = _logger?.InfoAsync(
-                    "Preserving guest session state on app exit for auto-resume");
+                    $"Preserving {(shouldPreserveVipSessionOnExit ? "VIP member" : "guest")} session state on app exit for auto-resume");
             }
         }
         catch
@@ -309,6 +313,11 @@ public partial class App : Application
             OnMemberAccountChangedFromServer,
             OnServiceOrdersChangedFromServer,
             OnWebFilterSettingsChangedFromServer);
+
+        _socketService.ResumeMemberSessionHandler = (memberId, username, fullName, rank, memberType, elapsedSeconds) =>
+        {
+            Dispatcher.Invoke(() => ResumeMemberSessionFromServer(memberId, username, fullName, rank, memberType, elapsedSeconds));
+        };
 
         _socketService.GetRunningAppsHandler = HandleGetRunningAppsRequestedAsync;
         _socketService.KillProcessHandler = HandleKillProcessRequestedAsync;
@@ -431,11 +440,14 @@ public partial class App : Application
                         _isPostpaidGuestSession &&
                         _activeMemberSession is null &&
                         !_isAdminSession;
-                    if (shouldPreserveGuestSession)
+                    var shouldPreserveVipSession =
+                        _activeMemberSession is not null &&
+                        _activeMemberSession.MemberType == "VIP";
+                    if (shouldPreserveGuestSession || shouldPreserveVipSession)
                     {
                         _skipSessionClearOnExit = true;
                         _ = _logger?.InfoAsync(
-                            "Preserving guest session state on restart for auto-resume");
+                            $"Preserving {(shouldPreserveVipSession ? "VIP member" : "guest")} session state on restart for auto-resume");
                     }
                     else
                     {
@@ -446,7 +458,23 @@ public partial class App : Application
                     return (true, "restart triggered");
 
                 case "SHUTDOWN":
-                    await TrackAndClearMemberSessionAsync("SERVER_SHUTDOWN");
+                    var shouldPreserveGuestSessionOnShutdown =
+                        _isPostpaidGuestSession &&
+                        _activeMemberSession is null &&
+                        !_isAdminSession;
+                    var shouldPreserveVipSessionOnShutdown =
+                        _activeMemberSession is not null &&
+                        _activeMemberSession.MemberType == "VIP";
+                    if (shouldPreserveGuestSessionOnShutdown || shouldPreserveVipSessionOnShutdown)
+                    {
+                        _skipSessionClearOnExit = true;
+                        _ = _logger?.InfoAsync(
+                            $"Preserving {(shouldPreserveVipSessionOnShutdown ? "VIP member" : "guest")} session state on shutdown for auto-resume");
+                    }
+                    else
+                    {
+                        await TrackAndClearMemberSessionAsync("SERVER_SHUTDOWN");
+                    }
                     _ = _logger?.InfoAsync("Executing SHUTDOWN command");
                     TriggerSystemShutdown();
                     return (true, "shutdown triggered");
@@ -718,7 +746,7 @@ public partial class App : Application
 
                 _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true);
                 _mainWindow?.SetUpfrontUsedDuration();
-                _mainWindow?.SetMemberInfo(member.Username, member.Rank);
+                _mainWindow?.SetMemberInfo(member.Username, member.Rank, member.MemberType);
                 UnlockMachine();
                 _mainWindow?.SetLastCommand(
                     $"MEMBER LOGIN {member.Username} @ {DateTime.Now:HH:mm:ss}");
@@ -1761,6 +1789,16 @@ public async void OpenLoyaltyPanelFromClientUi()
 
     public async void OpenTransferBalancePanelFromClientUi()
     {
+        if (_activeMemberSession?.MemberType == "VIP")
+        {
+            MessageBox.Show(
+                "Hội viên VIP không được sử dụng chức năng chuyển tiền.",
+                "Chuyển tiền hội viên",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
         var activeSession = _activeMemberSession;
         if (activeSession is null)
         {
@@ -1801,6 +1839,16 @@ public async void OpenLoyaltyPanelFromClientUi()
 
     public async void OpenWithdrawBalancePanelFromClientUi()
     {
+        if (_activeMemberSession?.MemberType == "VIP")
+        {
+            MessageBox.Show(
+                "Hội viên VIP không được sử dụng chức năng rút tiền.",
+                "Rút tiền hội viên",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
         if (!_isMemberWithdrawEnabled)
         {
             MessageBox.Show(
@@ -1851,6 +1899,16 @@ public async void OpenLoyaltyPanelFromClientUi()
 
     public async void OpenTopupRequestPanelFromClientUi()
     {
+        if (_activeMemberSession?.MemberType == "VIP")
+        {
+            MessageBox.Show(
+                "Hội viên VIP không được sử dụng chức năng nạp tiền.",
+                "Nạp tiền hội viên",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
         if (!_isMemberTopupRequestEnabled)
         {
             MessageBox.Show(
@@ -5853,6 +5911,37 @@ LIMIT $limit;";
         _mainWindow?.SetLastCommand($"GUEST RESUME @ {DateTime.Now:HH:mm:ss}");
     }
 
+    private void ResumeMemberSessionFromServer(string memberId, string username, string fullName, string? rank, string memberType, int elapsedSeconds)
+    {
+        if (_activeMemberSession is not null || _isAdminSession)
+        {
+            return;
+        }
+
+        _activeMemberSession = new ActiveMemberSession
+        {
+            MemberId = memberId,
+            Username = username,
+            FullName = fullName,
+            Rank = rank,
+            MemberType = memberType
+        };
+        _isAdminSession = false;
+        _isPostpaidGuestSession = false;
+        _guestPrepaidTotalMinutes = null;
+        _lastSyncedMemberUsedSeconds = elapsedSeconds;
+        ResetMemberRemainingWarnings();
+
+        _mainWindow?.ConfigureBilling(
+            _settings.TotalSessionMinutes,
+            _currentHourlyRate,
+            true);
+        _mainWindow?.SetMemberInfo(username, rank, memberType);
+        _mainWindow?.SynchronizeUsedDuration(elapsedSeconds);
+        UnlockMachine();
+        _mainWindow?.SetLastCommand($"VIP RESUME {username} @ {DateTime.Now:HH:mm:ss}");
+    }
+
     private void OnConnectionStatusChanged(string status)
     {
         var wasConnected = _isBillingServerConnected;
@@ -6065,7 +6154,7 @@ LIMIT $limit;";
         var reasonText = string.IsNullOrWhiteSpace(payload.Reason) ? "SYNC" : payload.Reason;
         Dispatcher.Invoke(() =>
         {
-            _mainWindow?.SetMemberInfo(activeSession.Username, activeSession.Rank);
+            _mainWindow?.SetMemberInfo(activeSession.Username, activeSession.Rank, activeSession.MemberType);
             _mainWindow?.SetLastCommand(
                 $"MEMBER ACCOUNT {reasonText} @ {DateTime.Now:HH:mm:ss}");
         });

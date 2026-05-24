@@ -128,47 +128,57 @@
                     <Border.Effect>
                         <DropShadowEffect Color="#2F6FE3" BlurRadius="14" ShadowDepth="0" Opacity="0.55" />
                     </Border.Effect>
-                    <Grid HorizontalAlignment="Right">
+                    <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <Border x:Name="MemberRankIconBadgeBorder"
-                                Width="44"
-                                Height="44"
-                                CornerRadius="22"
-                                Background="#152B59"
-                                BorderBrush="#3C7CF0"
-                                BorderThickness="1.1"
-                                VerticalAlignment="Center">
-                            <Grid>
-                                <Image x:Name="MemberRankIconImage"
-                                       Width="38"
-                                       Height="38"
-                                       Visibility="Collapsed"
-                                       Stretch="Uniform"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center" />
-                                <TextBlock x:Name="MemberRankIconTextBlock"
-                                       Foreground="#CFE3FF"
-                                       FontSize="16"
-                                       FontWeight="Black"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       Text="R" />
-                            </Grid>
-                        </Border>
+                        <!-- Left Side: VIP Crown Icon (Visible only if user is VIP) -->
+                        <Image x:Name="VipIconImage"
+                               Width="44"
+                               Height="44"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Center"
+                               Visibility="Collapsed" />
 
-                        <TextBlock x:Name="MemberRankTextBlock"
-                                   Grid.Column="1"
-                                   Foreground="#EAF3FF"
-                                   FontSize="13"
-                                   FontWeight="Bold"
-                                   VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis"
-                                   TextWrapping="NoWrap"
-                                   Margin="8,0,0,0" />
+                        <!-- Right Side: Rank badge + text -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Border x:Name="MemberRankIconBadgeBorder"
+                                    Width="44"
+                                    Height="44"
+                                    CornerRadius="22"
+                                    Background="#152B59"
+                                    BorderBrush="#3C7CF0"
+                                    BorderThickness="1.1"
+                                    VerticalAlignment="Center">
+                                <Grid>
+                                    <Image x:Name="MemberRankIconImage"
+                                           Width="38"
+                                           Height="38"
+                                           Visibility="Collapsed"
+                                           Stretch="Uniform"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                                    <TextBlock x:Name="MemberRankIconTextBlock"
+                                           Foreground="#CFE3FF"
+                                           FontSize="16"
+                                           FontWeight="Black"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Text="R" />
+                                </Grid>
+                            </Border>
+
+                            <TextBlock x:Name="MemberRankTextBlock"
+                                       Foreground="#EAF3FF"
+                                       FontSize="13"
+                                       FontWeight="Bold"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       TextWrapping="NoWrap"
+                                       Margin="8,0,0,0" />
+                        </StackPanel>
                     </Grid>
                 </Border>
 
@@ -338,7 +348,7 @@
                         </StackPanel>
                     </Button>
 
-                    <Button Style="{StaticResource ActionButtonStyle}" Click="TransferBalanceButton_Click">
+                    <Button x:Name="TransferActionButton" Style="{StaticResource ActionButtonStyle}" Click="TransferBalanceButton_Click">
                         <StackPanel>
                             <TextBlock x:Name="TransferIconTextBlock" Text="💸" FontSize="20" HorizontalAlignment="Center" />
                             <TextBlock x:Name="TransferLabelTextBlock" Text="Chuyển tiền" FontSize="12" Margin="0,4,0,0" HorizontalAlignment="Center" Foreground="#374151" />

@@ -32,6 +32,7 @@ public sealed class AgentSocketService : IAsyncDisposable
     public Func<AdminGetRunningAppsPayload, Task>? GetRunningAppsHandler { get; set; }
     public Func<AdminKillProcessPayload, Task>? KillProcessHandler { get; set; }
     public Action<GuestPrepaidConfigurePayload>? GuestPrepaidConfigureHandler { get; set; }
+    public Action<string, string, string, string?, string, int>? ResumeMemberSessionHandler { get; set; }
     public Action<string?, decimal>? PromotionChangedHandler { get; set; }
 
     public AgentSocketService(
@@ -210,6 +211,30 @@ public sealed class AgentSocketService : IAsyncDisposable
             if (element.TryGetProperty("resumeGuestSession", out var resumeGuest))
             {
                 _resumeGuestSessionHandler?.Invoke(resumeGuest.GetBoolean());
+            }
+
+            if (element.TryGetProperty("resumeMemberSession", out var resumeMember) && resumeMember.GetBoolean())
+            {
+                if (element.TryGetProperty("memberInfo", out var memberInfo) && memberInfo.ValueKind == JsonValueKind.Object)
+                {
+                    var id = memberInfo.GetProperty("memberId").GetString() ?? string.Empty;
+                    var username = memberInfo.GetProperty("username").GetString() ?? string.Empty;
+                    var fullName = memberInfo.GetProperty("fullName").GetString() ?? string.Empty;
+                    string? rank = null;
+                    if (memberInfo.TryGetProperty("rank", out var rankProp) && rankProp.ValueKind == JsonValueKind.String)
+                    {
+                        rank = rankProp.GetString();
+                    }
+                    var memberType = memberInfo.GetProperty("memberType").GetString() ?? "VIP";
+
+                    int elapsedSeconds = 0;
+                    if (element.TryGetProperty("elapsedSeconds", out var elapsedProp))
+                    {
+                        elapsedSeconds = elapsedProp.GetInt32();
+                    }
+
+                    ResumeMemberSessionHandler?.Invoke(id, username, fullName, rank, memberType, elapsedSeconds);
+                }
             }
 
             if (element.TryGetProperty("activePromotion", out var promoElement) && promoElement.ValueKind == JsonValueKind.Object)

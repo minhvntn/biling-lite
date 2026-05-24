@@ -44,6 +44,7 @@ public partial class MainWindow : Window
             var allRows = dedupedItems.Select(ToMachineRow).OrderBy(r => r.Name).ToList();
             await PopulateMachineServiceAmountsAsync(allRows);
             TrackGuestSessionNotifications(allRows);
+            TrackVipSessionNotifications(allRows);
             _allMachineRows.Clear();
             _allMachineRows.AddRange(allRows);
             await RefreshMachineSummaryMemberCountAsync();
@@ -141,7 +142,7 @@ public partial class MainWindow : Window
         var statusSubText = hasUnpaidGuestSession ? "Chưa thanh toán" : string.Empty;
         var statusText = item.Status switch
         {
-            "IN_USE" => isAdminSession ? "Admin dang nh?p" : (isVipSession ? "Hội viên VIP" : I18n.StatusInUse),
+            "IN_USE" => isAdminSession ? "Admin dang nh?p" : I18n.StatusInUse,
             "LOCKED" => "Đang khóa",
             "ONLINE" => I18n.StatusReady,
             "BOOTING" => "Đang khởi động",
@@ -2937,7 +2938,7 @@ public partial class MainWindow : Window
             var currentRatePlayAmount = CalculatePrecisePlayAmount(
                 displayedElapsedSeconds,
                 machineSnapshot.HourlyRate);
-            var totalAmount = isVip ? serviceAmount : (playAmount + serviceAmount);
+            var totalAmount = playAmount + serviceAmount;
 
             statusValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.StatusText) ? "-" : machineSnapshot.StatusText;
             groupValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.GroupName) ? "-" : machineSnapshot.GroupName;
@@ -2947,9 +2948,26 @@ public partial class MainWindow : Window
             SetMoneyRateText(currentRateValueText, machineSnapshot.HourlyRate);
             SetMoneyText(playAmountValueText, playAmount, new SolidColorBrush(Color.FromRgb(30, 64, 175)));
             SetMoneyText(currentRatePlayAmountValueText, currentRatePlayAmount, new SolidColorBrush(Color.FromRgb(8, 145, 178)));
+            var groups = _pricingSettings?.Groups?.ToList() ?? new List<PricingGroupItem>();
+            var defaultGroup = groups.FirstOrDefault(x => x.IsDefault) ?? new PricingGroupItem
+            {
+                Id = _pricingSettings?.DefaultGroupId ?? "default",
+                HourlyRate = _pricingSettings?.DefaultRatePerHour > 0 ? _pricingSettings.DefaultRatePerHour : 5000,
+                MemberHourlyRate = _pricingSettings?.DefaultMemberRatePerHour > 0
+                    ? _pricingSettings.DefaultMemberRatePerHour
+                    : (_pricingSettings?.DefaultRatePerHour > 0 ? _pricingSettings.DefaultRatePerHour : 5000),
+                IsDefault = true,
+            };
+            var groupById = groups.ToDictionary(x => x.Id, StringComparer.OrdinalIgnoreCase);
+            var machineGroup = ResolveGroup(machineSnapshot, groupById, defaultGroup);
+
+            var baseHourlyRate = machineSnapshot.IsVipSession
+                ? (machineGroup.MemberHourlyRate > 0 ? machineGroup.MemberHourlyRate : machineGroup.HourlyRate)
+                : machineGroup.HourlyRate;
+
             var discountPercent = activePromotionDiscountPercent > 0
                 ? activePromotionDiscountPercent
-                : CalculateSessionDiscountPercent(sessionHourlyRate, machineSnapshot.HourlyRate);
+                : CalculateSessionDiscountPercent(sessionHourlyRate, baseHourlyRate);
             discountPercentValueText.Text = discountPercent > 0 ? $"{discountPercent:0.##}%" : "0%";
             discountSourceValueText.Text = activePromotionDiscountPercent > 0
                 ? $"Khuyến mãi: {activePromotionName}"
@@ -2960,8 +2978,8 @@ public partial class MainWindow : Window
 
             if (isVip)
             {
-                totalText.Text = $"Tổng thanh toán: {totalAmount:N0} VND (Chỉ tiền DV)";
-                noteText.Text = "Hội viên VIP: Tiền giờ chơi được tính vào tổng nạp (tích lũy VIP), không thu tiền mặt tại đây. Khách chỉ cần thanh toán tiền dịch vụ.";
+                totalText.Text = $"Tổng thanh toán: {totalAmount:N0} VND";
+                noteText.Text = "Hội viên VIP: Tiền giờ chơi được tính vào tổng nạp (tích lũy VIP) của hội viên khi kết thúc phiên.";
             }
             else
             {
@@ -3034,8 +3052,8 @@ public partial class MainWindow : Window
         }
 
         var now = DateTime.Now;
-        // DTO daysOfWeek uses 1..7 where 7 is Sunday.
-        var currentDay = now.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)now.DayOfWeek;
+        // DTO daysOfWeek uses 0..6 where 0 is Sunday (matching JS Date.getDay()).
+        var currentDay = (int)now.DayOfWeek;
         var currentTime = now.TimeOfDay;
 
         decimal bestDiscount = 0m;

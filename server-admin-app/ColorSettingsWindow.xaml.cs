@@ -42,6 +42,8 @@ public partial class ColorSettingsWindow : Window
         UpdateBlockColor(ServiceCallBgBlock, _settings.ColorServiceCallBg, "#8B5CF6");
         UpdateBlockColor(ServiceDebtBgBlock, _settings.ColorServiceDebtBg, "#0D9488");
         UpdateBlockColor(TransferPayBgBlock, _settings.ColorTransferPayBg, "#F59E0B");
+        UpdateBlockColor(VipBgBlock, _settings.ColorVipBg, "#FEF3C7");
+        UpdateBlockColor(VipFgBlock, _settings.ColorVipFg, "#D97706");
     }
 
     private void UpdateBlockColor(Border block, string? hex, string fallbackHex)
@@ -99,6 +101,8 @@ public partial class ColorSettingsWindow : Window
         else if (block == ServiceCallBgBlock) _settings.ColorServiceCallBg = hex;
         else if (block == ServiceDebtBgBlock) _settings.ColorServiceDebtBg = hex;
         else if (block == TransferPayBgBlock) _settings.ColorTransferPayBg = hex;
+        else if (block == VipBgBlock) _settings.ColorVipBg = hex;
+        else if (block == VipFgBlock) _settings.ColorVipFg = hex;
     }
 
     private void DefaultButton_Click(object sender, RoutedEventArgs e)
@@ -120,6 +124,8 @@ public partial class ColorSettingsWindow : Window
         _settings.ColorServiceCallBg = "#8B5CF6";
         _settings.ColorServiceDebtBg = "#0D9488";
         _settings.ColorTransferPayBg = "#F59E0B";
+        _settings.ColorVipBg = "#FEF3C7";
+        _settings.ColorVipFg = "#D97706";
 
         LoadColorsToUi();
     }

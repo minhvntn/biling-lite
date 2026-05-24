@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -904,7 +904,7 @@ public partial class MainWindow : Window
                     Id = p.Id,
                     Name = p.Name,
                     TimeRange = $"{p.StartTime} - {p.EndTime}",
-                    DaysOfWeekText = string.Join(", ", p.DaysOfWeek.Select(d => d == 7 ? "CN" : $"T{d + 1}")),
+                    DaysOfWeekText = string.Join(", ", p.DaysOfWeek.Select(d => d == 0 ? "CN" : $"T{d + 1}")),
                     DiscountText = $"{p.DiscountPercent:N0}%",
                     StatusText = p.IsActive ? "Đang chạy" : "Tạm dừng",
                     StatusBackground = p.IsActive ? "#ECFDF5" : "#F3F4F6",
@@ -1037,7 +1037,7 @@ public partial class MainWindow : Window
             foreach (var d in daysText)
             {
                 string clean = d.Trim().ToUpper();
-                if (clean == "CN") days.Add(7);
+                if (clean == "CN") days.Add(0);
                 else if (clean.StartsWith("T") && int.TryParse(clean.Substring(1), out int dayNum) && dayNum >= 2 && dayNum <= 7)
                 {
                     days.Add(dayNum - 1);

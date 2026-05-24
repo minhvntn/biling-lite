@@ -235,6 +235,8 @@ public partial class MainWindow : Window
         ApplyBrushSetting("ColorServiceCallBgBrush", _settings.ColorServiceCallBg, "#8B5CF6");
         ApplyBrushSetting("ColorServiceDebtBgBrush", _settings.ColorServiceDebtBg, "#0D9488");
         ApplyBrushSetting("ColorTransferPayBgBrush", _settings.ColorTransferPayBg, "#F59E0B");
+        ApplyBrushSetting("ColorVipBgBrush", _settings.ColorVipBg, "#FEF3C7");
+        ApplyBrushSetting("ColorVipFgBrush", _settings.ColorVipFg, "#D97706");
     }
 
     private void ApplyBrushSetting(string key, string hex, string fallbackHex)
@@ -275,7 +277,9 @@ public partial class MainWindow : Window
             ColorMinorFg = _settings.ColorMinorFg,
             ColorServiceCallBg = _settings.ColorServiceCallBg,
             ColorServiceDebtBg = _settings.ColorServiceDebtBg,
-            ColorTransferPayBg = _settings.ColorTransferPayBg
+            ColorTransferPayBg = _settings.ColorTransferPayBg,
+            ColorVipBg = _settings.ColorVipBg,
+            ColorVipFg = _settings.ColorVipFg
         };
 
         var dialog = new ColorSettingsWindow(settingsCopy);
@@ -299,6 +303,8 @@ public partial class MainWindow : Window
             _settings.ColorServiceCallBg = settingsCopy.ColorServiceCallBg;
             _settings.ColorServiceDebtBg = settingsCopy.ColorServiceDebtBg;
             _settings.ColorTransferPayBg = settingsCopy.ColorTransferPayBg;
+            _settings.ColorVipBg = settingsCopy.ColorVipBg;
+            _settings.ColorVipFg = settingsCopy.ColorVipFg;
 
             SaveSettings();
             ApplyColorSettings();

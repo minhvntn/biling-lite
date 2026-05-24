@@ -40,6 +40,8 @@ public sealed class AdminShellSettings
     public string ColorServiceCallBg { get; set; } = "#8B5CF6";
     public string ColorServiceDebtBg { get; set; } = "#0D9488";
     public string ColorTransferPayBg { get; set; } = "#F59E0B";
+    public string ColorVipBg { get; set; } = "#FEF3C7";
+    public string ColorVipFg { get; set; } = "#D97706";
 }
 
 public sealed class WakeLanProfile
