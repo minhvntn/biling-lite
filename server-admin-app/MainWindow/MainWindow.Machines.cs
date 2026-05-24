@@ -831,9 +831,13 @@ public partial class MainWindow : Window
             : $"{I18n.SelectedPcPrefix}: {_selectedMachineIds.Count} máy";
     }
 
-    private async void MachinesDataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    private async void MachinesDataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs? e)
     {
-        var clickedRow = FindAncestor<DataGridRow>(e.OriginalSource as DependencyObject);
+        DataGridRow? clickedRow = null;
+        if (e?.OriginalSource is DependencyObject depObj)
+        {
+            clickedRow = FindAncestor<DataGridRow>(depObj);
+        }
         var selected = clickedRow?.Item as MachineRow ?? MachinesDataGrid.SelectedItem as MachineRow;
         if (selected is null)
         {
@@ -4615,6 +4619,7 @@ public partial class MainWindow
             _selectedMachineId = row.Id;
             _selectedMachineIds.Clear();
             _selectedMachineIds.Add(row.Id);
+            MachinesDataGrid.SelectedItem = row;
             SelectionTextBlock.Text = $"{I18n.SelectedPcPrefix}: {row.Name} ({row.StatusText})";
 
             if (e.ClickCount == 2)

@@ -18,6 +18,7 @@ export type PcListItem = {
     billableMinutes: number;
     estimatedAmount: number;
   } | null;
+  hasUnpaidServices: boolean;
   activeMember: {
     id: string;
     username: string;

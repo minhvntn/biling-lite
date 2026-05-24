@@ -133,6 +133,39 @@ export class PcsService {
         isActive: true,
       },
     });
+
+    const activeSessionIds = pcs.map((pc) => pc.sessions[0]?.id).filter(Boolean) as string[];
+    const allServiceOrders = activeSessionIds.length ? await this.prisma.pcServiceOrder.findMany({
+      where: { sessionId: { in: activeSessionIds } },
+      select: { id: true, pcId: true },
+    }) : [];
+
+    const allPaidEvents = pcs.length ? await this.prisma.eventLog.findMany({
+      where: { eventType: 'service.order.paid', pcId: { in: pcs.map((p) => p.id) } },
+      select: { payload: true },
+      orderBy: { createdAt: 'desc' },
+      take: 2000,
+    }) : [];
+
+    const paidIds = new Set<string>();
+    for (const event of allPaidEvents) {
+      const payload = event.payload as any;
+      if (payload && Array.isArray(payload.orderIds)) {
+        for (const id of payload.orderIds) {
+          if (typeof id === 'string') {
+            paidIds.add(id.trim());
+          }
+        }
+      }
+    }
+
+    const unpaidOrdersByPc = new Set<string>();
+    for (const order of allServiceOrders) {
+      if (!paidIds.has(order.id)) {
+        unpaidOrdersByPc.add(order.pcId);
+      }
+    }
+
     const items = await Promise.all(
       pcs.map(async (pc) => {
         const effectiveGroup = pc.group ?? defaultGroup;
@@ -230,6 +263,7 @@ export class PcsService {
                 estimatedAmount,
               }
             : null,
+          hasUnpaidServices: unpaidOrdersByPc.has(pc.id),
           activeMember,
           activeGuest,
           activeAdmin,

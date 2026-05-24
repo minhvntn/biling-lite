@@ -600,23 +600,29 @@ export function PcsPage() {
                 <span className={statusClass(pc.status)} style={{ fontSize: '0.68rem', padding: '0.15rem 0.4rem' }}>{statusText(pc.status)}</span>
               </div>
               {userName !== '-' && (
-                <div className="pc-card-body">
+                <div className="pc-card-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginTop: '0.4rem' }}>
                   <div className="pc-card-row">
                     <span className="pc-card-icon">👤</span>
-                    <span className="pc-card-value">{userName}</span>
+                    <span className="pc-card-value" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</span>
                   </div>
-                  {pc.activeSession && (
-                    <>
-                      <div className="pc-card-row">
-                        <span className="pc-card-icon">⏱</span>
-                        <span className="pc-card-value">{formatDuration(elapsed)}</span>
-                      </div>
-                      <div className="pc-card-row">
-                        <span className="pc-card-icon">💰</span>
-                        <span className="pc-card-value highlight">{formatMoney(pc.activeSession.estimatedAmount)}</span>
-                      </div>
-                    </>
-                  )}
+                  {pc.activeSession ? (
+                    <div className="pc-card-row">
+                      <span className="pc-card-icon">⏱</span>
+                      <span className="pc-card-value">{formatDuration(elapsed)}</span>
+                    </div>
+                  ) : <div />}
+                  {pc.hasUnpaidServices ? (
+                    <div className="pc-card-row">
+                      <span className="pc-card-icon" style={{ color: '#0284c7' }}>🍔</span>
+                      <span className="pc-card-value" style={{ color: '#0284c7', fontWeight: 500 }}>Có dịch vụ</span>
+                    </div>
+                  ) : <div />}
+                  {pc.activeSession ? (
+                    <div className="pc-card-row">
+                      <span className="pc-card-icon">💰</span>
+                      <span className="pc-card-value highlight">{formatMoney(pc.activeSession.estimatedAmount)}</span>
+                    </div>
+                  ) : <div />}
                 </div>
               )}
             </div>

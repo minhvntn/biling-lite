@@ -302,12 +302,12 @@
                     </Grid.ColumnDefinitions>
 
                     <Menu Grid.Column="0" Background="Transparent" FontSize="13.5" Margin="4,2">
-                        <MenuItem Header="Công cụ" Style="{StaticResource TopLevelMenuItemStyle}" Padding="12,5" Height="32" VerticalContentAlignment="Center">
-                            <MenuItem Header="Mở máy trạm" Click="OpenWakeUpMachinesDialog_Click" />
-                            <MenuItem Header="Thông tin" Click="ShowServerInfoMenuItem_Click" />
+                        <MenuItem Header="Công cụ" Style="{StaticResource TopLevelMenuItemStyle}" Padding="12,5" Height="32" VerticalContentAlignment="Center" Foreground="White">
+                            <MenuItem Header="Mở máy trạm" Click="OpenWakeUpMachinesDialog_Click" Foreground="Black" />
+                            <MenuItem Header="Thông tin" Click="ShowServerInfoMenuItem_Click" Foreground="Black" />
                             <Separator />
-                            <MenuItem Header="Hiển thị máy trạm">
-                                <MenuItem x:Name="ViewModeListMenuItem" Header="Dạng danh sách" Click="ViewModeList_Click" FontWeight="Bold">
+                            <MenuItem Header="Hiển thị máy trạm" Foreground="Black">
+                                <MenuItem x:Name="ViewModeListMenuItem" Header="Dạng danh sách" Click="ViewModeList_Click" FontWeight="Bold" Foreground="Black">
                                     <MenuItem.Icon>
                                         <TextBlock Text="✔" Foreground="Black" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                     </MenuItem.Icon>
