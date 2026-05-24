@@ -26,7 +26,7 @@
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="Background" Value="{StaticResource HeaderBackgroundBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
-            <Setter Property="BorderThickness" Value="0,0,1,1" />
+            <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="6,5" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
         </Style>
@@ -34,7 +34,7 @@
         <Style TargetType="DataGridRow">
             <Setter Property="Background" Value="White" />
             <Setter Property="BorderBrush" Value="#E0E0E0" />
-            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="BorderThickness" Value="0" />
             <Setter Property="SnapsToDevicePixels" Value="True" />
             <Style.Triggers>
                 <Trigger Property="ItemsControl.AlternationIndex" Value="1">
@@ -471,7 +471,7 @@
                                 <DataGridTemplateColumn Header="Người sử dụng" Width="1.1*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Border CornerRadius="0" Margin="-8,0">
+                                            <Border CornerRadius="0" Margin="-2">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="Transparent" />

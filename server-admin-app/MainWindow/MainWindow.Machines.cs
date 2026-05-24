@@ -142,7 +142,7 @@ public partial class MainWindow : Window
         var statusSubText = hasUnpaidGuestSession ? "Chưa thanh toán" : string.Empty;
         var statusText = item.Status switch
         {
-            "IN_USE" => isAdminSession ? "Admin dang nh?p" : I18n.StatusInUse,
+            "IN_USE" => isAdminSession ? "Admin đang nhập" : I18n.StatusInUse,
             "LOCKED" => "Đang khóa",
             "ONLINE" => I18n.StatusReady,
             "BOOTING" => "Đang khởi động",
@@ -165,13 +165,13 @@ public partial class MainWindow : Window
 
         var statusIconBrush = Brushes.Gray;
         var statusIconPath = "/Assets/pc-default.svg";
-        var statusIconToolTip = "Ngo?i tuy?n";
+        var statusIconToolTip = "Ngoại tuyến";
 
         if (item.Status == "ONLINE")
         {
             statusIconBrush = Brushes.LimeGreen;
             statusIconPath = "/Assets/pc-available.svg";
-            statusIconToolTip = "S?n sàng";
+            statusIconToolTip = "Sẵn sàng";
         }
         else if (item.Status == "IN_USE")
         {
@@ -179,7 +179,7 @@ public partial class MainWindow : Window
             {
                 statusIconBrush = Brushes.Gold;
                 statusIconPath = "/Assets/pc-admin.svg";
-                statusIconToolTip = "Admin dang s? d?ng";
+                statusIconToolTip = "Admin đang sử dụng";
             }
             else if (activeMember != null)
             {
@@ -192,7 +192,7 @@ public partial class MainWindow : Window
             {
                 statusIconBrush = Brushes.Orange;
                 statusIconPath = "/Assets/pc-guest.svg";
-                statusIconToolTip = "Khách dang s? d?ng";
+                statusIconToolTip = "Khách đang sử dụng";
             }
         }
         else if (item.Status == "LOCKED")
@@ -243,7 +243,7 @@ public partial class MainWindow : Window
             remainingText = FormatRemainingMinutes(Math.Max(0, remainingMinutes));
         }
         var userName = !string.IsNullOrWhiteSpace(activeMember?.Username)
-            ? activeMember!.Username
+            ? (isVipSession ? $"VIP: {activeMember!.Username}" : activeMember!.Username)
             : isAdminSession
                 ? "Admin"
             : isGuestSession
@@ -874,7 +874,7 @@ public partial class MainWindow : Window
         if (member is null)
         {
             MessageBox.Show(
-                "Không tìm th?y thông tin h?i viên dang s? d?ng máy này.",
+                "Không tìm thấy thông tin hội viên đang sử dụng máy này.",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
