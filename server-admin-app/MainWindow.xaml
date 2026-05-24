@@ -58,8 +58,13 @@
                                 Background="#F7F9FC"
                                 BorderBrush="#CFCFCF"
                                 BorderThickness="1,1,1,0"
-                                CornerRadius="6,6,0,0"
+                                CornerRadius="0"
                                 Padding="{TemplateBinding Padding}">
+                            <Border.Resources>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center" />
+                                </Style>
+                            </Border.Resources>
                             <ContentPresenter x:Name="ContentSite"
                                               ContentSource="Header"
                                               HorizontalAlignment="Center"
@@ -179,52 +184,123 @@
         <DockPanel>
             <!-- Collapsed Status Server controls to satisfy code-behind references -->
             <StackPanel Visibility="Collapsed">
-                <Ellipse x:Name="HealthIndicator" />
                 <TextBlock x:Name="HealthTextBlock" />
                 <TextBlock x:Name="ServerIpTextBlock" />
             </StackPanel>
 
-            <Border DockPanel.Dock="Top" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
+            <Border DockPanel.Dock="Top" Background="#2A48F5" BorderBrush="#2563EB" BorderThickness="0">
+                <Border.Resources>
+                    <Style x:Key="TopLevelMenuItemStyle" TargetType="MenuItem">
+                        <Setter Property="Foreground" Value="White" />
+                        <Setter Property="FontWeight" Value="Medium" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="MenuItem">
+                                    <Grid x:Name="Grid">
+                                        <Border x:Name="Border" Background="Transparent" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsSubmenuOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                                            <Border Background="White" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="6" Padding="4">
+                                                <Border.Resources>
+                                                    <Style TargetType="MenuItem">
+                                                        <Setter Property="Foreground" Value="Black" />
+                                                        <Setter Property="FontWeight" Value="Normal" />
+                                                        <Setter Property="Padding" Value="10,6" />
+                                                        <Setter Property="Cursor" Value="Hand" />
+                                                    </Style>
+                                                </Border.Resources>
+                                                <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
+                                            </Border>
+                                        </Popup>
+                                    </Grid>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="#2563EB" />
+                                        </Trigger>
+                                        <Trigger Property="IsSubmenuOpen" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="#1D4ED8" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+
+                    <Style x:Key="HeaderButtonStyle" TargetType="Button">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="BorderThickness" Value="0" />
+                        <Setter Property="Padding" Value="8,4" />
+                        <Setter Property="Cursor" Value="Hand" />
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#2563EB" />
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="border" Property="Background" Value="#1D4ED8" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Border.Resources>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <Menu Grid.Column="0" Background="Transparent" FontSize="13.5">
-                        <MenuItem Header="Công cụ" Padding="12,5" Height="32" VerticalContentAlignment="Center">
-                            <MenuItem Header="Mở máy trạm" Click="OpenWakeUpMachinesDialog_Click" Padding="10,6" />
-                            <MenuItem Header="Thông tin" Click="ShowServerInfoMenuItem_Click" Padding="10,6" />
+                    <Menu Grid.Column="0" Background="Transparent" FontSize="13.5" Margin="4,2">
+                        <MenuItem Header="Công cụ" Style="{StaticResource TopLevelMenuItemStyle}" Padding="12,5" Height="32" VerticalContentAlignment="Center">
+                            <MenuItem Header="Mở máy trạm" Click="OpenWakeUpMachinesDialog_Click" Padding="10,6" Foreground="Black" />
+                            <MenuItem Header="Thông tin" Click="ShowServerInfoMenuItem_Click" Padding="10,6" Foreground="Black" />
                         </MenuItem>
                     </Menu>
 
                     <Button Grid.Column="1"
                             x:Name="LogoutButton" 
-                            Margin="0,0,12,0" 
-                            Padding="8,2" 
+                            Style="{StaticResource HeaderButtonStyle}"
+                            Margin="0,0,8,0" 
                             Click="LogoutButton_Click" 
-                            Background="Transparent" 
-                            BorderThickness="0" 
-                            Cursor="Hand" 
-                            VerticalAlignment="Center"
                             ToolTip="{x:Static local:I18n.Logout}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🚪" Foreground="#334155" FontSize="14" VerticalAlignment="Center" />
-                            <TextBlock Text="{x:Static local:I18n.Logout}" Foreground="#334155" VerticalAlignment="Center" Margin="4,0,0,0" FontSize="13" FontWeight="Medium" />
+                            <TextBlock Text="🚪" Foreground="White" FontSize="14" VerticalAlignment="Center" />
+                            <TextBlock Text="{x:Static local:I18n.Logout}" Foreground="White" VerticalAlignment="Center" Margin="4,0,0,0" FontSize="13" FontWeight="Medium" />
                         </StackPanel>
                     </Button>
+
+                    <Ellipse x:Name="HealthIndicator" 
+                             Grid.Column="2" 
+                             Width="10" 
+                             Height="10" 
+                             Fill="#94A3B8" 
+                             Stroke="White" 
+                             StrokeThickness="1" 
+                             Margin="4,0,16,0" 
+                             VerticalAlignment="Center" 
+                             Cursor="Help"
+                             ToolTip="{Binding ElementName=HealthTextBlock, Path=Text}" />
                 </Grid>
             </Border>
 
-            <TabControl x:Name="MainTabControl" Margin="8" SelectionChanged="MainTabControl_SelectionChanged">
+            <TabControl x:Name="MainTabControl" Margin="0" SelectionChanged="MainTabControl_SelectionChanged">
                 <TabItem x:Name="WorkstationsTab">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#x1F5A5;" Margin="0,0,6,0" />
-                            <TextBlock Text="{x:Static local:I18n.WorkstationsTab}" />
+                            <TextBlock VerticalAlignment="Center" Text="&#x1F5A5;" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="{x:Static local:I18n.WorkstationsTab}" />
                         </StackPanel>
                     </TabItem.Header>
-                    <Grid Margin="8">
+                    <Grid Margin="0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
@@ -724,11 +800,11 @@
                 <TabItem x:Name="MembersTab">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#x1F464;" Margin="0,0,6,0" />
-                            <TextBlock Text="Hội viên" />
+                            <TextBlock VerticalAlignment="Center" Text="&#x1F464;" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="Hội viên" />
                         </StackPanel>
                     </TabItem.Header>
-                    <Grid Margin="8">
+                    <Grid Margin="0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
@@ -847,19 +923,19 @@
                 <TabItem x:Name="LogsTabItem">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#x1F4CB;" Margin="0,0,6,0" />
-                            <TextBlock Text="Nhật ký" />
+                            <TextBlock VerticalAlignment="Center" Text="&#x1F4CB;" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="Nhật ký" />
                         </StackPanel>
                     </TabItem.Header>
                     <TabControl x:Name="LogsTabControl" Margin="4" SelectionChanged="MainTabControl_SelectionChanged">
                         <TabItem x:Name="SystemLogsTabItem">
                             <TabItem.Header>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#x1F4CB;" Margin="0,0,6,0" />
-                                    <TextBlock Text="Nhật ký hệ thống" />
+                                    <TextBlock VerticalAlignment="Center" Text="&#x1F4CB;" Margin="0,0,6,0" FontSize="20" />
+                                    <TextBlock VerticalAlignment="Center" Text="Nhật ký hệ thống" />
                                 </StackPanel>
                             </TabItem.Header>
-                            <Grid Margin="8">
+                            <Grid Margin="0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
@@ -952,11 +1028,11 @@
                         <TabItem x:Name="TransactionLogsTabItem">
                             <TabItem.Header>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#x1F4B3;" Margin="0,0,6,0" />
-                                    <TextBlock Text="Nhật ký giao dịch" />
+                                    <TextBlock VerticalAlignment="Center" Text="&#x1F4B3;" Margin="0,0,6,0" FontSize="20" />
+                                    <TextBlock VerticalAlignment="Center" Text="Nhật ký giao dịch" />
                                 </StackPanel>
                             </TabItem.Header>
-                            <Grid Margin="8">
+                            <Grid Margin="0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
@@ -1010,11 +1086,11 @@
                         <TabItem x:Name="WebsiteLogsTabItem">
                             <TabItem.Header>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="&#x1F310;" Margin="0,0,6,0" />
-                                    <TextBlock Text="Nhật ký website" />
+                                    <TextBlock VerticalAlignment="Center" Text="&#x1F310;" Margin="0,0,6,0" FontSize="20" />
+                                    <TextBlock VerticalAlignment="Center" Text="Nhật ký website" />
                                 </StackPanel>
                             </TabItem.Header>
-                            <Grid Margin="8">
+                            <Grid Margin="0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
@@ -1150,11 +1226,11 @@
                 <TabItem x:Name="GroupsTab">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#x1F9E9;" Margin="0,0,6,0" />
-                            <TextBlock Text="Nhóm máy" />
+                            <TextBlock VerticalAlignment="Center" Text="&#x1F9E9;" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="Nhóm máy" />
                         </StackPanel>
                     </TabItem.Header>
-                    <Grid Margin="8">
+                    <Grid Margin="0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="220" />
@@ -1271,11 +1347,11 @@
                 <TabItem x:Name="ServicesTab">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#x1F6CE;" Margin="0,0,6,0" />
-                            <TextBlock Text="Dịch vụ" />
+                            <TextBlock VerticalAlignment="Center" Text="&#x1F6CE;" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="Dịch vụ" />
                         </StackPanel>
                     </TabItem.Header>
-                    <Grid Margin="8">
+                    <Grid Margin="0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
@@ -1406,14 +1482,14 @@
                 <TabItem x:Name="BlockTab">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#x1F6AB;" Margin="0,0,6,0" />
-                            <TextBlock Text="Chặn" />
+                            <TextBlock VerticalAlignment="Center" Text="&#x1F6AB;" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="Chặn" />
                         </StackPanel>
                     </TabItem.Header>
                     <TabControl Margin="8">
                         <!-- Sub-tab: Chặn web -->
                         <TabItem x:Name="WebFilterTab" Header="Chặn web">
-                            <Grid Margin="8">
+                            <Grid Margin="0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
@@ -1512,7 +1588,7 @@
 
                         <!-- Sub-tab: Chặn ứng dụng -->
                         <TabItem x:Name="AppBlockTab" Header="Chặn ứng dụng">
-                            <Grid Margin="8">
+                            <Grid Margin="0">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
@@ -1609,11 +1685,11 @@
                 <TabItem x:Name="VipTab">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#x1F451;" Margin="0,0,6,0" />
-                            <TextBlock Text="Hệ thống VIP" />
+                            <TextBlock VerticalAlignment="Center" Text="&#x1F451;" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="Hệ thống VIP" />
                         </StackPanel>
                     </TabItem.Header>
-                    <Grid Margin="8">
+                    <Grid Margin="0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
@@ -1655,8 +1731,8 @@
                 <TabItem x:Name="StatisticsTabItem">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="📊" Margin="0,0,6,0" />
-                            <TextBlock Text="Thống kê" />
+                            <TextBlock VerticalAlignment="Center" Text="📊" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="Thống kê" />
                         </StackPanel>
                     </TabItem.Header>
                     <TabItem.Resources>
@@ -1673,8 +1749,8 @@
                         <TabItem x:Name="RevenueStatsTabItem">
                             <TabItem.Header>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="📈" Margin="0,0,6,0" />
-                                    <TextBlock Text="Doanh thu &amp; Xếp hạng" />
+                                    <TextBlock VerticalAlignment="Center" Text="📈" Margin="0,0,6,0" FontSize="20" />
+                                    <TextBlock VerticalAlignment="Center" Text="Doanh thu &amp; Xếp hạng" />
                                 </StackPanel>
                             </TabItem.Header>
                             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
@@ -2051,8 +2127,8 @@
                 <TabItem x:Name="PcMachineStatsTabItem">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🖥" Margin="0,0,6,0" />
-                            <TextBlock Text="Theo từng máy" />
+                            <TextBlock VerticalAlignment="Center" Text="🖥" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="Theo từng máy" />
                         </StackPanel>
                     </TabItem.Header>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
@@ -2156,8 +2232,8 @@
                 <TabItem x:Name="PlaytimeAnalysisTabItem">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="⏱" Margin="0,0,6,0" />
-                            <TextBlock Text="Hệ thống giờ chơi" />
+                            <TextBlock VerticalAlignment="Center" Text="⏱" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="Hệ thống giờ chơi" />
                         </StackPanel>
                     </TabItem.Header>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
@@ -2267,8 +2343,8 @@
                 <TabItem x:Name="PromotionsConfigTabItem">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🛠️" Margin="0,0,6,0" />
-                            <TextBlock Text="Cấu hình Khuyến mãi" />
+                            <TextBlock VerticalAlignment="Center" Text="🛠️" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="Cấu hình Khuyến mãi" />
                         </StackPanel>
                     </TabItem.Header>
                     <Grid Margin="16">
@@ -2342,11 +2418,11 @@
                 <TabItem x:Name="MiniGameTabItem">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#x1F3B2;" Margin="0,0,6,0" />
-                            <TextBlock Text="Games" />
+                            <TextBlock VerticalAlignment="Center" Text="&#x1F3B2;" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="Games" />
                         </StackPanel>
                     </TabItem.Header>
-                    <Grid Margin="8">
+                    <Grid Margin="0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
@@ -2402,8 +2478,8 @@
                 <TabItem x:Name="SettingsTab">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#x2699;" Margin="0,0,6,0" />
-                            <TextBlock Text="Cài đặt" />
+                            <TextBlock VerticalAlignment="Center" Text="&#x2699;" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="Cài đặt" />
                         </StackPanel>
                     </TabItem.Header>
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -3073,8 +3149,8 @@
                 <TabItem x:Name="AdminTab">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#x1F510;" Margin="0,0,6,0" />
-                            <TextBlock Text="Admin" />
+                            <TextBlock VerticalAlignment="Center" Text="&#x1F510;" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="Admin" />
                         </StackPanel>
                     </TabItem.Header>
                     <TabControl Margin="8">
