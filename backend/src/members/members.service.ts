@@ -814,6 +814,57 @@ export class MembersService {
         ? LOYALTY_USAGE_CREATED_BY
         : payload.createdBy?.trim() || 'client.session';
 
+      const mergeOrCreateTx = async (
+        amountDelta: number,
+        playSecondsDelta: number,
+        txNote: string
+      ) => {
+        if (!txNote.includes('PERIODIC')) {
+          await tx.memberTransaction.create({
+            data: {
+              memberId: member.id,
+              type: MemberTransactionType.ADJUSTMENT,
+              amountDelta,
+              playSecondsDelta,
+              note: txNote,
+              createdBy,
+            },
+          });
+          return;
+        }
+
+        const lastTx = await tx.memberTransaction.findFirst({
+          where: { memberId: member.id },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (
+          lastTx &&
+          lastTx.note === txNote &&
+          lastTx.createdBy === createdBy &&
+          lastTx.type === MemberTransactionType.ADJUSTMENT
+        ) {
+          await tx.memberTransaction.update({
+            where: { id: lastTx.id },
+            data: {
+              amountDelta: { increment: amountDelta },
+              playSecondsDelta: { increment: playSecondsDelta },
+            },
+          });
+        } else {
+          await tx.memberTransaction.create({
+            data: {
+              memberId: member.id,
+              type: MemberTransactionType.ADJUSTMENT,
+              amountDelta,
+              playSecondsDelta,
+              note: txNote,
+              createdBy,
+            },
+          });
+        }
+      };
+
       if (consumedSeconds > 0) {
         updatedMember = await tx.member.update({
           where: { id: member.id },
@@ -824,16 +875,7 @@ export class MembersService {
           },
         });
 
-        await tx.memberTransaction.create({
-          data: {
-            memberId: member.id,
-            type: MemberTransactionType.ADJUSTMENT,
-            amountDelta: 0,
-            playSecondsDelta: -consumedSeconds,
-            note,
-            createdBy,
-          },
-        });
+        await mergeOrCreateTx(0, -consumedSeconds, note);
       }
 
       const remainingSeconds = requestedSeconds - consumedSeconds;
@@ -884,16 +926,7 @@ export class MembersService {
               },
             });
 
-            await tx.memberTransaction.create({
-              data: {
-                memberId: member.id,
-                type: MemberTransactionType.ADJUSTMENT,
-                amountDelta: 0,
-                playSecondsDelta: -remainingSeconds,
-                note: `${note}:VIP_CHARGE`,
-                createdBy,
-              },
-            });
+            await mergeOrCreateTx(0, -remainingSeconds, `${note}:VIP_CHARGE`);
           } else {
             updatedMember = await tx.member.update({
               where: { id: member.id },
@@ -904,16 +937,7 @@ export class MembersService {
               },
             });
 
-            await tx.memberTransaction.create({
-              data: {
-                memberId: member.id,
-                type: MemberTransactionType.ADJUSTMENT,
-                amountDelta: -costAmount,
-                playSecondsDelta: -remainingSeconds,
-                note: `${note}:CASH_CHARGE`,
-                createdBy,
-              },
-            });
+            await mergeOrCreateTx(-costAmount, -remainingSeconds, `${note}:CASH_CHARGE`);
           }
         }
       }
@@ -1281,14 +1305,27 @@ export class MembersService {
     throw new BadRequestException('Tính năng mua giờ chơi hiện không khả dụng.');
   }
 
-  async getMemberTransactions(memberId: string) {
+  async getMemberTransactions(memberId: string, startDate?: string, endDate?: string) {
     const member = await this.prisma.member.findUnique({ where: { id: memberId } });
     if (!member) {
       throw new NotFoundException('Khong tim thay hoi vien');
     }
 
+    const whereClause: any = { memberId };
+    if (startDate || endDate) {
+      whereClause.createdAt = {};
+      if (startDate) {
+        whereClause.createdAt.gte = new Date(startDate);
+      }
+      if (endDate) {
+        const toDate = new Date(endDate);
+        toDate.setHours(23, 59, 59, 999);
+        whereClause.createdAt.lte = toDate;
+      }
+    }
+
     const transactions = await this.prisma.memberTransaction.findMany({
-      where: { memberId },
+      where: whereClause,
       orderBy: [{ createdAt: 'desc' }],
       take: 200,
     });

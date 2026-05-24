@@ -180,8 +180,12 @@ export class MembersController {
   }
 
   @Get(':memberId/transactions')
-  async getMemberTransactions(@Param('memberId') memberId: string) {
-    return this.membersService.getMemberTransactions(memberId);
+  async getMemberTransactions(
+    @Param('memberId') memberId: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.membersService.getMemberTransactions(memberId, startDate, endDate);
   }
 
   @Get(':memberId/usage-summary')

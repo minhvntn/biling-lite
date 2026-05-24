@@ -375,7 +375,7 @@ public sealed class MemberTransactionRow
     public string CreatedAtText { get; set; } = "-";
     public string TypeText { get; set; } = "-";
     public string AmountDeltaText { get; set; } = "0";
-    public string PlayHoursDeltaText { get; set; } = "0";
+    public string PlayMinutesDeltaText { get; set; } = "0";
     public string CreatedBy { get; set; } = "-";
     public string Note { get; set; } = "-";
 }

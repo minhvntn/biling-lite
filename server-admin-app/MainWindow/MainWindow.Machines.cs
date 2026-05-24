@@ -571,6 +571,20 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (selected.StatusCode == "IN_USE" && (action == "shutdown" || action == "restart"))
+        {
+            var actionName = action == "shutdown" ? "tắt máy" : "khởi động lại máy";
+            var result = MessageBox.Show(
+                $"Máy {selected.Name} đang có người sử dụng. Bạn có chắc chắn muốn {actionName} không?",
+                "Xác nhận",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            if (result != MessageBoxResult.Yes)
+            {
+                return;
+            }
+        }
+
         try
         {
             using var response = await _httpClient.PostAsJsonAsync(

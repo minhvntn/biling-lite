@@ -178,10 +178,16 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task<MemberTransactionsResponse?> GetMemberTransactionsAsync(string memberId)
+    private async Task<MemberTransactionsResponse?> GetMemberTransactionsAsync(string memberId, string? startDate = null, string? endDate = null)
     {
+        var url = $"/members/{memberId}/transactions";
+        var queryParams = new List<string>();
+        if (!string.IsNullOrWhiteSpace(startDate)) queryParams.Add($"startDate={Uri.EscapeDataString(startDate)}");
+        if (!string.IsNullOrWhiteSpace(endDate)) queryParams.Add($"endDate={Uri.EscapeDataString(endDate)}");
+        if (queryParams.Count > 0) url += "?" + string.Join("&", queryParams);
+
         return await _httpClient.GetFromJsonAsync<MemberTransactionsResponse>(
-            BuildApiUrl($"/members/{memberId}/transactions"),
+            BuildApiUrl(url),
             JsonOptions());
     }
 
@@ -237,7 +243,7 @@ public partial class MainWindow : Window
             CreatedAtText = FormatDateTime(item.CreatedAt),
             TypeText = typeText,
             AmountDeltaText = item.AmountDelta.ToString("N0", CultureInfo.InvariantCulture),
-            PlayHoursDeltaText = (item.PlaySecondsDelta / 3600.0).ToString("0.##", CultureInfo.InvariantCulture),
+            PlayMinutesDeltaText = (item.PlaySecondsDelta / 60.0).ToString("0.##", CultureInfo.InvariantCulture),
             CreatedBy = item.CreatedBy,
             Note = string.IsNullOrWhiteSpace(item.Note) ? "-" : item.Note,
         };
@@ -1352,44 +1358,14 @@ public partial class MainWindow : Window
 
     private async Task OpenMemberTransactionsDialogAsync(MemberRow member)
     {
-        MemberTransactionsResponse? response;
-        try
-        {
-            response = await GetMemberTransactionsAsync(member.Id);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(
-                $"Không thể tải nhật ký giao dịch: {ex.Message}",
-                "Server Admin",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-            return;
-        }
-
-        if (response is null)
-        {
-            MessageBox.Show(
-                "Không tải được dữ liệu giao dịch của hội viên.",
-                "Server Admin",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return;
-        }
-
-        var displayItems = PrepareMemberTransactionsForDisplay(
-            response.Items,
-            aggregateSessionUsage: !IsMemberCurrentlyOnline(member.Id));
-
-        var transactionRows = displayItems
-            .Select(ToMemberTransactionRow)
-            .ToList();
+        var startDate = DateTime.Now.AddMonths(-1).Date;
+        var endDate = DateTime.Now.Date;
 
         var dialog = new Window
         {
             Title = $"Nhật ký giao dịch - {member.Username}",
             Width = 920,
-            Height = 580,
+            Height = 620,
             MinWidth = 760,
             MinHeight = 420,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -1410,6 +1386,7 @@ public partial class MainWindow : Window
         var root = new Grid { Margin = new Thickness(16) };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
@@ -1424,7 +1401,7 @@ public partial class MainWindow : Window
 
         var headerTextBlock = new TextBlock
         {
-            Text = $"Hội viên: {response.Member.Username} | Số dư: {response.Member.Balance:N0} VND | Giờ chơi: {response.Member.PlayHours:0.##} | Điểm: {response.Member.AvailablePoints}",
+            Text = $"Hội viên: {member.Username} | Số dư: {member.BalanceRaw:N0} VND | Giờ chơi: {member.PlayHoursRaw:0.##} | Điểm: {member.AvailablePoints}",
             FontWeight = FontWeights.SemiBold,
             Foreground = Brushes.White,
             FontSize = 15,
@@ -1433,14 +1410,28 @@ public partial class MainWindow : Window
         headerBorder.Child = headerTextBlock;
         root.Children.Add(headerBorder);
 
+        var filterPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 12) };
+        Grid.SetRow(filterPanel, 1);
+        root.Children.Add(filterPanel);
+
+        var startDatePicker = new DatePicker { SelectedDate = startDate, Width = 120, Margin = new Thickness(0, 0, 12, 0) };
+        var endDatePicker = new DatePicker { SelectedDate = endDate, Width = 120, Margin = new Thickness(0, 0, 12, 0) };
+        var filterButton = new Button { Content = "Lọc", Width = 80, Height = 28 };
+
+        filterPanel.Children.Add(new TextBlock { Text = "Từ ngày: ", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+        filterPanel.Children.Add(startDatePicker);
+        filterPanel.Children.Add(new TextBlock { Text = "Đến ngày: ", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+        filterPanel.Children.Add(endDatePicker);
+        filterPanel.Children.Add(filterButton);
+
         var summaryTextBlock = new TextBlock
         {
-            Text = $"Tổng giao dịch: {transactionRows.Count}",
+            Text = $"Tổng giao dịch: 0",
             Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)), // Slate 500
             FontSize = 13,
             Margin = new Thickness(4, 0, 0, 8),
         };
-        Grid.SetRow(summaryTextBlock, 1);
+        Grid.SetRow(summaryTextBlock, 2);
         root.Children.Add(summaryTextBlock);
 
         var transactionsGrid = new DataGrid
@@ -1453,7 +1444,6 @@ public partial class MainWindow : Window
             HorizontalGridLinesBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240)), // Slate 200
             RowHeaderWidth = 0,
             AlternationCount = 2,
-            ItemsSource = transactionRows,
             FontSize = 14,
             RowHeight = 38,
             BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)), // Slate 300
@@ -1479,9 +1469,9 @@ public partial class MainWindow : Window
         });
         transactionsGrid.Columns.Add(new DataGridTextColumn
         {
-            Header = "Giờ thay đổi",
+            Header = "Phút thay đổi",
             Width = 120,
-            Binding = new System.Windows.Data.Binding(nameof(MemberTransactionRow.PlayHoursDeltaText)),
+            Binding = new System.Windows.Data.Binding(nameof(MemberTransactionRow.PlayMinutesDeltaText)),
         });
         transactionsGrid.Columns.Add(new DataGridTextColumn
         {
@@ -1495,7 +1485,7 @@ public partial class MainWindow : Window
             Width = new DataGridLength(1, DataGridLengthUnitType.Star),
             Binding = new System.Windows.Data.Binding(nameof(MemberTransactionRow.Note)),
         });
-        Grid.SetRow(transactionsGrid, 2);
+        Grid.SetRow(transactionsGrid, 3);
         root.Children.Add(transactionsGrid);
 
         var closeButton = new Button
@@ -1512,10 +1502,49 @@ public partial class MainWindow : Window
             BorderThickness = new Thickness(0)
         };
         closeButton.Click += (_, _) => dialog.Close();
-        Grid.SetRow(closeButton, 3);
+        Grid.SetRow(closeButton, 4);
         root.Children.Add(closeButton);
 
+        async Task LoadDataAsync()
+        {
+            filterButton.IsEnabled = false;
+            try
+            {
+                var sDate = startDatePicker.SelectedDate?.ToString("yyyy-MM-dd");
+                var eDate = endDatePicker.SelectedDate?.ToString("yyyy-MM-dd");
+                var response = await GetMemberTransactionsAsync(member.Id, sDate, eDate);
+                if (response != null)
+                {
+                    var displayItems = PrepareMemberTransactionsForDisplay(
+                        response.Items,
+                        aggregateSessionUsage: !IsMemberCurrentlyOnline(member.Id));
+
+                    var transactionRows = displayItems
+                        .Select(ToMemberTransactionRow)
+                        .ToList();
+
+                    transactionsGrid.ItemsSource = transactionRows;
+                    summaryTextBlock.Text = $"Tổng giao dịch: {transactionRows.Count}";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Không thể tải nhật ký giao dịch: {ex.Message}",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            finally
+            {
+                filterButton.IsEnabled = true;
+            }
+        }
+
+        filterButton.Click += async (_, _) => await LoadDataAsync();
+
         dialog.Content = root;
+        dialog.Loaded += async (_, _) => await LoadDataAsync();
         _ = dialog.ShowDialog();
     }
 
