@@ -16,13 +16,13 @@ import { WS_BASE_URL } from '../lib/config';
 import { PcListItem } from '../types/pc';
 
 function formatDuration(totalSeconds: number): string {
-  if (totalSeconds <= 0) return '0p';
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  if (hours > 0) {
-    return `${hours}h ${minutes}p`;
-  }
-  return `${minutes}p`;
+  if (totalSeconds <= 0) return '00:00';
+  const totalMinutes = Math.max(1, Math.ceil(totalSeconds / 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const paddedHours = hours.toString().padStart(2, '0');
+  const paddedMinutes = minutes.toString().padStart(2, '0');
+  return `${paddedHours}:${paddedMinutes}`;
 }
 
 function formatClock(isoDate: string | null): string {
@@ -60,10 +60,21 @@ function statusClass(status: string): string {
     case 'ONLINE':
       return 'status-cell status-online';
     case 'BOOTING':
-      return 'status-cell status-warning';
+      return 'status-cell status-booting';
     default:
       return 'status-cell status-offline';
   }
+}
+
+function getPcIconPath(pc: PcListItem): string {
+  if (pc.status === 'ONLINE') return '/pc-available.svg';
+  if (pc.status === 'IN_USE') {
+    if (pc.activeAdmin) return '/pc-admin.svg';
+    if (pc.activeMember) return '/pc-blue-user.svg';
+    return '/pc-guest.svg';
+  }
+  if (pc.status === 'LOCKED' || pc.status === 'OFFLINE') return '/pc-offline.svg';
+  return '/pc-default.svg';
 }
 
 export function PcsPage() {
@@ -595,8 +606,11 @@ export function PcsPage() {
 
           return (
             <div key={pc.id} className="pc-card-item" onClick={() => handleOpenDrawer(pc)}>
-              <div className="pc-card-header">
-                <span className="pc-card-title">{pc.name}</span>
+              <div className="pc-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <img src={getPcIconPath(pc)} alt="" style={{ width: '28px', height: '28px' }} />
+                  <span className="pc-card-title">{pc.name}</span>
+                </div>
                 <span className={statusClass(pc.status)} style={{ fontSize: '0.68rem', padding: '0.15rem 0.4rem' }}>{statusText(pc.status)}</span>
               </div>
               {userName !== '-' && (
@@ -611,16 +625,16 @@ export function PcsPage() {
                       <span className="pc-card-value">{formatDuration(elapsed)}</span>
                     </div>
                   ) : <div />}
-                  {pc.hasUnpaidServices ? (
-                    <div className="pc-card-row">
-                      <span className="pc-card-icon" style={{ color: '#0284c7' }}>🍔</span>
-                      <span className="pc-card-value" style={{ color: '#0284c7', fontWeight: 500 }}>Có dịch vụ</span>
-                    </div>
-                  ) : <div />}
                   {pc.activeSession ? (
                     <div className="pc-card-row">
                       <span className="pc-card-icon">💰</span>
                       <span className="pc-card-value highlight">{formatMoney(pc.activeSession.estimatedAmount)}</span>
+                    </div>
+                  ) : <div />}
+                  {pc.hasUnpaidServices ? (
+                    <div className="pc-card-row">
+                      <span className="pc-card-icon" style={{ color: '#0284c7' }}>🍔</span>
+                      <span className="pc-card-value" style={{ color: '#0284c7', fontWeight: 500 }}>Có dịch vụ</span>
                     </div>
                   ) : <div />}
                 </div>
