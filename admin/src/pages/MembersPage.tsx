@@ -3,6 +3,7 @@ import {
   createMember,
   fetchMembers,
   topupMember,
+  withdrawMemberBalance,
 } from '../api/members';
 import { TopNav } from '../components/TopNav';
 import { MemberItem } from '../types/member';
@@ -29,6 +30,7 @@ export function MembersPage() {
   const [newIdentityNumber, setNewIdentityNumber] = useState('');
 
   const [topupAmount, setTopupAmount] = useState('50000');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -134,6 +136,28 @@ export function MembersPage() {
       await loadMembers(search);
     } catch (topupError) {
       setError(topupError instanceof Error ? topupError.message : 'Nạp tiền thất bại');
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (!selectedMemberId || !withdrawAmount) {
+      return;
+    }
+
+    setMessage(null);
+    setError(null);
+
+    try {
+      await withdrawMemberBalance(selectedMemberId, {
+        amount: Number(withdrawAmount),
+        note: 'Trừ tiền qua Web Admin',
+      });
+
+      setMessage('Trừ tiền thành công');
+      setWithdrawAmount('');
+      await loadMembers(search);
+    } catch (withdrawError) {
+      setError(withdrawError instanceof Error ? withdrawError.message : 'Trừ tiền thất bại');
     }
   };
 
@@ -355,6 +379,8 @@ export function MembersPage() {
             </div>
             <form onSubmit={handleCreateMember}>
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', padding: '1rem' }}>
+                {message && <p className="info" style={{ color: '#155724', background: '#d4edda', border: '1px solid #c3e6cb', padding: '0.5rem 0.75rem', borderRadius: '6px', margin: 0, fontSize: '0.8rem' }}>{message}</p>}
+                {error && <p className="error" style={{ color: '#721c24', background: '#f8d7da', border: '1px solid #f5c6cb', padding: '0.5rem 0.75rem', borderRadius: '6px', margin: 0, fontSize: '0.8rem' }}>{error}</p>}
                 <div className="form-group">
                   <label htmlFor="modal-username" style={{ fontSize: '0.78rem', marginBottom: '0.2rem' }}>Tên đăng nhập *</label>
                   <input
@@ -455,6 +481,8 @@ export function MembersPage() {
               </button>
             </div>
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1rem', overflowY: 'auto', maxHeight: '70vh' }}>
+              {message && <p className="info" style={{ color: '#155724', background: '#d4edda', border: '1px solid #c3e6cb', padding: '0.5rem 0.75rem', borderRadius: '6px', margin: 0, fontSize: '0.8rem' }}>{message}</p>}
+              {error && <p className="error" style={{ color: '#721c24', background: '#f8d7da', border: '1px solid #f5c6cb', padding: '0.5rem 0.75rem', borderRadius: '6px', margin: 0, fontSize: '0.8rem' }}>{error}</p>}
 
               <div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.82rem' }}>
@@ -539,6 +567,67 @@ export function MembersPage() {
                         border: '1px solid var(--line)',
                         background: topupAmount === String(val) ? '#12b76a' : 'var(--surface-2)',
                         color: topupAmount === String(val) ? '#fff' : 'var(--text)',
+                        fontSize: '0.72rem',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {val.toLocaleString('vi-VN')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Form Trừ tiền */}
+              <div style={{ borderTop: '1px solid var(--line)', paddingTop: '0.75rem' }}>
+                <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '0.85rem' }}>Trừ tiền tài khoản</h4>
+                <div style={{ display: 'flex', gap: '0.3rem' }}>
+                  <input
+                    type="number"
+                    min={1000}
+                    step={1000}
+                    value={withdrawAmount}
+                    onChange={(event) => setWithdrawAmount(event.target.value)}
+                    placeholder="Số tiền trừ"
+                    style={{
+                      flex: 1,
+                      padding: '0.4rem 0.5rem',
+                      borderRadius: '5px',
+                      border: '1px solid var(--line)',
+                      background: 'var(--surface)',
+                      color: 'var(--text)',
+                      fontSize: '0.8rem'
+                    }}
+                  />
+                  <button
+                    onClick={() => void handleWithdraw()}
+                    disabled={!withdrawAmount}
+                    style={{
+                      background: withdrawAmount ? '#f04438' : 'var(--surface-3)',
+                      color: withdrawAmount ? '#fff' : 'var(--muted)',
+                      border: 'none',
+                      padding: '0.4rem 0.8rem',
+                      borderRadius: '5px',
+                      fontWeight: 600,
+                      cursor: withdrawAmount ? 'pointer' : 'not-allowed',
+                      fontSize: '0.8rem'
+                    }}
+                  >
+                    Trừ tiền
+                  </button>
+                </div>
+                {/* Actions chọn nhanh trừ tiền */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.5rem' }}>
+                  {[1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 20000].map((val) => (
+                    <button
+                      key={val}
+                      onClick={() => setWithdrawAmount(String(val))}
+                      style={{
+                        padding: '0.25rem 0.45rem',
+                        borderRadius: '4px',
+                        border: '1px solid var(--line)',
+                        background: withdrawAmount === String(val) ? '#f04438' : 'var(--surface-2)',
+                        color: withdrawAmount === String(val) ? '#fff' : 'var(--text)',
                         fontSize: '0.72rem',
                         fontWeight: 600,
                         cursor: 'pointer'

@@ -4,7 +4,7 @@ import { IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-valid
 export class GuestOpenDto {
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(1000)
+  @Min(0)
   @Max(100000000)
   amount!: number;
 

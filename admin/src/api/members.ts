@@ -82,3 +82,17 @@ export async function setMemberPresence(
   return handleResponse<any>(response);
 }
 
+export async function withdrawMemberBalance(memberId: string, payload: { amount: number; note?: string }) {
+  const response = await fetch(`${API_BASE_URL}/members/${memberId}/adjust`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      amountDelta: -payload.amount,
+      note: payload.note,
+      createdBy: 'admin.web',
+    }),
+  });
+
+  return handleResponse<{ member: MemberItem }>(response);
+}
+

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { io } from 'socket.io-client';
 import { lockPc, openPc, guestOpenPc, shutdownPc, restartPc, wakePc } from '../api/commands';
 import { fetchPcs } from '../api/pcs';
-import { fetchMembers, setMemberPresence } from '../api/members';
+
 import {
   fetchServiceItems,
   createPcServiceOrder,
@@ -101,12 +101,7 @@ export function PcsPage() {
   const [drawerSuccess, setDrawerSuccess] = useState<string | null>(null);
   const [actionPending, setActionPending] = useState(false);
 
-  // Form states in Drawer
-  const [openType, setOpenType] = useState<'guest' | 'member'>('guest');
   const [guestAmount, setGuestAmount] = useState<string>('0');
-  const [memberSearch, setMemberSearch] = useState('');
-  const [matchingMembers, setMatchingMembers] = useState<any[]>([]);
-  const [selectedMember, setSelectedMember] = useState<any | null>(null);
 
   // Order service form
   const [selectedServiceId, setSelectedServiceId] = useState('');
@@ -183,27 +178,7 @@ export function PcsPage() {
     return () => window.clearInterval(interval);
   }, []);
 
-  // Debounced Member Search for Mở máy
-  useEffect(() => {
-    if (openType !== 'member' || !memberSearch.trim()) {
-      setMatchingMembers([]);
-      return;
-    }
-    const delay = setTimeout(async () => {
-      try {
-        const res = await fetchMembers(memberSearch);
-        setMatchingMembers(res.items);
-        if (res.items.length > 0) {
-          setSelectedMember(res.items[0]);
-        } else {
-          setSelectedMember(null);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }, 300);
-    return () => clearTimeout(delay);
-  }, [memberSearch, openType]);
+  // Removed Debounced Member Search
 
   // When drawer selected PC updates, refresh its unpaid orders
   const loadUnpaidOrders = async (pcId: string) => {
@@ -225,9 +200,6 @@ export function PcsPage() {
     setDrawerTab('session');
     setDrawerError(null);
     setDrawerSuccess(null);
-    setMemberSearch('');
-    setMatchingMembers([]);
-    setSelectedMember(null);
     setGuestAmount('0');
     setServiceQty(1);
     setServiceNote('');
@@ -307,22 +279,7 @@ export function PcsPage() {
     }
   };
 
-  const handleOpenMember = async () => {
-    if (!selectedPc || !selectedMember) return;
-    setActionPending(true);
-    setDrawerError(null);
-    setDrawerSuccess(null);
-    try {
-      await setMemberPresence(selectedMember.id, selectedPc.agentId, true);
-      setDrawerSuccess(`Đã đăng nhập hội viên ${selectedMember.username}`);
-      await loadPcs();
-      setTimeout(() => setShowDrawer(false), 800);
-    } catch (e) {
-      setDrawerError(e instanceof Error ? e.message : 'Đăng nhập thất bại');
-    } finally {
-      setActionPending(false);
-    }
-  };
+
 
   const handleLock = async () => {
     if (!selectedPc) return;
@@ -458,6 +415,12 @@ export function PcsPage() {
     return '-';
   };
 
+  const getUserIcon = (pc: PcListItem) => {
+    if (pc.activeAdmin) return '👑';
+    if (pc.activeGuest && pc.activeGuest.prepaidAmount > 0) return '💳';
+    return '👤';
+  };
+
   const getRemainingTime = (pc: PcListItem) => {
     if (pc.activeMember) {
       const balance = Number(pc.activeMember.balance) || 0;
@@ -467,6 +430,22 @@ export function PcsPage() {
       return formatDuration(totalSeconds);
     }
     return '-';
+  };
+
+  const getMoneyOrRemainingTime = (pc: PcListItem, elapsedSeconds: number) => {
+    if (!pc.activeSession) return { icon: '💰', text: '-' };
+    if (pc.activeGuest && pc.activeGuest.prepaidAmount > 0 && pc.hourlyRate) {
+      const prepaidMinutes = Math.floor((pc.activeGuest.prepaidAmount / pc.hourlyRate) * 60);
+      const usedMinutes = Math.floor(Math.max(0, elapsedSeconds) / 60);
+      const remainingMinutes = Math.max(0, prepaidMinutes - usedMinutes);
+      // Format manually since formatDuration uses Math.ceil now
+      const hours = Math.floor(remainingMinutes / 60);
+      const minutes = remainingMinutes % 60;
+      const paddedHours = hours.toString().padStart(2, '0');
+      const paddedMinutes = minutes.toString().padStart(2, '0');
+      return { icon: '⌛', text: `${paddedHours}:${paddedMinutes}` };
+    }
+    return { icon: '💰', text: formatMoney(pc.activeSession.estimatedAmount) };
   };
 
   const getUnpaidServicesTotal = (orders: PcServiceOrder[]) => {
@@ -554,12 +533,20 @@ export function PcsPage() {
                   <td>
                     <span className={statusClass(pc.status)}>{statusText(pc.status)}</span>
                   </td>
-                  <td>{getUserName(pc)}</td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span style={{ fontSize: '1.1rem' }}>{getUserIcon(pc)}</span>
+                      <span>{getUserName(pc)}</span>
+                    </div>
+                  </td>
                   <td>{formatClock(pc.activeSession?.startedAt ?? null)}</td>
                   <td>{pc.activeSession ? formatDuration(elapsed) : '-'}</td>
                   <td>{getRemainingTime(pc)}</td>
                   <td>
-                    {pc.activeSession ? formatMoney(pc.activeSession.estimatedAmount) : '-'}
+                    {pc.activeSession ? (() => {
+                      const moneyOrTime = getMoneyOrRemainingTime(pc, elapsed);
+                      return <span className="highlight">{moneyOrTime.text}</span>;
+                    })() : '-'}
                   </td>
                   <td>
                     <div className="actions">
@@ -616,7 +603,7 @@ export function PcsPage() {
               {userName !== '-' && (
                 <div className="pc-card-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginTop: '0.4rem' }}>
                   <div className="pc-card-row">
-                    <span className="pc-card-icon">👤</span>
+                    <span className="pc-card-icon">{getUserIcon(pc)}</span>
                     <span className="pc-card-value" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</span>
                   </div>
                   {pc.activeSession ? (
@@ -625,12 +612,15 @@ export function PcsPage() {
                       <span className="pc-card-value">{formatDuration(elapsed)}</span>
                     </div>
                   ) : <div />}
-                  {pc.activeSession ? (
-                    <div className="pc-card-row">
-                      <span className="pc-card-icon">💰</span>
-                      <span className="pc-card-value highlight">{formatMoney(pc.activeSession.estimatedAmount)}</span>
-                    </div>
-                  ) : <div />}
+                  {pc.activeSession ? (() => {
+                    const moneyOrTime = getMoneyOrRemainingTime(pc, elapsed);
+                    return (
+                      <div className="pc-card-row">
+                        <span className="pc-card-icon">{moneyOrTime.icon}</span>
+                        <span className="pc-card-value highlight">{moneyOrTime.text}</span>
+                      </div>
+                    );
+                  })() : <div />}
                   {pc.hasUnpaidServices ? (
                     <div className="pc-card-row">
                       <span className="pc-card-icon" style={{ color: '#0284c7' }}>🍔</span>
@@ -762,33 +752,7 @@ export function PcsPage() {
                   )}
 
                   {(selectedPc.status === 'ONLINE' || selectedPc.status === 'LOCKED' || selectedPc.status === 'BOOTING') && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                      <div className="form-group">
-                        <label>Hình thức mở máy:</label>
-                        <div className="open-type-options">
-                          <label className="open-type-option">
-                            <input
-                              type="radio"
-                              name="openType"
-                              checked={openType === 'guest'}
-                              onChange={() => setOpenType('guest')}
-                            />
-                            Khách vãng lai
-                          </label>
-                          <label className="open-type-option">
-                            <input
-                              type="radio"
-                              name="openType"
-                              checked={openType === 'member'}
-                              onChange={() => setOpenType('member')}
-                            />
-                            Hội viên
-                          </label>
-                        </div>
-                      </div>
-
-                      {openType === 'guest' ? (
-                        <>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                           <div className="form-group">
                             <label htmlFor="guest-amount">Nạp tiền giờ trước (để trống nếu không giới hạn):</label>
                             <input
@@ -821,54 +785,6 @@ export function PcsPage() {
                           >
                             {actionPending ? 'Đang mở máy...' : 'Xác nhận mở máy'}
                           </button>
-                        </>
-                      ) : (
-                        <>
-                          <div className="form-group">
-                            <label htmlFor="member-search">Tìm kiếm hội viên:</label>
-                            <input
-                              id="member-search"
-                              type="text"
-                              placeholder="Nhập tên đăng nhập hoặc số điện thoại..."
-                              value={memberSearch}
-                              onChange={(e) => setMemberSearch(e.target.value)}
-                            />
-                          </div>
-
-                          {matchingMembers.length > 0 && (
-                            <div className="member-search-results">
-                              {matchingMembers.map((m) => (
-                                <div
-                                  key={m.id}
-                                  className={`member-search-item ${selectedMember?.id === m.id ? 'selected' : ''}`}
-                                  onClick={() => setSelectedMember(m)}
-                                >
-                                  <span>{m.username} ({m.fullName})</span>
-                                  <span>SD: {formatMoney(m.balance)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {selectedMember && (
-                            <div className="active-member-info" style={{ background: '#f6ffed', borderColor: '#b7eb8f', color: '#389e0d' }}>
-                              <div><strong>Hội viên đã chọn:</strong> {selectedMember.username}</div>
-                              <div><strong>Tên thật:</strong> {selectedMember.fullName}</div>
-                              <div><strong>Số dư tài khoản:</strong> {formatMoney(selectedMember.balance)}</div>
-                              <div><strong>Giờ chơi tương đương:</strong> {selectedMember.playHours.toFixed(2)} giờ</div>
-                            </div>
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={handleOpenMember}
-                            disabled={actionPending || !selectedMember}
-                            style={{ background: '#2e7d32', borderColor: '#2e7d32', marginTop: '0.5rem' }}
-                          >
-                            {actionPending ? 'Đang đăng nhập...' : 'Mở máy hội viên'}
-                          </button>
-                        </>
-                      )}
                     </div>
                   )}
 
