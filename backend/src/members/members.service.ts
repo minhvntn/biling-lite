@@ -633,16 +633,17 @@ export class MembersService {
       },
     });
 
-    if (isActive) {
-      await this.prisma.session.updateMany({
-        where: { pcId: pc.id, status: 'ACTIVE' },
-        data: {
-          endedAt: new Date(),
-          status: 'CLOSED',
-          closedReason: 'SYSTEM',
-        },
-      });
-    }
+    // Do not close active session here so the admin can still view and pay the unpaid session.
+    // if (isActive) {
+    //   await this.prisma.session.updateMany({
+    //     where: { pcId: pc.id, status: 'ACTIVE' },
+    //     data: {
+    //       endedAt: new Date(),
+    //       status: 'CLOSED',
+    //       closedReason: 'SYSTEM',
+    //     },
+    //   });
+    // }
 
     if (previousStatus !== nextStatus) {
       await this.prisma.pc.update({
@@ -3389,6 +3390,34 @@ export class MembersService {
           createdBy,
         },
       });
+    }
+  }
+
+  private async ensureNoActiveGuestSession(pcId: string) {
+    const activeSession = await this.prisma.session.findFirst({
+      where: { pcId, status: 'ACTIVE' },
+    });
+    if (!activeSession) return;
+
+    const latestPresence = await this.prisma.eventLog.findFirst({
+      where: {
+        pcId,
+        eventType: {
+          in: ['member.pc.presence', 'guest.pc.presence', 'admin.pc.presence'],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        eventType: true,
+        payload: true,
+      },
+    });
+
+    if (latestPresence?.eventType === 'guest.pc.presence') {
+      const payload = latestPresence.payload as Record<string, unknown>;
+      if (payload?.isActive === true) {
+        throw new BadRequestException('Máy đang có khách chưa thanh toán, vui lòng chờ thu ngân xử lý.');
+      }
     }
   }
 }

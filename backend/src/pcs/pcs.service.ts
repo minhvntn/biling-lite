@@ -90,8 +90,8 @@ export class PcsService {
     const activeMemberIds = Array.from(
       new Set(
         Array.from(activeUsersByPc.values())
-          .filter((x): x is { kind: 'MEMBER'; member: { memberId: string; username: string; fullName: string } } => x.kind === 'MEMBER')
-          .map((x) => x.member.memberId),
+          .filter((x) => x.member !== null)
+          .map((x) => x.member!.memberId),
       ),
     );
     const activeMembers = activeMemberIds.length
@@ -177,10 +177,19 @@ export class PcsService {
         );
 
         const activeSession = pc.sessions[0] ?? null;
-        const activeUser =
-          activeSession ? activeUsersByPc.get(pc.id) : null;
-        const activeMemberBase =
-          activeUser?.kind === 'MEMBER' ? activeUser.member : null;
+        const activeUserFromLatest = activeUsersByPc.get(pc.id) ?? null;
+        const activeAdmin = activeUserFromLatest?.admin ?? null;
+        let activeMemberBase = null;
+        let activeGuest = null;
+
+        if (activeSession && activeUserFromLatest) {
+          if (activeUserFromLatest.member) {
+            activeMemberBase = activeUserFromLatest.member;
+          } else if (activeUserFromLatest.guest) {
+            activeGuest = activeUserFromLatest.guest;
+          }
+        }
+
         const activeMember = activeMemberBase
           ? {
               ...activeMemberBase,
@@ -188,10 +197,6 @@ export class PcsService {
               memberType: activeMemberTypeById.get(activeMemberBase.memberId) ?? 'REGULAR',
             }
           : null;
-        const activeGuest =
-          activeUser?.kind === 'GUEST' ? activeUser.guest : null;
-        const activeAdmin =
-          activeUser?.kind === 'ADMIN' ? activeUser.admin : null;
         const sessionClockAtMs =
           pc.status === PcStatus.OFFLINE
             ? Math.min(
@@ -642,16 +647,22 @@ export class PcsService {
   ): Promise<
     Map<
       string,
-      | { kind: 'MEMBER'; member: { memberId: string; username: string; fullName: string } }
-      | { kind: 'GUEST'; guest: { displayName: string; prepaidAmount: number } }
-      | { kind: 'ADMIN'; admin: { username: string; fullName: string } }
+      {
+        admin: { username: string; fullName: string } | null;
+        member: { memberId: string; username: string; fullName: string } | null;
+        guest: { displayName: string; prepaidAmount: number } | null;
+        latestKind: 'ADMIN' | 'MEMBER' | 'GUEST' | null;
+      }
     >
   > {
     const result = new Map<
       string,
-      | { kind: 'MEMBER'; member: { memberId: string; username: string; fullName: string } }
-      | { kind: 'GUEST'; guest: { displayName: string; prepaidAmount: number } }
-      | { kind: 'ADMIN'; admin: { username: string; fullName: string } }
+      {
+        admin: { username: string; fullName: string } | null;
+        member: { memberId: string; username: string; fullName: string } | null;
+        guest: { displayName: string; prepaidAmount: number } | null;
+        latestKind: 'ADMIN' | 'MEMBER' | 'GUEST' | null;
+      }
     >();
     if (pcIds.length === 0) {
       return result;
@@ -659,7 +670,7 @@ export class PcsService {
 
     await Promise.all(
       pcIds.map(async (pcId) => {
-        const latestPresence = await this.prisma.eventLog.findFirst({
+        const presences = await this.prisma.eventLog.findMany({
           where: {
             pcId,
             eventType: {
@@ -669,39 +680,42 @@ export class PcsService {
           orderBy: {
             createdAt: 'desc',
           },
+          take: 10,
         });
 
-        if (latestPresence?.eventType === 'member.pc.presence') {
-          const member = this.parseMemberPresencePayload(latestPresence.payload);
-          if (member) {
-            result.set(pcId, {
-              kind: 'MEMBER',
-              member,
-            });
+        let admin = null;
+        let member = null;
+        let guest = null;
+        let latestKind: 'ADMIN' | 'MEMBER' | 'GUEST' | null = null;
+
+        for (const presence of presences) {
+          if (presence.eventType === 'admin.pc.presence') {
+            const parsed = this.parseAdminPresencePayload(presence.payload);
+            if (parsed && !admin) {
+              admin = parsed;
+              if (!latestKind) latestKind = 'ADMIN';
+            }
+          } else if (presence.eventType === 'member.pc.presence') {
+            const parsed = this.parseMemberPresencePayload(presence.payload);
+            if (parsed && !member && !guest) {
+              member = parsed;
+              if (!latestKind) latestKind = 'MEMBER';
+            }
+          } else if (presence.eventType === 'guest.pc.presence') {
+            const parsed = this.parseGuestPresencePayload(presence.payload);
+            if (parsed && !guest && !member) {
+              guest = parsed;
+              if (!latestKind) latestKind = 'GUEST';
+            }
           }
-          return;
         }
 
-        if (latestPresence?.eventType === 'guest.pc.presence') {
-          const guest = this.parseGuestPresencePayload(latestPresence.payload);
-          if (guest) {
-            result.set(pcId, {
-              kind: 'GUEST',
-              guest,
-            });
-          }
-          return;
-        }
-
-        if (latestPresence?.eventType === 'admin.pc.presence') {
-          const admin = this.parseAdminPresencePayload(latestPresence.payload);
-          if (admin) {
-            result.set(pcId, {
-              kind: 'ADMIN',
-              admin,
-            });
-          }
-        }
+        result.set(pcId, {
+          admin,
+          member,
+          guest,
+          latestKind,
+        });
       }),
     );
 

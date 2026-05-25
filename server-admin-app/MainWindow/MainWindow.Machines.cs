@@ -136,9 +136,9 @@ public partial class MainWindow : Window
         var activeGuest = item.ActiveGuest;
         var isAdminSession = item.Status == "IN_USE" && activeAdmin is not null;
         var isVipSession = item.ActiveSession is not null && activeMember?.MemberType == "VIP";
-        var hasActiveSessionOffline = item.Status == "OFFLINE" && item.ActiveSession is not null;
+        var isUnpaidGuestEligibleStatus = (item.Status == "OFFLINE" || isAdminSession) && item.ActiveSession is not null;
         var hasUnpaidGuestSession =
-            hasActiveSessionOffline &&
+            isUnpaidGuestEligibleStatus &&
             activeMember is null &&
             (activeGuest is null || activeGuest.PrepaidAmount <= 0);
         var statusSubText = hasUnpaidGuestSession ? "Chưa thanh toán" : string.Empty;
@@ -148,7 +148,7 @@ public partial class MainWindow : Window
             "LOCKED" => "Đang khóa",
             "ONLINE" => I18n.StatusReady,
             "BOOTING" => "Đang khởi động",
-            "OFFLINE" => hasActiveSessionOffline ? "Mất kết nối" : I18n.StatusLocked,
+            "OFFLINE" => isUnpaidGuestEligibleStatus ? "Mất kết nối" : I18n.StatusLocked,
             _ => "Offline",
         };
 
@@ -545,6 +545,14 @@ public partial class MainWindow : Window
         SummaryUsingTextBlock.Text = $"{I18n.InUsePcPrefix}: {usingCount}";
         SummaryLockedTextBlock.Text = $"{I18n.LockedPcPrefix}: {lockedCount}";
         SummaryMoneyTextBlock.Text = $"{I18n.TempMoneyPrefix}: {runningMoney:N0}";
+
+        var unpaidGuests = rows.Where(r => r.IsOfflineUnpaidGuest).ToList();
+        if (UnpaidGuestFloatingButton != null && UnpaidGuestListBox != null)
+        {
+            UnpaidGuestFloatingButton.Visibility = Visibility.Visible;
+            UnpaidGuestFloatingButton.Content = unpaidGuests.Count.ToString();
+            UnpaidGuestListBox.ItemsSource = unpaidGuests;
+        }
     }
 
     private async Task SendCommandAsync(string action)
@@ -4656,7 +4664,6 @@ public partial class MainWindow
             // Select the row in the DataGrid so context-menu actions find the selected item
             MachinesDataGrid.SelectedItem = row;
 
-            // Show the same context menu as the DataGrid
             var contextMenu = MachinesDataGrid.ContextMenu;
             if (contextMenu != null)
             {
@@ -4664,6 +4671,27 @@ public partial class MainWindow
                 contextMenu.PlacementTarget = fe;
                 contextMenu.IsOpen = true;
             }
+        }
+    }
+
+    private async void UnpaidGuestListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ListBox listBox && listBox.SelectedItem is MachineRow selectedMachine)
+        {
+            // Close popup
+            UnpaidGuestFloatingButton.IsChecked = false;
+
+            // Clear selection so we can select it again next time
+            listBox.SelectedItem = null;
+
+            // Select in datagrid to be consistent
+            _selectedMachineId = selectedMachine.Id;
+            _selectedMachineIds.Clear();
+            _selectedMachineIds.Add(selectedMachine.Id);
+            MachinesDataGrid.SelectedItem = selectedMachine;
+
+            // Open the billing popup
+            await ShowMachineBillingDetailsAsync(selectedMachine);
         }
     }
 }

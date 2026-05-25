@@ -3759,6 +3759,77 @@
             </Border>
         </Grid>
 
+        <ToggleButton x:Name="UnpaidGuestFloatingButton"
+                      Panel.ZIndex="3000"
+                      Visibility="Collapsed"
+                      HorizontalAlignment="Right"
+                      VerticalAlignment="Bottom"
+                      Margin="0,0,18,52"
+                      Padding="16,10"
+                      BorderThickness="0"
+                      Background="#EA580C"
+                      Cursor="Hand">
+            <ToggleButton.Template>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border Background="{TemplateBinding Background}"
+                            CornerRadius="20"
+                            Padding="{TemplateBinding Padding}">
+                        <Border.Effect>
+                            <DropShadowEffect Color="Black" Opacity="0.25" BlurRadius="12" ShadowDepth="3" />
+                        </Border.Effect>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Chưa tính tiền" Foreground="White" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0" />
+                            <Border Background="White" CornerRadius="12" MinWidth="24" Height="24" Padding="6,0">
+                                <TextBlock Foreground="#EA580C" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{TemplateBinding Content}" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Background" Value="#F97316" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter Property="Background" Value="#C2410C" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </ToggleButton.Template>
+        </ToggleButton>
+
+        <Popup x:Name="UnpaidGuestPopup" 
+               PlacementTarget="{Binding ElementName=UnpaidGuestFloatingButton}" 
+               Placement="Top" 
+               IsOpen="{Binding IsChecked, ElementName=UnpaidGuestFloatingButton}" 
+               StaysOpen="False" 
+               AllowsTransparency="True" 
+               PopupAnimation="Fade">
+            <Border Background="White" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="6" Padding="4" Margin="0,0,0,4" MinWidth="200" MaxHeight="300">
+                <Border.Effect>
+                    <DropShadowEffect Color="Black" Opacity="0.1" BlurRadius="10" ShadowDepth="2" />
+                </Border.Effect>
+                <StackPanel>
+                    <TextBlock Text="Phiên chờ thanh toán" FontWeight="Bold" Margin="8,4,8,8" />
+                    <ListBox x:Name="UnpaidGuestListBox" 
+                             BorderThickness="0" 
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             SelectionChanged="UnpaidGuestListBox_SelectionChanged">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="4,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="1" Text="{Binding StatusText}" Foreground="Gray" FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </StackPanel>
+            </Border>
+        </Popup>
+
         <Border x:Name="GuestLoginToastBorder"
                 Panel.ZIndex="4000"
                 Visibility="Collapsed"
