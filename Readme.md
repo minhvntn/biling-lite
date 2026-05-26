@@ -268,3 +268,7 @@ Mẹo:
 Nếu chưa biết MAC, có thể thử b
 quay lại bảng này kiểm tra/lưu lại.
 Mỗi máy chỉ cần cấu hình 1 lần.
+
+
+Cách chạy tailsalce
+npm run dev -- --host 0.0.0.0 --port 5400

@@ -164,6 +164,11 @@ public partial class MainWindow : Window
 
         var startedAt = ParseDateLocal(item.ActiveSession?.StartedAt);
         var usedText = item.ActiveSession is null ? "-" : FormatUsed(item.ActiveSession.ElapsedSeconds);
+        if (isVipSession && activeMember != null && activeMember.Balance < 0 && item.HourlyRate > 0)
+        {
+            var postpaidSeconds = (int)Math.Floor(Math.Abs(activeMember.Balance) / item.HourlyRate * 3600m);
+            usedText = FormatUsed(postpaidSeconds);
+        }
 
         var statusIconBrush = Brushes.Gray;
         var statusIconPath = "/Assets/pc-default.svg";
@@ -221,14 +226,7 @@ public partial class MainWindow : Window
             : item.Name;
         var guestDisplayName = $"Khách {guestMachineLabel}";
         var remainingText = "-";
-        if (isVipSession)
-        {
-            var vipRemainingMinutesBase = GuestSessionStartingHours * MinutesPerHour;
-            var vipUsedMinutes = item.ActiveSession is null ? 0 : (int)Math.Floor(Math.Max(0, item.ActiveSession.ElapsedSeconds) / 60d);
-            var vipRemainingMinutes = Math.Max(0, vipRemainingMinutesBase - vipUsedMinutes);
-            remainingText = FormatRemainingMinutes(vipRemainingMinutes);
-        }
-        else if (activeMember is null && item.ActiveSession is not null)
+        if (activeMember is null && item.ActiveSession is not null)
         {
             var guestRemainingMinutesBase = GuestSessionStartingHours * MinutesPerHour;
             if (activeGuest is not null && activeGuest.PrepaidAmount > 0 && item.HourlyRate > 0)
@@ -239,10 +237,29 @@ public partial class MainWindow : Window
             var guestRemainingMinutes = Math.Max(0, guestRemainingMinutesBase - guestUsedMinutes);
             remainingText = FormatRemainingMinutes(guestRemainingMinutes);
         }
-        else if (activeMember is not null && item.HourlyRate > 0)
+        else if (activeMember is not null)
         {
-            var remainingMinutes = (int)Math.Floor((activeMember.Balance / item.HourlyRate) * 60m);
-            remainingText = FormatRemainingMinutes(Math.Max(0, remainingMinutes));
+            if (isVipSession && activeMember.Balance < 0)
+            {
+                var postpaidSeconds = item.HourlyRate > 0 
+                    ? (int)Math.Floor(Math.Abs(activeMember.Balance) / item.HourlyRate * 3600m)
+                    : 0;
+                var remainingSeconds = Math.Max(0, 3600000 - postpaidSeconds); // 1000 hours - used
+                remainingText = FormatRemainingMinutes((int)Math.Ceiling(remainingSeconds / 60.0));
+            }
+            else if (item.HourlyRate > 0)
+            {
+                var remainingMinutes = (int)Math.Floor((activeMember.Balance / item.HourlyRate) * 60m);
+                remainingText = FormatRemainingMinutes(Math.Max(0, remainingMinutes));
+            }
+        }
+        
+        var moneyText = item.ActiveSession is null ? "-" : item.ActiveSession.EstimatedAmount.ToString("N0");
+        if (isVipSession && activeMember is not null && activeMember.Balance < 0)
+        {
+            var rawDebt = Math.Abs(activeMember.Balance);
+            var roundedDebt = Math.Ceiling(rawDebt / 500m) * 500m;
+            moneyText = roundedDebt.ToString("N0");
         }
         var userName = !string.IsNullOrWhiteSpace(activeMember?.Username)
             ? (isVipSession ? $"VIP: {activeMember!.Username}" : activeMember!.Username)
@@ -273,7 +290,7 @@ public partial class MainWindow : Window
             StartedAtText = startedAt?.ToString("HH:mm:ss") ?? "-",
             UsedText = usedText,
             RemainingText = remainingText,
-            MoneyText = item.ActiveSession is null ? "-" : item.ActiveSession.EstimatedAmount.ToString("N0"),
+            MoneyText = moneyText,
             ServiceAmountRaw = 0,
             ServiceAmountText = item.ActiveSession is null ? "-" : "0",
             HasPendingClientServiceOrderHighlight = false,
@@ -289,6 +306,7 @@ public partial class MainWindow : Window
             ActiveMemberId = activeMember?.MemberId,
             ActiveMemberUsername = activeMember?.Username,
             ActiveMemberFullName = activeMember?.FullName,
+            ActiveMemberBalance = activeMember?.Balance ?? 0m,
             IsAdminSession = isAdminSession,
             IsGuestSession = isGuestSession,
             ActiveGuestDisplayName = isGuestSession ? guestDisplayName : null,
@@ -2973,10 +2991,29 @@ public partial class MainWindow : Window
                 : machineSnapshot.HourlyRate;
             var isVip = machineSnapshot.IsVipSession;
             var playAmount = machineSnapshot.ActiveSessionEstimatedAmount;
+            
+            var playAmountToPay = playAmount;
+            if (machineSnapshot.ActiveMemberId != null)
+            {
+                if (machineSnapshot.ActiveMemberBalance < 0)
+                {
+                    var rawDebt = Math.Abs(machineSnapshot.ActiveMemberBalance);
+                    playAmountToPay = Math.Ceiling(rawDebt / 500m) * 500m;
+                }
+                else
+                {
+                    playAmountToPay = 0m;
+                }
+            }
+            else if (machineSnapshot.IsGuestSession)
+            {
+                playAmountToPay = Math.Max(0m, playAmount - machineSnapshot.ActiveGuestPrepaidAmount);
+            }
+
             var currentRatePlayAmount = CalculatePrecisePlayAmount(
                 displayedElapsedSeconds,
                 machineSnapshot.HourlyRate);
-            var totalAmount = playAmount + serviceAmount;
+            var totalAmount = playAmountToPay + serviceAmount;
 
             statusValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.StatusText) ? "-" : machineSnapshot.StatusText;
             groupValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.GroupName) ? "-" : machineSnapshot.GroupName;

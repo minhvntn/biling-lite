@@ -122,6 +122,7 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
           fullName: activeMember.fullName,
           memberType: activeMember.memberType,
           rank: activeMember.rank,
+          balance: activeMember.balance,
         };
       }
     }

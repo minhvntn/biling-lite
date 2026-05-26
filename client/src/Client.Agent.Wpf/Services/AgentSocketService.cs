@@ -32,7 +32,7 @@ public sealed class AgentSocketService : IAsyncDisposable
     public Func<AdminGetRunningAppsPayload, Task>? GetRunningAppsHandler { get; set; }
     public Func<AdminKillProcessPayload, Task>? KillProcessHandler { get; set; }
     public Action<GuestPrepaidConfigurePayload>? GuestPrepaidConfigureHandler { get; set; }
-    public Action<string, string, string, string?, string, int>? ResumeMemberSessionHandler { get; set; }
+    public Action<string, string, string, string?, string, int, decimal>? ResumeMemberSessionHandler { get; set; }
     public Action<string?, decimal>? PromotionChangedHandler { get; set; }
 
     public AgentSocketService(
@@ -233,7 +233,20 @@ public sealed class AgentSocketService : IAsyncDisposable
                         elapsedSeconds = elapsedProp.GetInt32();
                     }
 
-                    ResumeMemberSessionHandler?.Invoke(id, username, fullName, rank, memberType, elapsedSeconds);
+                    decimal balance = 0m;
+                    if (memberInfo.TryGetProperty("balance", out var balanceProp))
+                    {
+                        if (balanceProp.ValueKind == JsonValueKind.Number)
+                        {
+                            balance = balanceProp.GetDecimal();
+                        }
+                        else if (balanceProp.ValueKind == JsonValueKind.String && decimal.TryParse(balanceProp.GetString(), out var parsedBalance))
+                        {
+                            balance = parsedBalance;
+                        }
+                    }
+
+                    ResumeMemberSessionHandler?.Invoke(id, username, fullName, rank, memberType, elapsedSeconds, balance);
                 }
             }
 

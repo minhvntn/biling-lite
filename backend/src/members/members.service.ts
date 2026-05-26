@@ -451,47 +451,25 @@ export class MembersService {
       });
 
       if (upfrontLoginCharge > 0) {
-        const isVip = member.memberType === 'VIP';
-        if (isVip) {
-          await this.prisma.member.update({
-            where: { id: member.id },
-            data: {
-              totalTopup: {
-                increment: upfrontLoginCharge,
-              },
+        await this.prisma.member.update({
+          where: { id: member.id },
+          data: {
+            balance: {
+              decrement: upfrontLoginCharge,
             },
-          });
+          },
+        });
 
-          await this.prisma.memberTransaction.create({
-            data: {
-              memberId: member.id,
-              type: 'ADJUSTMENT',
-              amountDelta: 0,
-              playSecondsDelta: 0,
-              note: 'UPFRONT_LOGIN_CHARGE:VIP',
-              createdBy: 'client.session',
-            },
-          });
-        } else {
-          await this.prisma.member.update({
-            where: { id: member.id },
-            data: {
-              balance: {
-                decrement: upfrontLoginCharge,
-              },
-            },
-          });
-
-          await this.prisma.memberTransaction.create({
-            data: {
-              memberId: member.id,
-              type: 'ADJUSTMENT',
-              amountDelta: -upfrontLoginCharge,
-              note: 'UPFRONT_LOGIN_CHARGE',
-              createdBy: 'client.session',
-            },
-          });
-        }
+        await this.prisma.memberTransaction.create({
+          data: {
+            memberId: member.id,
+            type: 'ADJUSTMENT',
+            amountDelta: -upfrontLoginCharge,
+            playSecondsDelta: 0,
+            note: 'UPFRONT_LOGIN_CHARGE',
+            createdBy: 'client.session',
+          },
+        });
       }
 
       await this.prisma.session.create({
@@ -916,30 +894,16 @@ export class MembersService {
         const costAmount = Number(rawCost.toFixed(2));
 
         if (costAmount > 0) {
-          const isVip = member.memberType === 'VIP';
-          if (isVip) {
-            updatedMember = await tx.member.update({
-              where: { id: member.id },
-              data: {
-                totalTopup: {
-                  increment: costAmount,
-                },
+          updatedMember = await tx.member.update({
+            where: { id: member.id },
+            data: {
+              balance: {
+                decrement: costAmount,
               },
-            });
+            },
+          });
 
-            await mergeOrCreateTx(0, -remainingSeconds, `${note}:VIP_CHARGE`);
-          } else {
-            updatedMember = await tx.member.update({
-              where: { id: member.id },
-              data: {
-                balance: {
-                  decrement: costAmount,
-                },
-              },
-            });
-
-            await mergeOrCreateTx(-costAmount, -remainingSeconds, `${note}:CASH_CHARGE`);
-          }
+          await mergeOrCreateTx(-costAmount, -remainingSeconds, `${note}:CASH_CHARGE`);
         }
       }
 

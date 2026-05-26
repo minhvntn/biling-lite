@@ -26,12 +26,17 @@ public partial class MainWindow : Window
     private decimal _hourlyRate = DefaultHourlyRate;
     private decimal _serviceCost;
     private int _serviceOrderCount;
+    private int _phaseStartedElapsedSeconds;
+    private int _lastSyncElapsedSeconds;
+    private decimal _lastSyncMemberBalance;
     private bool _isMemberSession;
     private bool _isVipSession;
+    private decimal _memberBalance;
     private bool _withdrawActionEnabledSetting = true;
     private bool _topupActionEnabledSetting = true;
     private TimeSpan _usedDuration = TimeSpan.Zero;
     private DateTime? _runningStartedAtUtc;
+    private int _fastSyncTickCount = 0;
 
     public MainWindow()
     {
@@ -39,8 +44,10 @@ public partial class MainWindow : Window
         ApplyI18nTexts();
         SetLogoutActionVisible(false);
 
-        // Reduce UI refresh frequency; critical state changes still call UpdateUsageUi() immediately.
-        _usageTimer.Interval = TimeSpan.FromMinutes(1);
+        _usageTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1)
+        };
         _usageTimer.Tick += UsageTimer_Tick;
         _usageTimer.Start();
 
@@ -130,19 +137,37 @@ public partial class MainWindow : Window
         WindowState = WindowState.Minimized;
     }
 
-    public void ConfigureBilling(int totalSessionMinutes, decimal hourlyRate, bool resetUsage = false)
+    public void ConfigureBilling(int totalSessionMinutes, decimal hourlyRate, bool resetUsage = false, decimal? memberBalance = null)
     {
+        var elapsedSeconds = Math.Max(0, (int)GetCurrentUsedDuration().TotalSeconds);
+
         if (resetUsage)
         {
             _usedDuration = TimeSpan.Zero;
             _runningStartedAtUtc = null;
             _serviceCost = 0;
             _serviceOrderCount = 0;
+            _phaseStartedElapsedSeconds = 0;
             UpdateServiceBadgeUi();
+        }
+        else if (_isVipSession && memberBalance.HasValue && memberBalance.Value > _memberBalance + 1000m)
+        {
+            _phaseStartedElapsedSeconds = elapsedSeconds;
+        }
+
+        _lastSyncElapsedSeconds = elapsedSeconds;
+
+        if (memberBalance.HasValue)
+        {
+            _lastSyncMemberBalance = memberBalance.Value;
+            _memberBalance = memberBalance.Value;
         }
 
         _totalSessionMinutes = Math.Max(1, totalSessionMinutes);
         _hourlyRate = hourlyRate < 0 ? 0 : hourlyRate;
+
+        _usageTimer.Interval = TimeSpan.FromSeconds(1);
+
         UpdateUsageUi();
     }
 
@@ -151,6 +176,7 @@ public partial class MainWindow : Window
         if (elapsedSeconds >= 0)
         {
             _usedDuration = TimeSpan.FromSeconds(elapsedSeconds);
+            _lastSyncElapsedSeconds = elapsedSeconds;
             if (_runningStartedAtUtc is not null)
             {
                 _runningStartedAtUtc = DateTime.UtcNow;
@@ -657,10 +683,38 @@ public partial class MainWindow : Window
         var totalMins = (int)total.TotalMinutes;
         var elapsedSeconds = Math.Max(0, (int)used.TotalSeconds);
         var hasSessionUsage = _runningStartedAtUtc is not null || _usedDuration > TimeSpan.Zero;
-        var usedMins = hasSessionUsage
-            ? Math.Max(1, (int)Math.Ceiling(elapsedSeconds / 60.0))
-            : 0;
-        var remainingMins = Math.Max(0, totalMins - usedMins);
+        
+        var usedMins = 0;
+        var remainingMins = 0;
+        
+        if (hasSessionUsage)
+        {
+            var secondsSinceSync = Math.Max(0, elapsedSeconds - _lastSyncElapsedSeconds);
+            var realTimeBalance = _lastSyncMemberBalance - (secondsSinceSync * (_hourlyRate / 3600m));
+
+            if (_isVipSession && realTimeBalance < 0 && _hourlyRate > 0)
+            {
+                usedMins = (int)Math.Ceiling(Math.Abs(realTimeBalance) / _hourlyRate * 60m);
+                totalMins = 60000; // 1000 hours
+                remainingMins = Math.Max(0, totalMins - usedMins);
+            }
+            else if (_isVipSession)
+            {
+                var phaseElapsed = Math.Max(0, elapsedSeconds - _phaseStartedElapsedSeconds);
+                usedMins = Math.Max(1, (int)Math.Ceiling(phaseElapsed / 60.0));
+                var totalElapsedMins = Math.Max(1, (int)Math.Ceiling(elapsedSeconds / 60.0));
+                remainingMins = Math.Max(0, totalMins - totalElapsedMins);
+            }
+            else
+            {
+                usedMins = Math.Max(1, (int)Math.Ceiling(elapsedSeconds / 60.0));
+                remainingMins = Math.Max(0, totalMins - usedMins);
+            }
+        }
+        else
+        {
+            remainingMins = totalMins;
+        }
 
         // Match backend logic: use billable minutes (rounded up) and apply pricing step and minimum charge
         var billableMins = hasSessionUsage
@@ -679,7 +733,19 @@ public partial class MainWindow : Window
         
         if (_isMemberSession)
         {
-            GameCostValueTextBlock.Text = "-";
+            var secondsSinceSync = Math.Max(0, elapsedSeconds - _lastSyncElapsedSeconds);
+            var realTimeBalance = _lastSyncMemberBalance - (secondsSinceSync * (_hourlyRate / 3600m));
+
+            if (_isVipSession && realTimeBalance < 0)
+            {
+                var rawDebt = Math.Abs(Math.Min(0, realTimeBalance));
+                var roundedDebt = Math.Ceiling(rawDebt / 500m) * 500m;
+                GameCostValueTextBlock.Text = roundedDebt.ToString("N0", CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                GameCostValueTextBlock.Text = "-";
+            }
             ServiceCostValueTextBlock.Text = "-";
             return;
         }

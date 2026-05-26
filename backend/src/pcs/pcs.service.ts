@@ -885,7 +885,7 @@ export class PcsService {
 
   async getActiveMemberForPc(
     pcId: string,
-  ): Promise<{ memberId: string; username: string; fullName: string; memberType: string; rank: string } | null> {
+  ): Promise<{ memberId: string; username: string; fullName: string; memberType: string; rank: string; balance: number } | null> {
     const latestPresence = await this.prisma.eventLog.findFirst({
       where: {
         pcId,
@@ -913,6 +913,7 @@ export class PcsService {
         fullName: true,
         memberType: true,
         totalTopup: true,
+        balance: true,
       },
     });
 
@@ -937,6 +938,7 @@ export class PcsService {
       username: member.username,
       fullName: member.fullName,
       memberType: member.memberType,
+      balance: Number(member.balance),
       rank,
     };
   }

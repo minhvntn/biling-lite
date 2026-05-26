@@ -25,6 +25,20 @@ function formatDuration(totalSeconds: number): string {
   return `${paddedHours}:${paddedMinutes}`;
 }
 
+function getEffectiveElapsedSeconds(pc: PcListItem, currentTick: number): number {
+  if (!pc.activeSession) return 0;
+  
+  if (pc.activeMember && (pc.activeMember as any).memberType === 'VIP') {
+    const balance = Number(pc.activeMember.balance) || 0;
+    const hourlyRate = pc.hourlyRate || 0;
+    if (balance < 0 && hourlyRate > 0) {
+      return (Math.abs(balance) / hourlyRate) * 3600;
+    }
+  }
+  
+  return pc.activeSession.elapsedSeconds + currentTick;
+}
+
 function formatClock(isoDate: string | null): string {
   if (!isoDate) {
     return '-';
@@ -424,6 +438,12 @@ export function PcsPage() {
   const getRemainingTime = (pc: PcListItem) => {
     if (pc.activeMember) {
       const balance = Number(pc.activeMember.balance) || 0;
+      if ((pc.activeMember as any).memberType === 'VIP' && balance < 0) {
+        const rate = pc.hourlyRate || 10000;
+        const usedSeconds = Math.floor((Math.abs(balance) / rate) * 3600);
+        const remainingSeconds = Math.max(0, 3600000 - usedSeconds);
+        return formatDuration(remainingSeconds);
+      }
       const rate = pc.hourlyRate || 10000;
       const playSeconds = (pc.activeMember as any).playSeconds || 0;
       const totalSeconds = playSeconds + (balance / rate) * 3600;
@@ -445,11 +465,34 @@ export function PcsPage() {
       const paddedMinutes = minutes.toString().padStart(2, '0');
       return { icon: '⌛', text: `${paddedHours}:${paddedMinutes}` };
     }
+    if (pc.activeMember && (pc.activeMember as any).memberType === 'VIP') {
+      const balance = Number(pc.activeMember.balance) || 0;
+      if (balance < 0) {
+        const rawDebt = Math.abs(balance);
+        const roundedDebt = Math.ceil(rawDebt / 500) * 500;
+        return { icon: '💰', text: formatMoney(roundedDebt) };
+      }
+    }
     return { icon: '💰', text: formatMoney(pc.activeSession.estimatedAmount) };
   };
 
   const getUnpaidServicesTotal = (orders: PcServiceOrder[]) => {
     return orders.reduce((sum, item) => sum + item.lineTotal, 0);
+  };
+
+  const getPlayAmountToPay = (pc: PcListItem) => {
+    if (pc.activeMember) {
+      const balance = Number(pc.activeMember.balance) || 0;
+      if (balance < 0) {
+        const rawDebt = Math.abs(balance);
+        return Math.ceil(rawDebt / 500) * 500;
+      }
+      return 0;
+    }
+    if (pc.activeGuest) {
+      return Math.max(0, (pc.activeSession?.estimatedAmount || 0) - (pc.activeGuest.prepaidAmount || 0));
+    }
+    return pc.activeSession?.estimatedAmount || 0;
   };
 
   return (
@@ -524,7 +567,7 @@ export function PcsPage() {
           <tbody>
             {filteredPcs.map((pc) => {
               const elapsed = pc.activeSession
-                ? Math.max(0, pc.activeSession.elapsedSeconds + tick)
+                ? Math.max(0, getEffectiveElapsedSeconds(pc, tick))
                 : 0;
 
               return (
@@ -540,7 +583,7 @@ export function PcsPage() {
                     </div>
                   </td>
                   <td>{formatClock(pc.activeSession?.startedAt ?? null)}</td>
-                  <td>{pc.activeSession ? formatDuration(elapsed) : '-'}</td>
+                  <td>{pc.activeSession ? formatDuration(getEffectiveElapsedSeconds(pc, tick)) : '-'}</td>
                   <td>{getRemainingTime(pc)}</td>
                   <td>
                     {pc.activeSession ? (() => {
@@ -587,7 +630,7 @@ export function PcsPage() {
       <section className="pc-card-grid mobile-only">
         {filteredPcs.map((pc) => {
           const elapsed = pc.activeSession
-            ? Math.max(0, pc.activeSession.elapsedSeconds + tick)
+            ? Math.max(0, getEffectiveElapsedSeconds(pc, tick))
             : 0;
           const userName = getUserName(pc);
 
@@ -698,7 +741,7 @@ export function PcsPage() {
                         <div>
                           <span><strong>Thời gian dùng:</strong></span>
                           <span>
-                            {formatDuration(selectedPc.activeSession.elapsedSeconds + tick)}
+                            {formatDuration(getEffectiveElapsedSeconds(selectedPc, tick))}
                           </span>
                         </div>
                         {selectedPc.activeMember && (
@@ -721,7 +764,7 @@ export function PcsPage() {
                         )}
                         <div style={{ borderTop: '1px dashed rgba(0,0,0,0.15)', marginTop: '0.4rem', paddingTop: '0.4rem', fontSize: '1.05rem', color: '#b42318' }}>
                           <span><strong>Tổng thanh toán:</strong></span>
-                          <span><strong>{formatMoney(selectedPc.activeSession.estimatedAmount + getUnpaidServicesTotal(unpaidOrders))}</strong></span>
+                          <span><strong>{formatMoney(getPlayAmountToPay(selectedPc) + getUnpaidServicesTotal(unpaidOrders))}</strong></span>
                         </div>
                       </>
                     )}

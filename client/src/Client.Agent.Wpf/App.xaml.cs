@@ -314,9 +314,9 @@ public partial class App : Application
             OnServiceOrdersChangedFromServer,
             OnWebFilterSettingsChangedFromServer);
 
-        _socketService.ResumeMemberSessionHandler = (memberId, username, fullName, rank, memberType, elapsedSeconds) =>
+        _socketService.ResumeMemberSessionHandler = (memberId, username, fullName, rank, memberType, elapsedSeconds, balance) =>
         {
-            Dispatcher.Invoke(() => ResumeMemberSessionFromServer(memberId, username, fullName, rank, memberType, elapsedSeconds));
+            Dispatcher.Invoke(() => ResumeMemberSessionFromServer(memberId, username, fullName, rank, memberType, elapsedSeconds, balance));
         };
 
         _socketService.GetRunningAppsHandler = HandleGetRunningAppsRequestedAsync;
@@ -736,15 +736,14 @@ public partial class App : Application
 
             Dispatcher.Invoke(() =>
             {
-                var totalMinutes = member.MemberType == "VIP"
-                    ? _settings.TotalSessionMinutes
-                    : ComputeMinutesFromBalance(member.Balance, _currentHourlyRate);
+                var computedMins = ComputeMinutesFromBalance(member.Balance, _currentHourlyRate);
+                var totalMinutes = Math.Max(0, computedMins);
                 if (totalMinutes <= 0 && member.MemberType != "VIP")
                 {
                     totalMinutes = Math.Max(1, member.PlaySeconds / 60);
                 }
 
-                _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true);
+                _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true, member.Balance);
                 _mainWindow?.SetUpfrontUsedDuration();
                 _mainWindow?.SetMemberInfo(member.Username, member.Rank, member.MemberType);
                 UnlockMachine();
@@ -921,26 +920,27 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
     private int ComputeRemainingMinutesFromMemberSnapshot(MemberLoginItem member)
     {
-        if (member.MemberType == "VIP")
-        {
-            return _settings.TotalSessionMinutes;
-        }
         var balanceMinutes = ComputeMinutesFromBalance(member.Balance, _currentHourlyRate);
         var playSecondsMinutes = ComputeMinutesFromPlaySeconds(member.PlaySeconds);
-        return Math.Max(0, balanceMinutes + playSecondsMinutes);
+        var remainingMins = balanceMinutes + playSecondsMinutes;
+        
+        if (member.MemberType == "VIP")
+        {
+            return Math.Max(0, remainingMins);
+        }
+        
+        return Math.Max(0, remainingMins);
     }
 
     private void SynchronizeMemberBillingFromServer(MemberLoginItem member, int usedSecondsNow)
     {
         var remainingMinutes = ComputeRemainingMinutesFromMemberSnapshot(member);
         var usedMinutes = ComputeUsedMinutesFromSeconds(usedSecondsNow);
-        var totalMinutes = member.MemberType == "VIP" 
-            ? remainingMinutes 
-            : Math.Max(1, remainingMinutes + usedMinutes);
+        var totalMinutes = Math.Max(1, remainingMinutes + usedMinutes);
 
         Dispatcher.Invoke(() =>
         {
-            _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false);
+            _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false, member.Balance);
         });
     }
 
@@ -5913,7 +5913,7 @@ LIMIT $limit;";
         _mainWindow?.SetLastCommand($"GUEST RESUME @ {DateTime.Now:HH:mm:ss}");
     }
 
-    private void ResumeMemberSessionFromServer(string memberId, string username, string fullName, string? rank, string memberType, int elapsedSeconds)
+    private void ResumeMemberSessionFromServer(string memberId, string username, string fullName, string? rank, string memberType, int elapsedSeconds, decimal memberBalance)
     {
         if (_activeMemberSession is not null || _isAdminSession)
         {
@@ -5937,7 +5937,8 @@ LIMIT $limit;";
         _mainWindow?.ConfigureBilling(
             _settings.TotalSessionMinutes,
             _currentHourlyRate,
-            true);
+            true,
+            memberBalance);
         _mainWindow?.SetMemberInfo(username, rank, memberType);
         _mainWindow?.SynchronizeUsedDuration(elapsedSeconds);
         UnlockMachine();

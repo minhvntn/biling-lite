@@ -158,6 +158,7 @@ public sealed class MachineRow
     public string? ActiveMemberId { get; set; }
     public string? ActiveMemberUsername { get; set; }
     public string? ActiveMemberFullName { get; set; }
+    public decimal ActiveMemberBalance { get; set; }
     public bool IsAdminSession { get; set; }
     public bool IsGuestSession { get; set; }
     public string? ActiveGuestDisplayName { get; set; }
