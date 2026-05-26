@@ -1465,7 +1465,7 @@ export class CommandsService {
   }
 
   private roundMoney(value: number): number {
-    if (!Number.isFinite(value) || value < 1000) {
+    if (!Number.isFinite(value) || value < 0) {
       throw new BadRequestException('So tien khach vang lai khong hop le');
     }
 
@@ -1747,6 +1747,41 @@ export class CommandsService {
       }
     } catch (err) {
       console.error('Error auto-paying service orders on session close:', err);
+    }
+
+    if (closedReason === 'ADMIN_LOCK') {
+      try {
+        const latestPresence = await tx.eventLog.findFirst({
+          where: { pcId, eventType: 'member.pc.presence' },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (latestPresence?.payload && typeof latestPresence.payload === 'object' && !Array.isArray(latestPresence.payload)) {
+          const payload = latestPresence.payload as Record<string, unknown>;
+          if (payload.isActive === true && typeof payload.memberId === 'string') {
+            const memberId = payload.memberId;
+            const member = await tx.member.findUnique({ where: { id: memberId } });
+            if (member && member.memberType === 'VIP' && Number(member.balance) < 0) {
+              await tx.member.update({
+                where: { id: member.id },
+                data: { balance: 0 },
+              });
+
+              await tx.memberTransaction.create({
+                data: {
+                  memberId: member.id,
+                  type: 'ADJUSTMENT',
+                  amountDelta: Math.abs(Number(member.balance)),
+                  note: 'Thanh toán (Reset số dư âm)',
+                  createdBy: 'system.session_checkout',
+                },
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error resetting VIP balance on checkout:', err);
+      }
     }
 
     return {

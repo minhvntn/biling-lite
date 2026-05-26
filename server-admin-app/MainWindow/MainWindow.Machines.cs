@@ -2849,7 +2849,7 @@ public partial class MainWindow : Window
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         var detailsGrid = new Grid();
-        for (var i = 0; i < 16; i++)
+        for (var i = 0; i < 17; i++)
         {
             detailsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         }
@@ -2864,19 +2864,59 @@ public partial class MainWindow : Window
         Grid.SetRow(title, 0);
         detailsGrid.Children.Add(title);
 
-        var statusValueText = AddBillingLine(detailsGrid, 1, "Trạng thái", machine.StatusText);
-        var groupValueText = AddBillingLine(detailsGrid, 2, "Nhóm máy", machine.GroupName);
-        var startedAtValueText = AddBillingLine(detailsGrid, 3, "Bắt đầu", machine.StartedAtText);
-        var playDurationValueText = AddBillingLine(detailsGrid, 4, "Thời gian chơi", "-");
-        var sessionRateValueText = AddBillingLine(detailsGrid, 5, "Đơn giá phiên tính tiền", "-");
-        var currentRateValueText = AddBillingLine(detailsGrid, 6, "Đơn giá hiện tại (tham khảo)", "-");
-        var playAmountValueText = AddBillingLine(detailsGrid, 7, "Tiền giờ chơi (theo phiên)", "-");
-        var currentRatePlayAmountValueText = AddBillingLine(detailsGrid, 8, "Tiền giờ chơi theo giá hiện tại (tham khảo)", "-");
-        var discountPercentValueText = AddBillingLine(detailsGrid, 9, "Giảm giá phiên", "-");
-        var discountSourceValueText = AddBillingLine(detailsGrid, 10, "Nguồn giảm giá", "-");
-        var clientServiceAmountValueText = AddBillingLine(detailsGrid, 11, "Tiền dịch vụ từ máy trạm", $"{clientServiceAmount:N0} VND");
-        var serverServiceAmountValueText = AddBillingLine(detailsGrid, 12, "Tiền dịch vụ từ server", $"{serverServiceAmount:N0} VND");
-        var serviceAmountValueText = AddBillingLine(detailsGrid, 13, "Tổng tiền dịch vụ", $"{serviceAmount:N0} VND");
+        var statusLine = AddBillingLine(detailsGrid, 1, "Trạng thái", machine.StatusText);
+        var startedAtLine = AddBillingLine(detailsGrid, 2, "Bắt đầu", machine.StartedAtText);
+        var playDurationLine = AddBillingLine(detailsGrid, 3, "Thời gian chơi", "-");
+        var sessionRateLine = AddBillingLine(detailsGrid, 4, "Đơn giá phiên tính tiền", "-");
+        var playAmountLine = AddBillingLine(detailsGrid, 5, "Tiền giờ chơi (theo phiên)", "-");
+        var serviceAmountLine = AddBillingLine(detailsGrid, 6, "Tổng tiền dịch vụ", $"{serviceAmount:N0} VND");
+
+        var toggleDetailsBtn = new Button
+        {
+            Content = "▼ Xem chi tiết",
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Foreground = Brushes.Gray,
+            Cursor = Cursors.Hand,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(0, 5, 0, 5),
+            Padding = new Thickness(0)
+        };
+        Grid.SetRow(toggleDetailsBtn, 7);
+        detailsGrid.Children.Add(toggleDetailsBtn);
+
+        var groupLine = AddBillingLine(detailsGrid, 8, "Nhóm máy", machine.GroupName);
+        var currentRateLine = AddBillingLine(detailsGrid, 9, "Đơn giá hiện tại (tham khảo)", "-");
+        var currentRatePlayAmountLine = AddBillingLine(detailsGrid, 10, "Tiền giờ chơi theo giá hiện tại (tham khảo)", "-");
+        var discountPercentLine = AddBillingLine(detailsGrid, 11, "Giảm giá phiên", "-");
+        var discountSourceLine = AddBillingLine(detailsGrid, 12, "Nguồn giảm giá", "-");
+        var clientServiceAmountLine = AddBillingLine(detailsGrid, 13, "Tiền dịch vụ từ máy trạm", $"{clientServiceAmount:N0} VND");
+        var serverServiceAmountLine = AddBillingLine(detailsGrid, 14, "Tiền dịch vụ từ server", $"{serverServiceAmount:N0} VND");
+
+        var extraLines = new[]
+        {
+            groupLine.Row,
+            currentRateLine.Row,
+            currentRatePlayAmountLine.Row,
+            discountPercentLine.Row,
+            discountSourceLine.Row,
+            clientServiceAmountLine.Row,
+            serverServiceAmountLine.Row
+        };
+
+        bool isDetailsVisible = false;
+        foreach (var line in extraLines) line.Visibility = Visibility.Collapsed;
+
+        toggleDetailsBtn.Click += (s, e) =>
+        {
+            isDetailsVisible = !isDetailsVisible;
+            foreach (var line in extraLines)
+            {
+                line.Visibility = isDetailsVisible ? Visibility.Visible : Visibility.Collapsed;
+            }
+            toggleDetailsBtn.Content = isDetailsVisible ? "▲ Ẩn chi tiết" : "▼ Xem chi tiết";
+            dialog.SizeToContent = SizeToContent.Height;
+        };
 
         var totalText = new TextBlock
         {
@@ -2895,7 +2935,7 @@ public partial class MainWindow : Window
             Margin = new Thickness(0, 12, 0, 0),
             Child = totalText,
         };
-        Grid.SetRow(totalBorder, 14);
+        Grid.SetRow(totalBorder, 15);
         detailsGrid.Children.Add(totalBorder);
 
         var noteText = new TextBlock
@@ -2905,7 +2945,7 @@ public partial class MainWindow : Window
             Foreground = Brushes.DimGray,
             TextWrapping = TextWrapping.Wrap,
         };
-        Grid.SetRow(noteText, 15);
+        Grid.SetRow(noteText, 16);
         detailsGrid.Children.Add(noteText);
         Grid.SetRow(detailsGrid, 0);
         root.Children.Add(detailsGrid);
@@ -3015,14 +3055,14 @@ public partial class MainWindow : Window
                 machineSnapshot.HourlyRate);
             var totalAmount = playAmountToPay + serviceAmount;
 
-            statusValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.StatusText) ? "-" : machineSnapshot.StatusText;
-            groupValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.GroupName) ? "-" : machineSnapshot.GroupName;
-            startedAtValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.StartedAtText) ? "-" : machineSnapshot.StartedAtText;
-            playDurationValueText.Text = playDurationText;
-            SetMoneyRateText(sessionRateValueText, sessionHourlyRate);
-            SetMoneyRateText(currentRateValueText, machineSnapshot.HourlyRate);
-            SetMoneyText(playAmountValueText, playAmount, new SolidColorBrush(Color.FromRgb(30, 64, 175)));
-            SetMoneyText(currentRatePlayAmountValueText, currentRatePlayAmount, new SolidColorBrush(Color.FromRgb(8, 145, 178)));
+            statusLine.ValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.StatusText) ? "-" : machineSnapshot.StatusText;
+            groupLine.ValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.GroupName) ? "-" : machineSnapshot.GroupName;
+            startedAtLine.ValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.StartedAtText) ? "-" : machineSnapshot.StartedAtText;
+            playDurationLine.ValueText.Text = playDurationText;
+            SetMoneyRateText(sessionRateLine.ValueText, sessionHourlyRate);
+            SetMoneyRateText(currentRateLine.ValueText, machineSnapshot.HourlyRate);
+            SetMoneyText(playAmountLine.ValueText, playAmount, new SolidColorBrush(Color.FromRgb(30, 64, 175)));
+            SetMoneyText(currentRatePlayAmountLine.ValueText, currentRatePlayAmount, new SolidColorBrush(Color.FromRgb(8, 145, 178)));
             var groups = _pricingSettings?.Groups?.ToList() ?? new List<PricingGroupItem>();
             var defaultGroup = groups.FirstOrDefault(x => x.IsDefault) ?? new PricingGroupItem
             {
@@ -3043,13 +3083,21 @@ public partial class MainWindow : Window
             var discountPercent = activePromotionDiscountPercent > 0
                 ? activePromotionDiscountPercent
                 : CalculateSessionDiscountPercent(sessionHourlyRate, baseHourlyRate);
-            discountPercentValueText.Text = discountPercent > 0 ? $"{discountPercent:0.##}%" : "0%";
-            discountSourceValueText.Text = activePromotionDiscountPercent > 0
-                ? $"Khuyến mãi: {activePromotionName}"
-                : "-";
-            SetMoneyText(clientServiceAmountValueText, clientServiceAmount, new SolidColorBrush(Color.FromRgb(5, 150, 105)));
-            SetMoneyText(serverServiceAmountValueText, serverServiceAmount, new SolidColorBrush(Color.FromRgb(107, 114, 128)));
-            SetMoneyText(serviceAmountValueText, serviceAmount, new SolidColorBrush(Color.FromRgb(15, 118, 110)));
+            
+            if (discountPercent > 0)
+            {
+                discountPercentLine.ValueText.Text = $"{discountPercent:0.##}%";
+                discountSourceLine.ValueText.Text = string.IsNullOrWhiteSpace(activePromotionName) ? "Chương trình tự động" : activePromotionName;
+            }
+            else
+            {
+                discountPercentLine.ValueText.Text = "-";
+                discountSourceLine.ValueText.Text = "-";
+            }
+            
+            SetMoneyText(clientServiceAmountLine.ValueText, clientServiceAmount, new SolidColorBrush(Color.FromRgb(5, 150, 105)));
+            SetMoneyText(serverServiceAmountLine.ValueText, serverServiceAmount, new SolidColorBrush(Color.FromRgb(107, 114, 128)));
+            SetMoneyText(serviceAmountLine.ValueText, serviceAmount, new SolidColorBrush(Color.FromRgb(15, 118, 110)));
 
             if (isVip)
             {
@@ -3615,7 +3663,7 @@ public partial class MainWindow : Window
             string.Equals(x.Id, machineId, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static TextBlock AddBillingLine(Grid root, int rowIndex, string label, string value)
+    private static (Grid Row, TextBlock ValueText) AddBillingLine(Grid root, int rowIndex, string label, string value)
     {
         var rowGrid = new Grid { Margin = new Thickness(0, 5, 0, 5) };
         rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
@@ -3644,7 +3692,7 @@ public partial class MainWindow : Window
         Grid.SetRow(rowGrid, rowIndex);
         root.Children.Add(rowGrid);
 
-        return valueText;
+        return (rowGrid, valueText);
     }
 
     private async Task NotifyPcAsync()

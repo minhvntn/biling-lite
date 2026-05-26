@@ -746,7 +746,7 @@ public partial class MainWindow : Window
             {
                 GameCostValueTextBlock.Text = "-";
             }
-            ServiceCostValueTextBlock.Text = "-";
+            ServiceCostValueTextBlock.Text = _serviceCost > 0 ? _serviceCost.ToString("N0", CultureInfo.InvariantCulture) : "-";
             return;
         }
 

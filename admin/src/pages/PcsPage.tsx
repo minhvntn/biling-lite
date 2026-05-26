@@ -32,7 +32,7 @@ function getEffectiveElapsedSeconds(pc: PcListItem, currentTick: number): number
     const balance = Number(pc.activeMember.balance) || 0;
     const hourlyRate = pc.hourlyRate || 0;
     if (balance < 0 && hourlyRate > 0) {
-      return (Math.abs(balance) / hourlyRate) * 3600;
+      return ((Math.abs(balance) / hourlyRate) * 3600) + currentTick;
     }
   }
   
@@ -467,32 +467,42 @@ export function PcsPage() {
     }
     if (pc.activeMember && (pc.activeMember as any).memberType === 'VIP') {
       const balance = Number(pc.activeMember.balance) || 0;
-      if (balance < 0) {
-        const rawDebt = Math.abs(balance);
+      if (balance < 0 && pc.hourlyRate) {
+        const rawDebt = (elapsedSeconds / 3600) * pc.hourlyRate;
         const roundedDebt = Math.ceil(rawDebt / 500) * 500;
         return { icon: '💰', text: formatMoney(roundedDebt) };
       }
     }
-    return { icon: '💰', text: formatMoney(pc.activeSession.estimatedAmount) };
+    
+    const serverAmount = pc.activeSession?.estimatedAmount || 0;
+    const rawCost = (elapsedSeconds / 3600) * (pc.hourlyRate || 5000);
+    const roundedRawCost = Math.ceil(rawCost / 500) * 500;
+    const dynamicEstimatedAmount = Math.max(serverAmount, roundedRawCost);
+    return { icon: '💰', text: formatMoney(dynamicEstimatedAmount) };
   };
 
   const getUnpaidServicesTotal = (orders: PcServiceOrder[]) => {
     return orders.reduce((sum, item) => sum + item.lineTotal, 0);
   };
 
-  const getPlayAmountToPay = (pc: PcListItem) => {
+  const getPlayAmountToPay = (pc: PcListItem, elapsedSeconds: number) => {
     if (pc.activeMember) {
       const balance = Number(pc.activeMember.balance) || 0;
-      if (balance < 0) {
-        const rawDebt = Math.abs(balance);
+      if (balance < 0 && pc.hourlyRate) {
+        const rawDebt = (elapsedSeconds / 3600) * pc.hourlyRate;
         return Math.ceil(rawDebt / 500) * 500;
       }
       return 0;
     }
+    const serverAmount = pc.activeSession?.estimatedAmount || 0;
+    const rawCost = (elapsedSeconds / 3600) * (pc.hourlyRate || 5000);
+    const roundedRawCost = Math.ceil(rawCost / 500) * 500;
+    const dynamicEstimatedAmount = Math.max(serverAmount, roundedRawCost);
+
     if (pc.activeGuest) {
-      return Math.max(0, (pc.activeSession?.estimatedAmount || 0) - (pc.activeGuest.prepaidAmount || 0));
+      return Math.max(0, dynamicEstimatedAmount - (pc.activeGuest.prepaidAmount || 0));
     }
-    return pc.activeSession?.estimatedAmount || 0;
+    return dynamicEstimatedAmount;
   };
 
   return (
@@ -752,7 +762,13 @@ export function PcsPage() {
                         )}
                         <div style={{ borderTop: '1px solid rgba(0,0,0,0.1)', marginTop: '0.4rem', paddingTop: '0.4rem' }}>
                           <span><strong>Tiền máy tạm tính:</strong></span>
-                          <span><strong>{formatMoney(selectedPc.activeSession.estimatedAmount)}</strong></span>
+                          <span><strong>{(() => {
+                            const elapsed = getEffectiveElapsedSeconds(selectedPc, tick);
+                            const rawCost = (elapsed / 3600) * (selectedPc.hourlyRate || 5000);
+                            const roundedRawCost = Math.ceil(rawCost / 500) * 500;
+                            const serverAmount = selectedPc.activeSession?.estimatedAmount || 0;
+                            return formatMoney(Math.max(serverAmount, roundedRawCost));
+                          })()}</strong></span>
                         </div>
                         {unpaidOrders.length > 0 && (
                           <div>
@@ -764,7 +780,7 @@ export function PcsPage() {
                         )}
                         <div style={{ borderTop: '1px dashed rgba(0,0,0,0.15)', marginTop: '0.4rem', paddingTop: '0.4rem', fontSize: '1.05rem', color: '#b42318' }}>
                           <span><strong>Tổng thanh toán:</strong></span>
-                          <span><strong>{formatMoney(getPlayAmountToPay(selectedPc) + getUnpaidServicesTotal(unpaidOrders))}</strong></span>
+                          <span><strong>{formatMoney(getPlayAmountToPay(selectedPc, getEffectiveElapsedSeconds(selectedPc, tick)) + getUnpaidServicesTotal(unpaidOrders))}</strong></span>
                         </div>
                       </>
                     )}
@@ -809,7 +825,7 @@ export function PcsPage() {
                             />
                           </div>
                           <div className="preset-grid">
-                            {[0, 10000, 20000, 50000, 100000, 200000].map((preset) => (
+                            {[0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000].map((preset) => (
                               <button
                                 key={preset}
                                 type="button"
