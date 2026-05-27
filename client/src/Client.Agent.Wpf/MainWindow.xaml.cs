@@ -286,12 +286,12 @@ public partial class MainWindow : Window
     public void SetLastCommand(string command)
     {
         var value = string.IsNullOrWhiteSpace(command) ? "-" : command;
-        LastCommandTextBlock.Text = $"L\u1ec7nh g\u1ea7n nh\u1ea5t: {value}";
+        LastCommandTextBlock.Text = $"Lệnh gần nhất: {value}";
     }
 
     public void SetLoyaltyPoints(int points)
     {
-        MemberPointsTextBlock.Text = $"{points:N0} \u0111i\u1ec3m";
+        MemberPointsTextBlock.Text = $"{points:N0} điểm";
     }
 
     public void SetMemberInfo(string? username, string? rank, string? memberType = null)
@@ -308,7 +308,7 @@ public partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(username))
         {
             UserInfoPanel.Visibility = Visibility.Collapsed;
-            MemberRankBorder.Visibility = Visibility.Collapsed;
+            MemberRankContainer.Visibility = Visibility.Collapsed;
             if (VipIconImage is not null)
             {
                 VipIconImage.Visibility = Visibility.Collapsed;
@@ -319,7 +319,7 @@ public partial class MainWindow : Window
         }
 
         UserInfoPanel.Visibility = Visibility.Visible;
-        MemberRankBorder.Visibility = Visibility.Visible;
+        MemberRankContainer.Visibility = Visibility.Visible;
         MemberUsernameTextBlock.Text = username;
 
         if (VipIconImage is not null)
@@ -337,8 +337,8 @@ public partial class MainWindow : Window
         var rankCompact = rankNormalized.Replace(" ", string.Empty);
         MemberRankTextBlock.Text = rankUpper;
 
-        string bgColor = "#374151";
-        string fgColor = "#9CA3AF";
+        string bgColor = "#F1F5F9";
+        string fgColor = "#475569";
         string rankIcon = "🔰";
         string? rankIconAsset = null;
         var shouldPulse = false;
@@ -349,29 +349,29 @@ public partial class MainWindow : Window
         }
         else if (rankNormalized.Contains("DONG") || rankUpper.Contains("BRONZE"))
         {
-            bgColor = "#78350F";
-            fgColor = "#FCD34D";
+            bgColor = "#FEF3C7";
+            fgColor = "#B45309";
             rankIconAsset = "dong.png";
             rankIcon = "🥉";
         }
         else if (rankNormalized.Contains("BAC") || rankUpper.Contains("SILVER"))
         {
-            bgColor = "#4B5563";
-            fgColor = "#E5E7EB";
+            bgColor = "#F3F4F6";
+            fgColor = "#4B5563";
             rankIconAsset = "bac.png";
             rankIcon = "🥈";
         }
         else if (rankNormalized.Contains("VANG") || rankUpper.Contains("GOLD"))
         {
-            bgColor = "#854D0E";
-            fgColor = "#FDE047";
+            bgColor = "#FEF08A";
+            fgColor = "#A16207";
             rankIconAsset = "vang.png";
             rankIcon = "🥇";
         }
         else if (rankNormalized.Contains("BACH KIM") || rankUpper.Contains("PLATINUM"))
         {
-            bgColor = "#164E63";
-            fgColor = "#22D3EE";
+            bgColor = "#CFFAFE";
+            fgColor = "#0E7490";
             rankIconAsset = "back-kim.png";
             rankIcon = "💠";
         }
@@ -379,31 +379,31 @@ public partial class MainWindow : Window
                  rankNormalized.Contains("LUC BAO") ||
                  rankUpper.Contains("EMERALD"))
         {
-            bgColor = "#064E3B";
-            fgColor = "#34D399";
+            bgColor = "#D1FAE5";
+            fgColor = "#047857";
             rankIconAsset = "tinh-anh.png";
             rankIcon = "💚";
         }
         else if (rankNormalized.Contains("KIM CUONG") || rankUpper.Contains("DIAMOND"))
         {
-            bgColor = "#312E81";
-            fgColor = "#C7D2FE";
+            bgColor = "#E0E7FF";
+            fgColor = "#4338CA";
             rankIconAsset = "kim-cuong.png";
             rankIcon = "💎";
             shouldPulse = true;
         }
         else if (rankNormalized.Contains("DAI CAO THU") || rankUpper.Contains("GRANDMASTER"))
         {
-            bgColor = "#7F1D1D";
-            fgColor = "#FCA5A5";
+            bgColor = "#FEE2E2";
+            fgColor = "#B91C1C";
             rankIconAsset = "dai-cao-thu.png";
             rankIcon = "🛡️";
             shouldPulse = true;
         }
         else if (rankNormalized.Contains("CAO THU") || rankUpper.Contains("MASTER"))
         {
-            bgColor = "#701A75";
-            fgColor = "#F0ABFC";
+            bgColor = "#FAE8FF";
+            fgColor = "#A21CAF";
             rankIconAsset = "cao-thu.png";
             rankIcon = "👑";
             shouldPulse = true;
@@ -412,29 +412,29 @@ public partial class MainWindow : Window
                  rankCompact.Contains("THACHDAU") ||
                  rankUpper.Contains("CHALLENGER"))
         {
-            bgColor = "#1E3A8A";
-            fgColor = "#FDE047";
+            bgColor = "#DBEAFE";
+            fgColor = "#1D4ED8";
             rankIconAsset = "thach-dau.png";
             rankIcon = "🏆";
             shouldPulse = true;
         }
         else if (rankUpper.Contains("VIP"))
         {
-            bgColor = "#831843";
-            fgColor = "#F9A8D4";
+            bgColor = "#FCE7F3";
+            fgColor = "#BE185D";
             rankIcon = "✨";
         }
 
         var bc = new BrushConverter();
         var rankAccentBrush = (Brush)bc.ConvertFromString(fgColor)!;
-        MemberRankBorder.Background = (Brush)bc.ConvertFromString("#0D1B3D")!;
+        MemberRankBorder.Background = (Brush)bc.ConvertFromString("#60FFFFFF")!;
         MemberRankBorder.BorderBrush = rankAccentBrush;
         MemberRankTextBlock.Foreground = rankAccentBrush;
         MemberRankIconTextBlock.Foreground = rankAccentBrush;
         MemberRankIconBadgeBorder.Background = (Brush)bc.ConvertFromString(bgColor)!;
         MemberRankIconBadgeBorder.BorderBrush = (Brush)bc.ConvertFromString(bgColor)!;
         ApplyRankIcon(rankIconAsset, rankIcon);
-        if (MemberRankBorder.Effect is DropShadowEffect glow)
+        if (MemberRankShadow.Effect is DropShadowEffect glow)
         {
             var glowColor = (Color)ColorConverter.ConvertFromString(fgColor);
             glowColor.A = 120;
@@ -506,7 +506,7 @@ public partial class MainWindow : Window
 
     private void ApplyRankPulseAnimation(bool shouldPulse)
     {
-        if (MemberRankBorder.Effect is not DropShadowEffect glow)
+        if (MemberRankShadow.Effect is not DropShadowEffect glow)
         {
             return;
         }

@@ -7,14 +7,23 @@
         ResizeMode="NoResize"
         Topmost="True"
         WindowStartupLocation="CenterScreen"
-        Background="#0D111D"
-        FontFamily="Segoe UI">
+        FontFamily="Segoe UI"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display">
+    <Window.Background>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#E0F2FE" Offset="0" />
+            <GradientStop Color="#E9D5FF" Offset="0.5" />
+            <GradientStop Color="#C6F6D5" Offset="1" />
+        </LinearGradientBrush>
+    </Window.Background>
     
     <Window.Resources>
         <!-- Square Premium Button Style for 3x3 Grid -->
         <Style x:Key="ActionButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#121829" />
-            <Setter Property="BorderBrush" Value="#22304E" />
+            <Setter Property="Background" Value="#60FFFFFF" />
+            <Setter Property="BorderBrush" Value="#80FFFFFF" />
             <Setter Property="BorderThickness" Value="1.5" />
             <Setter Property="Margin" Value="6" />
             <Setter Property="Cursor" Value="Hand" />
@@ -33,16 +42,16 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ButtonRoot" Property="Background" Value="#1A263D" />
+                                <Setter TargetName="ButtonRoot" Property="Background" Value="#90FFFFFF" />
                                 <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="#00E5FF" />
                                 <Setter TargetName="ButtonRoot" Property="Effect">
                                     <Setter.Value>
-                                        <DropShadowEffect Color="#00E5FF" BlurRadius="15" ShadowDepth="0" Opacity="0.6" />
+                                        <DropShadowEffect Color="#0284C7" BlurRadius="10" ShadowDepth="0" Opacity="0.3" />
                                     </Setter.Value>
                                 </Setter>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="ButtonRoot" Property="Background" Value="#0A0E17" />
+                                <Setter TargetName="ButtonRoot" Property="Background" Value="#40FFFFFF" />
                                 <Setter Property="RenderTransform">
                                     <Setter.Value>
                                         <ScaleTransform ScaleX="0.95" ScaleY="0.95" CenterX="50" CenterY="50" />
@@ -56,8 +65,8 @@
         </Style>
 
         <Style x:Key="LockButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
-            <Setter Property="Background" Value="#241019" />
-            <Setter Property="BorderBrush" Value="#4F1622" />
+            <Setter Property="Background" Value="#60FFE4E6" />
+            <Setter Property="BorderBrush" Value="#80FECDD3" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -66,10 +75,10 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ButtonRoot" Property="Background" Value="#3D1522" />
-                                <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="#FF0044" />
+                                <Setter TargetName="ButtonRoot" Property="Background" Value="#90FFE4E6" />
+                                <Setter TargetName="ButtonRoot" Property="BorderBrush" Value="#E11D48" />
                                 <Setter TargetName="ButtonRoot" Property="Effect">
-                                    <Setter.Value><DropShadowEffect Color="#FF0044" BlurRadius="15" ShadowDepth="0" Opacity="0.6" /></Setter.Value>
+                                    <Setter.Value><DropShadowEffect Color="#E11D48" BlurRadius="10" ShadowDepth="0" Opacity="0.3" /></Setter.Value>
                                 </Setter>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -94,7 +103,10 @@
             <ScaleTransform ScaleX="0.65" ScaleY="0.65" />
         </Grid.LayoutTransform>
 
-        <Border BorderBrush="#1C263D" BorderThickness="1" CornerRadius="0">
+        <Border BorderThickness="0" CornerRadius="0">
+            <Border.Background>
+                <SolidColorBrush Color="#20FFFFFF" />
+            </Border.Background>
             <Grid Margin="30">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -112,11 +124,7 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock x:Name="AgentIdTextBlock" Foreground="#FFFFFF" FontWeight="Bold" FontSize="26" Margin="0,0,10,0">
-                            <TextBlock.Effect>
-                                <DropShadowEffect Color="#FFFFFF" BlurRadius="10" ShadowDepth="0" Opacity="0.4" />
-                            </TextBlock.Effect>
-                        </TextBlock>
+                        <TextBlock x:Name="AgentIdTextBlock" Foreground="#0F172A" FontWeight="Bold" FontSize="26" Margin="0,0,10,0" />
                         <Border Width="12" Height="12" CornerRadius="6" Background="#00FF66" x:Name="ConnectionIndicator" VerticalAlignment="Center" Margin="0,4,0,0">
                             <Border.Effect>
                                 <DropShadowEffect Color="#00FF66" BlurRadius="10" ShadowDepth="0" />
@@ -126,20 +134,26 @@
                     </StackPanel>
 
                     <!-- User Badge -->
-                    <Border Grid.Column="1" x:Name="UserInfoPanel" Background="#182236" BorderBrush="#2D3A56" BorderThickness="1.5" CornerRadius="20" Padding="8,4,16,4" Margin="0,0,20,0" VerticalAlignment="Center">
+                    <Border Grid.Column="1" x:Name="UserInfoPanel" Background="#60FFFFFF" BorderBrush="#80FFFFFF" BorderThickness="1.5" CornerRadius="20" Padding="8,4,16,4" Margin="0,0,20,0" VerticalAlignment="Center">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="0" Opacity="0.05" />
+                        </Border.Effect>
                         <StackPanel Orientation="Horizontal">
                             <Ellipse Width="32" Height="32" Margin="0,0,10,0">
                                 <Ellipse.Fill>
-                                    <SolidColorBrush Color="#00D4FF"/>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#00E5FF" Offset="0" />
+                                        <GradientStop Color="#B200FF" Offset="1" />
+                                    </LinearGradientBrush>
                                 </Ellipse.Fill>
                             </Ellipse>
-                            <TextBlock x:Name="MemberUsernameTextBlock" Foreground="#F8FAFC" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock x:Name="MemberUsernameTextBlock" Foreground="#0F172A" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
                             <Image x:Name="VipIconImage" Width="28" Height="28" Visibility="Collapsed" Margin="8,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
 
                     <!-- Minimize Button -->
-                    <Button Grid.Column="2" Content="–" Width="30" Height="30" Foreground="#64748B" Background="Transparent" BorderThickness="0" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" Click="MinimizeButton_Click" Cursor="Hand" />
+                    <Button Grid.Column="2" Content="–" Width="30" Height="30" Foreground="#475569" Background="Transparent" BorderThickness="0" FontSize="24" FontWeight="Bold" VerticalAlignment="Center" Click="MinimizeButton_Click" Cursor="Hand" />
                 </Grid>
 
                 <!-- BODY -->
@@ -154,33 +168,29 @@
                         <StackPanel VerticalAlignment="Center">
                             <Grid Width="280" Height="280" HorizontalAlignment="Center">
                                 <!-- Background Track -->
-                                <Ellipse Stroke="#151E32" StrokeThickness="15" />
+                                <Ellipse Stroke="#40FFFFFF" StrokeThickness="15" />
                                 
                                 <!-- Dynamic Arc (Using Path) -->
                                 <Path x:Name="ProgressArcPath" StrokeThickness="15" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
                                     <Path.Stroke>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                            <GradientStop Color="#00D4FF" Offset="0"/>
+                                            <GradientStop Color="#00E5FF" Offset="0"/>
                                             <GradientStop Color="#B200FF" Offset="1"/>
                                         </LinearGradientBrush>
                                     </Path.Stroke>
                                     <Path.Effect>
-                                        <DropShadowEffect Color="#00D4FF" BlurRadius="20" ShadowDepth="0" Opacity="0.5"/>
+                                        <DropShadowEffect Color="#00E5FF" BlurRadius="20" ShadowDepth="0" Opacity="0.5"/>
                                     </Path.Effect>
                                 </Path>
 
                                 <!-- Inner Info -->
                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <TextBlock x:Name="RemainingTimeLabelTextBlock" Text="Remaining time" Foreground="#94A3B8" FontSize="18" HorizontalAlignment="Center" Margin="0,0,0,4"/>
-                                    <TextBlock x:Name="RemainingTimeValueTextBlock" Text="1000:00" Foreground="#FFFFFF" FontSize="64" FontWeight="Bold" FontFamily="Segoe UI" HorizontalAlignment="Center" Margin="0,0,0,8">
-                                        <TextBlock.Effect>
-                                            <DropShadowEffect Color="#FFFFFF" BlurRadius="12" ShadowDepth="0" Opacity="0.3"/>
-                                        </TextBlock.Effect>
-                                    </TextBlock>
+                                    <TextBlock x:Name="RemainingTimeLabelTextBlock" Text="Remaining time" Foreground="#475569" FontSize="18" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                    <TextBlock x:Name="RemainingTimeValueTextBlock" Text="1000:00" Foreground="#0F172A" FontSize="64" FontWeight="Bold" FontFamily="Segoe UI" HorizontalAlignment="Center" Margin="0,0,0,8" />
                                     
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,4">
-                                        <TextBlock x:Name="UsedTimeLabelTextBlock" Text="Đã sử dụng:" Foreground="#94A3B8" FontSize="20" Margin="0,0,6,0"/>
-                                        <TextBlock x:Name="UsedTimeValueTextBlock" Text="00:00" Foreground="#FFFFFF" FontSize="20" FontWeight="SemiBold"/>
+                                        <TextBlock x:Name="UsedTimeLabelTextBlock" Text="Đã sử dụng:" Foreground="#475569" FontSize="20" Margin="0,0,6,0"/>
+                                        <TextBlock x:Name="UsedTimeValueTextBlock" Text="00:00" Foreground="#0F172A" FontSize="20" FontWeight="SemiBold"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Grid>
@@ -188,20 +198,12 @@
                             <!-- External Info -->
                             <StackPanel Margin="0,20,0,0" HorizontalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
-                                    <TextBlock x:Name="GameCostLabelTextBlock" Text="Tiền giờ:" Foreground="#94A3B8" FontSize="24" Margin="0,0,10,0"/>
-                                    <TextBlock x:Name="GameCostValueTextBlock" Text="0" Foreground="#00E5FF" FontSize="24" FontWeight="Bold">
-                                        <TextBlock.Effect>
-                                            <DropShadowEffect Color="#00E5FF" BlurRadius="10" ShadowDepth="0" Opacity="0.4"/>
-                                        </TextBlock.Effect>
-                                    </TextBlock>
+                                    <TextBlock x:Name="GameCostLabelTextBlock" Text="Tiền giờ:" Foreground="#475569" FontSize="24" Margin="0,0,10,0"/>
+                                    <TextBlock x:Name="GameCostValueTextBlock" Text="0" Foreground="#0F172A" FontSize="24" FontWeight="Bold" />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock x:Name="ServiceCostLabelTextBlock" Text="Tiền dịch vụ:" Foreground="#94A3B8" FontSize="24" Margin="0,0,10,0"/>
-                                    <TextBlock x:Name="ServiceCostValueTextBlock" Text="0" Foreground="#00E5FF" FontSize="24" FontWeight="Bold">
-                                        <TextBlock.Effect>
-                                            <DropShadowEffect Color="#00E5FF" BlurRadius="10" ShadowDepth="0" Opacity="0.4"/>
-                                        </TextBlock.Effect>
-                                    </TextBlock>
+                                    <TextBlock x:Name="ServiceCostLabelTextBlock" Text="Tiền dịch vụ:" Foreground="#475569" FontSize="24" Margin="0,0,10,0"/>
+                                    <TextBlock x:Name="ServiceCostValueTextBlock" Text="0" Foreground="#0F172A" FontSize="24" FontWeight="Bold" />
                                 </StackPanel>
                             </StackPanel>
                         </StackPanel>
@@ -226,40 +228,31 @@
 
                         <StackPanel Grid.Row="0" Margin="6,0,6,16">
                             <!-- VIP Card -->
-                            <Border x:Name="MemberRankBorder" Height="75" CornerRadius="12" BorderThickness="2" Visibility="Collapsed" Margin="0,0,0,12">
-                                <Border.Background>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                        <GradientStop Color="#13243F" Offset="0" />
-                                        <GradientStop Color="#1E1736" Offset="1" />
-                                    </LinearGradientBrush>
-                                </Border.Background>
-                                <Border.BorderBrush>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                        <GradientStop Color="#00E5FF" Offset="0" />
-                                        <GradientStop Color="#B200FF" Offset="1" />
-                                    </LinearGradientBrush>
-                                </Border.BorderBrush>
-                                <Border.Effect>
-                                    <DropShadowEffect Color="#00E5FF" BlurRadius="20" ShadowDepth="0" Opacity="0.4" />
-                                </Border.Effect>
-
-                                <Grid Margin="16,0">
-                                    <TextBlock Text="VIP" Foreground="#00E5FF" FontWeight="Bold" FontSize="14" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,0,0"/>
-                                    
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Border x:Name="MemberRankIconBadgeBorder" Width="50" Height="50" CornerRadius="25" Background="#1E293B" BorderBrush="#334155" BorderThickness="1" Margin="0,0,15,0">
-                                            <Grid>
-                                                <Image x:Name="MemberRankIconImage" Width="36" Height="36" Visibility="Collapsed" Stretch="Uniform" />
-                                                <TextBlock x:Name="MemberRankIconTextBlock" Foreground="#00D4FF" FontSize="20" FontWeight="Black" HorizontalAlignment="Center" VerticalAlignment="Center" Text="R" />
-                                            </Grid>
-                                        </Border>
-                                        <StackPanel VerticalAlignment="Center">
-                                            <TextBlock x:Name="MemberRankTextBlock" Foreground="#F8FAFC" FontSize="22" FontWeight="Bold" />
-                                            <TextBlock x:Name="MemberPointsTextBlock" Text="0 điểm" Foreground="#00E5FF" FontSize="14" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                            <Grid x:Name="MemberRankContainer" Visibility="Collapsed" Margin="0,0,0,12" Height="75">
+                                <Border x:Name="MemberRankShadow" CornerRadius="12" Background="#60FFFFFF">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="0" Opacity="0.05" />
+                                    </Border.Effect>
+                                </Border>
+                                <Border x:Name="MemberRankBorder" CornerRadius="12" BorderThickness="1.5" BorderBrush="#80FFFFFF" Background="Transparent">
+                                    <Grid Margin="16,0">
+                                        <TextBlock Text="VIP" Foreground="#0284C7" FontWeight="Bold" FontSize="14" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,0,0"/>
+                                        
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Border x:Name="MemberRankIconBadgeBorder" Width="50" Height="50" CornerRadius="25" Background="#1E293B" BorderBrush="#334155" BorderThickness="1" Margin="0,0,15,0">
+                                                <Grid>
+                                                    <Image x:Name="MemberRankIconImage" Width="36" Height="36" Visibility="Collapsed" Stretch="Uniform" />
+                                                    <TextBlock x:Name="MemberRankIconTextBlock" Foreground="#00D4FF" FontSize="20" FontWeight="Black" HorizontalAlignment="Center" VerticalAlignment="Center" Text="R" />
+                                                </Grid>
+                                            </Border>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock x:Name="MemberRankTextBlock" Foreground="#1E293B" FontSize="22" FontWeight="Bold" />
+                                                <TextBlock x:Name="MemberPointsTextBlock" Text="0 điểm" Foreground="#0284C7" FontSize="14" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                                            </StackPanel>
                                         </StackPanel>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
+                                    </Grid>
+                                </Border>
+                            </Grid>
                         </StackPanel>
 
                         <!-- Action Buttons Grid (3x3) using SVG Paths for perfect Neon Icons -->
@@ -267,13 +260,14 @@
                             <Button Style="{StaticResource ActionButtonStyle}" Click="MessagesButton_Click">
                                 <StackPanel>
                                     <Viewbox Width="26" Height="26" Margin="0,0,0,8">
-                                        <Path Style="{StaticResource NeonIconStyle}" Stroke="#00E5FF" Data="M3,7 C3,5 5,3 8,3 L16,3 C19,3 21,5 21,7 L21,15 C21,17 19,19 16,19 L10,19 L5,22 L5,19 C4,18 3,16 3,15 Z">
-                                            <Path.Effect><DropShadowEffect Color="#00E5FF" BlurRadius="10" ShadowDepth="0" Opacity="0.8"/></Path.Effect>
+                                        <Path Style="{StaticResource NeonIconStyle}" Data="M3,7 C3,5 5,3 8,3 L16,3 C19,3 21,5 21,7 L21,15 C21,17 19,19 16,19 L10,19 L5,22 L5,19 C4,18 3,16 3,15 Z">
+                                            <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#3B82F6" Offset="0"/><GradientStop Color="#06B6D4" Offset="1"/></LinearGradientBrush></Path.Stroke>
+                                            <Path.Effect><DropShadowEffect Color="#3B82F6" BlurRadius="8" ShadowDepth="0" Opacity="0"/></Path.Effect>
                                         </Path>
                                     </Viewbox>
                                     <!-- Keep hidden textblock to preserve x:Name binding -->
                                     <TextBlock x:Name="MessagesIconTextBlock" Visibility="Collapsed" />
-                                    <TextBlock x:Name="MessagesLabelTextBlock" Text="Tin nhắn" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#F8FAFC" />
+                                    <TextBlock x:Name="MessagesLabelTextBlock" Text="Tin nhắn" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#1E293B" />
                                 </StackPanel>
                             </Button>
 
@@ -281,8 +275,9 @@
                                 <StackPanel>
                                     <Grid Width="40" Height="34" HorizontalAlignment="Center" Margin="0,0,0,6">
                                         <Viewbox Width="26" Height="26" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <Path Style="{StaticResource NeonIconStyle}" Stroke="#00E5FF" Data="M2,3 L5,3 L7.5,15 A2,2 0 0,0 9.5,17 L18,17 A2,2 0 0,0 20,15 L21,7 L6,7 M9,21 A1.5,1.5 0 1,1 9,20.9 M18,21 A1.5,1.5 0 1,1 18,20.9">
-                                                <Path.Effect><DropShadowEffect Color="#00E5FF" BlurRadius="10" ShadowDepth="0" Opacity="0.8"/></Path.Effect>
+                                            <Path Style="{StaticResource NeonIconStyle}" Data="M2,3 L5,3 L7.5,15 A2,2 0 0,0 9.5,17 L18,17 A2,2 0 0,0 20,15 L21,7 L6,7 M9,21 A1.5,1.5 0 1,1 9,20.9 M18,21 A1.5,1.5 0 1,1 18,20.9">
+                                                <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#F59E0B" Offset="0"/><GradientStop Color="#FBBF24" Offset="1"/></LinearGradientBrush></Path.Stroke>
+                                                <Path.Effect><DropShadowEffect Color="#F59E0B" BlurRadius="8" ShadowDepth="0" Opacity="0"/></Path.Effect>
                                             </Path>
                                         </Viewbox>
                                         <!-- Keep hidden textblock to preserve x:Name binding -->
@@ -291,93 +286,100 @@
                                             <TextBlock x:Name="ServicesBadgeTextBlock" Text="0" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                         </Border>
                                     </Grid>
-                                    <TextBlock x:Name="ServicesLabelTextBlock" Text="Dịch vụ" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#F8FAFC" />
+                                    <TextBlock x:Name="ServicesLabelTextBlock" Text="Dịch vụ" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#1E293B" />
                                 </StackPanel>
                             </Button>
 
                             <Button Style="{StaticResource ActionButtonStyle}" Click="LoyaltyButton_Click">
                                 <StackPanel>
                                     <Viewbox Width="26" Height="26" Margin="0,0,0,8">
-                                        <Path Style="{StaticResource NeonIconStyle}" Stroke="#00E5FF" Data="M12,2 L15,9 L22,9 L16,14 L18,21 L12,17 L6,21 L8,14 L2,9 L9,9 Z">
-                                            <Path.Effect><DropShadowEffect Color="#00E5FF" BlurRadius="10" ShadowDepth="0" Opacity="0.8"/></Path.Effect>
+                                        <Path Style="{StaticResource NeonIconStyle}" Data="M12,2 L15,9 L22,9 L16,14 L18,21 L12,17 L6,21 L8,14 L2,9 L9,9 Z">
+                                            <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#10B981" Offset="0"/><GradientStop Color="#34D399" Offset="1"/></LinearGradientBrush></Path.Stroke>
+                                            <Path.Effect><DropShadowEffect Color="#10B981" BlurRadius="8" ShadowDepth="0" Opacity="0"/></Path.Effect>
                                         </Path>
                                     </Viewbox>
                                     <!-- Keep hidden textblock to preserve x:Name binding -->
                                     <TextBlock x:Name="LoyaltyIconTextBlock" Visibility="Collapsed" />
-                                    <TextBlock x:Name="LoyaltyLabelTextBlock" Text="Đổi điểm" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#F8FAFC" />
+                                    <TextBlock x:Name="LoyaltyLabelTextBlock" Text="Đổi điểm" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#1E293B" />
                                 </StackPanel>
                             </Button>
 
                             <Button x:Name="TransferActionButton" Style="{StaticResource ActionButtonStyle}" Click="TransferBalanceButton_Click">
                                 <StackPanel>
                                     <Viewbox Width="26" Height="26" Margin="0,0,0,8">
-                                        <Path Style="{StaticResource NeonIconStyle}" Stroke="#00E5FF" Data="M4,8 L20,8 M16,4 L20,8 L16,12 M20,16 L4,16 M8,12 L4,16 L8,20">
-                                            <Path.Effect><DropShadowEffect Color="#00E5FF" BlurRadius="10" ShadowDepth="0" Opacity="0.8"/></Path.Effect>
+                                        <Path Style="{StaticResource NeonIconStyle}" Data="M4,8 L20,8 M16,4 L20,8 L16,12 M20,16 L4,16 M8,12 L4,16 L8,20">
+                                            <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#8B5CF6" Offset="0"/><GradientStop Color="#D946EF" Offset="1"/></LinearGradientBrush></Path.Stroke>
+                                            <Path.Effect><DropShadowEffect Color="#8B5CF6" BlurRadius="8" ShadowDepth="0" Opacity="0"/></Path.Effect>
                                         </Path>
                                     </Viewbox>
                                     <!-- Keep hidden textblock to preserve x:Name binding -->
                                     <TextBlock x:Name="TransferIconTextBlock" Visibility="Collapsed" />
-                                    <TextBlock x:Name="TransferLabelTextBlock" Text="Chuyển tiền" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#F8FAFC" />
+                                    <TextBlock x:Name="TransferLabelTextBlock" Text="Chuyển tiền" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#1E293B" />
                                 </StackPanel>
                             </Button>
 
                             <Button x:Name="WithdrawActionButton" Style="{StaticResource ActionButtonStyle}" Click="WithdrawBalanceButton_Click">
                                 <StackPanel>
                                     <Viewbox Width="26" Height="26" Margin="0,0,0,8">
-                                        <Path Style="{StaticResource NeonIconStyle}" Stroke="#00E5FF" Data="M12,4 L12,16 M8,12 L12,16 L16,12 M4,20 L20,20">
-                                            <Path.Effect><DropShadowEffect Color="#00E5FF" BlurRadius="10" ShadowDepth="0" Opacity="0.8"/></Path.Effect>
+                                        <Path Style="{StaticResource NeonIconStyle}" Data="M12,4 L12,16 M8,12 L12,16 L16,12 M4,20 L20,20">
+                                            <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#EA580C" Offset="0"/><GradientStop Color="#F97316" Offset="1"/></LinearGradientBrush></Path.Stroke>
+                                            <Path.Effect><DropShadowEffect Color="#EA580C" BlurRadius="8" ShadowDepth="0" Opacity="0"/></Path.Effect>
                                         </Path>
                                     </Viewbox>
                                     <!-- Keep hidden textblock to preserve x:Name binding -->
                                     <TextBlock x:Name="WithdrawIconTextBlock" Visibility="Collapsed" />
-                                    <TextBlock x:Name="WithdrawLabelTextBlock" Text="Rút tiền" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#F8FAFC" />
+                                    <TextBlock x:Name="WithdrawLabelTextBlock" Text="Rút tiền" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#1E293B" />
                                 </StackPanel>
                             </Button>
 
                             <Button x:Name="TopupRequestActionButton" Style="{StaticResource ActionButtonStyle}" Click="TopupRequestButton_Click">
                                 <StackPanel>
                                     <Viewbox Width="26" Height="26" Margin="0,0,0,8">
-                                        <Path Style="{StaticResource NeonIconStyle}" Stroke="#00E5FF" Data="M3,7 C3,6 4,5 5,5 L19,5 C20,5 21,6 21,7 L21,17 C21,18 20,19 19,19 L5,19 C4,19 3,18 3,17 Z M3,10 L21,10">
-                                            <Path.Effect><DropShadowEffect Color="#00E5FF" BlurRadius="10" ShadowDepth="0" Opacity="0.8"/></Path.Effect>
+                                        <Path Style="{StaticResource NeonIconStyle}" Data="M3,7 C3,6 4,5 5,5 L19,5 C20,5 21,6 21,7 L21,17 C21,18 20,19 19,19 L5,19 C4,19 3,18 3,17 Z M3,10 L21,10">
+                                            <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#0891B2" Offset="0"/><GradientStop Color="#2DD4BF" Offset="1"/></LinearGradientBrush></Path.Stroke>
+                                            <Path.Effect><DropShadowEffect Color="#0891B2" BlurRadius="8" ShadowDepth="0" Opacity="0"/></Path.Effect>
                                         </Path>
                                     </Viewbox>
                                     <!-- Keep hidden textblock to preserve x:Name binding -->
                                     <TextBlock x:Name="TopupRequestIconTextBlock" Visibility="Collapsed" />
-                                    <TextBlock x:Name="TopupRequestLabelTextBlock" Text="Nạp tiền" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#F8FAFC" />
+                                    <TextBlock x:Name="TopupRequestLabelTextBlock" Text="Nạp tiền" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#1E293B" />
                                 </StackPanel>
                             </Button>
 
                             <Button Style="{StaticResource ActionButtonStyle}" Click="PasswordButton_Click">
                                 <StackPanel>
                                     <Viewbox Width="26" Height="26" Margin="0,0,0,8">
-                                        <Path Style="{StaticResource NeonIconStyle}" Stroke="#00E5FF" Data="M15,5 A4.5,4.5 0 1,1 15,14 A4.5,4.5 0 0,1 15,5 M11.5,10.5 L3,19 L3,22 L6,22 L6,19 L9,19 L9,16 L11.5,13.5">
-                                            <Path.Effect><DropShadowEffect Color="#00E5FF" BlurRadius="10" ShadowDepth="0" Opacity="0.8"/></Path.Effect>
+                                        <Path Style="{StaticResource NeonIconStyle}" Data="M15,5 A4.5,4.5 0 1,1 15,14 A4.5,4.5 0 0,1 15,5 M11.5,10.5 L3,19 L3,22 L6,22 L6,19 L9,19 L9,16 L11.5,13.5">
+                                            <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#4338CA" Offset="0"/><GradientStop Color="#818CF8" Offset="1"/></LinearGradientBrush></Path.Stroke>
+                                            <Path.Effect><DropShadowEffect Color="#4338CA" BlurRadius="8" ShadowDepth="0" Opacity="0"/></Path.Effect>
                                         </Path>
                                     </Viewbox>
                                     <!-- Keep hidden textblock to preserve x:Name binding -->
                                     <TextBlock x:Name="PasswordIconTextBlock" Visibility="Collapsed" />
-                                    <TextBlock x:Name="PasswordLabelTextBlock" Text="Mật mã" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#F8FAFC" />
+                                    <TextBlock x:Name="PasswordLabelTextBlock" Text="Mật mã" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#1E293B" />
                                 </StackPanel>
                             </Button>
 
                             <Button x:Name="LogoutActionButton" Style="{StaticResource ActionButtonStyle}" Click="LogoutButton_Click">
                                 <StackPanel>
                                     <Viewbox Width="26" Height="26" Margin="0,0,0,8">
-                                        <Path Style="{StaticResource NeonIconStyle}" Stroke="#FF5555" Data="M10,4 L6,4 C5,4 4,5 4,6 L4,18 C4,19 5,20 6,20 L10,20 M14,8 L18,12 L14,16 M18,12 L8,12">
-                                            <Path.Effect><DropShadowEffect Color="#FF5555" BlurRadius="10" ShadowDepth="0" Opacity="0.8"/></Path.Effect>
+                                        <Path Style="{StaticResource NeonIconStyle}" Data="M10,4 L6,4 C5,4 4,5 4,6 L4,18 C4,19 5,20 6,20 L10,20 M14,8 L18,12 L14,16 M18,12 L8,12">
+                                            <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#E11D48" Offset="0"/><GradientStop Color="#FB7185" Offset="1"/></LinearGradientBrush></Path.Stroke>
+                                            <Path.Effect><DropShadowEffect Color="#E11D48" BlurRadius="8" ShadowDepth="0" Opacity="0"/></Path.Effect>
                                         </Path>
                                     </Viewbox>
                                     <!-- Keep hidden textblock to preserve x:Name binding -->
                                     <TextBlock x:Name="LogoutIconTextBlock" Visibility="Collapsed" />
-                                    <TextBlock x:Name="LogoutLabelTextBlock" Text="Đăng xuất" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#F8FAFC" />
+                                    <TextBlock x:Name="LogoutLabelTextBlock" Text="Đăng xuất" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#1E293B" />
                                 </StackPanel>
                             </Button>
 
                             <Button Style="{StaticResource LockButtonStyle}" Click="LockButton_Click">
                                 <StackPanel>
                                     <Viewbox Width="26" Height="26" Margin="0,0,0,8">
-                                        <Path Style="{StaticResource NeonIconStyle}" Stroke="#FF0044" Data="M7,11 L17,11 C18,11 19,12 19,13 L19,20 C19,21 18,22 17,22 L7,22 C6,22 5,21 5,20 L5,13 C5,12 6,11 7,11 Z M9,11 L9,7 C9,4.5 15,4.5 15,7 L15,11 M12,15 L12,18">
-                                            <Path.Effect><DropShadowEffect Color="#FF0044" BlurRadius="10" ShadowDepth="0" Opacity="0.9"/></Path.Effect>
+                                        <Path Style="{StaticResource NeonIconStyle}" Data="M7,11 L17,11 C18,11 19,12 19,13 L19,20 C19,21 18,22 17,22 L7,22 C6,22 5,21 5,20 L5,13 C5,12 6,11 7,11 Z M9,11 L9,7 C9,4.5 15,4.5 15,7 L15,11 M12,15 L12,18">
+                                            <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#DC2626" Offset="0"/><GradientStop Color="#F87171" Offset="1"/></LinearGradientBrush></Path.Stroke>
+                                            <Path.Effect><DropShadowEffect Color="#DC2626" BlurRadius="8" ShadowDepth="0" Opacity="0"/></Path.Effect>
                                         </Path>
                                     </Viewbox>
                                     <!-- Keep hidden textblock to preserve x:Name binding -->
@@ -390,38 +392,33 @@
                 </Grid>
 
                 <!-- FOOTER -->
-                <Border Grid.Row="3" Margin="0,15,0,0" CornerRadius="16" Padding="25,20" Height="90" BorderThickness="0">
-                    <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                            <GradientStop Color="#B200FF" Offset="0" />
-                            <GradientStop Color="#00E5FF" Offset="1" />
-                        </LinearGradientBrush>
-                    </Border.Background>
-                    <Border.Effect>
-                        <DropShadowEffect Color="#B200FF" BlurRadius="20" ShadowDepth="0" Opacity="0.5"/>
-                    </Border.Effect>
-                    <Grid>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock x:Name="FooterTitleTextBlock" Text="JOIN OUR LOYALTY PROGRAM" Foreground="#FFFFFF" FontWeight="Bold" FontSize="20" Margin="0,0,0,4" />
-                            <TextBlock x:Name="FooterDescriptionTextBlock" Text="Tích lũy điểm khi chơi để đổi giờ hoặc quay thưởng hấp dẫn!" Foreground="#E0F2FE" FontSize="18" />
-                        </StackPanel>
-                        <!-- Replaced Emoji with Path for Footer Icon to avoid any square rendering -->
-                        <Viewbox Width="48" Height="48" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0" Opacity="0.3">
-                            <Path Fill="#FFFFFF" Data="M12,2 L22,8 L12,22 L2,8 Z M4.5,8.5 L12,19.5 L19.5,8.5 Z"/>
-                        </Viewbox>
-                        <!-- Keep hidden textblock to preserve x:Name binding -->
-                        <TextBlock x:Name="FooterIconTextBlock" Visibility="Collapsed" />
-                    </Grid>
-                </Border>
+                <Grid Grid.Row="3" Margin="0,15,0,0" MinHeight="90">
+                    <Border CornerRadius="16" Background="#60FFFFFF">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="0" Opacity="0.05"/>
+                        </Border.Effect>
+                    </Border>
+                    <Border CornerRadius="16" BorderThickness="1.5" BorderBrush="#80FFFFFF" Padding="25,15" Background="Transparent">
+                        <Grid>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="FooterTitleTextBlock" Text="JOIN OUR LOYALTY PROGRAM" Foreground="#0F172A" FontWeight="Bold" FontSize="20" Margin="0,0,0,4" />
+                                <TextBlock x:Name="FooterDescriptionTextBlock" Text="Tích lũy điểm khi chơi để đổi giờ hoặc quay thưởng hấp dẫn!" Foreground="#334155" FontSize="18" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <!-- Replaced Emoji with Path for Footer Icon to avoid any square rendering -->
+                            <Viewbox Width="48" Height="48" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0" Opacity="0.3">
+                                <Path Fill="#0F172A" Data="M12,2 L22,8 L12,22 L2,8 Z M4.5,8.5 L12,19.5 L19.5,8.5 Z"/>
+                            </Viewbox>
+                            <!-- Keep hidden textblock to preserve x:Name binding -->
+                            <TextBlock x:Name="FooterIconTextBlock" Visibility="Collapsed" />
+                        </Grid>
+                    </Border>
+                </Grid>
 
                 <!-- PROMOTIONS -->
                 <StackPanel Grid.Row="2">
-                    <Border x:Name="PromotionBannerBorder" Visibility="Collapsed" Margin="0,0,0,8" Padding="14,12" CornerRadius="12" BorderThickness="1" BorderBrush="#3D1220">
+                    <Border x:Name="PromotionBannerBorder" Visibility="Collapsed" Margin="0,0,0,8" Padding="14,12" CornerRadius="12" BorderThickness="1.5" BorderBrush="#80FFFFFF">
                         <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#200B13" Offset="0" />
-                                <GradientStop Color="#11060A" Offset="1" />
-                            </LinearGradientBrush>
+                            <SolidColorBrush Color="#60FFE4E6" />
                         </Border.Background>
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -429,21 +426,18 @@
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <Viewbox Width="24" Height="24" Margin="0,0,12,0" VerticalAlignment="Center">
-                                <Path Fill="#FF0044" Data="M12,2 L15,9 L22,9 L16,14 L18,21 L12,17 L6,21 L8,14 L2,9 L9,9 Z" />
+                                <Path Fill="#E11D48" Data="M12,2 L15,9 L22,9 L16,14 L18,21 L12,17 L6,21 L8,14 L2,9 L9,9 Z" />
                             </Viewbox>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock x:Name="PromotionNameTextBlock" Foreground="#FF0044" FontWeight="Bold" FontSize="18" TextTrimming="CharacterEllipsis" Text="Khuyến mãi giờ vàng" />
-                                <TextBlock x:Name="PromotionDiscountTextBlock" Foreground="#FDA4AF" FontSize="16" Text="Giảm 20% tiền giờ chơi" Margin="0,2,0,0" />
+                                <TextBlock x:Name="PromotionNameTextBlock" Foreground="#BE123C" FontWeight="Bold" FontSize="18" TextTrimming="CharacterEllipsis" Text="Khuyến mãi giờ vàng" />
+                                <TextBlock x:Name="PromotionDiscountTextBlock" Foreground="#E11D48" FontSize="18" Text="Giảm 20% tiền giờ chơi" Margin="0,2,0,0" />
                             </StackPanel>
                         </Grid>
                     </Border>
 
-                    <Border x:Name="LoyaltyPromotionBannerBorder" Visibility="Collapsed" Padding="14,12" CornerRadius="12" BorderThickness="1" BorderBrush="#2D114A">
+                    <Border x:Name="LoyaltyPromotionBannerBorder" Visibility="Collapsed" Padding="14,12" CornerRadius="12" BorderThickness="1.5" BorderBrush="#80FFFFFF">
                         <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                <GradientStop Color="#190A2E" Offset="0" />
-                                <GradientStop Color="#0D041A" Offset="1" />
-                            </LinearGradientBrush>
+                            <SolidColorBrush Color="#60F3E8FF" />
                         </Border.Background>
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -451,11 +445,11 @@
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <Viewbox Width="24" Height="24" Margin="0,0,12,0" VerticalAlignment="Center">
-                                <Path Fill="#D946EF" Data="M12,2 L22,8 L12,22 L2,8 Z M4.5,8.5 L12,19.5 L19.5,8.5 Z" />
+                                <Path Fill="#A21CAF" Data="M12,2 L22,8 L12,22 L2,8 Z M4.5,8.5 L12,19.5 L19.5,8.5 Z" />
                             </Viewbox>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Foreground="#D946EF" FontWeight="Bold" FontSize="18" TextTrimming="CharacterEllipsis" Text="Khuyến mãi điểm thưởng" />
-                                <TextBlock x:Name="LoyaltyPromotionDiscountTextBlock" Foreground="#F0ABFC" FontSize="16" Text="Hệ số nhân điểm: x2" Margin="0,2,0,0" />
+                                <TextBlock Foreground="#86198F" FontWeight="Bold" FontSize="18" TextTrimming="CharacterEllipsis" Text="Khuyến mãi điểm thưởng" />
+                                <TextBlock x:Name="LoyaltyPromotionDiscountTextBlock" Foreground="#A21CAF" FontSize="18" Text="Hệ số nhân điểm: x2" Margin="0,2,0,0" />
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -465,3 +459,4 @@
         </Border>
     </Grid>
 </Window>
+
