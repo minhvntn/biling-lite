@@ -241,9 +241,10 @@ public partial class MainWindow : Window
                 var remainingMinutes = 60000 - (int)Math.Floor(elapsedSeconds / 60d);
                 remainingText = FormatRemainingMinutes(Math.Max(0, remainingMinutes));
             }
-            else if (item.HourlyRate > 0)
+            else
             {
-                var balanceMinutes = (activeMember.Balance / item.HourlyRate) * 60m;
+                var pricePerMinute = item.ActiveSession?.PricePerMinute ?? (item.HourlyRate / 60m);
+                var balanceMinutes = pricePerMinute > 0 ? activeMember.Balance / pricePerMinute : 0m;
                 var playMinutes = activeMember.PlaySeconds / 60m;
                 var totalMinutes = balanceMinutes + playMinutes;
                 
@@ -253,7 +254,11 @@ public partial class MainWindow : Window
             }
         }
         
-        var moneyText = item.ActiveSession is null ? "-" : item.ActiveSession.EstimatedAmount.ToString("N0");
+        var moneyText = "-";
+        if (item.ActiveSession is not null)
+        {
+            moneyText = activeMember is not null ? "-" : item.ActiveSession.EstimatedAmount.ToString("N0");
+        }
 
         var userName = !string.IsNullOrWhiteSpace(activeMember?.Username)
             ? (isVipSession ? $"VIP: {activeMember!.Username}" : activeMember!.Username)

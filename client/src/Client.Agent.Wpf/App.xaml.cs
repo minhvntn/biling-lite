@@ -289,8 +289,11 @@ public partial class App : Application
             HandleRemoteInputRequestedAsync,
             rate =>
             {
-                _currentHourlyRate = rate;
-                Dispatcher.Invoke(() => _mainWindow?.UpdateHourlyRate(_currentHourlyRate));
+                if (_activeMemberSession == null)
+                {
+                    _currentHourlyRate = rate;
+                    Dispatcher.Invoke(() => _mainWindow?.UpdateHourlyRate(_currentHourlyRate));
+                }
             },
             isEnabled =>
             {

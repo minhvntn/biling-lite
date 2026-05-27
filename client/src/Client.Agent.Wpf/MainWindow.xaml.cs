@@ -67,7 +67,7 @@ public partial class MainWindow : Window
         StatusTitleTextBlock.Text = ClientI18n.Get("main.status.title", "Trạng thái máy");
 
         TotalTimeLabelTextBlock.Text = ClientI18n.Get("main.metrics.total", "Tổng thời gian");
-        UsedTimeLabelTextBlock.Text = ClientI18n.Get("main.metrics.used", "Đã sử dụng");
+        UsedTimeLabelTextBlock.Text = ClientI18n.Get("main.metrics.used", "Đã dùng");
         RemainingTimeLabelTextBlock.Text = ClientI18n.Get("main.metrics.remaining", "Còn lại");
         GameCostLabelTextBlock.Text = ClientI18n.Get("main.metrics.game_cost", "Tiền giờ chơi");
         ServiceCostLabelTextBlock.Text = ClientI18n.Get("main.metrics.service_cost", "Tiền dịch vụ");
@@ -321,6 +321,11 @@ public partial class MainWindow : Window
         UserInfoPanel.Visibility = Visibility.Visible;
         MemberRankContainer.Visibility = Visibility.Visible;
         MemberUsernameTextBlock.Text = username;
+        
+        if (MemberRankVipLabel is not null)
+        {
+            MemberRankVipLabel.Visibility = _isVipSession ? Visibility.Visible : Visibility.Collapsed;
+        }
 
         if (VipIconImage is not null)
         {
