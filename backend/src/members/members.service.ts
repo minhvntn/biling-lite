@@ -348,7 +348,7 @@ export class MembersService {
     const minimumChargeSetting = await this.prisma.appSetting.findUnique({
       where: { key: 'MINIMUM_CHARGE' },
     });
-    const minimumCharge = minimumChargeSetting ? Number(minimumChargeSetting.value) : 1000;
+    const minimumCharge = 0; // Walk-in guests only
 
     const upfrontLoginCharge = this.computeUpfrontLoginCharge(hourlyRate, minimumCharge);
     const currentBalance = Number(member.balance);
@@ -432,7 +432,7 @@ export class MembersService {
       const minimumChargeSetting = await this.prisma.appSetting.findUnique({
         where: { key: 'MINIMUM_CHARGE' },
       });
-      const minimumCharge = minimumChargeSetting ? Number(minimumChargeSetting.value) : 1000;
+      const minimumCharge = 0; // Walk-in guests only
 
       const hourlyRate = await this.getEffectiveHourlyRate(baseRate);
       pricePerMinute = Number(hourlyRate) / 60;

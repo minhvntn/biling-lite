@@ -88,6 +88,7 @@ public sealed class ActiveMemberInfo
     public string Username { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public decimal Balance { get; set; }
+    public int PlaySeconds { get; set; }
     public string MemberType { get; set; } = "REGULAR";
 }
 

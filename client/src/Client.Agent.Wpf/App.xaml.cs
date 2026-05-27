@@ -736,16 +736,28 @@ public partial class App : Application
 
             Dispatcher.Invoke(() =>
             {
-                var computedMins = ComputeMinutesFromBalance(member.Balance, _currentHourlyRate);
-                var totalMinutes = Math.Max(0, computedMins);
+                var balanceMinutes = ComputeMinutesFromBalance(member.Balance, _currentHourlyRate);
+                var playSecondsMinutes = ComputeMinutesFromPlaySeconds(member.PlaySeconds);
+                var totalMinutes = Math.Max(0, balanceMinutes + playSecondsMinutes);
                 if (totalMinutes <= 0 && member.MemberType != "VIP")
                 {
-                    totalMinutes = Math.Max(1, member.PlaySeconds / 60);
+                    totalMinutes = 1;
                 }
 
                 _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true, member.Balance);
                 _mainWindow?.SetUpfrontUsedDuration();
                 _mainWindow?.SetMemberInfo(member.Username, member.Rank, member.MemberType);
+                _ = Task.Run(async () =>
+                {
+                    var loyalty = await GetMemberLoyaltyAsync(member.Id);
+                    if (loyalty is not null)
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            _mainWindow?.SetLoyaltyPoints(loyalty.Loyalty.AvailablePoints);
+                        });
+                    }
+                });
                 UnlockMachine();
                 _mainWindow?.SetLastCommand(
                     $"MEMBER LOGIN {member.Username} @ {DateTime.Now:HH:mm:ss}");
@@ -2379,6 +2391,19 @@ public async void OpenLoyaltyPanelFromClientUi()
             {
                 _mainWindow?.UpdateLoyaltyMultiplier(settings.CurrentMultiplier);
             });
+
+            var session = _activeMemberSession;
+            if (session is not null)
+            {
+                var loyalty = await GetMemberLoyaltyAsync(session.MemberId);
+                if (loyalty is not null)
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        _mainWindow?.SetLoyaltyPoints(loyalty.Loyalty.AvailablePoints);
+                    });
+                }
+            }
         }
         catch
         {

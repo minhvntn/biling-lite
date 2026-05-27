@@ -1707,7 +1707,19 @@ export class CommandsService {
       if (pricingStep > 0) {
         amount = Math.ceil(amount / pricingStep) * pricingStep;
       }
-      if (amount < minimumCharge) {
+      
+      const latestPresence = await tx.eventLog.findFirst({
+        where: {
+          pcId,
+          eventType: {
+            in: ['member.pc.presence', 'guest.pc.presence', 'admin.pc.presence'],
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      const isGuest = latestPresence?.eventType === 'guest.pc.presence';
+
+      if (isGuest && amount < minimumCharge) {
         amount = minimumCharge;
       }
     } else {

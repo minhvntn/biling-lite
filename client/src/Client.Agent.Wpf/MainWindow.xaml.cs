@@ -289,6 +289,11 @@ public partial class MainWindow : Window
         LastCommandTextBlock.Text = $"L\u1ec7nh g\u1ea7n nh\u1ea5t: {value}";
     }
 
+    public void SetLoyaltyPoints(int points)
+    {
+        MemberPointsTextBlock.Text = $"{points:N0} \u0111i\u1ec3m";
+    }
+
     public void SetMemberInfo(string? username, string? rank, string? memberType = null)
     {
         _isMemberSession = !string.IsNullOrWhiteSpace(username);
@@ -710,11 +715,20 @@ public partial class MainWindow : Window
         var roundedCost = Math.Ceiling(rawCost / step) * step;
         var gameCost = billableMins <= 0
             ? 0m
-            : Math.Max(MinimumCharge > 0 ? MinimumCharge : 1000m, roundedCost);
+            : (_isMemberSession ? roundedCost : Math.Max(MinimumCharge > 0 ? MinimumCharge : 1000m, roundedCost));
 
         TotalTimeValueTextBlock.Text = FormatMinutes(totalMins);
         UsedTimeValueTextBlock.Text = FormatMinutes(usedMins);
         RemainingTimeValueTextBlock.Text = FormatMinutes(remainingMins);
+
+        double percentage = 1.0;
+        if (totalMins > 0)
+        {
+            double totalSeconds = totalMins * 60.0;
+            double remainingSeconds = Math.Max(0, totalSeconds - elapsedSeconds);
+            percentage = remainingSeconds / totalSeconds;
+        }
+        UpdateProgressArc(percentage);
 
         if (_isMemberSession)
         {
@@ -732,6 +746,55 @@ public partial class MainWindow : Window
 
         GameCostValueTextBlock.Text = gameCost.ToString("N0", CultureInfo.InvariantCulture);
         ServiceCostValueTextBlock.Text = _serviceCost.ToString("N0", CultureInfo.InvariantCulture);
+    }
+
+    private void UpdateProgressArc(double percentage)
+    {
+        if (ProgressArcPath == null) return;
+        
+        percentage = Math.Max(0, Math.Min(1, percentage));
+        
+        double radius = 132.5;
+        double centerX = 140;
+        double centerY = 140;
+        
+        double startAngle = -Math.PI / 2;
+        double endAngle = startAngle + (percentage * 2 * Math.PI);
+        
+        if (percentage >= 0.999)
+        {
+            endAngle = startAngle + (0.999 * 2 * Math.PI);
+        }
+        else if (percentage <= 0.001)
+        {
+             ProgressArcPath.Data = null;
+             return;
+        }
+
+        double startX = centerX + radius * Math.Cos(startAngle);
+        double startY = centerY + radius * Math.Sin(startAngle);
+        
+        double endX = centerX + radius * Math.Cos(endAngle);
+        double endY = centerY + radius * Math.Sin(endAngle);
+        
+        bool isLargeArc = percentage > 0.5;
+        
+        var geometry = new PathGeometry();
+        var figure = new PathFigure
+        {
+            StartPoint = new Point(startX, startY),
+            IsClosed = false
+        };
+        figure.Segments.Add(new ArcSegment(
+            new Point(endX, endY), 
+            new Size(radius, radius), 
+            0, 
+            isLargeArc, 
+            SweepDirection.Clockwise, 
+            true));
+            
+        geometry.Figures.Add(figure);
+        ProgressArcPath.Data = geometry;
     }
 
     public void UpdatePromotion(string? promotionName, decimal discountPercent)

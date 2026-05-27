@@ -436,7 +436,7 @@ export function PcsPage() {
       const rate = pc.hourlyRate || 10000;
       const playSeconds = (pc.activeMember as any).playSeconds || 0;
       const totalSeconds = playSeconds + (balance / rate) * 3600;
-      return formatDuration(Math.max(0, totalSeconds));
+      return formatDuration(Math.max(0, totalSeconds - elapsedSeconds));
     }
     return '-';
   };

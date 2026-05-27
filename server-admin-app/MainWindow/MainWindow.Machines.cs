@@ -243,7 +243,12 @@ public partial class MainWindow : Window
             }
             else if (item.HourlyRate > 0)
             {
-                var remainingMinutes = (int)Math.Floor((activeMember.Balance / item.HourlyRate) * 60m);
+                var balanceMinutes = (activeMember.Balance / item.HourlyRate) * 60m;
+                var playMinutes = activeMember.PlaySeconds / 60m;
+                var totalMinutes = balanceMinutes + playMinutes;
+                
+                var usedMinutes = item.ActiveSession?.ElapsedSeconds / 60d ?? 0d;
+                var remainingMinutes = (int)Math.Floor(totalMinutes - (decimal)usedMinutes);
                 remainingText = FormatRemainingMinutes(Math.Max(0, remainingMinutes));
             }
         }

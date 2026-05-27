@@ -103,11 +103,15 @@ export class PcsService {
             id: true,
             balance: true,
             memberType: true,
+            playSeconds: true,
           },
         })
       : [];
     const activeMemberBalanceById = new Map(
       activeMembers.map((member) => [member.id, Number(member.balance)]),
+    );
+    const activeMemberPlaySecondsById = new Map(
+      activeMembers.map((member) => [member.id, Number(member.playSeconds)]),
     );
     const activeMemberTypeById = new Map(
       activeMembers.map((member) => [member.id, member.memberType]),
@@ -168,14 +172,6 @@ export class PcsService {
 
     const items = await Promise.all(
       pcs.map(async (pc) => {
-        const effectiveGroup = pc.group ?? defaultGroup;
-        const baseHourlyRate = Number(effectiveGroup.hourlyRate);
-        const hourlyRate = getEffectiveHourlyRateAt(
-          baseHourlyRate,
-          new Date(now),
-          activePromotions,
-        );
-
         const activeSession = pc.sessions[0] ?? null;
         const activeUserFromLatest = activeUsersByPc.get(pc.id) ?? null;
         const activeAdmin = activeUserFromLatest?.admin ?? null;
@@ -190,10 +186,21 @@ export class PcsService {
           }
         }
 
+        const effectiveGroup = pc.group ?? defaultGroup;
+        const baseHourlyRate = activeMemberBase 
+          ? Number((effectiveGroup as any).memberHourlyRate ?? effectiveGroup.hourlyRate)
+          : Number(effectiveGroup.hourlyRate);
+        const hourlyRate = getEffectiveHourlyRateAt(
+          baseHourlyRate,
+          new Date(now),
+          activePromotions,
+        );
+
         const activeMember = activeMemberBase
           ? {
               ...activeMemberBase,
               balance: activeMemberBalanceById.get(activeMemberBase.memberId) ?? 0,
+              playSeconds: activeMemberPlaySecondsById.get(activeMemberBase.memberId) ?? 0,
               memberType: activeMemberTypeById.get(activeMemberBase.memberId) ?? 'REGULAR',
             }
           : null;
@@ -229,7 +236,7 @@ export class PcsService {
           if (pricingStep > 0) {
             estimatedAmount = Math.ceil(estimatedAmount / pricingStep) * pricingStep;
           }
-          if (estimatedAmount < minimumCharge) {
+          if (activeGuest && estimatedAmount < minimumCharge) {
             estimatedAmount = minimumCharge;
           }
         }
