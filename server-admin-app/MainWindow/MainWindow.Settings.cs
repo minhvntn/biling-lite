@@ -162,7 +162,7 @@ public partial class MainWindow : Window
 
     private static string FormatUsed(int elapsedSeconds)
     {
-        var minutes = Math.Max(1, (int)Math.Ceiling(elapsedSeconds / 60.0));
+        var minutes = (int)Math.Floor(elapsedSeconds / 60.0);
         if (minutes >= 60)
         {
             var hours = minutes / 60;

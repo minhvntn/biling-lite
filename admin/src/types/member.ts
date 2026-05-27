@@ -7,6 +7,8 @@ export type MemberItem = {
   balance: number;
   playSeconds: number;
   playHours: number;
+  totalTopup: number;
+  lastLoginAt?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

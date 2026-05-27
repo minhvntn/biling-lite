@@ -175,7 +175,19 @@ export class MembersService {
       members.map(async (member) => {
         const rank = this.calculateRankName(Number(member.totalTopup), rankConfigs);
         const loyalty = await this.buildLoyaltySnapshot(member.id, this.prisma);
-        return this.toMemberItem(member, rank, loyalty.availablePoints);
+        
+        const lastLoginEvent = await this.prisma.eventLog.findFirst({
+          where: { 
+            eventType: 'member.pc.presence', 
+            payload: { path: ['memberId'], equals: member.id },
+          },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        return {
+          ...this.toMemberItem(member, rank, loyalty.availablePoints),
+          lastLoginAt: lastLoginEvent?.createdAt.toISOString() || null
+        };
       }),
     );
     
@@ -333,7 +345,12 @@ export class MembersService {
       }
     }
 
-    const upfrontLoginCharge = this.computeUpfrontLoginCharge(hourlyRate);
+    const minimumChargeSetting = await this.prisma.appSetting.findUnique({
+      where: { key: 'MINIMUM_CHARGE' },
+    });
+    const minimumCharge = minimumChargeSetting ? Number(minimumChargeSetting.value) : 1000;
+
+    const upfrontLoginCharge = this.computeUpfrontLoginCharge(hourlyRate, minimumCharge);
     const currentBalance = Number(member.balance);
     const isVip = member.memberType === 'VIP';
     if (
@@ -412,9 +429,15 @@ export class MembersService {
           defaultGroup?.hourlyRate ??
           12000,
       );
+      const minimumChargeSetting = await this.prisma.appSetting.findUnique({
+        where: { key: 'MINIMUM_CHARGE' },
+      });
+      const minimumCharge = minimumChargeSetting ? Number(minimumChargeSetting.value) : 1000;
+
       const hourlyRate = await this.getEffectiveHourlyRate(baseRate);
       pricePerMinute = Number(hourlyRate) / 60;
-      upfrontLoginCharge = this.computeUpfrontLoginCharge(hourlyRate);
+      
+      upfrontLoginCharge = this.computeUpfrontLoginCharge(hourlyRate, minimumCharge);
 
       const currentBalance = Number(member.balance);
       const isVip = member.memberType === 'VIP';
@@ -451,11 +474,16 @@ export class MembersService {
       });
 
       if (upfrontLoginCharge > 0) {
+        const playSecondsGranted = Math.floor((upfrontLoginCharge / pricePerMinute) * 60);
+
         await this.prisma.member.update({
           where: { id: member.id },
           data: {
             balance: {
               decrement: upfrontLoginCharge,
+            },
+            playSeconds: {
+              increment: playSecondsGranted,
             },
           },
         });
@@ -465,7 +493,7 @@ export class MembersService {
             memberId: member.id,
             type: 'ADJUSTMENT',
             amountDelta: -upfrontLoginCharge,
-            playSecondsDelta: 0,
+            playSecondsDelta: playSecondsGranted,
             note: 'UPFRONT_LOGIN_CHARGE',
             createdBy: 'client.session',
           },
@@ -2938,12 +2966,13 @@ export class MembersService {
     return activeMemberId === memberId;
   }
 
-  private computeUpfrontLoginCharge(hourlyRate: number): number {
+  private computeUpfrontLoginCharge(hourlyRate: number, minimumCharge: number): number {
     if (!Number.isFinite(hourlyRate) || hourlyRate <= 0) {
-      return 0;
+      return minimumCharge;
     }
 
-    return Number((hourlyRate / 60).toFixed(2));
+    const oneMinuteCharge = Number((hourlyRate / 60).toFixed(2));
+    return Math.max(oneMinuteCharge, minimumCharge);
   }
 
   private buildMemberAlreadyInUseMessage(pcName: string, agentId: string): string {

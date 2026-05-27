@@ -17,7 +17,7 @@ import { PcListItem } from '../types/pc';
 
 function formatDuration(totalSeconds: number): string {
   if (totalSeconds <= 0) return '00:00';
-  const totalMinutes = Math.max(1, Math.ceil(totalSeconds / 60));
+  const totalMinutes = Math.floor(totalSeconds / 60);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   const paddedHours = hours.toString().padStart(2, '0');
@@ -27,15 +27,6 @@ function formatDuration(totalSeconds: number): string {
 
 function getEffectiveElapsedSeconds(pc: PcListItem, currentTick: number): number {
   if (!pc.activeSession) return 0;
-  
-  if (pc.activeMember && (pc.activeMember as any).memberType === 'VIP') {
-    const balance = Number(pc.activeMember.balance) || 0;
-    const hourlyRate = pc.hourlyRate || 0;
-    if (balance < 0 && hourlyRate > 0) {
-      return ((Math.abs(balance) / hourlyRate) * 3600) + currentTick;
-    }
-  }
-  
   return pc.activeSession.elapsedSeconds + currentTick;
 }
 
@@ -435,19 +426,17 @@ export function PcsPage() {
     return '👤';
   };
 
-  const getRemainingTime = (pc: PcListItem) => {
+  const getRemainingTime = (pc: PcListItem, elapsedSeconds: number) => {
     if (pc.activeMember) {
-      const balance = Number(pc.activeMember.balance) || 0;
-      if ((pc.activeMember as any).memberType === 'VIP' && balance < 0) {
-        const rate = pc.hourlyRate || 10000;
-        const usedSeconds = Math.floor((Math.abs(balance) / rate) * 3600);
-        const remainingSeconds = Math.max(0, 3600000 - usedSeconds);
+      if ((pc.activeMember as any).memberType === 'VIP') {
+        const remainingSeconds = Math.max(0, 3600000 - elapsedSeconds);
         return formatDuration(remainingSeconds);
       }
+      const balance = Number(pc.activeMember.balance) || 0;
       const rate = pc.hourlyRate || 10000;
       const playSeconds = (pc.activeMember as any).playSeconds || 0;
       const totalSeconds = playSeconds + (balance / rate) * 3600;
-      return formatDuration(totalSeconds);
+      return formatDuration(Math.max(0, totalSeconds));
     }
     return '-';
   };
@@ -594,7 +583,7 @@ export function PcsPage() {
                   </td>
                   <td>{formatClock(pc.activeSession?.startedAt ?? null)}</td>
                   <td>{pc.activeSession ? formatDuration(getEffectiveElapsedSeconds(pc, tick)) : '-'}</td>
-                  <td>{getRemainingTime(pc)}</td>
+                  <td>{getRemainingTime(pc, getEffectiveElapsedSeconds(pc, tick))}</td>
                   <td>
                     {pc.activeSession ? (() => {
                       const moneyOrTime = getMoneyOrRemainingTime(pc, elapsed);
@@ -757,7 +746,7 @@ export function PcsPage() {
                         {selectedPc.activeMember && (
                           <div>
                             <span><strong>Thời gian còn lại:</strong></span>
-                            <span>{getRemainingTime(selectedPc)}</span>
+                            <span>{getRemainingTime(selectedPc, getEffectiveElapsedSeconds(selectedPc, tick))}</span>
                           </div>
                         )}
                         <div style={{ borderTop: '1px solid rgba(0,0,0,0.1)', marginTop: '0.4rem', paddingTop: '0.4rem' }}>
@@ -770,8 +759,27 @@ export function PcsPage() {
                             return formatMoney(Math.max(serverAmount, roundedRawCost));
                           })()}</strong></span>
                         </div>
+                        {(() => {
+                          const elapsed = getEffectiveElapsedSeconds(selectedPc, tick);
+                          const totalToPay = getPlayAmountToPay(selectedPc, elapsed);
+                          
+                          let playAmount = selectedPc.activeSession?.estimatedAmount || 0;
+                          const oldDebt = Math.max(0, totalToPay - playAmount);
+                          
+                          if (oldDebt > 0) {
+                              return (
+                                <div style={{ marginTop: '0.2rem' }}>
+                                  <span><strong>Tiền nợ (từ trước):</strong></span>
+                                  <span style={{ color: '#d32f2f' }}>
+                                    +{formatMoney(oldDebt)}
+                                  </span>
+                                </div>
+                              );
+                          }
+                          return null;
+                        })()}
                         {unpaidOrders.length > 0 && (
-                          <div>
+                          <div style={{ marginTop: '0.2rem' }}>
                             <span><strong>Tiền dịch vụ chưa trả:</strong></span>
                             <span style={{ color: '#d32f2f' }}>
                               +{formatMoney(getUnpaidServicesTotal(unpaidOrders))}
@@ -795,17 +803,30 @@ export function PcsPage() {
                   {/* Actions based on state */}
                   {selectedPc.status === 'OFFLINE' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <button
-                        onClick={handleWOL}
-                        disabled={actionPending || !selectedPc.macAddress}
-                        style={{ background: '#2e7d32', borderColor: '#2e7d32' }}
-                      >
-                        {actionPending ? 'Đang gửi...' : 'Mở máy từ xa (Wake-on-LAN)'}
-                      </button>
-                      {!selectedPc.macAddress && (
-                        <p style={{ fontSize: '0.8rem', color: 'red', margin: 0 }}>
-                          * Máy này chưa có thông tin địa chỉ MAC nên không thể bật từ xa.
-                        </p>
+                      {selectedPc.activeSession ? (
+                        <button
+                          onClick={handleLock}
+                          disabled={actionPending}
+                          className="btn-danger"
+                          style={{ padding: '0.75rem', fontSize: '1rem', marginTop: '0.5rem' }}
+                        >
+                          {actionPending ? 'Đang gửi...' : 'Tính tiền & Khóa máy'}
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            onClick={handleWOL}
+                            disabled={actionPending || !selectedPc.macAddress}
+                            style={{ background: '#2e7d32', borderColor: '#2e7d32' }}
+                          >
+                            {actionPending ? 'Đang gửi...' : 'Mở máy từ xa (Wake-on-LAN)'}
+                          </button>
+                          {!selectedPc.macAddress && (
+                            <p style={{ fontSize: '0.8rem', color: 'red', margin: 0 }}>
+                              * Máy này chưa có thông tin địa chỉ MAC nên không thể bật từ xa.
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
                   )}

@@ -187,7 +187,7 @@ public partial class MainWindow : Window
 
     public void SetUpfrontUsedDuration()
     {
-        _usedDuration = TimeSpan.FromSeconds(60);
+        _usedDuration = TimeSpan.Zero;
         _runningStartedAtUtc = DateTime.UtcNow;
         UpdateUsageUi();
     }
@@ -689,34 +689,19 @@ public partial class MainWindow : Window
         
         if (hasSessionUsage)
         {
-            var secondsSinceSync = Math.Max(0, elapsedSeconds - _lastSyncElapsedSeconds);
-            var realTimeBalance = _lastSyncMemberBalance - (secondsSinceSync * (_hourlyRate / 3600m));
-
-            if (_isVipSession && realTimeBalance < 0 && _hourlyRate > 0)
+            if (_isVipSession)
             {
-                usedMins = (int)Math.Ceiling(Math.Abs(realTimeBalance) / _hourlyRate * 60m);
                 totalMins = 60000; // 1000 hours
-                remainingMins = Math.Max(0, totalMins - usedMins);
             }
-            else if (_isVipSession)
-            {
-                var phaseElapsed = Math.Max(0, elapsedSeconds - _phaseStartedElapsedSeconds);
-                usedMins = Math.Max(1, (int)Math.Ceiling(phaseElapsed / 60.0));
-                var totalElapsedMins = Math.Max(1, (int)Math.Ceiling(elapsedSeconds / 60.0));
-                remainingMins = Math.Max(0, totalMins - totalElapsedMins);
-            }
-            else
-            {
-                usedMins = Math.Max(1, (int)Math.Ceiling(elapsedSeconds / 60.0));
-                remainingMins = Math.Max(0, totalMins - usedMins);
-            }
+
+            usedMins = (int)Math.Floor(elapsedSeconds / 60.0);
+            remainingMins = Math.Max(0, totalMins - usedMins);
         }
         else
         {
             remainingMins = totalMins;
         }
 
-        // Match backend logic: use billable minutes (rounded up) and apply pricing step and minimum charge
         var billableMins = hasSessionUsage
             ? Math.Max(1, (int)Math.Ceiling(elapsedSeconds / 60.0))
             : 0;
@@ -730,17 +715,12 @@ public partial class MainWindow : Window
         TotalTimeValueTextBlock.Text = FormatMinutes(totalMins);
         UsedTimeValueTextBlock.Text = FormatMinutes(usedMins);
         RemainingTimeValueTextBlock.Text = FormatMinutes(remainingMins);
-        
+
         if (_isMemberSession)
         {
-            var secondsSinceSync = Math.Max(0, elapsedSeconds - _lastSyncElapsedSeconds);
-            var realTimeBalance = _lastSyncMemberBalance - (secondsSinceSync * (_hourlyRate / 3600m));
-
-            if (_isVipSession && realTimeBalance < 0)
+            if (_isVipSession)
             {
-                var rawDebt = Math.Abs(Math.Min(0, realTimeBalance));
-                var roundedDebt = Math.Ceiling(rawDebt / 500m) * 500m;
-                GameCostValueTextBlock.Text = roundedDebt.ToString("N0", CultureInfo.InvariantCulture);
+                GameCostValueTextBlock.Text = gameCost.ToString("N0", CultureInfo.InvariantCulture);
             }
             else
             {

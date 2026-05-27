@@ -14,16 +14,10 @@ export function TopNav() {
         Dashboard
       </NavLink>
       <NavLink
-        to="/history"
-        className={({ isActive }) => linkClass(isActive)}
-      >
-        Session History
-      </NavLink>
-      <NavLink
         to="/members"
         className={({ isActive }) => linkClass(isActive)}
       >
-        Hoi vien
+        Hội viên
       </NavLink>
     </nav>
   );

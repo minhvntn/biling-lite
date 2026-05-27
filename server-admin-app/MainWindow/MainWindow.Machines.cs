@@ -164,11 +164,7 @@ public partial class MainWindow : Window
 
         var startedAt = ParseDateLocal(item.ActiveSession?.StartedAt);
         var usedText = item.ActiveSession is null ? "-" : FormatUsed(item.ActiveSession.ElapsedSeconds);
-        if (isVipSession && activeMember != null && activeMember.Balance < 0 && item.HourlyRate > 0)
-        {
-            var postpaidSeconds = (int)Math.Floor(Math.Abs(activeMember.Balance) / item.HourlyRate * 3600m);
-            usedText = FormatUsed(postpaidSeconds);
-        }
+
 
         var statusIconBrush = Brushes.Gray;
         var statusIconPath = "/Assets/pc-default.svg";
@@ -239,13 +235,11 @@ public partial class MainWindow : Window
         }
         else if (activeMember is not null)
         {
-            if (isVipSession && activeMember.Balance < 0)
+            if (isVipSession)
             {
-                var postpaidSeconds = item.HourlyRate > 0 
-                    ? (int)Math.Floor(Math.Abs(activeMember.Balance) / item.HourlyRate * 3600m)
-                    : 0;
-                var remainingSeconds = Math.Max(0, 3600000 - postpaidSeconds); // 1000 hours - used
-                remainingText = FormatRemainingMinutes((int)Math.Ceiling(remainingSeconds / 60.0));
+                var elapsedSeconds = item.ActiveSession?.ElapsedSeconds ?? 0;
+                var remainingMinutes = 60000 - (int)Math.Floor(elapsedSeconds / 60d);
+                remainingText = FormatRemainingMinutes(Math.Max(0, remainingMinutes));
             }
             else if (item.HourlyRate > 0)
             {
@@ -255,12 +249,7 @@ public partial class MainWindow : Window
         }
         
         var moneyText = item.ActiveSession is null ? "-" : item.ActiveSession.EstimatedAmount.ToString("N0");
-        if (isVipSession && activeMember is not null && activeMember.Balance < 0)
-        {
-            var rawDebt = Math.Abs(activeMember.Balance);
-            var roundedDebt = Math.Ceiling(rawDebt / 500m) * 500m;
-            moneyText = roundedDebt.ToString("N0");
-        }
+
         var userName = !string.IsNullOrWhiteSpace(activeMember?.Username)
             ? (isVipSession ? $"VIP: {activeMember!.Username}" : activeMember!.Username)
             : isAdminSession
@@ -2849,7 +2838,7 @@ public partial class MainWindow : Window
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         var detailsGrid = new Grid();
-        for (var i = 0; i < 17; i++)
+        for (var i = 0; i < 18; i++)
         {
             detailsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         }
@@ -2869,7 +2858,8 @@ public partial class MainWindow : Window
         var playDurationLine = AddBillingLine(detailsGrid, 3, "Thời gian chơi", "-");
         var sessionRateLine = AddBillingLine(detailsGrid, 4, "Đơn giá phiên tính tiền", "-");
         var playAmountLine = AddBillingLine(detailsGrid, 5, "Tiền giờ chơi (theo phiên)", "-");
-        var serviceAmountLine = AddBillingLine(detailsGrid, 6, "Tổng tiền dịch vụ", $"{serviceAmount:N0} VND");
+        var oldDebtLine = AddBillingLine(detailsGrid, 6, "Tiền nợ (từ trước)", "-");
+        var serviceAmountLine = AddBillingLine(detailsGrid, 7, "Tổng tiền dịch vụ", $"{serviceAmount:N0} VND");
 
         var toggleDetailsBtn = new Button
         {
@@ -2882,16 +2872,16 @@ public partial class MainWindow : Window
             Margin = new Thickness(0, 5, 0, 5),
             Padding = new Thickness(0)
         };
-        Grid.SetRow(toggleDetailsBtn, 7);
+        Grid.SetRow(toggleDetailsBtn, 8);
         detailsGrid.Children.Add(toggleDetailsBtn);
 
-        var groupLine = AddBillingLine(detailsGrid, 8, "Nhóm máy", machine.GroupName);
-        var currentRateLine = AddBillingLine(detailsGrid, 9, "Đơn giá hiện tại (tham khảo)", "-");
-        var currentRatePlayAmountLine = AddBillingLine(detailsGrid, 10, "Tiền giờ chơi theo giá hiện tại (tham khảo)", "-");
-        var discountPercentLine = AddBillingLine(detailsGrid, 11, "Giảm giá phiên", "-");
-        var discountSourceLine = AddBillingLine(detailsGrid, 12, "Nguồn giảm giá", "-");
-        var clientServiceAmountLine = AddBillingLine(detailsGrid, 13, "Tiền dịch vụ từ máy trạm", $"{clientServiceAmount:N0} VND");
-        var serverServiceAmountLine = AddBillingLine(detailsGrid, 14, "Tiền dịch vụ từ server", $"{serverServiceAmount:N0} VND");
+        var groupLine = AddBillingLine(detailsGrid, 9, "Nhóm máy", machine.GroupName);
+        var currentRateLine = AddBillingLine(detailsGrid, 10, "Đơn giá hiện tại (tham khảo)", "-");
+        var currentRatePlayAmountLine = AddBillingLine(detailsGrid, 11, "Tiền giờ chơi theo giá hiện tại (tham khảo)", "-");
+        var discountPercentLine = AddBillingLine(detailsGrid, 12, "Giảm giá phiên", "-");
+        var discountSourceLine = AddBillingLine(detailsGrid, 13, "Nguồn giảm giá", "-");
+        var clientServiceAmountLine = AddBillingLine(detailsGrid, 14, "Tiền dịch vụ từ máy trạm", $"{clientServiceAmount:N0} VND");
+        var serverServiceAmountLine = AddBillingLine(detailsGrid, 15, "Tiền dịch vụ từ server", $"{serverServiceAmount:N0} VND");
 
         var extraLines = new[]
         {
@@ -2935,7 +2925,7 @@ public partial class MainWindow : Window
             Margin = new Thickness(0, 12, 0, 0),
             Child = totalText,
         };
-        Grid.SetRow(totalBorder, 15);
+        Grid.SetRow(totalBorder, 16);
         detailsGrid.Children.Add(totalBorder);
 
         var noteText = new TextBlock
@@ -2945,7 +2935,7 @@ public partial class MainWindow : Window
             Foreground = Brushes.DimGray,
             TextWrapping = TextWrapping.Wrap,
         };
-        Grid.SetRow(noteText, 16);
+        Grid.SetRow(noteText, 17);
         detailsGrid.Children.Add(noteText);
         Grid.SetRow(detailsGrid, 0);
         root.Children.Add(detailsGrid);
@@ -3033,12 +3023,14 @@ public partial class MainWindow : Window
             var playAmount = machineSnapshot.ActiveSessionEstimatedAmount;
             
             var playAmountToPay = playAmount;
+            var oldDebt = 0m;
             if (machineSnapshot.ActiveMemberId != null)
             {
                 if (machineSnapshot.ActiveMemberBalance < 0)
                 {
                     var rawDebt = Math.Abs(machineSnapshot.ActiveMemberBalance);
                     playAmountToPay = Math.Ceiling(rawDebt / 500m) * 500m;
+                    oldDebt = Math.Max(0m, playAmountToPay - playAmount);
                 }
                 else
                 {
@@ -3062,6 +3054,17 @@ public partial class MainWindow : Window
             SetMoneyRateText(sessionRateLine.ValueText, sessionHourlyRate);
             SetMoneyRateText(currentRateLine.ValueText, machineSnapshot.HourlyRate);
             SetMoneyText(playAmountLine.ValueText, playAmount, new SolidColorBrush(Color.FromRgb(30, 64, 175)));
+            
+            if (oldDebt > 0)
+            {
+                oldDebtLine.Row.Visibility = Visibility.Visible;
+                SetMoneyText(oldDebtLine.ValueText, oldDebt, new SolidColorBrush(Color.FromRgb(220, 38, 38)));
+            }
+            else
+            {
+                oldDebtLine.Row.Visibility = Visibility.Collapsed;
+            }
+
             SetMoneyText(currentRatePlayAmountLine.ValueText, currentRatePlayAmount, new SolidColorBrush(Color.FromRgb(8, 145, 178)));
             var groups = _pricingSettings?.Groups?.ToList() ?? new List<PricingGroupItem>();
             var defaultGroup = groups.FirstOrDefault(x => x.IsDefault) ?? new PricingGroupItem

@@ -393,13 +393,12 @@ export function MembersPage() {
                   />
                 </div>
                 <div className="form-group">
-                  <label htmlFor="modal-fullname" style={{ fontSize: '0.78rem', marginBottom: '0.2rem' }}>Họ tên *</label>
+                  <label htmlFor="modal-fullname" style={{ fontSize: '0.78rem', marginBottom: '0.2rem' }}>Họ tên</label>
                   <input
                     id="modal-fullname"
                     value={newFullName}
                     onChange={(event) => setNewFullName(event.target.value)}
-                    placeholder="Nhập họ và tên..."
-                    required
+                    placeholder="Nhập họ và tên (tùy chọn)..."
                     style={{ padding: '0.45rem 0.6rem', fontSize: '0.82rem' }}
                   />
                 </div>
@@ -509,6 +508,16 @@ export function MembersPage() {
                       fontWeight: 600
                     }}>
                       {selectedMember.isActive ? 'Hoạt động' : 'Tạm khóa'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--line)', paddingTop: '0.4rem', marginTop: '0.2rem' }}>
+                    <span style={{ color: 'var(--muted)' }}>Tổng nạp:</span>
+                    <strong style={{ color: '#12b76a' }}>{formatMoney(selectedMember.totalTopup || 0)} đ</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--muted)' }}>Đăng nhập gần nhất:</span>
+                    <span style={{ color: 'var(--text)' }}>
+                      {selectedMember.lastLoginAt ? new Date(selectedMember.lastLoginAt).toLocaleString('vi-VN') : 'Chưa có'}
                     </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--line)', paddingTop: '0.4rem', marginTop: '0.2rem' }}>
