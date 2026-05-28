@@ -148,6 +148,10 @@ public partial class App : Application
         _mainWindow.ConfigureBilling(_settings.TotalSessionMinutes, _currentHourlyRate, true, isPostpaid: _isPostpaidGuestSession);
         _mainWindow.SetWithdrawActionVisible(_isMemberWithdrawEnabled);
         _mainWindow.SetTopupRequestActionVisible(_isMemberTopupRequestEnabled);
+        _mainWindow.TimeExpired += (_, _) =>
+        {
+            _ = EnforceMemberAutoLockIfNoRemainingTimeAsync("TIME_EXPIRED_UI_EVENT");
+        };
         _mainWindow.SetConnectionStatus("Connecting...");
         _mainWindow.SetMachineState("LOCKED");
         _mainWindow.SetLastCommand("Boot sequence");
@@ -760,7 +764,8 @@ public partial class App : Application
                     {
                         Dispatcher.Invoke(() =>
                         {
-                            _mainWindow?.SetLoyaltyProgress(loyalty.Loyalty.AvailablePoints, loyalty.Loyalty.ProgressMinutes, settings.MinutesPerPoint);
+                            var effectiveMinsPerPoint = loyalty.Loyalty.MinutesPerPoint > 0 ? loyalty.Loyalty.MinutesPerPoint : settings.MinutesPerPoint;
+                            _mainWindow?.SetLoyaltyProgress(loyalty.Loyalty.AvailablePoints, loyalty.Loyalty.ProgressMinutes, effectiveMinsPerPoint);
                         });
                     }
                 });

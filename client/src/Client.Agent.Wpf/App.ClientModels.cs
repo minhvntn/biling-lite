@@ -251,6 +251,8 @@ public sealed class MemberLoyaltyItem
     public int ProgressSeconds { get; set; }
 
     public double ProgressMinutes { get; set; }
+
+    public int MinutesPerPoint { get; set; }
 }
 
 public sealed class MemberDailyCheckinStatus

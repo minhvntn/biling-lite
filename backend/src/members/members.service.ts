@@ -2649,7 +2649,25 @@ export class MembersService {
     });
 
     const loyaltySettings = await this.getLoyaltySettingsItem(tx);
-    const currentMinutesPerPoint = loyaltySettings.minutesPerPoint;
+    let currentMinutesPerPoint = loyaltySettings.minutesPerPoint;
+
+    const member = await tx.member.findUnique({
+      where: { id: memberId },
+      select: { totalTopup: true },
+    });
+
+    if (member) {
+      const rankConfigs = await tx.loyaltyRankConfig.findMany({
+        orderBy: { minTopup: 'desc' },
+      });
+      const memberRank = rankConfigs.find(
+        (r) => Number(member.totalTopup) >= Number(r.minTopup)
+      );
+      if (memberRank && memberRank.minutesPerPoint > 0) {
+        currentMinutesPerPoint = memberRank.minutesPerPoint;
+      }
+    }
+
     const currentSecondsPerPoint = currentMinutesPerPoint * 60;
     const redeemSecondsPerPoint = loyaltySettings.pointsToMinutes * 60;
 

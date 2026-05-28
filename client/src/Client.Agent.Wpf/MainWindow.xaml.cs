@@ -17,6 +17,10 @@ public partial class MainWindow : Window
     public static decimal PricingStep { get; set; } = 1000m;
     public static decimal MinimumCharge { get; set; } = 1000m;
     private const int DefaultTotalSessionMinutes = 60_000; // 1000 giờ
+    public event EventHandler? TopupRequestRequested;
+
+    public event EventHandler? TimeExpired;
+
     private const decimal DefaultHourlyRate = 12_000m;
 
     private readonly DispatcherTimer _usageTimer = new();
@@ -865,6 +869,12 @@ public partial class MainWindow : Window
             : (_isMemberSession ? roundedCost : Math.Max(MinimumCharge > 0 ? MinimumCharge : 1000m, roundedCost));
 
         TotalTimeValueTextBlock.Text = FormatSeconds(totalSecs);
+
+        if (remainingSecs == 0 && _totalSessionMinutes < DefaultTotalSessionMinutes)
+        {
+            TimeExpired?.Invoke(this, EventArgs.Empty);
+        }
+
         UsedTimeValueTextBlock.Text = FormatSeconds(usedSecs);
         RemainingTimeValueTextBlock.Text = FormatSeconds(remainingSecs);
 
