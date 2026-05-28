@@ -145,7 +145,7 @@ public partial class App : Application
 
         _mainWindow = new MainWindow();
         _mainWindow.SetAgentId(_settings.AgentId);
-        _mainWindow.ConfigureBilling(_settings.TotalSessionMinutes, _currentHourlyRate, true);
+        _mainWindow.ConfigureBilling(_settings.TotalSessionMinutes, _currentHourlyRate, true, isPostpaid: _isPostpaidGuestSession);
         _mainWindow.SetWithdrawActionVisible(_isMemberWithdrawEnabled);
         _mainWindow.SetTopupRequestActionVisible(_isMemberTopupRequestEnabled);
         _mainWindow.SetConnectionStatus("Connecting...");
@@ -341,7 +341,7 @@ public partial class App : Application
                 _guestPrepaidTotalMinutes = totalMinutes;
                 Dispatcher.Invoke(() =>
                 {
-                    _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true);
+                    _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true, isPostpaid: _isPostpaidGuestSession);
                     _mainWindow?.SetUpfrontUsedDuration();
                 });
             }
@@ -427,7 +427,8 @@ public partial class App : Application
                         _mainWindow?.ConfigureBilling(
                             guestTotalMinutes,
                             _currentHourlyRate,
-                            true));
+                            true,
+                            isPostpaid: _isPostpaidGuestSession));
                     Dispatcher.Invoke(UnlockMachine);
                     return (true, "opened");
 
@@ -502,7 +503,8 @@ public partial class App : Application
                         Dispatcher.Invoke(() =>
                             _mainWindow?.ConfigureBilling(
                                 _settings.TotalSessionMinutes,
-                                _currentHourlyRate));
+                                _currentHourlyRate,
+                                isPostpaid: _isPostpaidGuestSession));
                     }
                     Dispatcher.Invoke(UnlockMachine);
                     Dispatcher.Invoke(() =>
@@ -747,17 +749,18 @@ public partial class App : Application
                     totalMinutes = 1;
                 }
 
-                _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true, member.Balance);
+                _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: member.PlaySeconds);
                 _mainWindow?.SetUpfrontUsedDuration();
                 _mainWindow?.SetMemberInfo(member.Username, member.Rank, member.MemberType);
                 _ = Task.Run(async () =>
                 {
                     var loyalty = await GetMemberLoyaltyAsync(member.Id);
-                    if (loyalty is not null)
+                    var settings = await GetLoyaltySettingsAsync();
+                    if (loyalty is not null && settings is not null)
                     {
                         Dispatcher.Invoke(() =>
                         {
-                            _mainWindow?.SetLoyaltyPoints(loyalty.Loyalty.AvailablePoints);
+                            _mainWindow?.SetLoyaltyProgress(loyalty.Loyalty.AvailablePoints, loyalty.Loyalty.ProgressMinutes, settings.MinutesPerPoint);
                         });
                     }
                 });
@@ -866,7 +869,8 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
                 _mainWindow?.ConfigureBilling(
                     _settings.TotalSessionMinutes,
                     _currentHourlyRate,
-                    true);
+                    true,
+                    isPostpaid: _isPostpaidGuestSession);
 
                 _mainWindow?.SetMemberInfo(null, null);
 
@@ -955,7 +959,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
         Dispatcher.Invoke(() =>
         {
-            _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false, member.Balance);
+            _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: member.PlaySeconds);
         });
     }
 
@@ -1273,310 +1277,16 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
                 .ThenBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(x => x.ServiceName, StringComparer.OrdinalIgnoreCase));
 
-        var dialog = new Window
-        {
-            Title = $"Dịch vụ - {pcName}",
-            Width = 920,
-            Height = 640,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            ResizeMode = ResizeMode.CanResize,
-            MinWidth = 820,
-            MinHeight = 520,
-            Owner = _mainWindow,
-            ShowInTaskbar = false,
-        };
+        var dialog = new ServiceOrderWindow(pcName, rows, orderedPreview);
+        dialog.Owner = _mainWindow;
 
-        var root = new Grid { Margin = new Thickness(12) };
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-        var titleText = new TextBlock
+        dialog.OrderRequested += async (_, _) =>
         {
-            Text = $"Máy trạm: {pcName}",
-            FontSize = 16,
-            FontWeight = FontWeights.SemiBold,
-            Margin = new Thickness(0, 0, 0, 6),
-        };
-        Grid.SetRow(titleText, 0);
-        root.Children.Add(titleText);
-
-        var orderedPreviewText = new TextBlock
-        {
-            Text = $"Đã gọi: {orderedPreview}",
-            Foreground = Brushes.DimGray,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 0, 0, 8),
-        };
-        Grid.SetRow(orderedPreviewText, 1);
-        root.Children.Add(orderedPreviewText);
-
-        var serviceGrid = new DataGrid
-        {
-            AutoGenerateColumns = false,
-            CanUserAddRows = false,
-            CanUserDeleteRows = false,
-            CanUserReorderColumns = false,
-            CanUserResizeRows = false,
-            SelectionMode = DataGridSelectionMode.Single,
-            SelectionUnit = DataGridSelectionUnit.FullRow,
-            GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-            HeadersVisibility = DataGridHeadersVisibility.Column,
-            ItemsSource = rows,
-            Margin = new Thickness(0, 0, 0, 10),
-            RowHeight = 42,
-        };
-        var serviceNameColumn = new DataGridTemplateColumn
-        {
-            Header = "Dịch vụ",
-            Width = new DataGridLength(2.4, DataGridLengthUnitType.Star),
-        };
-        var serviceCellPanel = new FrameworkElementFactory(typeof(StackPanel));
-        serviceCellPanel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
-        serviceCellPanel.SetValue(StackPanel.VerticalAlignmentProperty, VerticalAlignment.Center);
-
-        var serviceImageBorder = new FrameworkElementFactory(typeof(Border));
-        serviceImageBorder.SetValue(Border.WidthProperty, 34d);
-        serviceImageBorder.SetValue(Border.HeightProperty, 34d);
-        serviceImageBorder.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
-        serviceImageBorder.SetValue(Border.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(203, 213, 225)));
-        serviceImageBorder.SetValue(Border.BorderThicknessProperty, new Thickness(1));
-        serviceImageBorder.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(248, 250, 252)));
-        serviceImageBorder.SetValue(Border.MarginProperty, new Thickness(0, 0, 8, 0));
-
-        var serviceImage = new FrameworkElementFactory(typeof(Image));
-        serviceImage.SetBinding(Image.SourceProperty, new Binding(nameof(ClientServiceOrderSelectionRow.ServiceImageSource)));
-        serviceImage.SetValue(Image.StretchProperty, Stretch.UniformToFill);
-        serviceImage.SetValue(Image.SnapsToDevicePixelsProperty, true);
-        serviceImageBorder.AppendChild(serviceImage);
-
-        var serviceNameText = new FrameworkElementFactory(typeof(TextBlock));
-        serviceNameText.SetBinding(TextBlock.TextProperty, new Binding(nameof(ClientServiceOrderSelectionRow.ServiceName)));
-        serviceNameText.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
-        serviceNameText.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
-
-        serviceCellPanel.AppendChild(serviceImageBorder);
-        serviceCellPanel.AppendChild(serviceNameText);
-        serviceNameColumn.CellTemplate = new DataTemplate { VisualTree = serviceCellPanel };
-        serviceGrid.Columns.Add(serviceNameColumn);
-        serviceGrid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "Danh mục",
-            Width = new DataGridLength(1.2, DataGridLengthUnitType.Star),
-            Binding = new Binding(nameof(ClientServiceOrderSelectionRow.Category)),
-            IsReadOnly = true,
-        });
-        serviceGrid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "Đơn giá",
-            Width = 110,
-            Binding = new Binding(nameof(ClientServiceOrderSelectionRow.UnitPriceText)),
-            IsReadOnly = true,
-        });
-        serviceGrid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "Đã gọi",
-            Width = 140,
-            Binding = new Binding(nameof(ClientServiceOrderSelectionRow.ExistingText)),
-            IsReadOnly = true,
-        });
-        serviceGrid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "Nguon",
-            Width = 95,
-            Binding = new Binding(nameof(ClientServiceOrderSelectionRow.SourceText)),
-            IsReadOnly = true,
-        });
-
-        var quantityTemplateColumn = new DataGridTemplateColumn
-        {
-            Header = "Số lượng",
-            Width = 150,
-        };
-
-        var quantityPanelFactory = new FrameworkElementFactory(typeof(StackPanel));
-        quantityPanelFactory.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
-        quantityPanelFactory.SetValue(StackPanel.HorizontalAlignmentProperty, HorizontalAlignment.Center);
-
-        var decreaseButtonFactory = new FrameworkElementFactory(typeof(Button));
-        decreaseButtonFactory.SetValue(Button.ContentProperty, "-");
-        decreaseButtonFactory.SetValue(Button.WidthProperty, 30d);
-        decreaseButtonFactory.SetValue(Button.HeightProperty, 28d);
-        decreaseButtonFactory.SetValue(Button.PaddingProperty, new Thickness(0));
-        decreaseButtonFactory.SetValue(Button.MarginProperty, new Thickness(0, 0, 6, 0));
-        decreaseButtonFactory.SetValue(Button.FontWeightProperty, FontWeights.SemiBold);
-        decreaseButtonFactory.SetValue(Button.FontSizeProperty, 14d);
-        decreaseButtonFactory.SetValue(Button.ForegroundProperty, Brushes.White);
-        decreaseButtonFactory.SetValue(Button.BackgroundProperty, new SolidColorBrush(Color.FromRgb(239, 68, 68)));
-        decreaseButtonFactory.SetValue(Button.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(185, 28, 28)));
-        decreaseButtonFactory.SetValue(Button.ToolTipProperty, "Chi huy mon do may tram da tu goi.");
-        decreaseButtonFactory.SetBinding(Button.IsEnabledProperty, new Binding(nameof(ClientServiceOrderSelectionRow.CanDecrease)));
-        decreaseButtonFactory.AddHandler(Button.ClickEvent, new RoutedEventHandler((sender, _) =>
-        {
-            if ((sender as FrameworkElement)?.DataContext is ClientServiceOrderSelectionRow row)
-            {
-                row.DecreaseQuantity();
-            }
-        }));
-
-        var quantityValueFactory = new FrameworkElementFactory(typeof(TextBlock));
-        quantityValueFactory.SetValue(TextBlock.WidthProperty, 48d);
-        quantityValueFactory.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Center);
-        quantityValueFactory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
-        quantityValueFactory.SetValue(TextBlock.FontSizeProperty, 14d);
-        quantityValueFactory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
-        quantityValueFactory.SetBinding(TextBlock.TextProperty, new Binding(nameof(ClientServiceOrderSelectionRow.Quantity)));
-
-        var increaseButtonFactory = new FrameworkElementFactory(typeof(Button));
-        increaseButtonFactory.SetValue(Button.ContentProperty, "+");
-        increaseButtonFactory.SetValue(Button.WidthProperty, 30d);
-        increaseButtonFactory.SetValue(Button.HeightProperty, 28d);
-        increaseButtonFactory.SetValue(Button.PaddingProperty, new Thickness(0));
-        increaseButtonFactory.SetValue(Button.MarginProperty, new Thickness(6, 0, 0, 0));
-        increaseButtonFactory.SetValue(Button.FontWeightProperty, FontWeights.SemiBold);
-        increaseButtonFactory.SetValue(Button.FontSizeProperty, 14d);
-        increaseButtonFactory.SetValue(Button.ForegroundProperty, Brushes.White);
-        increaseButtonFactory.SetValue(Button.BackgroundProperty, new SolidColorBrush(Color.FromRgb(34, 197, 94)));
-        increaseButtonFactory.SetValue(Button.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(22, 163, 74)));
-        increaseButtonFactory.AddHandler(Button.ClickEvent, new RoutedEventHandler((sender, _) =>
-        {
-            if ((sender as FrameworkElement)?.DataContext is ClientServiceOrderSelectionRow row)
-            {
-                row.IncreaseQuantity();
-            }
-        }));
-
-        quantityPanelFactory.AppendChild(decreaseButtonFactory);
-        quantityPanelFactory.AppendChild(quantityValueFactory);
-        quantityPanelFactory.AppendChild(increaseButtonFactory);
-        quantityTemplateColumn.CellTemplate = new DataTemplate
-        {
-            VisualTree = quantityPanelFactory,
-        };
-        serviceGrid.Columns.Add(quantityTemplateColumn);
-
-        serviceGrid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "Thành tiền",
-            Width = 130,
-            Binding = new Binding(nameof(ClientServiceOrderSelectionRow.LineTotalText)),
-            IsReadOnly = true,
-        });
-
-        Grid.SetRow(serviceGrid, 2);
-        root.Children.Add(serviceGrid);
-
-        var notePanel = new StackPanel
-        {
-            Margin = new Thickness(0, 0, 0, 8),
-        };
-        notePanel.Children.Add(new TextBlock
-        {
-            Text = "Ghi chú (không bắt buộc):",
-            Margin = new Thickness(0, 0, 0, 4),
-        });
-        var noteTextBox = new TextBox
-        {
-            Height = 52,
-            TextWrapping = TextWrapping.Wrap,
-            AcceptsReturn = true,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-        };
-        notePanel.Children.Add(noteTextBox);
-        Grid.SetRow(notePanel, 3);
-        root.Children.Add(notePanel);
-
-        var summaryTextBlock = new TextBlock
-        {
-            FontWeight = FontWeights.SemiBold,
-            Margin = new Thickness(0, 0, 0, 4),
-        };
-        var errorTextBlock = new TextBlock
-        {
-            Foreground = Brushes.Firebrick,
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 0, 0, 6),
-        };
-        var statusPanel = new StackPanel();
-        statusPanel.Children.Add(summaryTextBlock);
-        statusPanel.Children.Add(errorTextBlock);
-        Grid.SetRow(statusPanel, 4);
-        root.Children.Add(statusPanel);
-
-        var buttonPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 6, 0, 0),
-        };
-        var orderButton = new Button
-        {
-            Content = "Gửi dịch vụ",
-            Width = 130,
-            Height = 34,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = Brushes.White,
-            Background = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(29, 78, 216)),
-            Margin = new Thickness(0, 0, 8, 0),
-            IsDefault = true,
-        };
-        var cancelButton = new Button
-        {
-            Content = "Hủy",
-            Width = 90,
-            Height = 34,
-            FontWeight = FontWeights.SemiBold,
-            IsCancel = true,
-        };
-        buttonPanel.Children.Add(orderButton);
-        buttonPanel.Children.Add(cancelButton);
-        Grid.SetRow(buttonPanel, 5);
-        root.Children.Add(buttonPanel);
-
-        void RefreshSummary()
-        {
-            var selectedRows = rows.Where(x => x.Quantity != 0).ToList();
-            var selectedItemCount = selectedRows.Count;
-            var totalAdded = selectedRows.Where(x => x.Quantity > 0).Sum(x => x.Quantity);
-            var totalCanceled = selectedRows.Where(x => x.Quantity < 0).Sum(x => -x.Quantity);
-            var netAmount = selectedRows.Sum(x => x.LineTotal);
-            summaryTextBlock.Text =
-                $"Da chon {selectedItemCount} mon | Goi them: {totalAdded} | Huy: {totalCanceled} | Chenh lech: {netAmount:N0} VND";
-        }
-
-        void RowPropertyChanged(object? sender, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName == nameof(ClientServiceOrderSelectionRow.Quantity))
-            {
-                RefreshSummary();
-            }
-        }
-
-        foreach (var row in rows)
-        {
-            row.PropertyChanged += RowPropertyChanged;
-        }
-
-        orderButton.Click += async (_, _) =>
-        {
-            errorTextBlock.Text = string.Empty;
-
             var selectedRows = rows
                 .Where(x => x.Quantity != 0)
                 .ToList();
 
-            if (selectedRows.Count == 0)
-            {
-                errorTextBlock.Text = "Hay chon so luong de goi (+) hoac huy (-).";
-                return;
-            }
-
-            orderButton.IsEnabled = false;
-            cancelButton.IsEnabled = false;
+            dialog.SetProcessing(true);
             try
             {
                 var failedItems = new List<string>();
@@ -1592,7 +1302,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
                         {
                             serviceItemId = row.ServiceItemId,
                             quantity = row.Quantity,
-                            note = string.IsNullOrWhiteSpace(noteTextBox.Text) ? null : noteTextBox.Text.Trim(),
+                            note = string.IsNullOrWhiteSpace(dialog.OrderNote) ? null : dialog.OrderNote.Trim(),
                             requestedBy = serviceRequester,
                         });
 
@@ -1618,7 +1328,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
                             serviceItemId = row.ServiceItemId,
                             quantity = Math.Abs(row.Quantity),
                             sessionId = activeSessionId,
-                            note = string.IsNullOrWhiteSpace(noteTextBox.Text) ? null : noteTextBox.Text.Trim(),
+                            note = string.IsNullOrWhiteSpace(dialog.OrderNote) ? null : dialog.OrderNote.Trim(),
                             requestedBy = serviceRequester,
                         });
 
@@ -1646,8 +1356,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
                     var errorPreview = string.Join(
                         Environment.NewLine,
                         failedItems.Take(6).Select(x => $"- {x}"));
-                    errorTextBlock.Text =
-                        $"Cap nhat thanh cong {successCount}/{selectedRows.Count}.{Environment.NewLine}{errorPreview}";
+                    dialog.ShowError($"Cap nhat thanh cong {successCount}/{selectedRows.Count}.{Environment.NewLine}{errorPreview}");
                     return;
                 }
 
@@ -1656,23 +1365,11 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             }
             finally
             {
-                orderButton.IsEnabled = true;
-                cancelButton.IsEnabled = true;
+                dialog.SetProcessing(false);
             }
         };
 
-        dialog.Content = root;
-        dialog.Loaded += (_, _) =>
-        {
-            RefreshSummary();
-            serviceGrid.Focus();
-        };
         _ = dialog.ShowDialog();
-
-        foreach (var row in rows)
-        {
-            row.PropertyChanged -= RowPropertyChanged;
-        }
     }
 
     private static ImageSource? BuildClientServiceImageSource(string? imageDataUrl)
@@ -2403,7 +2100,7 @@ public async void OpenLoyaltyPanelFromClientUi()
                 {
                     Dispatcher.Invoke(() =>
                     {
-                        _mainWindow?.SetLoyaltyPoints(loyalty.Loyalty.AvailablePoints);
+                        _mainWindow?.SetLoyaltyProgress(loyalty.Loyalty.AvailablePoints, loyalty.Loyalty.ProgressMinutes, settings.MinutesPerPoint);
                     });
                 }
             }
@@ -5935,7 +5632,8 @@ LIMIT $limit;";
         _mainWindow?.ConfigureBilling(
             _settings.TotalSessionMinutes,
             _currentHourlyRate,
-            false);
+            false,
+            isPostpaid: _isPostpaidGuestSession);
         _mainWindow?.SetMemberInfo(null, null);
         UnlockMachine();
         _mainWindow?.SetLastCommand($"GUEST RESUME @ {DateTime.Now:HH:mm:ss}");
@@ -5966,7 +5664,8 @@ LIMIT $limit;";
             _settings.TotalSessionMinutes,
             _currentHourlyRate,
             true,
-            memberBalance);
+            memberBalance,
+            isPostpaid: _isPostpaidGuestSession);
         _mainWindow?.SetMemberInfo(username, rank, memberType);
         _mainWindow?.SynchronizeUsedDuration(elapsedSeconds);
         UnlockMachine();
@@ -6011,7 +5710,8 @@ LIMIT $limit;";
             _mainWindow?.ConfigureBilling(
                 _settings.TotalSessionMinutes,
                 _currentHourlyRate,
-                true);
+                true,
+                isPostpaid: _isPostpaidGuestSession);
             _mainWindow?.SetMemberInfo("Admin", "ADMIN");
             UnlockMachine();
             _mainWindow?.SetLastCommand($"ADMIN LOGIN @ {DateTime.Now:HH:mm:ss}");

@@ -202,7 +202,7 @@ public partial class MainWindow : Window
             _memberSearchDebounceTimer.Interval = TimeSpan.FromMilliseconds(300);
             _memberSearchDebounceTimer.Tick += MemberSearchDebounceTimer_Tick;
 
-            _machinesTimer.Interval = TimeSpan.FromSeconds(Math.Max(2, _settings.MachineRefreshSeconds));
+            _machinesTimer.Interval = TimeSpan.FromSeconds(1);
             _machinesTimer.Tick += MachinesTimer_Tick;
             _machinesTimer.Start();
 

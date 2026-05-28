@@ -224,40 +224,40 @@ public partial class MainWindow : Window
         var remainingText = "-";
         if (activeMember is null && item.ActiveSession is not null)
         {
-            var guestRemainingMinutesBase = GuestSessionStartingHours * MinutesPerHour;
+            var guestRemainingSecondsBase = GuestSessionStartingHours * 3600;
             if (activeGuest is not null && activeGuest.PrepaidAmount > 0 && item.HourlyRate > 0)
             {
-                guestRemainingMinutesBase = (int)Math.Floor((activeGuest.PrepaidAmount / item.HourlyRate) * 60m);
+                guestRemainingSecondsBase = (int)Math.Floor((activeGuest.PrepaidAmount / item.HourlyRate) * 3600m);
             }
-            var guestUsedMinutes = (int)Math.Floor(Math.Max(0, item.ActiveSession!.ElapsedSeconds) / 60d);
-            var guestRemainingMinutes = Math.Max(0, guestRemainingMinutesBase - guestUsedMinutes);
-            remainingText = FormatRemainingMinutes(guestRemainingMinutes);
+            var guestUsedSeconds = Math.Max(0, item.ActiveSession!.ElapsedSeconds);
+            var guestRemainingSeconds = Math.Max(0, guestRemainingSecondsBase - guestUsedSeconds);
+            remainingText = FormatRemainingTime(guestRemainingSeconds);
         }
         else if (activeMember is not null)
         {
             if (isVipSession)
             {
                 var elapsedSeconds = item.ActiveSession?.ElapsedSeconds ?? 0;
-                var remainingMinutes = 60000 - (int)Math.Floor(elapsedSeconds / 60d);
-                remainingText = FormatRemainingMinutes(Math.Max(0, remainingMinutes));
+                var remainingSeconds = 60000 * 60 - elapsedSeconds;
+                remainingText = FormatRemainingTime(Math.Max(0, remainingSeconds));
             }
             else
             {
                 var pricePerMinute = item.ActiveSession?.PricePerMinute ?? (item.HourlyRate / 60m);
                 var balanceMinutes = pricePerMinute > 0 ? activeMember.Balance / pricePerMinute : 0m;
                 var playMinutes = activeMember.PlaySeconds / 60m;
-                var totalMinutes = balanceMinutes + playMinutes;
+                var totalSecondsExact = (balanceMinutes + playMinutes) * 60m;
                 
-                var usedMinutes = item.ActiveSession?.ElapsedSeconds / 60d ?? 0d;
-                var remainingMinutes = (int)Math.Floor(totalMinutes - (decimal)usedMinutes);
-                remainingText = FormatRemainingMinutes(Math.Max(0, remainingMinutes));
+                var usedSeconds = item.ActiveSession?.ElapsedSeconds ?? 0;
+                var remainingSeconds = (int)Math.Floor(totalSecondsExact) - usedSeconds;
+                remainingText = FormatRemainingTime(Math.Max(0, remainingSeconds));
             }
         }
         
         var moneyText = "-";
         if (item.ActiveSession is not null)
         {
-            moneyText = activeMember is not null ? "-" : item.ActiveSession.EstimatedAmount.ToString("N0");
+            moneyText = (activeMember is not null && !isVipSession) ? "-" : item.ActiveSession.EstimatedAmount.ToString("N0");
         }
 
         var userName = !string.IsNullOrWhiteSpace(activeMember?.Username)
@@ -512,21 +512,18 @@ public partial class MainWindow : Window
         return connectionScore + statusScore + sessionScore;
     }
 
-    private static string FormatRemainingMinutes(int totalMinutes)
+    private static string FormatRemainingTime(int totalSeconds)
     {
-        if (totalMinutes <= 0)
+        var hours = totalSeconds / 3600;
+        var minutes = (totalSeconds % 3600) / 60;
+        var seconds = totalSeconds % 60;
+
+        if (hours > 0)
         {
-            return "0 phút";
+            return $"{hours:00}:{minutes:00}:{seconds:00}";
         }
 
-        var hours = totalMinutes / 60;
-        var minutes = totalMinutes % 60;
-        if (hours <= 0)
-        {
-            return $"{minutes} phút";
-        }
-
-        return minutes == 0 ? $"{hours} giờ" : $"{hours} giờ {minutes} phút";
+        return $"{minutes:00}:{seconds:00}";
     }
 
     private List<MachineRow> ApplyStatusFilter(List<MachineRow> rows)

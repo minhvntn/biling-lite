@@ -32,6 +32,7 @@ public partial class MainWindow : Window
     private bool _isMemberSession;
     private bool _isVipSession;
     private decimal _memberBalance;
+    private int _playSeconds;
     private bool _withdrawActionEnabledSetting = true;
     private bool _topupActionEnabledSetting = true;
     private TimeSpan _usedDuration = TimeSpan.Zero;
@@ -132,12 +133,77 @@ public partial class MainWindow : Window
         }
     }
 
+    private bool _isCollapsed = false;
+
+    private void CollapseButton_Click(object sender, RoutedEventArgs e)
+    {
+        _isCollapsed = !_isCollapsed;
+        var visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        
+        ActionButtonsGrid.Visibility = visibility;
+        PromotionsContainer.Visibility = visibility;
+        FooterContainer.Visibility = visibility;
+        
+        if (_isCollapsed)
+        {
+            CollapseButtonText.Text = "Mở rộng";
+            CollapseButtonIcon.Text = "\uE76B"; // ChevronRight
+            LeftColumnGrid.Margin = new Thickness(0);
+            LeftColumnGrid.HorizontalAlignment = HorizontalAlignment.Center;
+            LeftColumnGrid.SetValue(System.Windows.Controls.Grid.ColumnSpanProperty, 2);
+            
+            if (RightColumnRankPanel.Children.Contains(MemberRankContainer))
+            {
+                RightColumnRankPanel.Children.Remove(MemberRankContainer);
+                LeftColumnRankPanel.Children.Add(MemberRankContainer);
+                MemberRankContainer.Width = 280;
+            }
+        }
+        else
+        {
+            CollapseButtonText.Text = "Thu gọn";
+            CollapseButtonIcon.Text = "\uE76C"; // ChevronLeft
+            LeftColumnGrid.Margin = new Thickness(0, 0, 15, 0);
+            LeftColumnGrid.HorizontalAlignment = HorizontalAlignment.Stretch;
+            LeftColumnGrid.SetValue(System.Windows.Controls.Grid.ColumnSpanProperty, 1);
+            
+            if (LeftColumnRankPanel.Children.Contains(MemberRankContainer))
+            {
+                LeftColumnRankPanel.Children.Remove(MemberRankContainer);
+                RightColumnRankPanel.Children.Add(MemberRankContainer);
+                MemberRankContainer.Width = double.NaN;
+            }
+        }
+    }
+
+    protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
+    {
+        base.OnRenderSizeChanged(sizeInfo);
+        
+        var workArea = SystemParameters.WorkArea;
+        // Add 20px margin from top and right edges
+        this.Left = workArea.Right - this.ActualWidth - 20;
+        this.Top = workArea.Top + 20;
+    }
+
+    private bool _isExternalInfoVisible = true;
+    public void SetExternalInfoVisibility(bool visible)
+    {
+        _isExternalInfoVisible = visible;
+        UpdateExternalInfoVisibility();
+    }
+
+    private void UpdateExternalInfoVisibility()
+    {
+        ExternalInfoPanel.Visibility = (_isExternalInfoVisible || _isVipSession) ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private void MinimizeButton_Click(object sender, RoutedEventArgs e)
     {
         WindowState = WindowState.Minimized;
     }
 
-    public void ConfigureBilling(int totalSessionMinutes, decimal hourlyRate, bool resetUsage = false, decimal? memberBalance = null)
+    public void ConfigureBilling(int totalSessionMinutes, decimal hourlyRate, bool resetUsage = false, decimal? memberBalance = null, bool isPostpaid = false, int playSeconds = 0)
     {
         var elapsedSeconds = Math.Max(0, (int)GetCurrentUsedDuration().TotalSeconds);
 
@@ -161,12 +227,15 @@ public partial class MainWindow : Window
         {
             _lastSyncMemberBalance = memberBalance.Value;
             _memberBalance = memberBalance.Value;
+            _playSeconds = playSeconds;
         }
 
         _totalSessionMinutes = Math.Max(1, totalSessionMinutes);
         _hourlyRate = hourlyRate < 0 ? 0 : hourlyRate;
 
         _usageTimer.Interval = TimeSpan.FromSeconds(1);
+
+        SetExternalInfoVisibility(isPostpaid || _isVipSession);
 
         UpdateUsageUi();
     }
@@ -301,6 +370,7 @@ public partial class MainWindow : Window
                              string.Equals(rank, "ADMIN", StringComparison.OrdinalIgnoreCase);
         _isVipSession = string.Equals(memberType, "VIP", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(rank, "VIP", StringComparison.OrdinalIgnoreCase);
+        UpdateExternalInfoVisibility();
         SetLogoutActionVisible((_isMemberSession || isAdminSession) && !_isVipSession);
         SetTransferActionVisible(_isMemberSession && !isAdminSession);
         SetWithdrawActionVisible(_withdrawActionEnabledSetting);
@@ -693,23 +763,73 @@ public partial class MainWindow : Window
         var totalMins = (int)total.TotalMinutes;
         var elapsedSeconds = Math.Max(0, (int)used.TotalSeconds);
         var hasSessionUsage = _runningStartedAtUtc is not null || _usedDuration > TimeSpan.Zero;
-        
+        var totalSecs = 0;
+        var remainingSecs = 0;
+        var usedSecs = 0;
         var usedMins = 0;
         var remainingMins = 0;
         
         if (hasSessionUsage)
         {
+            usedSecs = elapsedSeconds;
+            usedMins = (int)Math.Floor(elapsedSeconds / 60.0);
+            
             if (_isVipSession)
             {
                 totalMins = 60000; // 1000 hours
+                totalSecs = totalMins * 60;
+                remainingMins = Math.Max(0, totalMins - usedMins);
+                remainingSecs = Math.Max(0, totalSecs - usedSecs);
             }
-
-            usedMins = (int)Math.Floor(elapsedSeconds / 60.0);
-            remainingMins = Math.Max(0, totalMins - usedMins);
+            else if (_isMemberSession)
+            {
+                var pricePerMinute = _hourlyRate / 60m;
+                var balanceMinutes = pricePerMinute > 0 ? _memberBalance / pricePerMinute : 0m;
+                var playMinutes = _playSeconds / 60m;
+                var totalMinutesExact = balanceMinutes + playMinutes;
+                var usedMinutesExact = elapsedSeconds / 60d;
+                
+                totalSecs = (int)Math.Floor(totalMinutesExact * 60m);
+                remainingSecs = Math.Max(0, totalSecs - usedSecs);
+                
+                remainingMins = Math.Max(0, (int)Math.Floor(totalMinutesExact - (decimal)usedMinutesExact));
+                totalMins = remainingMins + usedMins;
+            }
+            else
+            {
+                totalSecs = totalMins * 60;
+                remainingSecs = Math.Max(0, totalSecs - usedSecs);
+                remainingMins = Math.Max(0, totalMins - usedMins);
+            }
         }
         else
         {
-            remainingMins = totalMins;
+            if (_isMemberSession && !_isVipSession)
+            {
+                var pricePerMinute = _hourlyRate / 60m;
+                var balanceMinutes = pricePerMinute > 0 ? _memberBalance / pricePerMinute : 0m;
+                var playMinutes = _playSeconds / 60m;
+                var totalMinutesExact = balanceMinutes + playMinutes;
+                
+                totalSecs = (int)Math.Floor(totalMinutesExact * 60m);
+                remainingSecs = totalSecs;
+                
+                remainingMins = Math.Max(0, (int)Math.Floor(totalMinutesExact));
+                totalMins = remainingMins;
+            }
+            else if (_isVipSession)
+            {
+                totalMins = 60000;
+                totalSecs = totalMins * 60;
+                remainingMins = totalMins;
+                remainingSecs = totalSecs;
+            }
+            else
+            {
+                totalSecs = totalMins * 60;
+                remainingMins = totalMins;
+                remainingSecs = totalSecs;
+            }
         }
 
         var billableMins = hasSessionUsage
@@ -722,9 +842,9 @@ public partial class MainWindow : Window
             ? 0m
             : (_isMemberSession ? roundedCost : Math.Max(MinimumCharge > 0 ? MinimumCharge : 1000m, roundedCost));
 
-        TotalTimeValueTextBlock.Text = FormatMinutes(totalMins);
-        UsedTimeValueTextBlock.Text = FormatMinutes(usedMins);
-        RemainingTimeValueTextBlock.Text = FormatMinutes(remainingMins);
+        TotalTimeValueTextBlock.Text = FormatSeconds(totalSecs);
+        UsedTimeValueTextBlock.Text = FormatSeconds(usedSecs);
+        RemainingTimeValueTextBlock.Text = FormatSeconds(remainingSecs);
 
         double percentage = 1.0;
         if (totalMins > 0)
@@ -814,6 +934,7 @@ public partial class MainWindow : Window
             PromotionDiscountTextBlock.Text = $"Giảm {discountPercent:0.#}% tiền giờ chơi";
             PromotionBannerBorder.Visibility = Visibility.Visible;
         }
+        UpdatePromotionsLayout();
     }
 
     public void UpdateLoyaltyMultiplier(double multiplier)
@@ -827,6 +948,27 @@ public partial class MainWindow : Window
         {
             LoyaltyPromotionBannerBorder.Visibility = Visibility.Collapsed;
         }
+        UpdatePromotionsLayout();
+    }
+
+    private void UpdatePromotionsLayout()
+    {
+        int visibleCount = 0;
+        if (PromotionBannerBorder.Visibility == Visibility.Visible) visibleCount++;
+        if (LoyaltyPromotionBannerBorder.Visibility == Visibility.Visible) visibleCount++;
+        
+        PromotionsContainer.Columns = visibleCount >= 2 ? 2 : 1;
+        
+        if (visibleCount >= 2)
+        {
+            PromotionBannerBorder.Margin = new Thickness(0, 0, 4, 8);
+            LoyaltyPromotionBannerBorder.Margin = new Thickness(4, 0, 0, 8);
+        }
+        else
+        {
+            PromotionBannerBorder.Margin = new Thickness(0, 0, 0, 8);
+            LoyaltyPromotionBannerBorder.Margin = new Thickness(0, 0, 0, 8);
+        }
     }
 
     private static string FormatMinutes(int totalMinutes)
@@ -834,6 +976,14 @@ public partial class MainWindow : Window
         var hours = totalMinutes / 60;
         var mins = totalMinutes % 60;
         return $"{hours:00}:{mins:00}";
+    }
+
+    private static string FormatSeconds(int totalSeconds)
+    {
+        var hours = totalSeconds / 3600;
+        var mins = (totalSeconds % 3600) / 60;
+        var secs = totalSeconds % 60;
+        return $"{hours:00}:{mins:00}:{secs:00}";
     }
 
     private void UpdateServiceBadgeUi()
