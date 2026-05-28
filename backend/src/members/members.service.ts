@@ -1115,7 +1115,134 @@ export class MembersService {
   }
 
   async spinLoyaltyPoints(memberId: string, payload: { createdBy?: string; note?: string }) {
-    throw new BadRequestException('Vòng quay may mắn hiện không khả dụng.');
+    const betPoints = 5;
+    const createdBy = payload.createdBy?.trim() || 'client.loyalty.spin';
+
+    const enabled = await this.getLoyaltyFeatureEnabled();
+    if (!enabled) {
+      throw new BadRequestException('Tính năng điểm tích lũy đang tắt');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const member = await tx.member.findUnique({ where: { id: memberId } });
+      if (!member) {
+        throw new NotFoundException('Không tìm thấy hội viên');
+      }
+
+      const before = await this.buildLoyaltySnapshot(memberId, tx);
+      if (before.availablePoints < betPoints) {
+        throw new BadRequestException(`Không đủ điểm. Hiện chỉ có ${before.availablePoints} điểm`);
+      }
+
+      const loyaltySettings = await this.getLoyaltySettingsItem(tx);
+      const spendSecondsPerPoint = loyaltySettings.pointsToMinutes * 60;
+
+      // 1. Deduct bet points (5 points)
+      const secondsToSpend = betPoints * spendSecondsPerPoint;
+      const spendNote = payload.note?.trim() || `LUCKY_SPIN: spend ${betPoints} points`;
+
+      if (member.memberType === 'VIP') {
+        await this.applyVipTimeDiscount(tx, memberId, -secondsToSpend, spendNote, createdBy);
+      } else {
+        await tx.member.update({
+          where: { id: memberId },
+          data: { playSeconds: { decrement: secondsToSpend } },
+        });
+        await tx.memberTransaction.create({
+          data: {
+            memberId,
+            type: MemberTransactionType.ADJUSTMENT,
+            amountDelta: 0,
+            playSecondsDelta: -secondsToSpend,
+            note: spendNote,
+            createdBy,
+          },
+        });
+      }
+
+      // Pseudo-redemption transaction to deduct Loyalty Points
+      await tx.memberTransaction.create({
+        data: {
+          memberId,
+          type: MemberTransactionType.ADJUSTMENT,
+          amountDelta: 0,
+          playSecondsDelta: secondsToSpend,
+          note: `${LOYALTY_REDEEM_NOTE_PREFIX}: ${spendNote}`,
+          createdBy: LOYALTY_REDEEM_CREATED_BY,
+        },
+      });
+
+      // 2. Roll the dice for Spin
+      const prizeTable = await this.getSpinPrizeTable(tx);
+      let wonMinutes = 0;
+      
+      const rand = Math.random() * 100;
+      let cumulativeChance = 0;
+      for (const prize of prizeTable) {
+        cumulativeChance += prize.chance;
+        if (rand <= cumulativeChance) {
+          wonMinutes = prize.minutes;
+          break;
+        }
+      }
+      
+      if (wonMinutes === 0 && prizeTable.length > 0 && rand > cumulativeChance) {
+        wonMinutes = prizeTable[0].minutes; // Fallback
+      }
+
+      // 3. Reward won minutes (Playtime)
+      if (wonMinutes > 0) {
+        const secondsToReward = wonMinutes * 60;
+        const rewardNote = `LUCKY_SPIN_WIN: won ${wonMinutes} minutes`;
+
+        if (member.memberType === 'VIP') {
+          await this.applyVipTimeDiscount(tx, memberId, secondsToReward, rewardNote, createdBy);
+        } else {
+          await tx.member.update({
+            where: { id: memberId },
+            data: { playSeconds: { increment: secondsToReward } },
+          });
+          await tx.memberTransaction.create({
+            data: {
+              memberId,
+              type: MemberTransactionType.ADJUSTMENT,
+              amountDelta: 0,
+              playSecondsDelta: secondsToReward,
+              note: rewardNote,
+              createdBy,
+            },
+          });
+        }
+      }
+
+      await tx.eventLog.create({
+        data: {
+          source: EventSource.CLIENT,
+          eventType: 'member.loyalty.spin',
+          pcId: null,
+          payload: {
+            memberId,
+            betPoints,
+            wonMinutes,
+            at: new Date().toISOString(),
+          },
+        },
+      });
+
+      const loyalty = await this.buildLoyaltySnapshot(memberId, tx);
+      const updatedMember = await tx.member.findUnique({ where: { id: memberId } });
+      const rankConfigs = await tx.loyaltyRankConfig.findMany({ orderBy: { minTopup: 'desc' } });
+
+      return {
+        wonMinutes,
+        loyalty,
+        member: this.toMemberItem(
+          updatedMember!,
+          this.calculateRankName(Number(updatedMember!.totalTopup), rankConfigs),
+          loyalty.availablePoints,
+        ),
+      };
+    });
   }
 
   async runHorseRace(memberId: string, payload: HorseRaceDto) {
@@ -1166,6 +1293,18 @@ export class MembersService {
         });
       }
 
+      // Pseudo-redemption transaction to deduct Loyalty Points
+      await tx.memberTransaction.create({
+        data: {
+          memberId,
+          type: MemberTransactionType.ADJUSTMENT,
+          amountDelta: 0,
+          playSecondsDelta: secondsToSpend,
+          note: `${LOYALTY_REDEEM_NOTE_PREFIX}: ${spendNote}`,
+          createdBy: LOYALTY_REDEEM_CREATED_BY,
+        },
+      });
+
       // 2. Roll the dice
       const horses = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
       for (let i = horses.length - 1; i > 0; i--) {
@@ -1205,6 +1344,18 @@ export class MembersService {
             },
           });
         }
+
+        // Pseudo-usage transaction to add Loyalty Points
+        await tx.memberTransaction.create({
+          data: {
+            memberId,
+            type: MemberTransactionType.ADJUSTMENT,
+            amountDelta: 0,
+            playSecondsDelta: -secondsToReward,
+            note: rewardNote,
+            createdBy: LOYALTY_USAGE_CREATED_BY,
+          },
+        });
       }
 
       await tx.eventLog.create({
@@ -1290,6 +1441,18 @@ export class MembersService {
             },
           });
         }
+
+        // Pseudo-redemption transaction to deduct Loyalty Points
+        await tx.memberTransaction.create({
+          data: {
+            memberId,
+            type: MemberTransactionType.ADJUSTMENT,
+            amountDelta: 0,
+            playSecondsDelta: secondsToSpend,
+            note: `${LOYALTY_REDEEM_NOTE_PREFIX}: ${note}`,
+            createdBy: LOYALTY_REDEEM_CREATED_BY,
+          },
+        });
       } else {
         const secondsToReward = points * earnSecondsPerPoint;
         const note = payload.note?.trim() || `${LOYALTY_PET_REWARD_NOTE_PREFIX}: reward ${points} points`;
@@ -1311,6 +1474,18 @@ export class MembersService {
             },
           });
         }
+
+        // Pseudo-usage transaction to add Loyalty Points
+        await tx.memberTransaction.create({
+          data: {
+            memberId,
+            type: MemberTransactionType.ADJUSTMENT,
+            amountDelta: 0,
+            playSecondsDelta: -secondsToReward,
+            note,
+            createdBy: LOYALTY_USAGE_CREATED_BY,
+          },
+        });
       }
 
       await tx.eventLog.create({

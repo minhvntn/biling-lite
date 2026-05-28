@@ -23,6 +23,7 @@ public partial class HorseRaceWindow : Window
     private int _availablePoints;
     
     public ObservableCollection<HorseViewModel> Horses { get; set; } = new();
+    public MemberLoyaltyItem? LoyaltyAfterRace { get; private set; }
 
     public HorseRaceWindow(HttpClient httpClient, ActiveMemberSession session, string apiBaseUrl, int availablePoints)
     {
@@ -65,6 +66,7 @@ public partial class HorseRaceWindow : Window
                 Number = $"#{i + 1}",
                 Name = horseNames[i],
                 ColorHex = colors[i],
+                ColorValue = (Color)ColorConverter.ConvertFromString(colors[i]),
                 Icon = icons[i],
                 Transform = new TranslateTransform()
             });
@@ -134,10 +136,15 @@ public partial class HorseRaceWindow : Window
                 return;
             }
 
-            _availablePoints = result.Loyalty.AvailablePoints;
+            // Deduct from UI immediately to show bet
+            AvailablePointsText.Text = (_availablePoints - betPoints).ToString("N0");
 
             // Animate
             await AnimateRace(result.FinishOrder, result.WinnerHorse);
+
+            // Update to final points from server
+            _availablePoints = result.Loyalty.AvailablePoints;
+            LoyaltyAfterRace = result.Loyalty;
 
             // Show Result
             ShowResultOverlay(result.IsWin, result.Rank, result.WonPoints, selectedHorse.Name, result.WinnerHorse);
@@ -163,39 +170,106 @@ public partial class HorseRaceWindow : Window
     private async Task AnimateRace(List<int> finishOrder, int fallbackWinnerIndex)
     {
         var random = new Random();
-        var duration = 5.0; // 5 seconds max
+        var duration = 4.0; // 4 seconds base
         
-        var trackLength = 720d; // Adjusted to span the whole canvas
+        var trackLength = 720d;
 
         if (finishOrder == null || finishOrder.Count < 10)
         {
-            // Fallback if backend returned empty array
             finishOrder = Enumerable.Range(0, 10).ToList();
             finishOrder.Remove(fallbackWinnerIndex);
             finishOrder = finishOrder.OrderBy(x => random.Next()).ToList();
             finishOrder.Insert(0, fallbackWinnerIndex);
         }
 
+        bool hasPhotoFinish = random.NextDouble() < 0.6; // 60% chance for close finish
+        
         var horseTotalSteps = new int[10];
-        for (int rank = 0; rank < 10; rank++)
+        horseTotalSteps[finishOrder[0]] = 200; // 1st place finishes at step 200
+        
+        int stepGap = hasPhotoFinish ? 4 : random.Next(12, 25);
+        horseTotalSteps[finishOrder[1]] = 200 + stepGap; // 2nd place
+        
+        for (int rank = 2; rank < 10; rank++)
         {
             var horseIdx = finishOrder[rank];
-            // Rank 0 finishes in 30 steps, rank 1 in 32... rank 9 in 48
-            horseTotalSteps[horseIdx] = 30 + (rank * 2); 
+            horseTotalSteps[horseIdx] = horseTotalSteps[finishOrder[rank - 1]] + random.Next(8, 16); 
         }
 
-        int maxSteps = 48;
-        var sleepMs = (int)(duration * 1000 / maxSteps);
+        int maxSteps = horseTotalSteps[finishOrder[9]];
+        var normalSleepMs = (int)(duration * 1000 / 200); // base speed on 1st place
+
+        int boostRank = random.Next(4, 9); // A losing horse
+        int boostHorseIdx = finishOrder[boostRank];
+        int boostStartStep = 75;
+        int boostEndStep = 140;
 
         for (int step = 1; step <= maxSteps; step++)
         {
+            int currentSleepMs = normalSleepMs;
+            bool isPhotoFinishActive = false;
+
             foreach (var horse in Horses)
             {
                 var hSteps = horseTotalSteps[horse.Index];
-                var progress = Math.Min(1.0, (double)step / hSteps);
+                
+                double p = (double)step / hSteps;
+                
+                // Boost acceleration logic
+                if (horse.Index == boostHorseIdx)
+                {
+                    if (step >= boostStartStep && step <= boostEndStep)
+                    {
+                        horse.IsBoosting = true;
+                        BoostOverlayText.Text = $"⚡ {horse.Name.ToUpper()} BOOST! ⚡";
+                        BoostOverlay.Visibility = Visibility.Visible;
+                        
+                        // Artificial speed up
+                        p += 0.08 * Math.Sin((double)(step - boostStartStep) / (boostEndStep - boostStartStep) * Math.PI);
+                    }
+                    else
+                    {
+                        horse.IsBoosting = false;
+                        if (step == boostEndStep + 1)
+                        {
+                            BoostOverlay.Visibility = Visibility.Collapsed;
+                        }
+                    }
+                }
 
-                horse.Transform.X = progress * trackLength;
-                horse.TrailWidth = progress * trackLength;
+                var progress = Math.Min(1.0, p);
+
+                // Photo Finish Trigger
+                if (horse.Index == finishOrder[0] && progress > 0.85 && progress < 1.0 && stepGap <= 6)
+                {
+                    isPhotoFinishActive = true;
+                }
+
+                if (horse.Index == finishOrder[0] && progress >= 1.0 && PhotoFinishOverlay.Visibility == Visibility.Visible)
+                {
+                    // Winner just crossed line, flash!
+                    PhotoFinishOverlay.Visibility = Visibility.Collapsed;
+                    TriggerFlashEffect();
+                }
+
+                // Make sure we never move backwards due to math
+                var newX = progress * trackLength;
+                if (newX > horse.Transform.X || step == 1)
+                {
+                    horse.Transform.X = newX;
+                    horse.TrailWidth = newX;
+                }
+
+                // Add wobble effect if still running
+                if (progress < 1.0)
+                {
+                    // Wiggles up and down by 2 pixels based on progress
+                    horse.Transform.Y = Math.Sin(progress * 40 * Math.PI) * 2;
+                }
+                else
+                {
+                    horse.Transform.Y = 0;
+                }
 
                 if (progress >= 1.0)
                 {
@@ -207,8 +281,47 @@ public partial class HorseRaceWindow : Window
                     horse.DistanceText = $"{(int)(progress * 100)}m";
                 }
             }
-            await Task.Delay(sleepMs);
+
+            if (isPhotoFinishActive)
+            {
+                PhotoFinishOverlay.Visibility = Visibility.Visible;
+                currentSleepMs = normalSleepMs * 4; // Slow motion!
+            }
+
+            // Screen Shake on Boost
+            bool anyBoosting = Horses.Any(h => h.IsBoosting);
+            if (anyBoosting)
+            {
+                MainContainerTransform.X = random.Next(-2, 3);
+                MainContainerTransform.Y = random.Next(-2, 3);
+            }
+            else
+            {
+                MainContainerTransform.X = 0;
+                MainContainerTransform.Y = 0;
+            }
+
+            await Task.Delay(currentSleepMs);
         }
+        
+        BoostOverlay.Visibility = Visibility.Collapsed;
+        PhotoFinishOverlay.Visibility = Visibility.Collapsed;
+        MainContainerTransform.X = 0;
+        MainContainerTransform.Y = 0;
+    }
+
+    private void TriggerFlashEffect()
+    {
+        FlashOverlay.Visibility = Visibility.Visible;
+        var anim = new DoubleAnimation
+        {
+            From = 1.0,
+            To = 0.0,
+            Duration = TimeSpan.FromSeconds(0.5),
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+        };
+        anim.Completed += (s, e) => FlashOverlay.Visibility = Visibility.Collapsed;
+        FlashOverlay.BeginAnimation(UIElement.OpacityProperty, anim);
     }
 
     private void ShowResultOverlay(bool isWin, int rank, int wonPoints, string selectedHorseName, int fallbackWinnerIndex)
@@ -258,6 +371,7 @@ public class HorseViewModel : INotifyPropertyChanged
     public string Number { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string ColorHex { get; set; } = string.Empty;
+    public Color ColorValue { get; set; }
     public string DisplayName => $"{Number} - {Name}";
     public string Icon { get; set; } = "🐎";
 
@@ -286,4 +400,15 @@ public class HorseViewModel : INotifyPropertyChanged
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
+    
+    private bool _isBoosting;
+    public bool IsBoosting
+    {
+        get => _isBoosting;
+        set
+        {
+            _isBoosting = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsBoosting)));
+        }
+    }
 }

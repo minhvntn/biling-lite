@@ -968,6 +968,18 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
         });
     }
 
+    private void SynchronizeLoyaltyFromServer(MemberLoyaltyItem loyalty)
+    {
+        if (loyalty == null) return;
+        Dispatcher.Invoke(() =>
+        {
+            var effectiveMinsPerPoint = loyalty.MinutesPerPoint > 0 
+                ? loyalty.MinutesPerPoint 
+                : 60;
+            _mainWindow?.SetLoyaltyProgress(loyalty.AvailablePoints, loyalty.ProgressMinutes, effectiveMinsPerPoint);
+        });
+    }
+
     private static bool TryReadDecimal(JsonElement element, out decimal value)
     {
         if (element.ValueKind == JsonValueKind.Number &&
@@ -4278,6 +4290,7 @@ LIMIT $limit;";
                 if (payload?.Loyalty is not null)
                 {
                     currentLoyalty = payload.Loyalty;
+                    SynchronizeLoyaltyFromServer(payload.Loyalty);
                 }
 
                 dailyCheckin = payload?.DailyCheckin ?? dailyCheckin;
@@ -4345,6 +4358,7 @@ LIMIT $limit;";
                     {
                         var usedSecondsNow = _mainWindow?.GetUsedSeconds() ?? 0;
                         SynchronizeMemberBillingFromServer(payload.Member, usedSecondsNow);
+                        if (payload.Loyalty != null) SynchronizeLoyaltyFromServer(payload.Loyalty);
                         _mainWindow?.SetLastCommand(
                             $"Đổi điểm {redeemPoints} @ {DateTime.Now:HH:mm:ss}");
                         _lastSyncedMemberUsedSeconds = usedSecondsNow;
@@ -4708,6 +4722,7 @@ LIMIT $limit;";
                     {
                         var usedSecondsNow = _mainWindow?.GetUsedSeconds() ?? 0;
                         SynchronizeMemberBillingFromServer(payload.Member, usedSecondsNow);
+                        if (payload.Loyalty != null) SynchronizeLoyaltyFromServer(payload.Loyalty);
                         _mainWindow?.SetLastCommand($"QUAY THƯỞNG: +{payload.WonMinutes}m @ {DateTime.Now:HH:mm:ss}");
                         _lastSyncedMemberUsedSeconds = usedSecondsNow;
                     });
@@ -5182,6 +5197,7 @@ LIMIT $limit;";
                     {
                         var usedSecondsNow = _mainWindow?.GetUsedSeconds() ?? 0;
                         SynchronizeMemberBillingFromServer(payload.Member, usedSecondsNow);
+                        if (payload.Loyalty != null) SynchronizeLoyaltyFromServer(payload.Loyalty);
                         _mainWindow?.SetLastCommand($"QUAY THƯỞNG: +{payload.WonMinutes}m @ {DateTime.Now:HH:mm:ss}");
                         _lastSyncedMemberUsedSeconds = usedSecondsNow;
                     });
@@ -5311,6 +5327,11 @@ LIMIT $limit;";
             Owner = _mainWindow
         };
         window.ShowDialog();
+        
+        if (window.LoyaltyAfterRace != null)
+        {
+            SynchronizeLoyaltyFromServer(window.LoyaltyAfterRace);
+        }
     }
 
     private void LockMachine(bool force)

@@ -19,7 +19,10 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="20">
+    <Grid Margin="20" x:Name="MainContainer">
+        <Grid.RenderTransform>
+            <TranslateTransform x:Name="MainContainerTransform" />
+        </Grid.RenderTransform>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -42,7 +45,23 @@
             <ItemsControl x:Name="TracksItemsControl">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Background="#0F172A" CornerRadius="8" Margin="0,0,0,6" Padding="12,6">
+                        <Border CornerRadius="8" Margin="0,0,0,3" Padding="10,4">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="#0F172A"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsBoosting}" Value="True">
+                                            <!-- Turbo Lane Border Glow -->
+                                            <Setter Property="Background" Value="#1E1B4B"/>
+                                            <Setter Property="Effect">
+                                                <Setter.Value>
+                                                    <DropShadowEffect Color="{Binding ColorValue}" BlurRadius="15" ShadowDepth="0" Opacity="0.8"/>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="140"/>
@@ -55,20 +74,51 @@
                                     <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center"/>
                                 </StackPanel>
 
-                                <Canvas Grid.Column="1" Height="36" Margin="10,0" ClipToBounds="True" Background="#1E293B" x:Name="TrackCanvas">
+                                <Canvas Grid.Column="1" Height="32" Margin="10,0" ClipToBounds="True" x:Name="TrackCanvas">
+                                    <Canvas.Style>
+                                        <Style TargetType="Canvas">
+                                            <Setter Property="Background" Value="#1E293B"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsBoosting}" Value="True">
+                                                    <!-- Turbo Lane Glow -->
+                                                    <Setter Property="Background" Value="#312E81"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Canvas.Style>
                                     <!-- Finish Line -->
-                                    <Border Width="6" Height="36" Background="#EF4444" Canvas.Right="0"/>
+                                    <Border Width="6" Height="32" Background="#EF4444" Canvas.Right="0"/>
                                     
                                     <!-- Trail -->
-                                    <Border Height="3" Background="{Binding ColorHex}" Canvas.Top="18" Width="{Binding TrailWidth}" CornerRadius="1.5">
+                                    <Border Height="3" Canvas.Top="16" Width="{Binding TrailWidth}" CornerRadius="1.5">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                                <GradientStop Color="#00000000" Offset="0"/>
+                                                <GradientStop Color="{Binding ColorValue}" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
                                         <Border.Effect>
-                                            <DropShadowEffect Color="{Binding ColorHex}" BlurRadius="8" ShadowDepth="0"/>
+                                            <DropShadowEffect Color="{Binding ColorValue}" BlurRadius="8" ShadowDepth="0"/>
                                         </Border.Effect>
                                     </Border>
                                     
                                     <!-- Horse -->
                                     <TextBlock Text="{Binding Icon}" FontSize="30" Canvas.Top="-5" 
-                                               RenderTransform="{Binding Transform}" x:Name="HorseIcon"/>
+                                               RenderTransform="{Binding Transform}" x:Name="HorseIcon">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsBoosting}" Value="True">
+                                                        <Setter Property="Effect">
+                                                            <Setter.Value>
+                                                                <DropShadowEffect Color="White" BlurRadius="20" ShadowDepth="0" Opacity="1"/>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                 </Canvas>
 
                                 <TextBlock Grid.Column="2" Text="{Binding DistanceText}" FontWeight="SemiBold" 
@@ -165,7 +215,27 @@
                 </Button>
             </Grid>
         </Border>
-        
+        <!-- Race Overlays -->
+        <Border x:Name="FlashOverlay" Grid.RowSpan="4" Background="White" Opacity="0" Visibility="Collapsed" IsHitTestVisible="False"/>
+
+        <Border x:Name="PhotoFinishOverlay" Grid.RowSpan="4" Background="#80000000" Visibility="Collapsed" IsHitTestVisible="False">
+            <TextBlock Text="📷 PHOTO FINISH 📷" FontSize="60" FontWeight="Black" Foreground="#FACC15" 
+                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock.Effect>
+                    <DropShadowEffect Color="#FACC15" BlurRadius="20" ShadowDepth="0"/>
+                </TextBlock.Effect>
+            </TextBlock>
+        </Border>
+
+        <Border x:Name="BoostOverlay" Grid.RowSpan="4" Visibility="Collapsed" IsHitTestVisible="False" VerticalAlignment="Center" Margin="0,150,0,0">
+            <TextBlock x:Name="BoostOverlayText" Text="⚡ H5 BOOST! ⚡" FontSize="48" FontWeight="Black" Foreground="#10B981" 
+                       HorizontalAlignment="Center">
+                <TextBlock.Effect>
+                    <DropShadowEffect Color="#10B981" BlurRadius="15" ShadowDepth="0"/>
+                </TextBlock.Effect>
+            </TextBlock>
+        </Border>
+
         <!-- Result Overlay -->
         <Border x:Name="ResultOverlay" Grid.RowSpan="4" Background="#D80F172A" Visibility="Collapsed">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
