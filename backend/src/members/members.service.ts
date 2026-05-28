@@ -42,6 +42,7 @@ const LOYALTY_CONFIG_KEY = '__LOYALTY_MEMBER_POINTS__';
 const LOYALTY_MINUTES_PER_POINT = 15;
 const LOYALTY_POINTS_TO_MINUTES = 1;
 const LOYALTY_MINUTES_PER_POINT_SETTING_KEY = '__LOYALTY_MINUTES_PER_POINT__';
+const LOYALTY_LOWEST_RANK_MINUTES_PER_POINT_SETTING_KEY = '__LOYALTY_LOWEST_RANK_MINUTES_PER_POINT__';
 const LOYALTY_POINTS_TO_MINUTES_SETTING_KEY = '__LOYALTY_POINTS_TO_MINUTES__';
 const LOYALTY_WEEKDAY_MULTIPLIER_SETTING_KEY = '__LOYALTY_WEEKDAY_MULTIPLIER__';
 const LOYALTY_WEEKEND_MULTIPLIER_SETTING_KEY = '__LOYALTY_WEEKEND_MULTIPLIER__';
@@ -745,6 +746,18 @@ export class MembersService {
         });
 
         await this.syncLoyaltyRankMinutesPerPoint(tx, sanitizedMinutesPerPoint);
+      }
+
+      if (payload.lowestRankMinutesPerPoint !== undefined) {
+        const sanitizedLowest = Math.max(
+          1,
+          Math.floor(payload.lowestRankMinutesPerPoint),
+        );
+        await tx.appSetting.upsert({
+          where: { key: LOYALTY_LOWEST_RANK_MINUTES_PER_POINT_SETTING_KEY },
+          update: { value: sanitizedLowest.toString() },
+          create: { key: LOYALTY_LOWEST_RANK_MINUTES_PER_POINT_SETTING_KEY, value: sanitizedLowest.toString() },
+        });
       }
 
       if (sanitizedPointsToMinutes !== undefined) {
@@ -2605,10 +2618,10 @@ export class MembersService {
     const totalRanks = categories.length * tiersPerCategory;
 
     const loyaltySettings = await this.getLoyaltySettingsItem();
-    // Highest rank must follow current loyalty setting (e.g. 20 mins = 1 point).
     const endMinutes = Math.max(1, Math.floor(loyaltySettings.minutesPerPoint));
-    // Keep the original 10x range behavior while making it dynamic.
-    const startMinutes = endMinutes * 10;
+    const startMinutes = loyaltySettings.lowestRankMinutesPerPoint > 0 
+      ? Math.max(1, Math.floor(loyaltySettings.lowestRankMinutesPerPoint)) 
+      : endMinutes * 10;
     const startBonus = 0;
     const endBonus = 100;
 
@@ -2660,8 +2673,11 @@ export class MembersService {
       return;
     }
 
+    const loyaltySettings = await this.getLoyaltySettingsItem(tx);
     const endMinutes = Math.max(1, Math.floor(baseMinutesPerPoint));
-    const startMinutes = endMinutes * 10;
+    const startMinutes = loyaltySettings.lowestRankMinutesPerPoint > 0 
+      ? Math.max(1, Math.floor(loyaltySettings.lowestRankMinutesPerPoint)) 
+      : endMinutes * 10;
     const denominator = Math.max(1, ranks.length - 1);
 
     for (let i = 0; i < ranks.length; i++) {
@@ -2682,6 +2698,7 @@ export class MembersService {
   ): Promise<{
     enabled: boolean;
     minutesPerPoint: number;
+    lowestRankMinutesPerPoint: number;
     pointsToMinutes: number;
     weekdayMultiplier: number;
     weekendMultiplier: number;
@@ -2689,12 +2706,15 @@ export class MembersService {
     updatedAt: string;
   }> {
     const prisma = tx ?? this.prisma;
-    const [config, minutesSetting, redeemSetting, weekdaySetting, weekendSetting] = await Promise.all([
+    const [config, minutesSetting, lowestRankSetting, redeemSetting, weekdaySetting, weekendSetting] = await Promise.all([
       prisma.pricingConfig.findUnique({
         where: { name: LOYALTY_CONFIG_KEY },
       }),
       prisma.appSetting.findUnique({
         where: { key: LOYALTY_MINUTES_PER_POINT_SETTING_KEY },
+      }),
+      prisma.appSetting.findUnique({
+        where: { key: LOYALTY_LOWEST_RANK_MINUTES_PER_POINT_SETTING_KEY },
       }),
       prisma.appSetting.findUnique({
         where: { key: LOYALTY_POINTS_TO_MINUTES_SETTING_KEY },
@@ -2710,6 +2730,10 @@ export class MembersService {
     const minutesPerPoint = this.parseLoyaltyRateSetting(
       minutesSetting?.value,
       LOYALTY_MINUTES_PER_POINT,
+    );
+    const lowestRankMinutesPerPoint = this.parseLoyaltyRateSetting(
+      lowestRankSetting?.value,
+      0, // Using 0 as fallback indicates it's not set
     );
     const pointsToMinutes = this.parseLoyaltyRateSetting(
       redeemSetting?.value,
@@ -2730,6 +2754,7 @@ export class MembersService {
     const updatedAtCandidates = [
       config?.updatedAt,
       minutesSetting?.updatedAt,
+      lowestRankSetting?.updatedAt,
       redeemSetting?.updatedAt,
       weekdaySetting?.updatedAt,
       weekendSetting?.updatedAt,
@@ -2744,6 +2769,7 @@ export class MembersService {
     return {
       enabled: config?.isActive ?? true,
       minutesPerPoint,
+      lowestRankMinutesPerPoint,
       pointsToMinutes,
       weekdayMultiplier,
       weekendMultiplier,

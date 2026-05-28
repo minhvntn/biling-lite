@@ -988,6 +988,9 @@ public partial class MainWindow : Window
 
             LoyaltyPointsEnabledCheckBox.IsChecked = response.Enabled;
             LoyaltyMinutesPerPointTextBox.Text = Math.Max(1, response.MinutesPerPoint).ToString(CultureInfo.InvariantCulture);
+            // Default 0 implies it was not set previously, so fallback in UI to 10x
+            var lowestVal = response.LowestRankMinutesPerPoint > 0 ? response.LowestRankMinutesPerPoint : response.MinutesPerPoint * 10;
+            LoyaltyLowestRankMinutesPerPointTextBox.Text = Math.Max(1, lowestVal).ToString(CultureInfo.InvariantCulture);
             LoyaltyPointsToMinutesTextBox.Text = Math.Max(1, response.PointsToMinutes).ToString(CultureInfo.InvariantCulture);
             LoyaltyWeekdayMultiplierTextBox.Text = response.WeekdayMultiplier.ToString(CultureInfo.InvariantCulture);
             LoyaltyWeekendMultiplierTextBox.Text = response.WeekendMultiplier.ToString(CultureInfo.InvariantCulture);
@@ -1014,7 +1017,14 @@ public partial class MainWindow : Window
         var enabled = LoyaltyPointsEnabledCheckBox.IsChecked == true;
         if (!TryParsePositiveInt(LoyaltyMinutesPerPointTextBox.Text.Trim(), out var minutesPerPoint))
         {
-            LoyaltySettingsStatusTextBlock.Text = "Số phút tích lũy / điểm không hợp lệ (phải là số nguyên >= 1).";
+            LoyaltySettingsStatusTextBlock.Text = "Số phút tích lũy / điểm (Cao nhất) không hợp lệ (phải là số nguyên >= 1).";
+            LoyaltySettingsStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        if (!TryParsePositiveInt(LoyaltyLowestRankMinutesPerPointTextBox.Text.Trim(), out var lowestRankMinutesPerPoint))
+        {
+            LoyaltySettingsStatusTextBlock.Text = "Số phút tích lũy / điểm (Thấp nhất) không hợp lệ (phải là số nguyên >= 1).";
             LoyaltySettingsStatusTextBlock.Foreground = Brushes.Firebrick;
             return;
         }
@@ -1054,6 +1064,7 @@ public partial class MainWindow : Window
                 {
                     enabled,
                     minutesPerPoint,
+                    lowestRankMinutesPerPoint,
                     pointsToMinutes,
                     weekdayMultiplier,
                     weekendMultiplier,
@@ -1070,11 +1081,13 @@ public partial class MainWindow : Window
 
             var payload = await response.Content.ReadFromJsonAsync<LoyaltySettingsResponse>(JsonOptions());
             var effectiveMinutesPerPoint = payload?.MinutesPerPoint ?? minutesPerPoint;
+            var effectiveLowestRankMinutesPerPoint = payload?.LowestRankMinutesPerPoint > 0 ? payload.LowestRankMinutesPerPoint : effectiveMinutesPerPoint * 10;
             var effectivePointsToMinutes = payload?.PointsToMinutes ?? pointsToMinutes;
             var effectiveWeekdayMultiplier = payload?.WeekdayMultiplier ?? weekdayMultiplier;
             var effectiveWeekendMultiplier = payload?.WeekendMultiplier ?? weekendMultiplier;
 
             LoyaltyMinutesPerPointTextBox.Text = effectiveMinutesPerPoint.ToString(CultureInfo.InvariantCulture);
+            LoyaltyLowestRankMinutesPerPointTextBox.Text = effectiveLowestRankMinutesPerPoint.ToString(CultureInfo.InvariantCulture);
             LoyaltyPointsToMinutesTextBox.Text = effectivePointsToMinutes.ToString(CultureInfo.InvariantCulture);
             LoyaltyWeekdayMultiplierTextBox.Text = effectiveWeekdayMultiplier.ToString(CultureInfo.InvariantCulture);
             LoyaltyWeekendMultiplierTextBox.Text = effectiveWeekendMultiplier.ToString(CultureInfo.InvariantCulture);

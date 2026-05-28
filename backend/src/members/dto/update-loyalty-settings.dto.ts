@@ -21,6 +21,15 @@ export class UpdateLoyaltySettingsDto {
   @IsInt()
   @Min(1)
   @Max(10000)
+  lowestRankMinutesPerPoint?: number;
+
+  @IsOptional()
+  @Transform(({ value }: { value?: unknown }) =>
+    value === undefined || value === null || value === '' ? undefined : Number(value),
+  )
+  @IsInt()
+  @Min(1)
+  @Max(10000)
   pointsToMinutes?: number;
 
   @IsOptional()

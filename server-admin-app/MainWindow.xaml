@@ -3273,8 +3273,25 @@
                                                 <TextBlock Grid.Column="0"
                                                            VerticalAlignment="Center"
                                                            Foreground="#334155"
-                                                           Text="Số phút tích lũy / 1 điểm:" />
+                                                           Text="Số phút tích lũy / 1 điểm (Cao nhất):" />
                                                 <TextBox x:Name="LoyaltyMinutesPerPointTextBox"
+                                                         Grid.Column="1"
+                                                         Width="140"
+                                                         Height="30"
+                                                         HorizontalAlignment="Left"
+                                                         VerticalContentAlignment="Center"
+                                                         TextChanged="LoyaltyRateTextBox_TextChanged" />
+                                            </Grid>
+                                            <Grid Margin="0,8,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="280" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="#334155"
+                                                           Text="Số phút tích lũy / 1 điểm (Thấp nhất):" />
+                                                <TextBox x:Name="LoyaltyLowestRankMinutesPerPointTextBox"
                                                          Grid.Column="1"
                                                          Width="140"
                                                          Height="30"

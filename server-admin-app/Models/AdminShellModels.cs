@@ -214,6 +214,7 @@ public sealed class LoyaltySettingsResponse
 {
     public bool Enabled { get; set; }
     public int MinutesPerPoint { get; set; }
+    public int LowestRankMinutesPerPoint { get; set; }
     public int PointsToMinutes { get; set; }
     public double WeekdayMultiplier { get; set; }
     public double WeekendMultiplier { get; set; }
