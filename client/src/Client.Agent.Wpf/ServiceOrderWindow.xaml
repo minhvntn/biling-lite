@@ -32,12 +32,16 @@
 
         <!-- Service Item Card Style -->
         <DataTemplate x:Key="ServiceItemCardTemplate">
-            <Border Height="260" Margin="8" CornerRadius="12" 
-                    Background="#E6FFFFFF" BorderBrush="#20000000" BorderThickness="1">
-                <Border.Effect>
-                    <DropShadowEffect Color="#000000" Opacity="0.08" BlurRadius="10" Direction="270" ShadowDepth="4" />
-                </Border.Effect>
-                <Grid>
+            <Grid Height="260" Margin="8">
+                <!-- Shadow layer -->
+                <Border CornerRadius="12" Background="#E6FFFFFF">
+                    <Border.Effect>
+                        <DropShadowEffect Color="#000000" Opacity="0.08" BlurRadius="10" Direction="270" ShadowDepth="4" />
+                    </Border.Effect>
+                </Border>
+                <!-- Content layer -->
+                <Border CornerRadius="12" Background="#E6FFFFFF" BorderBrush="#20000000" BorderThickness="1">
+                    <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="120"/>
                         <RowDefinition Height="Auto"/>
@@ -112,35 +116,42 @@
                             </Button>
                         </Grid>
                     </Border>
-                </Grid>
-            </Border>
+                    </Grid>
+                </Border>
+            </Grid>
         </DataTemplate>
     </Window.Resources>
 
-    <!-- Main Glassmorphism Border -->
-    <Border CornerRadius="16" BorderBrush="#80FFFFFF" BorderThickness="1.5">
-        <Border.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                <GradientStop x:Name="BgStop1" Color="#FFF0F8FF" Offset="0.0" />
-                <GradientStop x:Name="BgStop2" Color="#FFE6FAFF" Offset="0.5" />
-                <GradientStop x:Name="BgStop3" Color="#FFF0FFF0" Offset="1.0" />
-            </LinearGradientBrush>
-        </Border.Background>
-        <Border.Triggers>
-            <EventTrigger RoutedEvent="FrameworkElement.Loaded">
-                <BeginStoryboard>
-                    <Storyboard RepeatBehavior="Forever" AutoReverse="True">
-                        <ColorAnimation Storyboard.TargetName="BgStop1" Storyboard.TargetProperty="Color" To="#FFFFE4E1" Duration="0:0:6" />
-                        <ColorAnimation Storyboard.TargetName="BgStop2" Storyboard.TargetProperty="Color" To="#FFF0FFFF" Duration="0:0:8" />
-                        <ColorAnimation Storyboard.TargetName="BgStop3" Storyboard.TargetProperty="Color" To="#FFFFF0F5" Duration="0:0:7" />
-                    </Storyboard>
-                </BeginStoryboard>
-            </EventTrigger>
-        </Border.Triggers>
-        <Border.Effect>
-            <DropShadowEffect Color="#000000" Opacity="0.15" BlurRadius="25" ShadowDepth="10" />
-        </Border.Effect>
-        <Grid>
+    <!-- Main Window Content Container -->
+    <Grid>
+        <!-- Shadow Layer -->
+        <Border CornerRadius="16" Background="White">
+            <Border.Effect>
+                <DropShadowEffect Color="#000000" Opacity="0.15" BlurRadius="25" ShadowDepth="10" />
+            </Border.Effect>
+        </Border>
+
+        <!-- Main Glassmorphism Content -->
+        <Border CornerRadius="16" BorderBrush="#80FFFFFF" BorderThickness="1.5">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop x:Name="BgStop1" Color="#FFF0F8FF" Offset="0.0" />
+                    <GradientStop x:Name="BgStop2" Color="#FFE6FAFF" Offset="0.5" />
+                    <GradientStop x:Name="BgStop3" Color="#FFF0FFF0" Offset="1.0" />
+                </LinearGradientBrush>
+            </Border.Background>
+            <Border.Triggers>
+                <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                    <BeginStoryboard>
+                        <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                            <ColorAnimation Storyboard.TargetName="BgStop1" Storyboard.TargetProperty="Color" To="#FFFFE4E1" Duration="0:0:6" />
+                            <ColorAnimation Storyboard.TargetName="BgStop2" Storyboard.TargetProperty="Color" To="#FFF0FFFF" Duration="0:0:8" />
+                            <ColorAnimation Storyboard.TargetName="BgStop3" Storyboard.TargetProperty="Color" To="#FFFFF0F5" Duration="0:0:7" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </EventTrigger>
+            </Border.Triggers>
+            <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -231,4 +242,5 @@
             </Border>
         </Grid>
     </Border>
+</Grid>
 </Window>

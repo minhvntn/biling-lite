@@ -516,14 +516,8 @@ public partial class MainWindow : Window
     {
         var hours = totalSeconds / 3600;
         var minutes = (totalSeconds % 3600) / 60;
-        var seconds = totalSeconds % 60;
 
-        if (hours > 0)
-        {
-            return $"{hours:00}:{minutes:00}:{seconds:00}";
-        }
-
-        return $"{minutes:00}:{seconds:00}";
+        return $"{hours:00}:{minutes:00}";
     }
 
     private List<MachineRow> ApplyStatusFilter(List<MachineRow> rows)

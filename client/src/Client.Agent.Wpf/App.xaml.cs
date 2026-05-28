@@ -1085,7 +1085,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
         }
 
         return response.Items
-            .Where(x => x.IsActive)
+            .Where(x => x.IsActive && !decimal.TryParse(x.Name?.Trim(), out _))
             .OrderBy(x => string.IsNullOrWhiteSpace(x.Category) ? "-" : x.Category, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();

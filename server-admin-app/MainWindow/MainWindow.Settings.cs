@@ -164,14 +164,8 @@ public partial class MainWindow : Window
     {
         var hours = elapsedSeconds / 3600;
         var minutes = (elapsedSeconds % 3600) / 60;
-        var seconds = elapsedSeconds % 60;
 
-        if (hours > 0)
-        {
-            return $"{hours:00}:{minutes:00}:{seconds:00}";
-        }
-
-        return $"{minutes:00}:{seconds:00}";
+        return $"{hours:00}:{minutes:00}";
     }
 
     private static decimal ParseMoney(string moneyText)

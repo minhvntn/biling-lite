@@ -158,6 +158,13 @@ public partial class MainWindow : Window
                 LeftColumnRankPanel.Children.Add(MemberRankContainer);
                 MemberRankContainer.Width = 280;
             }
+            if (HeaderGrid.Children.Contains(UserInfoPanel))
+            {
+                HeaderGrid.Children.Remove(UserInfoPanel);
+                LeftColumnRankPanel.Children.Insert(0, UserInfoPanel);
+                UserInfoPanel.Margin = new Thickness(0, 0, 0, 15);
+                UserInfoPanel.HorizontalAlignment = HorizontalAlignment.Center;
+            }
         }
         else
         {
@@ -172,6 +179,14 @@ public partial class MainWindow : Window
                 LeftColumnRankPanel.Children.Remove(MemberRankContainer);
                 RightColumnRankPanel.Children.Add(MemberRankContainer);
                 MemberRankContainer.Width = double.NaN;
+            }
+            if (LeftColumnRankPanel.Children.Contains(UserInfoPanel))
+            {
+                LeftColumnRankPanel.Children.Remove(UserInfoPanel);
+                HeaderGrid.Children.Add(UserInfoPanel);
+                System.Windows.Controls.Grid.SetColumn(UserInfoPanel, 1);
+                UserInfoPanel.Margin = new Thickness(0, 0, 20, 0);
+                UserInfoPanel.HorizontalAlignment = HorizontalAlignment.Stretch;
             }
         }
     }
@@ -358,9 +373,20 @@ public partial class MainWindow : Window
         LastCommandTextBlock.Text = $"Lệnh gần nhất: {value}";
     }
 
-    public void SetLoyaltyPoints(int points)
+    public void SetLoyaltyProgress(int points, double progressMinutes, int minutesPerPoint)
     {
-        MemberPointsTextBlock.Text = $"{points:N0} điểm";
+        MemberPointsTextBlock.Text = $"Điểm: {points:N0} | {progressMinutes:0.##}/{minutesPerPoint} phút";
+        MemberPointsTextBlock.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1D4ED8"));
+
+        LoyaltyProgressContainer.Visibility = Visibility.Visible;
+        FooterTitleTextBlock.Text = "Loyalty Program";
+
+        if (minutesPerPoint > 0)
+        {
+            double pct = Math.Clamp(progressMinutes / minutesPerPoint, 0.0, 1.0);
+            LoyaltyProgressFilled.Width = new GridLength(pct, GridUnitType.Star);
+            LoyaltyProgressEmpty.Width = new GridLength(1.0 - pct, GridUnitType.Star);
+        }
     }
 
     public void SetMemberInfo(string? username, string? rank, string? memberType = null)
@@ -375,6 +401,10 @@ public partial class MainWindow : Window
         SetTransferActionVisible(_isMemberSession && !isAdminSession);
         SetWithdrawActionVisible(_withdrawActionEnabledSetting);
         SetTopupRequestActionVisible(_topupActionEnabledSetting);
+        LoyaltyActionButton.Visibility = _isMemberSession ? Visibility.Visible : Visibility.Collapsed;
+        PasswordActionButton.Visibility = _isMemberSession ? Visibility.Visible : Visibility.Collapsed;
+        FooterContainer.Visibility = _isMemberSession ? Visibility.Visible : Visibility.Collapsed;
+        UpdateActionButtonsLayout();
         if (string.IsNullOrWhiteSpace(username))
         {
             UserInfoPanel.Visibility = Visibility.Collapsed;
@@ -509,12 +539,7 @@ public partial class MainWindow : Window
         MemberRankIconBadgeBorder.Background = (Brush)bc.ConvertFromString(bgColor)!;
         MemberRankIconBadgeBorder.BorderBrush = (Brush)bc.ConvertFromString(bgColor)!;
         ApplyRankIcon(rankIconAsset, rankIcon);
-        if (MemberRankShadow.Effect is DropShadowEffect glow)
-        {
-            var glowColor = (Color)ColorConverter.ConvertFromString(fgColor);
-            glowColor.A = 120;
-            glow.Color = glowColor;
-        }
+        // Shadow effect removed to fix text blur
         ApplyRankPulseAnimation(shouldPulse);
         UpdateUsageUi();
     }
@@ -581,28 +606,7 @@ public partial class MainWindow : Window
 
     private void ApplyRankPulseAnimation(bool shouldPulse)
     {
-        if (MemberRankShadow.Effect is not DropShadowEffect glow)
-        {
-            return;
-        }
-
-        if (!shouldPulse)
-        {
-            glow.BeginAnimation(DropShadowEffect.OpacityProperty, null);
-            glow.Opacity = 0.65;
-            return;
-        }
-
-        var pulseAnimation = new DoubleAnimation
-        {
-            From = 0.45,
-            To = 1.0,
-            Duration = TimeSpan.FromMilliseconds(900),
-            AutoReverse = true,
-            RepeatBehavior = RepeatBehavior.Forever,
-            EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
-        };
-        glow.BeginAnimation(DropShadowEffect.OpacityProperty, pulseAnimation);
+        // Pulse animation removed due to shadow effect removal
     }
 
     private static string NormalizeRankKey(string value)
@@ -632,6 +636,7 @@ public partial class MainWindow : Window
         }
 
         LogoutActionButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        UpdateActionButtonsLayout();
     }
 
     public void SetTransferActionVisible(bool visible)
@@ -642,6 +647,7 @@ public partial class MainWindow : Window
         }
 
         TransferActionButton.Visibility = (visible && !_isVipSession) ? Visibility.Visible : Visibility.Collapsed;
+        UpdateActionButtonsLayout();
     }
 
     public void SetWithdrawActionVisible(bool visible)
@@ -652,7 +658,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        WithdrawActionButton.Visibility = (visible && !_isVipSession) ? Visibility.Visible : Visibility.Collapsed;
+        WithdrawActionButton.Visibility = (visible && _isMemberSession && !_isVipSession) ? Visibility.Visible : Visibility.Collapsed;
+        UpdateActionButtonsLayout();
     }
 
     public void SetTopupRequestActionVisible(bool visible)
@@ -663,7 +670,22 @@ public partial class MainWindow : Window
             return;
         }
 
-        TopupRequestActionButton.Visibility = (visible && !_isVipSession) ? Visibility.Visible : Visibility.Collapsed;
+        TopupRequestActionButton.Visibility = (visible && _isMemberSession && !_isVipSession) ? Visibility.Visible : Visibility.Collapsed;
+        UpdateActionButtonsLayout();
+    }
+
+    private void UpdateActionButtonsLayout()
+    {
+        if (ActionButtonsGrid is null) return;
+        int visibleCount = 0;
+        foreach (System.Windows.UIElement child in ActionButtonsGrid.Children)
+        {
+            if (child.Visibility == System.Windows.Visibility.Visible)
+            {
+                visibleCount++;
+            }
+        }
+        ActionButtonsGrid.Columns = visibleCount < 4 ? 1 : 3;
     }
 
     public void AllowShutdown()
@@ -927,19 +949,29 @@ public partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(promotionName))
         {
             PromotionBannerBorder.Visibility = Visibility.Collapsed;
+            GuestPromotionBannerBorder.Visibility = Visibility.Collapsed;
         }
         else
         {
-            PromotionNameTextBlock.Text = promotionName;
-            PromotionDiscountTextBlock.Text = $"Giảm {discountPercent:0.#}% tiền giờ chơi";
-            PromotionBannerBorder.Visibility = Visibility.Visible;
+            if (!_isMemberSession)
+            {
+                PromotionBannerBorder.Visibility = Visibility.Collapsed;
+                GuestPromotionBannerBorder.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                PromotionNameTextBlock.Text = promotionName;
+                PromotionDiscountTextBlock.Text = $"Giảm {discountPercent:0.#}% tiền giờ chơi";
+                PromotionBannerBorder.Visibility = Visibility.Visible;
+                GuestPromotionBannerBorder.Visibility = Visibility.Collapsed;
+            }
         }
         UpdatePromotionsLayout();
     }
 
     public void UpdateLoyaltyMultiplier(double multiplier)
     {
-        if (multiplier > 1.0)
+        if (multiplier > 1.0 && _isMemberSession)
         {
             LoyaltyPromotionDiscountTextBlock.Text = $"Hệ số nhân điểm: x{multiplier:0.##}";
             LoyaltyPromotionBannerBorder.Visibility = Visibility.Visible;
@@ -956,17 +988,20 @@ public partial class MainWindow : Window
         int visibleCount = 0;
         if (PromotionBannerBorder.Visibility == Visibility.Visible) visibleCount++;
         if (LoyaltyPromotionBannerBorder.Visibility == Visibility.Visible) visibleCount++;
+        if (GuestPromotionBannerBorder.Visibility == Visibility.Visible) visibleCount++;
         
         PromotionsContainer.Columns = visibleCount >= 2 ? 2 : 1;
         
         if (visibleCount >= 2)
         {
             PromotionBannerBorder.Margin = new Thickness(0, 0, 4, 8);
+            GuestPromotionBannerBorder.Margin = new Thickness(0, 0, 4, 8);
             LoyaltyPromotionBannerBorder.Margin = new Thickness(4, 0, 0, 8);
         }
         else
         {
             PromotionBannerBorder.Margin = new Thickness(0, 0, 0, 8);
+            GuestPromotionBannerBorder.Margin = new Thickness(0, 0, 0, 8);
             LoyaltyPromotionBannerBorder.Margin = new Thickness(0, 0, 0, 8);
         }
     }
@@ -982,8 +1017,7 @@ public partial class MainWindow : Window
     {
         var hours = totalSeconds / 3600;
         var mins = (totalSeconds % 3600) / 60;
-        var secs = totalSeconds % 60;
-        return $"{hours:00}:{mins:00}:{secs:00}";
+        return $"{hours:00}:{mins:00}";
     }
 
     private void UpdateServiceBadgeUi()

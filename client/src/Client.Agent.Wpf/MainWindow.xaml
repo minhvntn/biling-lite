@@ -117,7 +117,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- HEADER -->
-                <Grid Grid.Row="0" Margin="0,0,0,25">
+                <Grid x:Name="HeaderGrid" Grid.Row="0" Margin="0,0,0,25">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
@@ -136,9 +136,6 @@
 
                     <!-- User Badge -->
                     <Border Grid.Column="1" x:Name="UserInfoPanel" Background="#60FFFFFF" BorderBrush="#80FFFFFF" BorderThickness="1.5" CornerRadius="20" Padding="8,4,16,4" Margin="0,0,20,0" VerticalAlignment="Center">
-                        <Border.Effect>
-                            <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="0" Opacity="0.05" />
-                        </Border.Effect>
                         <StackPanel Orientation="Horizontal">
                             <Ellipse Width="32" Height="32" Margin="0,0,10,0">
                                 <Ellipse.Fill>
@@ -159,9 +156,6 @@
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
                                     <Border x:Name="BgBorder" Background="#50FFFFFF" BorderBrush="#99FFFFFF" BorderThickness="1.5" CornerRadius="16" Padding="12,0">
-                                        <Border.Effect>
-                                            <DropShadowEffect Color="#000000" BlurRadius="10" ShadowDepth="2" Opacity="0.05" />
-                                        </Border.Effect>
                                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                     <ControlTemplate.Triggers>
@@ -175,7 +169,7 @@
                                 </ControlTemplate>
                             </Button.Template>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock x:Name="CollapseButtonIcon" Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="#0F172A" FontWeight="Bold" Margin="0,1,6,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="CollapseButtonIcon" Text="&#xE76C;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="#0F172A" Margin="0,1,6,0" VerticalAlignment="Center"/>
                                 <TextBlock x:Name="CollapseButtonText" Text="Thu gọn" Foreground="#0F172A" FontWeight="Bold" FontSize="15" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
@@ -238,11 +232,11 @@
                             <StackPanel x:Name="ExternalInfoPanel" Margin="0,20,0,0" HorizontalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
                                     <TextBlock x:Name="GameCostLabelTextBlock" Text="Tiền giờ:" Foreground="#475569" FontSize="24" FontWeight="SemiBold" Margin="0,0,10,0"/>
-                                    <TextBlock x:Name="GameCostValueTextBlock" Text="0" Foreground="#0284C7" FontSize="24" FontWeight="Black" />
+                                    <TextBlock x:Name="GameCostValueTextBlock" Text="0" Foreground="#0284C7" FontSize="24" FontWeight="Medium" />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                     <TextBlock x:Name="ServiceCostLabelTextBlock" Text="Tiền dịch vụ:" Foreground="#475569" FontSize="24" FontWeight="SemiBold" Margin="0,0,10,0"/>
-                                    <TextBlock x:Name="ServiceCostValueTextBlock" Text="0" Foreground="#E11D48" FontSize="24" FontWeight="Black" />
+                                    <TextBlock x:Name="ServiceCostValueTextBlock" Text="0" Foreground="#E11D48" FontSize="24" FontWeight="Medium" />
                                 </StackPanel>
                             </StackPanel>
                         </StackPanel>
@@ -268,11 +262,6 @@
                         <StackPanel x:Name="RightColumnRankPanel" Grid.Row="0" Margin="6,0,6,16">
                             <!-- VIP Card -->
                             <Grid x:Name="MemberRankContainer" Visibility="Collapsed" Margin="0,0,0,16" Height="80" HorizontalAlignment="Stretch">
-                                <Border x:Name="MemberRankShadow" CornerRadius="16" Background="#40FFFFFF">
-                                    <Border.Effect>
-                                        <DropShadowEffect Color="#000000" BlurRadius="30" ShadowDepth="8" Opacity="0.15" Direction="270" />
-                                    </Border.Effect>
-                                </Border>
                                 <Border x:Name="MemberRankBorder" CornerRadius="16" BorderThickness="0">
                                     <Border.Background>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
@@ -288,9 +277,6 @@
                                         
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
                                             <Border x:Name="MemberRankIconBadgeBorder" Width="52" Height="52" CornerRadius="26" Background="#F8FAFC" BorderBrush="#FFFFFF" BorderThickness="2" Margin="0,0,16,0">
-                                                <Border.Effect>
-                                                    <DropShadowEffect Color="#000000" BlurRadius="10" ShadowDepth="2" Opacity="0.1"/>
-                                                </Border.Effect>
                                                 <Grid>
                                                     <Image x:Name="MemberRankIconImage" Width="38" Height="38" Visibility="Collapsed" Stretch="Uniform" />
                                                     <TextBlock x:Name="MemberRankIconTextBlock" Foreground="#00D4FF" FontSize="22" FontWeight="Black" HorizontalAlignment="Center" VerticalAlignment="Center" Text="R" />
@@ -298,7 +284,7 @@
                                             </Border>
                                             <StackPanel VerticalAlignment="Center">
                                                 <TextBlock x:Name="MemberRankTextBlock" Foreground="#0F172A" FontSize="20" FontWeight="Black" />
-                                                <TextBlock x:Name="MemberPointsTextBlock" Text="0 điểm" Foreground="#64748B" FontSize="13" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                                                <TextBlock x:Name="MemberPointsTextBlock" Text="0 điểm" Foreground="#64748B" FontSize="15" FontWeight="SemiBold" Margin="0,4,0,0"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </Grid>
@@ -341,7 +327,7 @@
                                 </StackPanel>
                             </Button>
 
-                            <Button Style="{StaticResource ActionButtonStyle}" Click="LoyaltyButton_Click">
+                            <Button x:Name="LoyaltyActionButton" Style="{StaticResource ActionButtonStyle}" Click="LoyaltyButton_Click">
                                 <StackPanel>
                                     <Viewbox Width="26" Height="26" Margin="0,0,0,8">
                                         <Path Style="{StaticResource NeonIconStyle}" Data="M12,2 L15,9 L22,9 L16,14 L18,21 L12,17 L6,21 L8,14 L2,9 L9,9 Z">
@@ -397,7 +383,7 @@
                                 </StackPanel>
                             </Button>
 
-                            <Button Style="{StaticResource ActionButtonStyle}" Click="PasswordButton_Click">
+                            <Button x:Name="PasswordActionButton" Style="{StaticResource ActionButtonStyle}" Click="PasswordButton_Click">
                                 <StackPanel>
                                     <Viewbox Width="26" Height="26" Margin="0,0,0,8">
                                         <Path Style="{StaticResource NeonIconStyle}" Data="M15,5 A4.5,4.5 0 1,1 15,14 A4.5,4.5 0 0,1 15,5 M11.5,10.5 L3,19 L3,22 L6,22 L6,19 L9,19 L9,16 L11.5,13.5">
@@ -445,20 +431,42 @@
                 <!-- FOOTER -->
                 <Grid x:Name="FooterContainer" Grid.Row="3" Margin="0,15,0,0" MinHeight="90">
                     <Border CornerRadius="16" Background="#60FFFFFF">
-                        <Border.Effect>
-                            <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="0" Opacity="0.05"/>
-                        </Border.Effect>
                     </Border>
                     <Border CornerRadius="16" BorderThickness="1.5" BorderBrush="#80FFFFFF" Padding="25,15" Background="Transparent">
                         <Grid>
-                            <StackPanel VerticalAlignment="Center">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" VerticalAlignment="Center">
                                 <TextBlock x:Name="FooterTitleTextBlock" Text="JOIN OUR LOYALTY PROGRAM" Foreground="#0F172A" FontWeight="Bold" FontSize="20" Margin="0,0,0,4" />
                                 <TextBlock x:Name="FooterDescriptionTextBlock" Text="Tích lũy điểm khi chơi để đổi giờ hoặc quay thưởng hấp dẫn!" Foreground="#334155" FontSize="18" TextWrapping="Wrap" />
                             </StackPanel>
                             <!-- Replaced Emoji with Path for Footer Icon to avoid any square rendering -->
-                            <Viewbox Width="48" Height="48" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0" Opacity="0.3">
+                            <Viewbox Grid.Row="0" Width="48" Height="48" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0" Opacity="0.3">
                                 <Path Fill="#0F172A" Data="M12,2 L22,8 L12,22 L2,8 Z M4.5,8.5 L12,19.5 L19.5,8.5 Z"/>
                             </Viewbox>
+                            
+                            <!-- The new progress bar -->
+                            <StackPanel x:Name="LoyaltyProgressContainer" Grid.Row="1" Margin="0,15,0,0" Visibility="Collapsed">
+                                <Grid Height="8">
+                                    <Border Background="#E2E8F0" CornerRadius="4" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition x:Name="LoyaltyProgressFilled" Width="0*" />
+                                            <ColumnDefinition x:Name="LoyaltyProgressEmpty" Width="1*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" CornerRadius="4">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                    <GradientStop Color="#3B82F6" Offset="0"/>
+                                                    <GradientStop Color="#8B5CF6" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                        </Border>
+                                    </Grid>
+                                </Grid>
+                            </StackPanel>
                             <!-- Keep hidden textblock to preserve x:Name binding -->
                             <TextBlock x:Name="FooterIconTextBlock" Visibility="Collapsed" />
                         </Grid>
@@ -467,6 +475,25 @@
 
                 <!-- PROMOTIONS -->
                 <UniformGrid x:Name="PromotionsContainer" Grid.Row="2" Columns="1">
+                    <Border x:Name="GuestPromotionBannerBorder" Visibility="Collapsed" Margin="0,0,0,8" Padding="14,12" CornerRadius="12" BorderThickness="1.5" BorderBrush="#80FFFFFF">
+                        <Border.Background>
+                            <SolidColorBrush Color="#60FEF08A" />
+                        </Border.Background>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Viewbox Width="24" Height="24" Margin="0,0,12,0" VerticalAlignment="Center">
+                                <Path Fill="#B45309" Data="M12,2 L22,20 L2,20 Z M12,8 L12,14 M12,17 L12,17.5" Stroke="#B45309" StrokeThickness="2" />
+                            </Viewbox>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Foreground="#92400E" FontWeight="Bold" FontSize="18" TextTrimming="CharacterEllipsis" Text="Thông báo khuyến mãi" />
+                                <TextBlock x:Name="GuestPromotionDiscountTextBlock" Foreground="#B45309" FontSize="18" Text="Chỉ dành cho Hội Viên" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
                     <Border x:Name="PromotionBannerBorder" Visibility="Collapsed" Margin="0,0,0,8" Padding="14,12" CornerRadius="12" BorderThickness="1.5" BorderBrush="#80FFFFFF">
                         <Border.Background>
                             <SolidColorBrush Color="#60FFE4E6" />
