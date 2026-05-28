@@ -229,14 +229,27 @@
                             </Grid>
 
                             <!-- External Info -->
-                            <StackPanel x:Name="ExternalInfoPanel" Margin="0,20,0,0" HorizontalAlignment="Center">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
-                                    <TextBlock x:Name="GameCostLabelTextBlock" Text="Tiền giờ:" Foreground="#475569" FontSize="24" FontWeight="SemiBold" Margin="0,0,10,0"/>
-                                    <TextBlock x:Name="GameCostValueTextBlock" Text="0" Foreground="#0284C7" FontSize="24" FontWeight="Medium" />
-                                </StackPanel>
+                            <StackPanel x:Name="ExternalInfoPanel" Margin="0,24,0,0" HorizontalAlignment="Stretch">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock x:Name="ServiceCostLabelTextBlock" Text="Tiền dịch vụ:" Foreground="#475569" FontSize="24" FontWeight="SemiBold" Margin="0,0,10,0"/>
-                                    <TextBlock x:Name="ServiceCostValueTextBlock" Text="0" Foreground="#E11D48" FontSize="24" FontWeight="Medium" />
+                                    
+                                    <!-- Game Cost Pill -->
+                                    <Border Background="#E0F2FE" CornerRadius="16" Padding="16,8" Margin="0,0,12,0">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="&#xE7FC;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="#0284C7" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBlock x:Name="GameCostLabelTextBlock" Visibility="Collapsed"/>
+                                            <TextBlock x:Name="GameCostValueTextBlock" Text="0" Foreground="#0284C7" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                    
+                                    <!-- Service Cost Pill -->
+                                    <Border Background="#FFE4E6" CornerRadius="16" Padding="16,8">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="&#xE7BF;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="#E11D48" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                            <TextBlock x:Name="ServiceCostLabelTextBlock" Visibility="Collapsed"/>
+                                            <TextBlock x:Name="ServiceCostValueTextBlock" Text="0" Foreground="#E11D48" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+
                                 </StackPanel>
                             </StackPanel>
                         </StackPanel>

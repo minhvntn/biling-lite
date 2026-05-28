@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Shapes;
 
 namespace Server.Admin.App;
 
@@ -416,6 +417,8 @@ public partial class MainWindow : Window
                     HourlyDistributionBarsContainer.Children.Add(colGrid);
                 }
             });
+
+            RenderActivityStats(response);
 
             await RefreshRealtimeAlertsAsync();
         }
@@ -1090,6 +1093,246 @@ public partial class MainWindow : Window
             }
         }
     }
+
+    private void ActivityPeriodComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ActivityPeriodComboBox.SelectedItem is ComboBoxItem selectedItem)
+        {
+            var period = selectedItem.Tag?.ToString() ?? "week";
+            _ = LoadStatisticsDataAsync(period);
+        }
+    }
+
+    private void RenderActivityStats(DashboardStatsResponse response)
+    {
+        ActivityTotalRevenueTextBlock.Text = $"{response.TotalRevenue:N0}đ";
+        ActivityRevenueGrowthTextBlock.Text = response.TotalGrowth;
+        
+        ActivityTotalCustomersTextBlock.Text = $"{response.TotalMembers:N0}";
+        ActivityCustomersGrowthTextBlock.Text = response.TotalMembersGrowth;
+        
+        ActivityVipCustomersTextBlock.Text = $"{response.VipMembers:N0}";
+        ActivityVipGrowthTextBlock.Text = response.VipMembersGrowth;
+
+        // Render Top Services
+        ActivityTopServicesStackPanel.Children.Clear();
+        var maxServiceRevenue = response.TopServiceItems.Count == 0
+            ? 1m
+            : Math.Max(1m, response.TopServiceItems.Max(x => x.Revenue));
+
+        var barColors = new[] { "#A855F7", "#C084FC", "#D8B4FE", "#E9D5FF" };
+        var top4Services = response.TopServiceItems.Take(4).ToList();
+        for (int i = 0; i < top4Services.Count; i++)
+        {
+            var item = top4Services[i];
+            var progress = (double)(item.Revenue / maxServiceRevenue) * 100.0;
+            var colorStr = barColors[i % barColors.Length];
+            var barColor = (Color)ColorConverter.ConvertFromString(colorStr);
+
+            var grid = new Grid { Margin = new Thickness(0, 0, 0, 16) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+
+            var nameText = new TextBlock
+            {
+                Text = item.Category ?? item.Name,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)) // #475569
+            };
+            Grid.SetColumn(nameText, 0);
+
+            var progressBar = new ProgressBar
+            {
+                Value = progress,
+                Height = 10,
+                Foreground = new SolidColorBrush(barColor),
+                Background = new SolidColorBrush(Color.FromRgb(241, 245, 249)), // #F1F5F9
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(12, 0, 12, 0)
+            };
+            Grid.SetColumn(progressBar, 1);
+
+            var valText = new TextBlock
+            {
+                Text = FormatCompactMoney(item.Revenue),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(30, 41, 59)) // #1E293B
+            };
+            Grid.SetColumn(valText, 2);
+
+            grid.Children.Add(nameText);
+            grid.Children.Add(progressBar);
+            grid.Children.Add(valText);
+            
+            ActivityTopServicesStackPanel.Children.Add(grid);
+        }
+
+        // Render Activity Daily Chart (Line Chart)
+        ActivityDailyChartCanvas.Children.Clear();
+        ActivityDailyChartXAxisGrid.Children.Clear();
+        ActivityDailyChartXAxisGrid.ColumnDefinitions.Clear();
+
+        if (response.DailyData.Count > 0)
+        {
+            var maxVal = response.DailyData.Max(d => d.PlaytimeRevenue + d.ServiceRevenue);
+            if (maxVal == 0) maxVal = 1;
+            
+            double width = 340;
+            double height = 150;
+            double stepX = response.DailyData.Count > 1 ? width / (response.DailyData.Count - 1) : width;
+            
+            var points = new PointCollection();
+            points.Add(new Point(0, height)); // Bottom left for polygon
+            
+            var linePoints = new PointCollection();
+
+            for (int i = 0; i < response.DailyData.Count; i++)
+            {
+                var data = response.DailyData[i];
+                var total = data.PlaytimeRevenue + data.ServiceRevenue;
+                
+                double x = i * stepX;
+                double y = height - ((double)(total / maxVal) * (height - 20)) - 10; // 10 padding top/bottom
+                
+                points.Add(new Point(x, y));
+                linePoints.Add(new Point(x, y));
+                
+                // Add X Axis Label
+                ActivityDailyChartXAxisGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                var xLabel = new TextBlock
+                {
+                    Text = data.Label,
+                    TextAlignment = TextAlignment.Center,
+                    Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), // #94A3B8
+                    FontSize = 12
+                };
+                Grid.SetColumn(xLabel, i);
+                ActivityDailyChartXAxisGrid.Children.Add(xLabel);
+            }
+            
+            points.Add(new Point(width, height)); // Bottom right for polygon
+            
+            var polygon = new Polygon
+            {
+                Points = points,
+                Fill = new SolidColorBrush(Color.FromRgb(239, 246, 255)) // #EFF6FF
+            };
+            
+            var polyline = new Polyline
+            {
+                Points = linePoints,
+                Stroke = new SolidColorBrush(Color.FromRgb(59, 130, 246)), // #3B82F6
+                StrokeThickness = 3,
+                StrokeLineJoin = PenLineJoin.Round
+            };
+            
+            ActivityDailyChartCanvas.Children.Add(polygon);
+            ActivityDailyChartCanvas.Children.Add(polyline);
+            
+            // Re-add ellipses on top
+            for (int i = 0; i < response.DailyData.Count; i++)
+            {
+                var data = response.DailyData[i];
+                var total = data.PlaytimeRevenue + data.ServiceRevenue;
+                double x = i * stepX;
+                double y = height - ((double)(total / maxVal) * (height - 20)) - 10;
+                
+                var ellipse = new Ellipse
+                {
+                    Width = 10,
+                    Height = 10,
+                    Fill = new SolidColorBrush(Color.FromRgb(59, 130, 246)),
+                    Stroke = Brushes.White,
+                    StrokeThickness = 2,
+                    ToolTip = $"{data.Label}: {total:N0}đ"
+                };
+                Canvas.SetLeft(ellipse, x - 5);
+                Canvas.SetTop(ellipse, y - 5);
+                ActivityDailyChartCanvas.Children.Add(ellipse);
+            }
+        }
+        
+        RenderActivityDonutChart();
+    }
+    
+    private void RenderActivityDonutChart()
+    {
+        var onlineCount = _machineRows.Count(m => m.StatusCode == "IN_USE");
+        var emptyCount = _machineRows.Count(m => m.StatusCode == "ONLINE");
+        var maintenanceCount = _machineRows.Count(m => m.StatusCode == "LOCKED" || m.StatusCode == "OFFLINE");
+        var total = onlineCount + emptyCount + maintenanceCount;
+        if (total == 0) total = 1; // Prevent div by 0 for display
+        var actualTotal = _machineRows.Count;
+        
+        ActivityTotalMachinesTextBlock.Text = $"Tổng: {actualTotal} máy";
+        
+        if (actualTotal == 0)
+        {
+            ActivityInUseMachinesTextBlock.Text = "0 (0%)";
+            ActivityEmptyMachinesTextBlock.Text = "0 (0%)";
+            ActivityMaintenanceMachinesTextBlock.Text = "0 (0%)";
+            return;
+        }
+        
+        double onlinePct = (double)onlineCount / total;
+        double emptyPct = (double)emptyCount / total;
+        double maintPct = (double)maintenanceCount / total;
+        
+        ActivityInUseMachinesTextBlock.Text = $"{onlineCount} ({onlinePct:P0})";
+        ActivityEmptyMachinesTextBlock.Text = $"{emptyCount} ({emptyPct:P0})";
+        ActivityMaintenanceMachinesTextBlock.Text = $"{maintenanceCount} ({maintPct:P0})";
+        
+        // Draw Donut
+        double radius = 68;
+        double cx = 80;
+        double cy = 80;
+        
+        // Start angle -90deg (top)
+        double currentAngle = -90;
+        
+        ActivityDonutInUsePath.Data = CreateArcGeometry(cx, cy, radius, currentAngle, onlinePct * 360);
+        currentAngle += onlinePct * 360;
+        
+        ActivityDonutEmptyPath.Data = CreateArcGeometry(cx, cy, radius, currentAngle, emptyPct * 360);
+        currentAngle += emptyPct * 360;
+        
+        ActivityDonutMaintenancePath.Data = CreateArcGeometry(cx, cy, radius, currentAngle, maintPct * 360);
+    }
+    
+    private Geometry CreateArcGeometry(double cx, double cy, double radius, double startAngle, double sweepAngle)
+    {
+        if (sweepAngle <= 0) return new PathGeometry();
+        if (sweepAngle >= 360) sweepAngle = 359.99; // Approximates full circle without failing ArcSegment
+        
+        double startRad = startAngle * Math.PI / 180.0;
+        double endRad = (startAngle + sweepAngle) * Math.PI / 180.0;
+        
+        Point startPoint = new Point(cx + radius * Math.Cos(startRad), cy + radius * Math.Sin(startRad));
+        Point endPoint = new Point(cx + radius * Math.Cos(endRad), cy + radius * Math.Sin(endRad));
+        
+        bool isLargeArc = sweepAngle > 180.0;
+        
+        PathFigure figure = new PathFigure
+        {
+            StartPoint = startPoint,
+            IsClosed = false,
+            IsFilled = false
+        };
+        
+        figure.Segments.Add(new ArcSegment
+        {
+            Point = endPoint,
+            Size = new Size(radius, radius),
+            IsLargeArc = isLargeArc,
+            SweepDirection = SweepDirection.Clockwise,
+            RotationAngle = 0
+        });
+        
+        return new PathGeometry(new[] { figure });
+    }
 }
 
 public class DashboardStatsResponse
@@ -1103,6 +1346,12 @@ public class DashboardStatsResponse
     public string ServiceGrowth { get; set; } = string.Empty;
     public string TotalGrowth { get; set; } = string.Empty;
     public string PlayhoursGrowth { get; set; } = string.Empty;
+    
+    public int TotalMembers { get; set; }
+    public int VipMembers { get; set; }
+    public string TotalMembersGrowth { get; set; } = string.Empty;
+    public string VipMembersGrowth { get; set; } = string.Empty;
+
     public List<DailyStatsData> DailyData { get; set; } = new();
     public List<TopMemberData> TopMembers { get; set; } = new();
     public List<TopPcData> TopPcs { get; set; } = new();

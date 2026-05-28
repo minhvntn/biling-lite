@@ -2105,7 +2105,10 @@ public async void OpenLoyaltyPanelFromClientUi()
                 {
                     Dispatcher.Invoke(() =>
                     {
-                        _mainWindow?.SetLoyaltyProgress(loyalty.Loyalty.AvailablePoints, loyalty.Loyalty.ProgressMinutes, settings.MinutesPerPoint);
+                        var effectiveMinsPerPoint = loyalty.Loyalty.MinutesPerPoint > 0 
+                            ? loyalty.Loyalty.MinutesPerPoint 
+                            : settings.MinutesPerPoint;
+                        _mainWindow?.SetLoyaltyProgress(loyalty.Loyalty.AvailablePoints, loyalty.Loyalty.ProgressMinutes, effectiveMinsPerPoint);
                     });
                 }
             }
@@ -4134,6 +4137,47 @@ LIMIT $limit;";
             Content = redeemPanel,
         });
 
+        var horseRacePanel = new StackPanel
+        {
+            Margin = new Thickness(16, 14, 16, 14),
+        };
+        horseRacePanel.Children.Add(new TextBlock
+        {
+            Text = "Đua ngựa tốc độ",
+            FontSize = 20,
+            FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromRgb(30, 64, 175)),
+            Margin = new Thickness(0, 0, 0, 10),
+        });
+        horseRacePanel.Children.Add(new TextBlock
+        {
+            Text = "Dự đoán ngựa về nhất để giải trí. Minigame này không tốn điểm và không cộng điểm.",
+            Foreground = Brushes.DimGray,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 12),
+        });
+        var openHorseRaceButton = new Button
+        {
+            Content = "Mở trường đua",
+            Width = 180,
+            Height = 40,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Background = new SolidColorBrush(Color.FromRgb(16, 185, 129)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(5, 150, 105)),
+            Foreground = Brushes.White,
+        };
+        openHorseRaceButton.Click += (_, _) =>
+        {
+            errorTextBlock.Text = string.Empty;
+            ShowHorseRaceMiniDialog(activeSession, currentLoyalty.AvailablePoints);
+        };
+        horseRacePanel.Children.Add(openHorseRaceButton);
+        tabControl.Items.Add(new TabItem
+        {
+            Header = CreateLeftTabHeader("🐎", "Đua ngựa"),
+            Content = horseRacePanel,
+        });
+
         void RefreshLoyaltyUi()
         {
             summaryTextBlock.Text =
@@ -5255,346 +5299,18 @@ LIMIT $limit;";
         dialog.Content = root;
         dialog.ShowDialog();
     }
-    private void ShowHorseRaceMiniDialog(ActiveMemberSession activeSession)
+    private void ShowHorseRaceMiniDialog(ActiveMemberSession activeSession, int availablePoints)
     {
-        var dialog = new Window
+        var serverBase = _settings.ServerUrl.TrimEnd('/');
+        var apiBase = serverBase.EndsWith("/api/v1", StringComparison.OrdinalIgnoreCase)
+            ? serverBase
+            : $"{serverBase}/api/v1";
+
+        var window = new HorseRaceWindow(_httpClient, activeSession, apiBase, availablePoints)
         {
-            Title = $"Dua ngua mini - {activeSession.Username}",
-            Width = 780,
-            Height = 560,
-            ResizeMode = ResizeMode.NoResize,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Owner = _mainWindow,
-            ShowInTaskbar = false,
-            WindowStyle = WindowStyle.SingleBorderWindow,
-            Background = new SolidColorBrush(Color.FromRgb(241, 245, 249)),
+            Owner = _mainWindow
         };
-
-        var root = new Grid { Margin = new Thickness(18) };
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-        var title = new TextBlock
-        {
-            Text = "DUA NGUA SPEED RUN",
-            FontSize = 30,
-            FontWeight = FontWeights.ExtraBold,
-            Foreground = new SolidColorBrush(Color.FromRgb(30, 41, 59)),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 6),
-        };
-        Grid.SetRow(title, 0);
-        root.Children.Add(title);
-
-        var note = new TextBlock
-        {
-            Text = "Chon ngua va bam Bat dau. Icon se chay muot den vach dich.",
-            Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 10),
-        };
-        Grid.SetRow(note, 1);
-        root.Children.Add(note);
-
-        var trackBorder = new Border
-        {
-            Background = Brushes.White,
-            BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(12),
-            Padding = new Thickness(12, 10, 12, 8),
-        };
-
-        var trackGrid = new Grid();
-        for (var i = 0; i < 6; i++)
-        {
-            trackGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        }
-
-        var horseNames = new[] { "Sam Chop", "Bao Dem", "Hoa Tien", "Loc Xanh", "Than Toc", "Mat Troi" };
-        var horseRows = new List<Border>();
-        var horseCanvases = new List<Canvas>();
-        var horseTransforms = new List<TranslateTransform>();
-        var horseIcons = new List<TextBlock>();
-        var distanceTexts = new List<TextBlock>();
-
-        for (var i = 0; i < horseNames.Length; i++)
-        {
-            var row = new Border
-            {
-                Background = i % 2 == 0
-                    ? new SolidColorBrush(Color.FromRgb(248, 250, 252))
-                    : new SolidColorBrush(Color.FromRgb(241, 245, 249)),
-                CornerRadius = new CornerRadius(6),
-                Margin = new Thickness(0, 0, 0, 8),
-                Padding = new Thickness(10, 6, 10, 6),
-            };
-
-            var lane = new Grid();
-            lane.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
-            lane.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            lane.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(58) });
-
-            var nameText = new TextBlock
-            {
-                Text = $"#{i + 1} {horseNames[i]}",
-                FontWeight = FontWeights.SemiBold,
-                FontSize = 13,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            Grid.SetColumn(nameText, 0);
-            lane.Children.Add(nameText);
-
-            var trackCanvas = new Canvas
-            {
-                Height = 32,
-                Margin = new Thickness(8, 0, 8, 0),
-                ClipToBounds = true,
-                Background = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
-            };
-
-            var finishLine = new Border
-            {
-                Width = 4,
-                Height = 30,
-                Background = new SolidColorBrush(Color.FromRgb(239, 68, 68)),
-                CornerRadius = new CornerRadius(2),
-            };
-            trackCanvas.Children.Add(finishLine);
-            finishLine.SetValue(Canvas.TopProperty, 1d);
-            trackCanvas.SizeChanged += (_, _) =>
-            {
-                finishLine.SetValue(Canvas.LeftProperty, Math.Max(0, trackCanvas.ActualWidth - 6));
-            };
-
-            var runnerWrap = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center,
-                RenderTransformOrigin = new Point(0.5, 0.5),
-            };
-
-            var horseIcon = new TextBlock
-            {
-                Text = "??",
-                FontSize = 26,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            horseIcons.Add(horseIcon);
-            runnerWrap.Children.Add(horseIcon);
-
-            var speedFx = new TextBlock
-            {
-                Text = "??",
-                FontSize = 14,
-                Margin = new Thickness(-4, 10, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            runnerWrap.Children.Add(speedFx);
-
-            var runnerTransform = new TranslateTransform();
-            runnerWrap.RenderTransform = runnerTransform;
-            horseTransforms.Add(runnerTransform);
-
-            trackCanvas.Children.Add(runnerWrap);
-            runnerWrap.SetValue(Canvas.LeftProperty, 2d);
-            runnerWrap.SetValue(Canvas.TopProperty, -1d);
-
-            Grid.SetColumn(trackCanvas, 1);
-            lane.Children.Add(trackCanvas);
-            horseCanvases.Add(trackCanvas);
-
-            var distanceText = new TextBlock
-            {
-                Text = "0m",
-                FontWeight = FontWeights.SemiBold,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)),
-            };
-            Grid.SetColumn(distanceText, 2);
-            lane.Children.Add(distanceText);
-            distanceTexts.Add(distanceText);
-
-            row.Child = lane;
-            Grid.SetRow(row, i);
-            trackGrid.Children.Add(row);
-            horseRows.Add(row);
-        }
-
-        trackBorder.Child = trackGrid;
-        Grid.SetRow(trackBorder, 2);
-        root.Children.Add(trackBorder);
-
-        var resultText = new TextBlock
-        {
-            Text = "San sang xuat phat.",
-            FontSize = 16,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = new SolidColorBrush(Color.FromRgb(51, 65, 85)),
-            Margin = new Thickness(0, 10, 0, 2),
-            HorizontalAlignment = HorizontalAlignment.Center,
-            TextAlignment = TextAlignment.Center,
-        };
-        Grid.SetRow(resultText, 3);
-        root.Children.Add(resultText);
-
-        var actionGrid = new Grid { Margin = new Thickness(0, 12, 0, 0) };
-        actionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        actionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(10) });
-        actionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        actionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        actionGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-        var horsePicker = new ComboBox
-        {
-            Width = 200,
-            Height = 32,
-            ItemsSource = horseNames.Select((name, idx) => $"Ngua #{idx + 1} - {name}"),
-            SelectedIndex = 0,
-            Margin = new Thickness(0, 0, 0, 0),
-        };
-        Grid.SetColumn(horsePicker, 0);
-        actionGrid.Children.Add(horsePicker);
-
-        var raceButton = new Button
-        {
-            Content = "Bat dau",
-            Width = 110,
-            Height = 32,
-            FontWeight = FontWeights.SemiBold,
-            Background = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
-            Foreground = Brushes.White,
-            BorderBrush = new SolidColorBrush(Color.FromRgb(30, 64, 175)),
-        };
-        Grid.SetColumn(raceButton, 2);
-        actionGrid.Children.Add(raceButton);
-
-        var closeButton = new Button
-        {
-            Content = "Đóng",
-            Width = 90,
-            Height = 32,
-        };
-        closeButton.Click += (_, _) => dialog.Close();
-        Grid.SetColumn(closeButton, 4);
-        actionGrid.Children.Add(closeButton);
-
-        var isRacing = false;
-
-        raceButton.Click += async (_, _) =>
-        {
-            if (isRacing)
-            {
-                return;
-            }
-
-            isRacing = true;
-            raceButton.IsEnabled = false;
-            closeButton.IsEnabled = false;
-            horsePicker.IsEnabled = false;
-
-            foreach (var row in horseRows)
-            {
-                row.BorderThickness = new Thickness(0);
-                row.BorderBrush = Brushes.Transparent;
-            }
-
-            for (var i = 0; i < horseTransforms.Count; i++)
-            {
-                horseTransforms[i].X = 0;
-                distanceTexts[i].Text = "0m";
-                horseIcons[i].Text = "??";
-            }
-
-            resultText.Text = "Cac ngua dang tang toc...";
-            resultText.Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105));
-
-            var rng = new Random();
-            var winner = -1;
-            const double finishDistance = 100d;
-            var progress = new double[horseNames.Length];
-            var speed = new double[horseNames.Length];
-
-            for (var i = 0; i < speed.Length; i++)
-            {
-                speed[i] = 11 + rng.NextDouble() * 3;
-            }
-
-            var watch = Stopwatch.StartNew();
-            var previous = watch.Elapsed;
-
-            while (winner < 0 && dialog.IsVisible)
-            {
-                await Task.Delay(16);
-                var now = watch.Elapsed;
-                var dt = Math.Max(0.01, (now - previous).TotalSeconds);
-                previous = now;
-
-                for (var i = 0; i < horseNames.Length; i++)
-                {
-                    var acceleration = (rng.NextDouble() * 3.2) - 0.8;
-                    if (rng.NextDouble() < 0.08)
-                    {
-                        acceleration += 4.5 * rng.NextDouble();
-                    }
-
-                    speed[i] = Math.Clamp(speed[i] + acceleration * dt * 2.3, 8.0, 27.0);
-                    progress[i] = Math.Min(finishDistance, progress[i] + speed[i] * dt);
-
-                    var maxTravel = Math.Max(0, horseCanvases[i].ActualWidth - 52);
-                    var ratio = progress[i] / finishDistance;
-                    horseTransforms[i].X = maxTravel * ratio;
-                    distanceTexts[i].Text = $"{progress[i]:0}m";
-
-                    if (progress[i] >= finishDistance && winner < 0)
-                    {
-                        winner = i;
-                    }
-                }
-            }
-
-            if (winner < 0 || !dialog.IsVisible)
-            {
-                isRacing = false;
-                return;
-            }
-
-            if (winner >= 0)
-            {
-                horseRows[winner].BorderBrush = new SolidColorBrush(Color.FromRgb(16, 185, 129));
-                horseRows[winner].BorderThickness = new Thickness(2);
-                horseIcons[winner].Text = "????";
-            }
-
-            var picked = horsePicker.SelectedIndex;
-            if (picked == winner)
-            {
-                resultText.Text = $"Chuan! {horseNames[winner]} ve nhat.";
-                resultText.Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74));
-            }
-            else
-            {
-                resultText.Text = $"{horseNames[winner]} ve nhat. Thu lai van moi nhe.";
-                resultText.Foreground = new SolidColorBrush(Color.FromRgb(234, 88, 12));
-            }
-
-            raceButton.IsEnabled = true;
-            closeButton.IsEnabled = true;
-            horsePicker.IsEnabled = true;
-            isRacing = false;
-        };
-
-        dialog.Closed += (_, _) => isRacing = false;
-
-        Grid.SetRow(actionGrid, 4);
-        root.Children.Add(actionGrid);
-
-        dialog.Content = root;
-        dialog.ShowDialog();
+        window.ShowDialog();
     }
 
     private void LockMachine(bool force)

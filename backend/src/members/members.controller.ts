@@ -21,6 +21,7 @@ import { UpdateLoyaltyRankDto } from './dto/update-loyalty-rank.dto';
 import { UpdateSpinPrizeSettingsDto } from './dto/update-spin-prize-settings.dto';
 import { PetLoyaltyPointsDto } from './dto/pet-loyalty-points.dto';
 import { LoyaltyDailyCheckinDto } from './dto/loyalty-daily-checkin.dto';
+import { HorseRaceDto } from './dto/horse-race.dto';
 import { MembersService } from './members.service';
 
 @Controller('members')
@@ -161,6 +162,14 @@ export class MembersController {
     @Body() payload: { createdBy?: string; note?: string },
   ) {
     return this.membersService.spinLoyaltyPoints(memberId, payload);
+  }
+
+  @Post(':memberId/loyalty/horse-race')
+  async runHorseRace(
+    @Param('memberId') memberId: string,
+    @Body() payload: HorseRaceDto,
+  ) {
+    return this.membersService.runHorseRace(memberId, payload);
   }
 
   @Post(':memberId/loyalty/pet-points')

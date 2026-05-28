@@ -609,6 +609,12 @@ export class ReportsService {
       previousPaidServiceOrders,
       topMemberUsageRows,
       pcs,
+      totalMembers,
+      vipMembers,
+      currentPeriodMembers,
+      previousPeriodMembers,
+      currentPeriodVipMembers,
+      previousPeriodVipMembers,
     ] = await Promise.all([
       this.prisma.session.findMany({
         where: {
@@ -653,6 +659,12 @@ export class ReportsService {
           },
         },
       }),
+      this.prisma.member.count(),
+      this.prisma.member.count({ where: { memberType: 'VIP' } }),
+      this.prisma.member.count({ where: { createdAt: { gte: currentRange.start, lt: currentRange.endExclusive } } }),
+      this.prisma.member.count({ where: { createdAt: { gte: previousRange.start, lt: previousRange.endExclusive } } }),
+      this.prisma.member.count({ where: { memberType: 'VIP', createdAt: { gte: currentRange.start, lt: currentRange.endExclusive } } }),
+      this.prisma.member.count({ where: { memberType: 'VIP', createdAt: { gte: previousRange.start, lt: previousRange.endExclusive } } }),
     ]);
 
     const playtimeRevenue = currentSessions.reduce(
@@ -756,6 +768,10 @@ export class ReportsService {
       pcRevenueStats,
       weeklyDistribution: this.buildWeeklyDistribution(currentSessions),
       hourlyDistribution: this.buildHourlyDistribution(currentSessions),
+      totalMembers,
+      vipMembers,
+      totalMembersGrowth: this.formatGrowth(currentPeriodMembers, previousPeriodMembers),
+      vipMembersGrowth: this.formatGrowth(currentPeriodVipMembers, previousPeriodVipMembers),
       serverTime: new Date().toISOString(),
     };
   }

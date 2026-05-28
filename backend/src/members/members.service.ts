@@ -36,6 +36,7 @@ import { UpdateLoyaltyRankDto } from './dto/update-loyalty-rank.dto';
 import { UpdateSpinPrizeSettingsDto } from './dto/update-spin-prize-settings.dto';
 import { PetLoyaltyPointsDto } from './dto/pet-loyalty-points.dto';
 import { LoyaltyDailyCheckinDto } from './dto/loyalty-daily-checkin.dto';
+import { HorseRaceDto } from './dto/horse-race.dto';
 
 const LOYALTY_CONFIG_KEY = '__LOYALTY_MEMBER_POINTS__';
 const LOYALTY_MINUTES_PER_POINT = 15;
@@ -1115,6 +1116,126 @@ export class MembersService {
 
   async spinLoyaltyPoints(memberId: string, payload: { createdBy?: string; note?: string }) {
     throw new BadRequestException('Vòng quay may mắn hiện không khả dụng.');
+  }
+
+  async runHorseRace(memberId: string, payload: HorseRaceDto) {
+    const betPoints = Math.max(1, Math.floor(payload.betPoints));
+    const selectedHorse = payload.selectedHorse;
+    const createdBy = payload.createdBy?.trim() || 'client.horse_race';
+
+    const enabled = await this.getLoyaltyFeatureEnabled();
+    if (!enabled) {
+      throw new BadRequestException('Tính năng điểm tích lũy đang tắt');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const member = await tx.member.findUnique({ where: { id: memberId } });
+      if (!member) {
+        throw new NotFoundException('Không tìm thấy hội viên');
+      }
+
+      const before = await this.buildLoyaltySnapshot(memberId, tx);
+      if (before.availablePoints < betPoints) {
+        throw new BadRequestException(`Không đủ điểm cược. Hiện chỉ có ${before.availablePoints} điểm`);
+      }
+
+      const loyaltySettings = await this.getLoyaltySettingsItem(tx);
+      const spendSecondsPerPoint = loyaltySettings.pointsToMinutes * 60;
+      const earnSecondsPerPoint = loyaltySettings.minutesPerPoint * 60;
+
+      // 1. Deduct bet points
+      const secondsToSpend = betPoints * spendSecondsPerPoint;
+      const spendNote = `HORSE_RACE_BET: bet ${betPoints} points on horse #${selectedHorse + 1}`;
+      
+      if (member.memberType === 'VIP') {
+        await this.applyVipTimeDiscount(tx, memberId, -secondsToSpend, spendNote, createdBy);
+      } else {
+        await tx.member.update({
+          where: { id: memberId },
+          data: { playSeconds: { decrement: secondsToSpend } },
+        });
+        await tx.memberTransaction.create({
+          data: {
+            memberId,
+            type: MemberTransactionType.ADJUSTMENT,
+            amountDelta: 0,
+            playSecondsDelta: -secondsToSpend,
+            note: spendNote,
+            createdBy,
+          },
+        });
+      }
+
+      // 2. Roll the dice
+      const horses = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+      for (let i = horses.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [horses[i], horses[j]] = [horses[j], horses[i]];
+      }
+      const finishOrder = horses;
+      
+      const rank = finishOrder.indexOf(selectedHorse); // 0 for 1st, 1 for 2nd, 2 for 3rd
+      const isWin = rank < 3;
+      
+      let wonPoints = 0;
+      if (rank === 0) wonPoints = Math.floor(betPoints * 3);
+      else if (rank === 1) wonPoints = Math.floor(betPoints * 2.25);
+      else if (rank === 2) wonPoints = Math.floor(betPoints * 1.5);
+
+      // 3. Reward if won
+      if (isWin && wonPoints > 0) {
+        const secondsToReward = wonPoints * earnSecondsPerPoint;
+        const rewardNote = `HORSE_RACE_WIN: won ${wonPoints} points (Rank ${rank + 1})`;
+
+        if (member.memberType === 'VIP') {
+          await this.applyVipTimeDiscount(tx, memberId, secondsToReward, rewardNote, createdBy);
+        } else {
+          await tx.member.update({
+            where: { id: memberId },
+            data: { playSeconds: { increment: secondsToReward } },
+          });
+          await tx.memberTransaction.create({
+            data: {
+              memberId,
+              type: MemberTransactionType.ADJUSTMENT,
+              amountDelta: 0,
+              playSecondsDelta: secondsToReward,
+              note: rewardNote,
+              createdBy,
+            },
+          });
+        }
+      }
+
+      await tx.eventLog.create({
+        data: {
+          source: EventSource.CLIENT,
+          eventType: 'member.loyalty.horse_race',
+          pcId: null,
+          payload: {
+            memberId,
+            betPoints,
+            selectedHorse,
+            finishOrder,
+            rank,
+            isWin,
+            wonPoints,
+            at: new Date().toISOString(),
+          },
+        },
+      });
+
+      const loyalty = await this.buildLoyaltySnapshot(memberId, tx);
+
+      return {
+        finishOrder,
+        rank,
+        isWin,
+        wonPoints,
+        loyalty,
+        playedAt: new Date().toISOString(),
+      };
+    });
   }
 
   async applyPetLoyaltyPoints(memberId: string, payload: PetLoyaltyPointsDto) {

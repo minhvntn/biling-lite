@@ -164,6 +164,24 @@ public sealed class MemberLoyaltyDailyCheckinResponse
     public string? CheckedInAt { get; set; }
 }
 
+public sealed class MemberLoyaltyHorseRaceRequest
+{
+    public int BetPoints { get; set; }
+    public int SelectedHorse { get; set; }
+    public string CreatedBy { get; set; } = "client.horse_race";
+}
+
+public sealed class MemberLoyaltyHorseRaceResponse
+{
+    public int WinnerHorse { get; set; }
+    public List<int> FinishOrder { get; set; } = new();
+    public int Rank { get; set; }
+    public bool IsWin { get; set; }
+    public int WonPoints { get; set; }
+    public MemberLoyaltyItem Loyalty { get; set; } = new();
+    public string PlayedAt { get; set; } = string.Empty;
+}
+
 public sealed class MemberUsageSyncResponse
 {
     public MemberLoginItem? Member { get; set; }

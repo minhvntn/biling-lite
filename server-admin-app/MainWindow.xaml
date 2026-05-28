@@ -2281,6 +2281,202 @@
                         </Grid>
                     </ScrollViewer>
                 </TabItem>
+                
+                <TabItem x:Name="ActivityStatsTabItem">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock VerticalAlignment="Center" Text="📊" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="Thống kê hoạt động" />
+                        </StackPanel>
+                    </TabItem.Header>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                        <Grid Margin="16">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Header: Title and Filter -->
+                            <Grid Grid.Row="0" Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="THỐNG KÊ HOẠT ĐỘNG" FontWeight="Bold" FontSize="18" Foreground="#1E293B" VerticalAlignment="Center" />
+                                <ComboBox x:Name="ActivityPeriodComboBox" Grid.Column="1" SelectedIndex="0" Width="140" Padding="8,4" VerticalAlignment="Center" SelectionChanged="ActivityPeriodComboBox_SelectionChanged">
+                                    <ComboBoxItem Content="7 ngày qua" Tag="week" />
+                                    <ComboBoxItem Content="30 ngày qua" Tag="month" />
+                                    <ComboBoxItem Content="Tháng này" Tag="month" />
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- Dashboard Cards -->
+                            <Grid Grid.Row="1">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="16" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Card 1: Doanh thu theo ngày -->
+                                <Border Grid.Row="0" Grid.Column="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="16" Padding="20" Margin="0,0,0,16" MinHeight="300">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Text="Doanh thu theo ngày" FontSize="15" FontWeight="SemiBold" Foreground="#475569" />
+                                        <StackPanel Grid.Row="1" Margin="0,8,0,16">
+                                            <TextBlock x:Name="ActivityTotalRevenueTextBlock" Text="0đ" FontSize="28" FontWeight="Bold" Foreground="#0F172A" />
+                                            <TextBlock x:Name="ActivityRevenueGrowthTextBlock" Text="+ 0%" FontSize="13" FontWeight="SemiBold" Foreground="#10B981" Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        
+                                        <!-- Line Chart Mockup -->
+                                        <Grid Grid.Row="2" Margin="0,16,0,0">
+                                            <Canvas x:Name="ActivityDailyChartCanvas" ClipToBounds="True" Height="150" Width="340" HorizontalAlignment="Center">
+                                                <!-- Mockup Background Gradient Polygon -->
+                                                <Polygon Points="0,150 40,110 90,140 140,120 190,90 240,130 290,60 340,50 340,150 0,150" Fill="#EFF6FF" />
+                                                <!-- Mockup Line -->
+                                                <Polyline Points="0,150 40,110 90,140 140,120 190,90 240,130 290,60 340,50" Stroke="#3B82F6" StrokeThickness="3" StrokeLineJoin="Round" />
+                                                
+                                                <!-- Points -->
+                                                <Ellipse Canvas.Left="-5" Canvas.Top="145" Width="10" Height="10" Fill="#3B82F6" Stroke="White" StrokeThickness="2" />
+                                                <Ellipse Canvas.Left="35" Canvas.Top="105" Width="10" Height="10" Fill="#3B82F6" Stroke="White" StrokeThickness="2" />
+                                                <Ellipse Canvas.Left="85" Canvas.Top="135" Width="10" Height="10" Fill="#3B82F6" Stroke="White" StrokeThickness="2" />
+                                                <Ellipse Canvas.Left="135" Canvas.Top="115" Width="10" Height="10" Fill="#3B82F6" Stroke="White" StrokeThickness="2" />
+                                                <Ellipse Canvas.Left="185" Canvas.Top="85" Width="10" Height="10" Fill="#3B82F6" Stroke="White" StrokeThickness="2" />
+                                                <Ellipse Canvas.Left="235" Canvas.Top="125" Width="10" Height="10" Fill="#3B82F6" Stroke="White" StrokeThickness="2" />
+                                                <Ellipse Canvas.Left="285" Canvas.Top="55" Width="10" Height="10" Fill="#3B82F6" Stroke="White" StrokeThickness="2" />
+                                                <Ellipse Canvas.Left="335" Canvas.Top="45" Width="10" Height="10" Fill="#3B82F6" Stroke="White" StrokeThickness="2" />
+                                                
+                                                <!-- Tooltip mockup -->
+                                            </Canvas>
+                                        </Grid>
+                                        
+                                        <!-- X Axis Labels -->
+                                        <Grid x:Name="ActivityDailyChartXAxisGrid" Grid.Row="3" Margin="0,8,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="T2" TextAlignment="Center" Foreground="#94A3B8" FontSize="12" />
+                                            <TextBlock Grid.Column="1" Text="T3" TextAlignment="Center" Foreground="#94A3B8" FontSize="12" />
+                                            <TextBlock Grid.Column="2" Text="T4" TextAlignment="Center" Foreground="#94A3B8" FontSize="12" />
+                                            <TextBlock Grid.Column="3" Text="T5" TextAlignment="Center" Foreground="#94A3B8" FontSize="12" />
+                                            <TextBlock Grid.Column="4" Text="T6" TextAlignment="Center" Foreground="#94A3B8" FontSize="12" />
+                                            <TextBlock Grid.Column="5" Text="T7" TextAlignment="Center" Foreground="#94A3B8" FontSize="12" />
+                                            <TextBlock Grid.Column="6" Text="CN" TextAlignment="Center" Foreground="#94A3B8" FontSize="12" />
+                                            <TextBlock Grid.Column="7" Text="T2" TextAlignment="Center" Foreground="#94A3B8" FontSize="12" />
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Card 2: Phân bổ máy trạm -->
+                                <Border Grid.Row="0" Grid.Column="2" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="16" Padding="20" Margin="0,0,0,16" MinHeight="300">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Text="Phân bổ máy trạm" FontSize="15" FontWeight="SemiBold" Foreground="#475569" />
+                                        <TextBlock x:Name="ActivityTotalMachinesTextBlock" Grid.Row="1" Text="Tổng: 0 máy" FontSize="13" Foreground="#64748B" Margin="0,4,0,16" />
+                                        
+                                        <Grid Grid.Row="2" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            
+                                            <!-- Simple Donut using Path -->
+                                            <Canvas x:Name="ActivityMachineDonutCanvas" Width="160" Height="160" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Path x:Name="ActivityDonutInUsePath" Fill="Transparent" Stroke="#3B82F6" StrokeThickness="24" Data="M 80,12 A 68,68 0 1,1 12,80" />
+                                                <Path x:Name="ActivityDonutEmptyPath" Fill="Transparent" Stroke="#10B981" StrokeThickness="24" Data="M 12,80 A 68,68 0 0,1 25,120" />
+                                                <Path x:Name="ActivityDonutMaintenancePath" Fill="Transparent" Stroke="#F43F5E" StrokeThickness="24" Data="M 25,120 A 68,68 0 0,1 80,12" />
+                                                
+                                                <Ellipse Width="112" Height="112" Fill="White" Canvas.Left="24" Canvas.Top="24" />
+                                            </Canvas>
+                                            
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="24,0,0,0">
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                                    <Ellipse Width="10" Height="10" Fill="#3B82F6" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                    <TextBlock Text="Đang dùng" Width="80" Foreground="#475569" />
+                                                    <TextBlock x:Name="ActivityInUseMachinesTextBlock" Text="0 (0%)" FontWeight="SemiBold" Foreground="#1E293B" />
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                                    <Ellipse Width="10" Height="10" Fill="#10B981" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                    <TextBlock Text="Trống" Width="80" Foreground="#475569" />
+                                                    <TextBlock x:Name="ActivityEmptyMachinesTextBlock" Text="0 (0%)" FontWeight="SemiBold" Foreground="#1E293B" />
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Ellipse Width="10" Height="10" Fill="#F43F5E" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                    <TextBlock Text="Bảo trì" Width="80" Foreground="#475569" />
+                                                    <TextBlock x:Name="ActivityMaintenanceMachinesTextBlock" Text="0 (0%)" FontWeight="SemiBold" Foreground="#1E293B" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Card 3: Top dịch vụ -->
+                                <Border Grid.Row="1" Grid.Column="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="16" Padding="20">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Text="Top dịch vụ" FontSize="15" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,24" />
+                                        
+                                        <StackPanel x:Name="ActivityTopServicesStackPanel" Grid.Row="1">
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Card 4: Thống kê khách hàng -->
+                                <Border Grid.Row="1" Grid.Column="2" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="16" Padding="20">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Text="Thống kê khách hàng" FontSize="15" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,24" />
+                                        
+                                        <Grid Grid.Row="1">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Tổng khách" FontSize="13" Foreground="#64748B" />
+                                                <TextBlock x:Name="ActivityTotalCustomersTextBlock" Text="0" FontSize="32" FontWeight="Bold" Foreground="#0F172A" Margin="0,8,0,0" />
+                                                <TextBlock x:Name="ActivityCustomersGrowthTextBlock" Text="+ 0%" FontSize="14" FontWeight="SemiBold" Foreground="#10B981" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                            
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="Khách VIP" FontSize="13" Foreground="#64748B" />
+                                                <TextBlock x:Name="ActivityVipCustomersTextBlock" Text="0" FontSize="32" FontWeight="Bold" Foreground="#0F172A" Margin="0,8,0,0" />
+                                                <TextBlock x:Name="ActivityVipGrowthTextBlock" Text="+ 0%" FontSize="14" FontWeight="SemiBold" Foreground="#10B981" Margin="0,4,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Grid>
+                    </ScrollViewer>
+                </TabItem>
 
                 <TabItem x:Name="PcMachineStatsTabItem">
                     <TabItem.Header>
