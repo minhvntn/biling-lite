@@ -694,7 +694,7 @@ public sealed class LoyaltyRankItem
     public string RankName { get; set; } = string.Empty;
     public decimal MinTopup { get; set; }
     public decimal BonusPercent { get; set; }
-    public int MinutesPerPoint { get; set; }
+    public double MinutesPerPoint { get; set; }
     public string CreatedAt { get; set; } = string.Empty;
     public string UpdatedAt { get; set; } = string.Empty;
 }
@@ -706,7 +706,19 @@ public sealed class LoyaltyRankRow
     public decimal MinTopup { get; set; }
     public decimal BonusPercent { get; set; }
     public string MinTopupText { get; set; } = "0";
-    public int MinutesPerPoint { get; set; }
+    public double MinutesPerPoint { get; set; }
+    public string MinutesPerPointText 
+    { 
+        get 
+        {
+            var totalSeconds = (int)(MinutesPerPoint * 60);
+            var mins = totalSeconds / 60;
+            var secs = totalSeconds % 60;
+            if (secs > 0)
+                return $"{mins} phút {secs} giây";
+            return $"{mins} phút";
+        }
+    }
 }
 
 public sealed class LoyaltySpinSettingRow

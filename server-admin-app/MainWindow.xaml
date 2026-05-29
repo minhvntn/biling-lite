@@ -1046,7 +1046,8 @@
                                 <DataGridTextColumn Header="SDT" Binding="{Binding Phone}" Width="120" />
                                 <DataGridTextColumn Header="CCCD/CMND" Binding="{Binding IdentityNumber}" Width="140" />
                                 <DataGridTextColumn Header="Số dư" Binding="{Binding BalanceText}" Width="120" />
-                                                                <DataGridTextColumn Header="Mật khẩu" Binding="{Binding PasswordState}" Width="100" />
+                                <DataGridTextColumn Header="Giờ chơi" Binding="{Binding PlayHoursText}" Width="100" />
+                                <DataGridTextColumn Header="Mật khẩu" Binding="{Binding PasswordState}" Width="100" />
                                 <DataGridTextColumn Header="Trạng thái" Binding="{Binding ActiveText}" Width="100" />
                                 <DataGridTextColumn Header="Tạo lúc" Binding="{Binding CreatedAtText}" Width="160" />
                             </DataGrid.Columns>
@@ -1877,7 +1878,7 @@
                                 <DataGridTextColumn Header="Tên bậc hạng" Binding="{Binding RankName}" Width="180" IsReadOnly="False" />
                                 <DataGridTextColumn Header="Ngưỡng tổng nạp (VNĐ)" Binding="{Binding MinTopupText}" Width="200" IsReadOnly="False" />
                                 <DataGridTextColumn Header="Khuyến mãi (%)" Binding="{Binding BonusPercent}" Width="140" IsReadOnly="False" />
-                                <DataGridTextColumn Header="Số phút / 1 điểm" Binding="{Binding MinutesPerPoint}" Width="140" IsReadOnly="False" />
+                                <DataGridTextColumn Header="Số phút / 1 điểm" Binding="{Binding MinutesPerPointText}" Width="140" IsReadOnly="True" />
                                 <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="100" IsReadOnly="True" Visibility="Collapsed" />
                             </DataGrid.Columns>
                         </DataGrid>

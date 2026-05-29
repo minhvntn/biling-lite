@@ -129,7 +129,6 @@ public partial class MainWindow : Window
     private static MachineRow ToMachineRow(PcListItem item)
     {
         const int GuestSessionStartingHours = 1000;
-        const int MinutesPerHour = 60;
         var now = DateTime.Now;
         var activeAdmin = item.ActiveAdmin;
         var activeMember = item.ActiveMember;
@@ -231,7 +230,8 @@ public partial class MainWindow : Window
             }
             var guestUsedSeconds = Math.Max(0, item.ActiveSession!.ElapsedSeconds);
             var guestRemainingSeconds = Math.Max(0, guestRemainingSecondsBase - guestUsedSeconds);
-            remainingText = FormatRemainingTime(guestRemainingSeconds);
+            var displayRemainingSeconds = (int)Math.Ceiling(guestRemainingSeconds / 60.0) * 60;
+            remainingText = FormatRemainingTime(displayRemainingSeconds);
         }
         else if (activeMember is not null)
         {
@@ -239,18 +239,18 @@ public partial class MainWindow : Window
             {
                 var elapsedSeconds = item.ActiveSession?.ElapsedSeconds ?? 0;
                 var remainingSeconds = 60000 * 60 - elapsedSeconds;
-                remainingText = FormatRemainingTime(Math.Max(0, remainingSeconds));
+                var displayRemainingSeconds = (int)Math.Ceiling(remainingSeconds / 60.0) * 60;
+                remainingText = FormatRemainingTime(Math.Max(0, displayRemainingSeconds));
             }
             else
             {
-                var pricePerMinute = item.ActiveSession?.PricePerMinute ?? (item.HourlyRate / 60m);
+                var pricePerMinute = (item.ActiveSession?.PricePerMinute > 0) ? item.ActiveSession.PricePerMinute : (item.HourlyRate / 60m);
                 var balanceMinutes = pricePerMinute > 0 ? activeMember.Balance / pricePerMinute : 0m;
-                var playMinutes = activeMember.PlaySeconds / 60m;
-                var totalSecondsExact = (balanceMinutes + playMinutes) * 60m;
+                var totalSecondsExact = balanceMinutes * 60m;
                 
-                var usedSeconds = item.ActiveSession?.ElapsedSeconds ?? 0;
-                var remainingSeconds = (int)Math.Floor(totalSecondsExact) - usedSeconds;
-                remainingText = FormatRemainingTime(Math.Max(0, remainingSeconds));
+                var remainingSeconds = (int)Math.Floor(totalSecondsExact);
+                var displayRemainingSeconds = (int)Math.Ceiling(remainingSeconds / 60.0) * 60;
+                remainingText = FormatRemainingTime(Math.Max(0, displayRemainingSeconds));
             }
         }
         

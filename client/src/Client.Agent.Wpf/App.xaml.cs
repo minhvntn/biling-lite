@@ -746,14 +746,13 @@ public partial class App : Application
             Dispatcher.Invoke(() =>
             {
                 var balanceMinutes = ComputeMinutesFromBalance(member.Balance, _currentHourlyRate);
-                var playSecondsMinutes = ComputeMinutesFromPlaySeconds(member.PlaySeconds);
-                var totalMinutes = Math.Max(0, balanceMinutes + playSecondsMinutes);
+                var totalMinutes = Math.Max(0, balanceMinutes);
                 if (totalMinutes <= 0 && member.MemberType != "VIP")
                 {
                     totalMinutes = 1;
                 }
 
-                _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: member.PlaySeconds);
+                _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: 0);
                 _mainWindow?.SetUpfrontUsedDuration();
                 _mainWindow?.SetMemberInfo(member.Username, member.Rank, member.MemberType);
                 _ = Task.Run(async () =>
@@ -945,8 +944,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
     private int ComputeRemainingMinutesFromMemberSnapshot(MemberLoginItem member)
     {
         var balanceMinutes = ComputeMinutesFromBalance(member.Balance, _currentHourlyRate);
-        var playSecondsMinutes = ComputeMinutesFromPlaySeconds(member.PlaySeconds);
-        var remainingMins = balanceMinutes + playSecondsMinutes;
+        var remainingMins = balanceMinutes;
         
         if (member.MemberType == "VIP")
         {
@@ -964,7 +962,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
         Dispatcher.Invoke(() =>
         {
-            _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: member.PlaySeconds);
+            _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: 0);
         });
     }
 

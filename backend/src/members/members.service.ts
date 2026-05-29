@@ -347,19 +347,13 @@ export class MembersService {
       }
     }
 
-    const minimumChargeSetting = await this.prisma.appSetting.findUnique({
-      where: { key: 'MINIMUM_CHARGE' },
-    });
-    const minimumCharge = 0; // Walk-in guests only
-
-    const upfrontLoginCharge = this.computeUpfrontLoginCharge(hourlyRate, minimumCharge);
+    const upfrontLoginCharge = 0; // Members do not pay upfront charges
     const currentBalance = Number(member.balance);
     const isVip = member.memberType === 'VIP';
     if (
       !isVip &&
       !isUsageAlreadyActiveOnCurrentPc &&
-      upfrontLoginCharge > 0 &&
-      currentBalance < upfrontLoginCharge
+      currentBalance <= 0
     ) {
       throw new BadRequestException(
         'Số dư tài khoản không đủ.',
@@ -431,19 +425,10 @@ export class MembersService {
           defaultGroup?.hourlyRate ??
           12000,
       );
-      const minimumChargeSetting = await this.prisma.appSetting.findUnique({
-        where: { key: 'MINIMUM_CHARGE' },
-      });
-      const minimumCharge = 0; // Walk-in guests only
-
-      const hourlyRate = await this.getEffectiveHourlyRate(baseRate);
-      pricePerMinute = Number(hourlyRate) / 60;
-      
-      upfrontLoginCharge = this.computeUpfrontLoginCharge(hourlyRate, minimumCharge);
-
+      const upfrontLoginCharge = 0; // Members do not pay upfront charges
       const currentBalance = Number(member.balance);
       const isVip = member.memberType === 'VIP';
-      if (!isVip && upfrontLoginCharge > 0 && currentBalance < upfrontLoginCharge) {
+      if (!isVip && currentBalance <= 0) {
         throw new BadRequestException(
           'Số dư tài khoản không đủ.',
         );
@@ -827,8 +812,8 @@ export class MembersService {
         throw new NotFoundException('Khong tim thay hoi vien');
       }
 
-      const currentPlaySeconds = Math.max(0, member.playSeconds);
-      const consumedSeconds = Math.max(0, Math.min(currentPlaySeconds, requestedSeconds));
+      const currentPlaySeconds = 0;
+      const consumedSeconds = 0;
       let updatedMember = member;
       const enabled = await this.getLoyaltyFeatureEnabled(tx);
       const createdBy = enabled
@@ -999,11 +984,21 @@ export class MembersService {
       if (member.memberType === 'VIP') {
         await this.applyVipTimeDiscount(tx, member.id, playSecondsDelta, note, createdBy);
       } else {
+        const defaultGroup = await tx.pcGroup.findFirst({
+          where: { isDefault: true },
+        });
+        const hourlyRate = Number(
+          defaultGroup?.memberHourlyRate ??
+            defaultGroup?.hourlyRate ??
+            6000,
+        );
+        const cashAmount = Math.round((playSecondsDelta / 3600) * hourlyRate);
+
         updatedMember = await tx.member.update({
           where: { id: member.id },
           data: {
-            playSeconds: {
-              increment: playSecondsDelta,
+            balance: {
+              increment: cashAmount,
             },
           },
         });
@@ -1012,8 +1007,8 @@ export class MembersService {
           data: {
             memberId: member.id,
             type: MemberTransactionType.ADJUSTMENT,
-            amountDelta: 0,
-            playSecondsDelta,
+            amountDelta: cashAmount,
+            playSecondsDelta: 0,
             note,
             createdBy,
           },
@@ -1092,18 +1087,28 @@ export class MembersService {
       if (member.memberType === 'VIP') {
         await this.applyVipTimeDiscount(tx, member.id, rewardSeconds, noteWithBonus, LOYALTY_USAGE_CREATED_BY);
       } else {
+        const defaultGroup = await tx.pcGroup.findFirst({
+          where: { isDefault: true },
+        });
+        const hourlyRate = Number(
+          defaultGroup?.memberHourlyRate ??
+            defaultGroup?.hourlyRate ??
+            6000,
+        );
+        const cashAmount = Math.round((rewardSeconds / 3600) * hourlyRate);
+
         updatedMember = await tx.member.update({
           where: { id: member.id },
           data: {
-            playSeconds: { increment: rewardSeconds },
+            balance: { increment: cashAmount },
           },
         });
         await tx.memberTransaction.create({
           data: {
             memberId: member.id,
             type: MemberTransactionType.ADJUSTMENT,
-            amountDelta: 0,
-            playSecondsDelta: rewardSeconds,
+            amountDelta: cashAmount,
+            playSecondsDelta: 0,
             note: noteWithBonus,
             createdBy: LOYALTY_USAGE_CREATED_BY,
           },
@@ -1157,10 +1162,7 @@ export class MembersService {
       if (member.memberType === 'VIP') {
         await this.applyVipTimeDiscount(tx, memberId, -secondsToSpend, spendNote, createdBy);
       } else {
-        await tx.member.update({
-          where: { id: memberId },
-          data: { playSeconds: { decrement: secondsToSpend } },
-        });
+        // Do not decrement playSeconds from member table
         await tx.memberTransaction.create({
           data: {
             memberId,
@@ -1211,16 +1213,26 @@ export class MembersService {
         if (member.memberType === 'VIP') {
           await this.applyVipTimeDiscount(tx, memberId, secondsToReward, rewardNote, createdBy);
         } else {
+          const defaultGroup = await tx.pcGroup.findFirst({
+            where: { isDefault: true },
+          });
+          const hourlyRate = Number(
+            defaultGroup?.memberHourlyRate ??
+              defaultGroup?.hourlyRate ??
+              6000,
+          );
+          const cashAmount = Math.round((secondsToReward / 3600) * hourlyRate);
+
           await tx.member.update({
             where: { id: memberId },
-            data: { playSeconds: { increment: secondsToReward } },
+            data: { balance: { increment: cashAmount } },
           });
           await tx.memberTransaction.create({
             data: {
               memberId,
               type: MemberTransactionType.ADJUSTMENT,
-              amountDelta: 0,
-              playSecondsDelta: secondsToReward,
+              amountDelta: cashAmount,
+              playSecondsDelta: 0,
               note: rewardNote,
               createdBy,
             },
@@ -1290,10 +1302,7 @@ export class MembersService {
       if (member.memberType === 'VIP') {
         await this.applyVipTimeDiscount(tx, memberId, -secondsToSpend, spendNote, createdBy);
       } else {
-        await tx.member.update({
-          where: { id: memberId },
-          data: { playSeconds: { decrement: secondsToSpend } },
-        });
+        // Do not decrement playSeconds from member table
         await tx.memberTransaction.create({
           data: {
             memberId,
@@ -1342,16 +1351,26 @@ export class MembersService {
         if (member.memberType === 'VIP') {
           await this.applyVipTimeDiscount(tx, memberId, secondsToReward, rewardNote, createdBy);
         } else {
+          const defaultGroup = await tx.pcGroup.findFirst({
+            where: { isDefault: true },
+          });
+          const hourlyRate = Number(
+            defaultGroup?.memberHourlyRate ??
+              defaultGroup?.hourlyRate ??
+              6000,
+          );
+          const cashAmount = Math.round((secondsToReward / 3600) * hourlyRate);
+
           await tx.member.update({
             where: { id: memberId },
-            data: { playSeconds: { increment: secondsToReward } },
+            data: { balance: { increment: cashAmount } },
           });
           await tx.memberTransaction.create({
             data: {
               memberId,
               type: MemberTransactionType.ADJUSTMENT,
-              amountDelta: 0,
-              playSecondsDelta: secondsToReward,
+              amountDelta: cashAmount,
+              playSecondsDelta: 0,
               note: rewardNote,
               createdBy,
             },
@@ -2635,7 +2654,8 @@ export class MembersService {
         const factor = i / (totalRanks - 1);
 
         const minTopup = Math.round(maxThreshold * factor);
-        const minutesPerPoint = Math.round(startMinutes - (startMinutes - endMinutes) * factor);
+        const rawMinutes = startMinutes - (startMinutes - endMinutes) * factor;
+        const minutesPerPoint = Number(rawMinutes.toFixed(4));
         const bonusPercent = Math.round(startBonus + (endBonus - startBonus) * factor);
 
         await tx.loyaltyRankConfig.create({
@@ -2682,9 +2702,8 @@ export class MembersService {
 
     for (let i = 0; i < ranks.length; i++) {
       const factor = i / denominator;
-      const minutesPerPoint = Math.round(
-        startMinutes - (startMinutes - endMinutes) * factor,
-      );
+      const rawMinutes = startMinutes - (startMinutes - endMinutes) * factor;
+      const minutesPerPoint = Number(rawMinutes.toFixed(4));
 
       await tx.loyaltyRankConfig.update({
         where: { id: ranks[i].id },

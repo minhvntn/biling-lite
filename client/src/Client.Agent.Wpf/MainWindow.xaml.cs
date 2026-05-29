@@ -810,15 +810,14 @@ public partial class MainWindow : Window
             else if (_isMemberSession)
             {
                 var pricePerMinute = _hourlyRate / 60m;
-                var balanceMinutes = pricePerMinute > 0 ? _memberBalance / pricePerMinute : 0m;
-                var playMinutes = _playSeconds / 60m;
-                var totalMinutesExact = balanceMinutes + playMinutes;
-                var usedMinutesExact = elapsedSeconds / 60d;
+                var balanceSeconds = pricePerMinute > 0 ? (_memberBalance / pricePerMinute) * 60m : 0m;
+                var remainingSecondsAtLastSync = (int)Math.Floor(balanceSeconds);
+                var secondsSinceLastSync = elapsedSeconds - _lastSyncElapsedSeconds;
                 
-                totalSecs = (int)Math.Floor(totalMinutesExact * 60m);
-                remainingSecs = Math.Max(0, totalSecs - usedSecs);
+                remainingSecs = Math.Max(0, remainingSecondsAtLastSync - secondsSinceLastSync);
+                totalSecs = remainingSecs + usedSecs;
                 
-                remainingMins = Math.Max(0, (int)Math.Floor(totalMinutesExact - (decimal)usedMinutesExact));
+                remainingMins = (int)Math.Max(0, Math.Ceiling(remainingSecs / 60.0));
                 totalMins = remainingMins + usedMins;
             }
             else
@@ -834,8 +833,7 @@ public partial class MainWindow : Window
             {
                 var pricePerMinute = _hourlyRate / 60m;
                 var balanceMinutes = pricePerMinute > 0 ? _memberBalance / pricePerMinute : 0m;
-                var playMinutes = _playSeconds / 60m;
-                var totalMinutesExact = balanceMinutes + playMinutes;
+                var totalMinutesExact = balanceMinutes;
                 
                 totalSecs = (int)Math.Floor(totalMinutesExact * 60m);
                 remainingSecs = totalSecs;
@@ -875,8 +873,13 @@ public partial class MainWindow : Window
             TimeExpired?.Invoke(this, EventArgs.Empty);
         }
 
-        UsedTimeValueTextBlock.Text = FormatSeconds(usedSecs);
-        RemainingTimeValueTextBlock.Text = FormatSeconds(remainingSecs);
+        var displayRemainingSecs = (int)Math.Ceiling(remainingSecs / 60.0) * 60;
+        var displayUsedSecs = (usedSecs / 60) * 60;
+        var displayTotalSecs = displayRemainingSecs + displayUsedSecs;
+
+        TotalTimeValueTextBlock.Text = FormatSeconds(displayTotalSecs);
+        UsedTimeValueTextBlock.Text = FormatSeconds(displayUsedSecs);
+        RemainingTimeValueTextBlock.Text = FormatSeconds(displayRemainingSecs);
 
         double percentage = 1.0;
         if (totalMins > 0)
