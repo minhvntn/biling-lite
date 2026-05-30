@@ -29,6 +29,8 @@ const DEFAULT_LOCK_SCREEN_INTERVAL_SECONDS = 5;
 const DEFAULT_LOCK_SCREEN_BACKGROUND_MODE = 'none';
 const DEFAULT_MEMBER_WITHDRAW_ENABLED = true;
 const DEFAULT_MEMBER_TOPUP_REQUEST_ENABLED = true;
+const CLIENT_AUTO_COLLAPSE_INTERVAL_SECONDS_KEY = '__CLIENT_AUTO_COLLAPSE_INTERVAL_SECONDS__';
+const DEFAULT_AUTO_COLLAPSE_INTERVAL_SECONDS = 0;
 const LOCK_SCREEN_MEDIA_DIR = path.join(
   process.cwd(),
   'storage',
@@ -77,6 +79,7 @@ export class PricingService {
       memberWithdrawSetting,
       memberTopupRequestSetting,
       intervalSetting,
+      collapseSetting,
     ] = await Promise.all([
       this.ensureClientRuntimeSettings(),
       this.prisma.appSetting.findUnique({
@@ -95,6 +98,9 @@ export class PricingService {
       this.ensureMemberTopupRequestSetting(),
       this.prisma.appSetting.findUnique({
         where: { key: CLIENT_LOCK_SCREEN_INTERVAL_SECONDS_KEY },
+      }),
+      this.prisma.appSetting.findUnique({
+        where: { key: CLIENT_AUTO_COLLAPSE_INTERVAL_SECONDS_KEY },
       }),
     ]);
 
@@ -122,6 +128,9 @@ export class PricingService {
         memberTopupRequestSetting?.value,
         DEFAULT_MEMBER_TOPUP_REQUEST_ENABLED,
       ),
+      autoCollapseIntervalSeconds: collapseSetting
+        ? Math.max(0, isNaN(Number(collapseSetting.value)) ? DEFAULT_AUTO_COLLAPSE_INTERVAL_SECONDS : Number(collapseSetting.value))
+        : DEFAULT_AUTO_COLLAPSE_INTERVAL_SECONDS,
       serverTime: new Date().toISOString(),
     };
   }
@@ -133,6 +142,7 @@ export class PricingService {
     const hasAllowMemberWithdraw = payload.allowMemberWithdraw !== undefined;
     const hasAllowMemberTopupRequest = payload.allowMemberTopupRequest !== undefined;
     const hasLockScreenInterval = payload.lockScreenIntervalSeconds !== undefined;
+    const hasAutoCollapseInterval = payload.autoCollapseIntervalSeconds !== undefined;
 
     if (
       !hasReadyMinutes &&
@@ -140,7 +150,8 @@ export class PricingService {
       !hasLockScreenUrl &&
       !hasAllowMemberWithdraw &&
       !hasAllowMemberTopupRequest &&
-      !hasLockScreenInterval
+      !hasLockScreenInterval &&
+      !hasAutoCollapseInterval
     ) {
       throw new BadRequestException('Khong co du lieu cai dat de cap nhat');
     }
@@ -214,6 +225,15 @@ export class PricingService {
         where: { key: CLIENT_LOCK_SCREEN_INTERVAL_SECONDS_KEY },
         update: { value: interval.toString() },
         create: { key: CLIENT_LOCK_SCREEN_INTERVAL_SECONDS_KEY, value: interval.toString() },
+      });
+    }
+
+    if (hasAutoCollapseInterval) {
+      const interval = Math.max(0, Math.round(payload.autoCollapseIntervalSeconds as number));
+      await this.prisma.appSetting.upsert({
+        where: { key: CLIENT_AUTO_COLLAPSE_INTERVAL_SECONDS_KEY },
+        update: { value: interval.toString() },
+        create: { key: CLIENT_AUTO_COLLAPSE_INTERVAL_SECONDS_KEY, value: interval.toString() },
       });
     }
 

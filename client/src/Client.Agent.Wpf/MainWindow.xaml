@@ -192,44 +192,60 @@
                             <Grid Width="280" Height="280" HorizontalAlignment="Center">
                                 <!-- Background Track -->
                                 <Ellipse Stroke="#40FFFFFF" StrokeThickness="15" />
-                                
-                                <!-- Dynamic Arc (Using Path) -->
+                                                      <!-- Dynamic Arc (Using Path) -->
                                 <Path x:Name="ProgressArcPath" StrokeThickness="15" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
                                     <Path.Stroke>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                            <GradientStop Color="#A3E635" Offset="0"/>
-                                            <GradientStop Color="#22C55E" Offset="0.5"/>
-                                            <GradientStop Color="#059669" Offset="1"/>
+                                            <GradientStop Color="#22C55E" Offset="0"/>
+                                            <GradientStop Color="#00D4FF" Offset="0.6"/>
+                                            <GradientStop Color="#0088FF" Offset="1"/>
                                         </LinearGradientBrush>
                                     </Path.Stroke>
                                     <Path.Effect>
-                                        <DropShadowEffect Color="#22C55E" BlurRadius="25" ShadowDepth="0" Opacity="0.6"/>
+                                        <DropShadowEffect Color="#00D4FF" BlurRadius="25" ShadowDepth="0" Opacity="0.6"/>
                                     </Path.Effect>
                                 </Path>
 
-                                <!-- Inner Info -->
-                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <TextBlock x:Name="RemainingTimeLabelTextBlock" Text="Còn lại" Foreground="#64748B" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,4"/>
-                                    <Viewbox MaxWidth="220" MaxHeight="80" Margin="0,0,0,8" HorizontalAlignment="Center">
-                                        <TextBlock x:Name="RemainingTimeValueTextBlock" Text="1000:00" FontSize="64" FontWeight="Bold" FontFamily="Segoe UI" HorizontalAlignment="Center">
-                                            <TextBlock.Foreground>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#22C55E" Offset="0"/>
-                                                    <GradientStop Color="#15803D" Offset="1"/>
-                                                </LinearGradientBrush>
-                                            </TextBlock.Foreground>
-                                        </TextBlock>
-                                    </Viewbox>
-                                    
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,4">
-                                        <TextBlock x:Name="UsedTimeLabelTextBlock" Text="Đã dùng:" Foreground="#64748B" FontSize="22" Margin="0,0,6,0"/>
-                                        <TextBlock x:Name="UsedTimeValueTextBlock" Text="00:00" Foreground="#F43F5E" FontSize="22" FontWeight="Bold"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Grid>
+                                 <!-- Inner Info -->
+                                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                     <!-- Percentage Badge -->
+                                     <Border x:Name="PercentageBadge" Background="#22C55E" CornerRadius="10" Padding="12,4" HorizontalAlignment="Center" Margin="0,0,0,10">
+                                         <TextBlock x:Name="PercentageValueTextBlock" Text="72%" Foreground="White" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                                     </Border>
 
-                            <!-- External Info -->
-                            <StackPanel x:Name="ExternalInfoPanel" Margin="0,24,0,0" HorizontalAlignment="Stretch">
+                                     <!-- Label -->
+                                     <TextBlock Text="CÒN LẠI" Foreground="#334155" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+
+                                     <!-- Big Hero Value -->
+                                     <Viewbox MaxWidth="220" MaxHeight="80" HorizontalAlignment="Center" Margin="0,0,0,8">
+                                         <TextBlock x:Name="RemainingTimeValueTextBlock" Text="260:37" FontSize="54" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#0F172A" HorizontalAlignment="Center"/>
+                                     </Viewbox>
+
+                                     <!-- Bottom Stats Pill -->
+                                     <Border x:Name="BottomStatsPill" Background="#FFF0F4F8" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="16" Padding="14,6" HorizontalAlignment="Center">
+                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                             <!-- Total Time Part -->
+                                             <StackPanel x:Name="TotalTimeContainer" Orientation="Horizontal" VerticalAlignment="Center">
+                                                 <Path Data="M12,20 C16.41,20 20,16.41 20,12 C20,7.59 16.41,4 12,4 C7.59,4 4,7.59 4,12 C4,16.41 7.59,20 12,20 Z M12,7 L12,12 L15,14" 
+                                                       Stroke="#334155" StrokeThickness="1.5" Width="14" Height="14" Margin="0,0,6,0" Stretch="Uniform" Fill="{x:Null}"/>
+                                                 <TextBlock x:Name="TotalTimeValueTextBlock" Text="260:44" Foreground="#334155" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                 <!-- Divider -->
+                                                 <Border x:Name="BottomStatsDivider" Width="1" Height="12" Background="#E2E8F0" Margin="12,0"/>
+                                             </StackPanel>
+                                             <!-- Used Time Part -->
+                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                 <Path Data="M12,20 C16.41,20 20,16.41 20,12 C20,7.59 16.41,4 12,4 C7.59,4 4,7.59 4,12 C4,16.41 7.59,20 12,20 Z M12,4 V2 M10,2 H14 M12,12 L15,9"
+                                                       Stroke="#EF4444" StrokeThickness="1.5" Width="14" Height="14" Margin="0,0,6,0" Stretch="Uniform" Fill="{x:Null}"/>
+                                                 <TextBlock x:Name="UsedTimeLabelTextBlock" Visibility="Collapsed"/>
+                                                 <TextBlock x:Name="UsedTimeValueTextBlock" Text="00:07" Foreground="#EF4444" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                                             </StackPanel>
+                                         </StackPanel>
+                                     </Border>
+                                 </StackPanel>
+                             </Grid>
+
+                             <!-- External Info -->
+                             <StackPanel x:Name="ExternalInfoPanel" Margin="0,24,0,0" HorizontalAlignment="Stretch">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                     
                                     <!-- Game Cost Pill -->
@@ -255,8 +271,6 @@
                         </StackPanel>
 
                         <!-- Hidden elements to preserve bindings -->
-                        <TextBlock x:Name="TotalTimeLabelTextBlock" Visibility="Collapsed" />
-                        <TextBlock x:Name="TotalTimeValueTextBlock" Visibility="Collapsed" />
                         <TextBlock x:Name="LastCommandTextBlock" Visibility="Collapsed" />
                         <Grid Visibility="Collapsed">
                             <TextBlock x:Name="StatusIconTextBlock" />

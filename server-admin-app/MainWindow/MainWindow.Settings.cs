@@ -353,16 +353,20 @@ public partial class MainWindow : Window
                 ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.Firebrick;
                 LockScreenBackgroundStatusTextBlock.Text = "Khong tai duoc cai dat nen lock screen.";
                 LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
+                AutoCollapseStatusTextBlock.Text = "Không tải được cấu hình tự động thu gọn.";
+                AutoCollapseStatusTextBlock.Foreground = Brushes.Firebrick;
                 return;
             }
 
             _readyAutoShutdownMinutes = Math.Clamp(response.ReadyAutoShutdownMinutes, 1, 240);
+            _autoCollapseIntervalSeconds = Math.Clamp(response.AutoCollapseIntervalSeconds, 0, 3600);
             _lockScreenBackgroundMode = NormalizeLockScreenBackgroundMode(response.LockScreenBackgroundMode);
             _lockScreenBackgroundUrl = (response.LockScreenBackgroundUrl ?? string.Empty).Trim();
             MemberWithdrawEnabledCheckBox.IsChecked = response.AllowMemberWithdraw;
             MemberTopupRequestEnabledCheckBox.IsChecked = response.AllowMemberTopupRequest;
 
             ReadyAutoShutdownMinutesTextBox.Text = _readyAutoShutdownMinutes.ToString(CultureInfo.InvariantCulture);
+            AutoCollapseIntervalTextBox.Text = _autoCollapseIntervalSeconds.ToString(CultureInfo.InvariantCulture);
             SetLockScreenBackgroundModeUi(_lockScreenBackgroundMode);
             LockScreenBackgroundUrlTextBox.Text = _lockScreenBackgroundUrl;
             RebuildMediaContainerFromTextBox();
@@ -371,6 +375,18 @@ public partial class MainWindow : Window
             ReadyAutoShutdownStatusTextBlock.Text =
                 $"Dang bat: may San sang khong login qua {_readyAutoShutdownMinutes} phut se tu tat.";
             ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.DarkGreen;
+
+            if (_autoCollapseIntervalSeconds > 0)
+            {
+                AutoCollapseStatusTextBlock.Text = $"Đang bật: tự động thu gọn sau {_autoCollapseIntervalSeconds} giây.";
+                AutoCollapseStatusTextBlock.Foreground = Brushes.DarkGreen;
+            }
+            else
+            {
+                AutoCollapseStatusTextBlock.Text = "Đang tắt tự động thu gọn.";
+                AutoCollapseStatusTextBlock.Foreground = Brushes.Gray;
+            }
+
             LockScreenBackgroundStatusTextBlock.Text =
                 DescribeLockScreenBackground(_lockScreenBackgroundMode, _lockScreenBackgroundUrl);
             LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGreen;
@@ -381,6 +397,8 @@ public partial class MainWindow : Window
             ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.Firebrick;
             LockScreenBackgroundStatusTextBlock.Text = "Khong ket noi duoc backend de doc cai dat nen lock screen.";
             LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
+            AutoCollapseStatusTextBlock.Text = "Không kết nối được backend để đọc cài đặt tự động thu gọn.";
+            AutoCollapseStatusTextBlock.Foreground = Brushes.Firebrick;
         }
         finally
         {
@@ -394,6 +412,13 @@ public partial class MainWindow : Window
         {
             ReadyAutoShutdownStatusTextBlock.Text = "So phut tu tat khong hop le (1 - 240).";
             ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        if (!TryParseAutoCollapseInterval(out var collapseSeconds))
+        {
+            AutoCollapseStatusTextBlock.Text = "Số giây tự động thu gọn không hợp lệ (0 - 3600).";
+            AutoCollapseStatusTextBlock.Foreground = Brushes.Firebrick;
             return;
         }
 
@@ -442,6 +467,7 @@ public partial class MainWindow : Window
                     lockScreenIntervalSeconds = intervalSeconds,
                     allowMemberWithdraw = MemberWithdrawEnabledCheckBox.IsChecked == true,
                     allowMemberTopupRequest = MemberTopupRequestEnabledCheckBox.IsChecked == true,
+                    autoCollapseIntervalSeconds = collapseSeconds,
                 });
 
             if (!response.IsSuccessStatusCode)
@@ -452,18 +478,23 @@ public partial class MainWindow : Window
                 LockScreenBackgroundStatusTextBlock.Text =
                     $"Luu cai dat nen lock screen that bai ({(int)response.StatusCode}).";
                 LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
+                AutoCollapseStatusTextBlock.Text =
+                    $"Lưu cấu hình tự động thu gọn thất bại ({(int)response.StatusCode}).";
+                AutoCollapseStatusTextBlock.Foreground = Brushes.Firebrick;
                 AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Luu cai dat runtime client that bai");
                 return;
             }
 
             var payload = await response.Content.ReadFromJsonAsync<ClientRuntimeSettingsResponse>(JsonOptions());
             _readyAutoShutdownMinutes = Math.Clamp(payload?.ReadyAutoShutdownMinutes ?? minutes, 1, 240);
+            _autoCollapseIntervalSeconds = Math.Clamp(payload?.AutoCollapseIntervalSeconds ?? collapseSeconds, 0, 3600);
             _lockScreenBackgroundMode = NormalizeLockScreenBackgroundMode(payload?.LockScreenBackgroundMode ?? mode);
             _lockScreenBackgroundUrl = (payload?.LockScreenBackgroundUrl ?? effectiveUrl).Trim();
             MemberWithdrawEnabledCheckBox.IsChecked = payload?.AllowMemberWithdraw ?? (MemberWithdrawEnabledCheckBox.IsChecked == true);
             MemberTopupRequestEnabledCheckBox.IsChecked = payload?.AllowMemberTopupRequest ?? (MemberTopupRequestEnabledCheckBox.IsChecked == true);
 
             ReadyAutoShutdownMinutesTextBox.Text = _readyAutoShutdownMinutes.ToString(CultureInfo.InvariantCulture);
+            AutoCollapseIntervalTextBox.Text = _autoCollapseIntervalSeconds.ToString(CultureInfo.InvariantCulture);
             SetLockScreenBackgroundModeUi(_lockScreenBackgroundMode);
             LockScreenBackgroundUrlTextBox.Text = _lockScreenBackgroundUrl;
             RebuildMediaContainerFromTextBox();
@@ -472,11 +503,23 @@ public partial class MainWindow : Window
             ReadyAutoShutdownStatusTextBlock.Text =
                 $"Da luu: may San sang khong login qua {_readyAutoShutdownMinutes} phut se tu tat.";
             ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.DarkGreen;
+            
+            if (_autoCollapseIntervalSeconds > 0)
+            {
+                AutoCollapseStatusTextBlock.Text = $"Đã lưu: tự động thu gọn sau {_autoCollapseIntervalSeconds} giây.";
+                AutoCollapseStatusTextBlock.Foreground = Brushes.DarkGreen;
+            }
+            else
+            {
+                AutoCollapseStatusTextBlock.Text = "Đã lưu: Đang tắt tự động thu gọn.";
+                AutoCollapseStatusTextBlock.Foreground = Brushes.Gray;
+            }
+
             LockScreenBackgroundStatusTextBlock.Text =
                 $"Da luu: {DescribeLockScreenBackground(_lockScreenBackgroundMode, _lockScreenBackgroundUrl)}";
             LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGreen;
             AppendServiceLog(
-                $"[{DateTime.Now:HH:mm:ss}] Da luu runtime client: auto-shutdown={_readyAutoShutdownMinutes}m, lockscreen={_lockScreenBackgroundMode}, member-withdraw={(MemberWithdrawEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}, member-topup-request={(MemberTopupRequestEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}");
+                $"[{DateTime.Now:HH:mm:ss}] Da luu runtime client: auto-shutdown={_readyAutoShutdownMinutes}m, auto-collapse={_autoCollapseIntervalSeconds}s, lockscreen={_lockScreenBackgroundMode}, member-withdraw={(MemberWithdrawEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}, member-topup-request={(MemberTopupRequestEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}");
         }
         catch
         {
@@ -484,8 +527,54 @@ public partial class MainWindow : Window
             ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.Firebrick;
             LockScreenBackgroundStatusTextBlock.Text = "Khong ket noi duoc backend khi luu nen lock screen.";
             LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
+            AutoCollapseStatusTextBlock.Text = "Không kết nối được backend khi lưu cài đặt tự động thu gọn.";
+            AutoCollapseStatusTextBlock.Foreground = Brushes.Firebrick;
             AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Loi ket noi khi luu runtime client");
         }
+    }
+
+    private bool TryParseAutoCollapseInterval(out int seconds)
+    {
+        var raw = AutoCollapseIntervalTextBox.Text.Trim();
+        if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out seconds) ||
+            int.TryParse(raw, NumberStyles.Integer, CultureInfo.CurrentCulture, out seconds))
+        {
+            if (seconds is >= 0 and <= 3600)
+            {
+                return true;
+            }
+        }
+
+        seconds = 0;
+        return false;
+    }
+
+    private void AutoCollapseIntervalTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_readyShutdownSettingsInitialized || _isLoadingReadyShutdownSettings)
+        {
+            return;
+        }
+
+        if (TryParseAutoCollapseInterval(out var seconds))
+        {
+            if (seconds > 0)
+            {
+                AutoCollapseStatusTextBlock.Text =
+                    $"Đã thay đổi thành {seconds} giây. Bấm \"Lưu cài đặt\" để áp dụng.";
+                AutoCollapseStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+            }
+            else
+            {
+                AutoCollapseStatusTextBlock.Text =
+                    "Đã thay đổi tắt tự động thu gọn. Bấm \"Lưu cài đặt\" để áp dụng.";
+                AutoCollapseStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+            }
+            return;
+        }
+
+        AutoCollapseStatusTextBlock.Text = "Số giây tự động thu gọn không hợp lệ (0 - 3600).";
+        AutoCollapseStatusTextBlock.Foreground = Brushes.Firebrick;
     }
 
     private bool TryParseReadyAutoShutdownMinutes(out int minutes)

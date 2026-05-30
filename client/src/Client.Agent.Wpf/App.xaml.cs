@@ -78,6 +78,7 @@ public partial class App : Application
     private string _lockScreenBackgroundUrl = string.Empty;
     private int _lockScreenIntervalSeconds = 5;
     private DateTime _lastRuntimeSettingsFetchUtc = DateTime.MinValue;
+    private int _autoCollapseIntervalSeconds = 0;
     private string _currentMachineState = "LOCKED";
     private bool _isWebFilterSyncRunning;
     private bool _isMemberAutoLockInProgress;
@@ -255,7 +256,7 @@ public partial class App : Application
 
     private void StartDeferredStartupTasks()
     {
-        _backgroundSyncTimer.Interval = TimeSpan.FromMinutes(1);
+        _backgroundSyncTimer.Interval = TimeSpan.FromSeconds(15);
         _backgroundSyncTimer.Tick += BackgroundSyncTimer_Tick;
         _backgroundSyncTimer.Start();
         _ = RefreshClientRuntimeSettingsAsync();
@@ -726,7 +727,7 @@ public partial class App : Application
             _isAdminSession = false;
             _isPostpaidGuestSession = false;
             _guestPrepaidTotalMinutes = null;
-            _lastSyncedMemberUsedSeconds = 60;
+            _lastSyncedMemberUsedSeconds = 0;
             ResetMemberRemainingWarnings();
 
             var presenceResult = await ReportMemberPresenceAsync(
@@ -745,14 +746,13 @@ public partial class App : Application
 
             Dispatcher.Invoke(() =>
             {
-                var balanceMinutes = ComputeMinutesFromBalance(member.Balance, _currentHourlyRate);
-                var totalMinutes = Math.Max(0, balanceMinutes);
+                var totalMinutes = Math.Max(0, ComputeRemainingMinutesFromMemberSnapshot(member));
                 if (totalMinutes <= 0 && member.MemberType != "VIP")
                 {
                     totalMinutes = 1;
                 }
 
-                _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: 0);
+                _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: member.PlaySeconds);
                 _mainWindow?.SetUpfrontUsedDuration();
                 _mainWindow?.SetMemberInfo(member.Username, member.Rank, member.MemberType);
                 _ = Task.Run(async () =>
@@ -917,7 +917,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             return 0;
         }
 
-        var minutes = (int)Math.Floor((balance / hourlyRate) * 60m);
+        var minutes = (int)Math.Ceiling((balance / hourlyRate) * 60m);
         return Math.Max(0, minutes);
     }
 
@@ -928,7 +928,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
             return 0;
         }
 
-        return Math.Max(0, (int)Math.Floor(playSeconds / 60d));
+        return Math.Max(1, (int)Math.Ceiling(playSeconds / 60d));
     }
 
     private static int ComputeUsedMinutesFromSeconds(int usedSeconds)
@@ -944,7 +944,8 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
     private int ComputeRemainingMinutesFromMemberSnapshot(MemberLoginItem member)
     {
         var balanceMinutes = ComputeMinutesFromBalance(member.Balance, _currentHourlyRate);
-        var remainingMins = balanceMinutes;
+        var playMinutes = ComputeMinutesFromPlaySeconds(member.PlaySeconds);
+        var remainingMins = Math.Max(0, balanceMinutes + playMinutes);
         
         if (member.MemberType == "VIP")
         {
@@ -956,13 +957,15 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
     private void SynchronizeMemberBillingFromServer(MemberLoginItem member, int usedSecondsNow)
     {
-        var remainingMinutes = ComputeRemainingMinutesFromMemberSnapshot(member);
-        var usedMinutes = ComputeUsedMinutesFromSeconds(usedSecondsNow);
-        var totalMinutes = Math.Max(1, remainingMinutes + usedMinutes);
+        var pricePerMinute = _currentHourlyRate > 0 ? (_currentHourlyRate / 60m) : 0m;
+        var remainingMinutesExact = pricePerMinute > 0 ? (member.Balance / pricePerMinute) : 0m;
+        var playMinutesExact = Math.Max(0m, member.PlaySeconds / 60m);
+        var totalMinutesExact = Math.Max(0m, remainingMinutesExact + playMinutesExact);
+        var totalMinutes = Math.Max(1, (int)Math.Ceiling(totalMinutesExact));
 
         Dispatcher.Invoke(() =>
         {
-            _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: 0);
+            _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: member.PlaySeconds);
         });
     }
 
@@ -2152,6 +2155,7 @@ public async void OpenLoyaltyPanelFromClientUi()
             }
 
             _readyAutoShutdownMinutes = Math.Clamp(payload.ReadyAutoShutdownMinutes, 1, 240);
+            _autoCollapseIntervalSeconds = Math.Clamp(payload.AutoCollapseIntervalSeconds, 0, 3600);
             _lockScreenBackgroundMode = NormalizeLockScreenBackgroundMode(payload.LockScreenBackgroundMode);
             _lockScreenBackgroundUrl = (payload.LockScreenBackgroundUrl ?? string.Empty).Trim();
             _lockScreenIntervalSeconds = Math.Max(1, payload.LockScreenIntervalSeconds);
@@ -2167,6 +2171,7 @@ public async void OpenLoyaltyPanelFromClientUi()
                     _lockScreenIntervalSeconds);
                 _mainWindow?.SetWithdrawActionVisible(_isMemberWithdrawEnabled);
                 _mainWindow?.SetTopupRequestActionVisible(_isMemberTopupRequestEnabled);
+                _mainWindow?.UpdateAutoCollapseInterval(_autoCollapseIntervalSeconds);
             });
         }
         catch (Exception ex)
@@ -3450,6 +3455,19 @@ LIMIT $limit;";
         _isMemberAutoLockInProgress = true;
         try
         {
+            await SyncActiveMemberUsageAsync($"AUTOLOCK_GUARD:{source}", true);
+            remainingMinutes = Math.Max(0, GetRemainingMinutesOnUiThread());
+            if (remainingMinutes > 0)
+            {
+                if (_logger is not null)
+                {
+                    await _logger.InfoAsync(
+                        $"Skipped auto-lock after guard sync because remaining time recovered (source={source}, remaining={remainingMinutes})");
+                }
+
+                return;
+            }
+
             await TrackAndClearMemberSessionAsync($"MEMBER_EXPIRED:{source}");
             Dispatcher.Invoke(() =>
             {

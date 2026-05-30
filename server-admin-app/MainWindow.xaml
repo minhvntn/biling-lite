@@ -1205,9 +1205,9 @@
                                               Width="120"
                                               Margin="0,0,8,0"
                                               SelectionChanged="RevenuePeriodComboBox_SelectionChanged">
-                                        <ComboBoxItem Content="Ngày" Tag="day" IsSelected="True" />
+                                        <ComboBoxItem Content="Ngày" Tag="day" />
                                         <ComboBoxItem Content="Tuần" Tag="week" />
-                                        <ComboBoxItem Content="Tháng" Tag="month" />
+                                        <ComboBoxItem Content="Tháng" Tag="month" IsSelected="True" />
                                     </ComboBox>
                                     <TextBlock VerticalAlignment="Center" Text="Ngày mốc:" Margin="0,0,6,0" />
                                     <DatePicker x:Name="RevenueAnchorDatePicker"
@@ -1226,15 +1226,21 @@
                                           GridLinesVisibility="Horizontal"
                                           RowHeaderWidth="0"
                                           AlternationCount="2">
+                                    <DataGrid.Resources>
+                                        <Style TargetType="TextBlock" x:Key="CellTextStyle">
+                                            <Setter Property="Padding" Value="0,8" />
+                                            <Setter Property="VerticalAlignment" Value="Center" />
+                                        </Style>
+                                    </DataGrid.Resources>
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Máy" Binding="{Binding PcName}" Width="120" />
-                                        <DataGridTextColumn Header="Agent" Binding="{Binding AgentId}" Width="130" />
-                                        <DataGridTextColumn Header="Bắt đầu" Binding="{Binding StartedAtText}" Width="160" />
-                                        <DataGridTextColumn Header="Kết thúc" Binding="{Binding EndedAtText}" Width="160" />
-                                        <DataGridTextColumn Header="Số phút" Binding="{Binding BillableMinutesText}" Width="90" />
-                                        <DataGridTextColumn Header="Tiền" Binding="{Binding AmountText}" Width="110" />
-                                        <DataGridTextColumn Header="Trạng thái" Binding="{Binding Status}" Width="90" />
-                                        <DataGridTextColumn Header="Lý do" Binding="{Binding ClosedReason}" Width="120" />
+                                        <DataGridTextColumn Header="Máy" Binding="{Binding PcName}" Width="120" ElementStyle="{StaticResource CellTextStyle}" />
+                                        <DataGridTextColumn Header="Agent" Binding="{Binding AgentId}" Width="130" ElementStyle="{StaticResource CellTextStyle}" />
+                                        <DataGridTextColumn Header="Bắt đầu" Binding="{Binding StartedAtText}" Width="160" ElementStyle="{StaticResource CellTextStyle}" />
+                                        <DataGridTextColumn Header="Kết thúc" Binding="{Binding EndedAtText}" Width="160" ElementStyle="{StaticResource CellTextStyle}" />
+                                        <DataGridTextColumn Header="Số phút" Binding="{Binding BillableMinutesText}" Width="90" ElementStyle="{StaticResource CellTextStyle}" />
+                                        <DataGridTextColumn Header="Tiền" Binding="{Binding AmountText}" Width="110" ElementStyle="{StaticResource CellTextStyle}" />
+                                        <DataGridTextColumn Header="Trạng thái" Binding="{Binding Status}" Width="90" ElementStyle="{StaticResource CellTextStyle}" />
+                                        <DataGridTextColumn Header="Lý do" Binding="{Binding ClosedReason}" Width="120" ElementStyle="{StaticResource CellTextStyle}" />
                                     </DataGrid.Columns>
                                 </DataGrid>
 
@@ -3072,6 +3078,28 @@
                                                          Text="1000" />
                                             </Grid>
 
+                                            <Grid Grid.Row="8" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="260" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Tự động thu gọn app client sau (giây):" />
+                                                <TextBox x:Name="AutoCollapseIntervalTextBox"
+                                                         Grid.Column="1"
+                                                         Width="110"
+                                                         Height="30"
+                                                         HorizontalAlignment="Left"
+                                                         VerticalContentAlignment="Center"
+                                                         Text="0"
+                                                         TextChanged="AutoCollapseIntervalTextBox_TextChanged" />
+                                            </Grid>
+
+                                            <TextBlock x:Name="AutoCollapseStatusTextBlock"
+                                                       Grid.Row="9"
+                                                       Margin="0,8,0,0"
+                                                       Foreground="#64748B"
+                                                       Text="Đang tải cài đặt tự động thu gọn..." />
+
                                         </Grid>
                                     </Border>
                                 </TabItem>
@@ -3998,22 +4026,22 @@
                       HorizontalAlignment="Right"
                       VerticalAlignment="Bottom"
                       Margin="0,0,18,52"
-                      Padding="16,10"
                       BorderThickness="0"
                       Background="#EA580C"
                       Cursor="Hand">
             <ToggleButton.Template>
                 <ControlTemplate TargetType="ToggleButton">
-                    <Border Background="{TemplateBinding Background}"
+                    <Border x:Name="ButtonBorder"
+                            Background="{TemplateBinding Background}"
                             CornerRadius="20"
-                            Padding="{TemplateBinding Padding}">
+                            Padding="16,10">
                         <Border.Effect>
                             <DropShadowEffect Color="Black" Opacity="0.25" BlurRadius="12" ShadowDepth="3" />
                         </Border.Effect>
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="Chưa tính tiền" Foreground="White" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0" />
+                            <TextBlock x:Name="UnpaidLabel" Text="Chưa tính tiền" Foreground="White" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Margin="0,0,10,0" />
                             <Border Background="White" CornerRadius="12" MinWidth="24" Height="24" Padding="6,0">
-                                <TextBlock Foreground="#EA580C" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{TemplateBinding Content}" />
+                                <TextBlock Foreground="#EA580C" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Center" Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}" />
                             </Border>
                         </StackPanel>
                     </Border>
@@ -4023,6 +4051,19 @@
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter Property="Background" Value="#C2410C" />
+                        </Trigger>
+                        <Trigger Property="Content" Value="0">
+                            <Setter Property="Opacity" Value="0.2" />
+                            <Setter TargetName="UnpaidLabel" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="ButtonBorder" Property="Padding" Value="8" />
+                        </Trigger>
+                        <Trigger Property="Content">
+                            <Trigger.Value>
+                                <sys:Int32>0</sys:Int32>
+                            </Trigger.Value>
+                            <Setter Property="Opacity" Value="0.2" />
+                            <Setter TargetName="UnpaidLabel" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="ButtonBorder" Property="Padding" Value="8" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

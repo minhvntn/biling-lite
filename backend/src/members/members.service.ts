@@ -425,6 +425,8 @@ export class MembersService {
           defaultGroup?.hourlyRate ??
           12000,
       );
+      const hourlyRate = await this.getEffectiveHourlyRate(baseRate);
+      pricePerMinute = Number(hourlyRate) / 60;
       const upfrontLoginCharge = 0; // Members do not pay upfront charges
       const currentBalance = Number(member.balance);
       const isVip = member.memberType === 'VIP';
@@ -812,8 +814,8 @@ export class MembersService {
         throw new NotFoundException('Khong tim thay hoi vien');
       }
 
-      const currentPlaySeconds = 0;
-      const consumedSeconds = 0;
+      const currentPlaySeconds = Math.max(0, member.playSeconds);
+      const consumedSeconds = Math.max(0, Math.min(currentPlaySeconds, requestedSeconds));
       let updatedMember = member;
       const enabled = await this.getLoyaltyFeatureEnabled(tx);
       const createdBy = enabled
@@ -887,7 +889,7 @@ export class MembersService {
       const remainingSeconds = requestedSeconds - consumedSeconds;
       if (remainingSeconds > 0) {
         const pc = await tx.pc.findFirst({
-          where: { agentId: createdBy },
+          where: { agentId: payload.createdBy?.trim() || 'client.session' },
         });
 
         let pricePerMinute = 200;
@@ -917,8 +919,19 @@ export class MembersService {
         }
 
         const pricePerSecond = pricePerMinute / 60;
-        const rawCost = remainingSeconds * pricePerSecond;
-        const costAmount = Number(rawCost.toFixed(2));
+        const currentBalance = Number(member.balance);
+        
+        let costAmount = 0;
+        if (pricePerSecond > 0) {
+          const maxSecondsForBalance = currentBalance / pricePerSecond;
+          costAmount = Number((remainingSeconds * pricePerSecond).toFixed(2));
+          
+          if (remainingSeconds >= Math.floor(maxSecondsForBalance) || (currentBalance - costAmount) < pricePerSecond) {
+            costAmount = currentBalance;
+          } else {
+            costAmount = Math.min(costAmount, currentBalance);
+          }
+        }
 
         if (costAmount > 0) {
           updatedMember = await tx.member.update({

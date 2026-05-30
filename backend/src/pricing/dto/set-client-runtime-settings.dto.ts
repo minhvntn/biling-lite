@@ -43,4 +43,11 @@ export class SetClientRuntimeSettingsDto {
   @Min(1)
   @Max(3600)
   lockScreenIntervalSeconds?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(3600)
+  autoCollapseIntervalSeconds?: number;
 }

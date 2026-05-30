@@ -2,7 +2,7 @@
   "main.connection.connecting": "Đang kết nối...",
   "main.status.icon": "⚡",
   "main.status.title": "Trạng thái máy",
-  "main.metrics.total": "Tổng thời gian",
+  "main.metrics.total": "Tổng",
   "main.metrics.used": "Đã dùng",
   "main.metrics.remaining": "Còn lại",
   "main.metrics.game_cost": "Tiền giờ chơi",

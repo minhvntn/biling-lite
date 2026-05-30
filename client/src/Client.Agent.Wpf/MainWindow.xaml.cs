@@ -35,6 +35,8 @@ public partial class MainWindow : Window
     private decimal _lastSyncMemberBalance;
     private bool _isMemberSession;
     private bool _isVipSession;
+    private bool _isAdminSession;
+    private bool _isPostpaidSession;
     private decimal _memberBalance;
     private int _playSeconds;
     private bool _withdrawActionEnabledSetting = true;
@@ -60,6 +62,10 @@ public partial class MainWindow : Window
 
         Loaded += MainWindow_Loaded;
         LocationChanged += MainWindow_LocationChanged;
+
+        PreviewMouseMove += (s, e) => ResetClientActivity();
+        PreviewMouseDown += (s, e) => ResetClientActivity();
+        PreviewKeyDown += (s, e) => ResetClientActivity();
     }
 
     private void ApplyI18nTexts()
@@ -71,9 +77,7 @@ public partial class MainWindow : Window
         StatusIconTextBlock.Text = ClientI18n.Get("main.status.icon", "⚡");
         StatusTitleTextBlock.Text = ClientI18n.Get("main.status.title", "Trạng thái máy");
 
-        TotalTimeLabelTextBlock.Text = ClientI18n.Get("main.metrics.total", "Tổng thời gian");
-        UsedTimeLabelTextBlock.Text = ClientI18n.Get("main.metrics.used", "Đã dùng");
-        RemainingTimeLabelTextBlock.Text = ClientI18n.Get("main.metrics.remaining", "Còn lại");
+        UsedTimeLabelTextBlock.Text = ClientI18n.Get("main.metrics.used", "Đã dùng") + ":";
         GameCostLabelTextBlock.Text = ClientI18n.Get("main.metrics.game_cost", "Tiền giờ chơi");
         ServiceCostLabelTextBlock.Text = ClientI18n.Get("main.metrics.service_cost", "Tiền dịch vụ");
 
@@ -137,6 +141,8 @@ public partial class MainWindow : Window
         }
     }
 
+    private int _autoCollapseIntervalSeconds = 0;
+    private DateTime _lastClientInteractionTime = DateTime.UtcNow;
     private bool _isCollapsed = false;
 
     private void CollapseButton_Click(object sender, RoutedEventArgs e)
@@ -254,6 +260,7 @@ public partial class MainWindow : Window
 
         _usageTimer.Interval = TimeSpan.FromSeconds(1);
 
+        _isPostpaidSession = isPostpaid;
         SetExternalInfoVisibility(isPostpaid || _isVipSession);
 
         UpdateUsageUi();
@@ -264,7 +271,6 @@ public partial class MainWindow : Window
         if (elapsedSeconds >= 0)
         {
             _usedDuration = TimeSpan.FromSeconds(elapsedSeconds);
-            _lastSyncElapsedSeconds = elapsedSeconds;
             if (_runningStartedAtUtc is not null)
             {
                 _runningStartedAtUtc = DateTime.UtcNow;
@@ -396,13 +402,13 @@ public partial class MainWindow : Window
     public void SetMemberInfo(string? username, string? rank, string? memberType = null)
     {
         _isMemberSession = !string.IsNullOrWhiteSpace(username);
-        var isAdminSession = string.Equals(username, "Admin", StringComparison.OrdinalIgnoreCase) ||
-                             string.Equals(rank, "ADMIN", StringComparison.OrdinalIgnoreCase);
+        _isAdminSession = string.Equals(username, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                           string.Equals(rank, "ADMIN", StringComparison.OrdinalIgnoreCase);
         _isVipSession = string.Equals(memberType, "VIP", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(rank, "VIP", StringComparison.OrdinalIgnoreCase);
         UpdateExternalInfoVisibility();
-        SetLogoutActionVisible((_isMemberSession || isAdminSession) && !_isVipSession);
-        SetTransferActionVisible(_isMemberSession && !isAdminSession);
+        SetLogoutActionVisible((_isMemberSession || _isAdminSession) && !_isVipSession);
+        SetTransferActionVisible(_isMemberSession && !_isAdminSession);
         SetWithdrawActionVisible(_withdrawActionEnabledSetting);
         SetTopupRequestActionVisible(_topupActionEnabledSetting);
         LoyaltyActionButton.Visibility = _isMemberSession ? Visibility.Visible : Visibility.Collapsed;
@@ -714,6 +720,30 @@ public partial class MainWindow : Window
     private void UsageTimer_Tick(object? sender, EventArgs e)
     {
         UpdateUsageUi();
+        CheckAutoCollapse();
+    }
+
+    private void CheckAutoCollapse()
+    {
+        if (_autoCollapseIntervalSeconds > 0 && !_isCollapsed)
+        {
+            var idleSeconds = (DateTime.UtcNow - _lastClientInteractionTime).TotalSeconds;
+            if (idleSeconds >= _autoCollapseIntervalSeconds)
+            {
+                CollapseButton_Click(this, new RoutedEventArgs());
+            }
+        }
+    }
+
+    public void UpdateAutoCollapseInterval(int seconds)
+    {
+        _autoCollapseIntervalSeconds = seconds;
+        ResetClientActivity();
+    }
+
+    public void ResetClientActivity()
+    {
+        _lastClientInteractionTime = DateTime.UtcNow;
     }
 
     private void ResumeSession()
@@ -767,16 +797,36 @@ public partial class MainWindow : Window
 
     public int GetRemainingMinutes()
     {
+        if (_isMemberSession && !_isVipSession)
+        {
+            return ComputeRoundedMemberRemainingMinutesFromAccount();
+        }
+
         var total = TimeSpan.FromMinutes(Math.Max(1, _totalSessionMinutes));
         var used = GetCurrentUsedDuration();
         var totalMins = (int)total.TotalMinutes;
         var elapsedSeconds = Math.Max(0, (int)used.TotalSeconds);
         var hasSessionUsage = _runningStartedAtUtc is not null || _usedDuration > TimeSpan.Zero;
         var usedMins = hasSessionUsage
-            ? Math.Max(1, (int)Math.Ceiling(elapsedSeconds / 60.0))
+            ? Math.Max(0, (int)Math.Floor(elapsedSeconds / 60.0))
             : 0;
 
         return Math.Max(0, totalMins - usedMins);
+    }
+
+    private int ComputeRoundedMemberRemainingMinutesFromAccount()
+    {
+        var pricePerMinute = _hourlyRate > 0 ? (_hourlyRate / 60m) : 0m;
+        var balanceSeconds = pricePerMinute > 0
+            ? (_memberBalance / pricePerMinute) * 60m
+            : 0m;
+        var totalRemainingSeconds = Math.Max(0m, balanceSeconds) + Math.Max(0, _playSeconds);
+        if (totalRemainingSeconds <= 0m)
+        {
+            return 0;
+        }
+
+        return Math.Max(1, (int)Math.Ceiling((double)(totalRemainingSeconds / 60m)));
     }
 
     private void UpdateUsageUi()
@@ -809,16 +859,10 @@ public partial class MainWindow : Window
             }
             else if (_isMemberSession)
             {
-                var pricePerMinute = _hourlyRate / 60m;
-                var balanceSeconds = pricePerMinute > 0 ? (_memberBalance / pricePerMinute) * 60m : 0m;
-                var remainingSecondsAtLastSync = (int)Math.Floor(balanceSeconds);
-                var secondsSinceLastSync = elapsedSeconds - _lastSyncElapsedSeconds;
-                
-                remainingSecs = Math.Max(0, remainingSecondsAtLastSync - secondsSinceLastSync);
-                totalSecs = remainingSecs + usedSecs;
-                
-                remainingMins = (int)Math.Max(0, Math.Ceiling(remainingSecs / 60.0));
-                totalMins = remainingMins + usedMins;
+                totalMins = Math.Max(1, _totalSessionMinutes);
+                totalSecs = totalMins * 60;
+                remainingMins = ComputeRoundedMemberRemainingMinutesFromAccount();
+                remainingSecs = remainingMins * 60;
             }
             else
             {
@@ -831,15 +875,10 @@ public partial class MainWindow : Window
         {
             if (_isMemberSession && !_isVipSession)
             {
-                var pricePerMinute = _hourlyRate / 60m;
-                var balanceMinutes = pricePerMinute > 0 ? _memberBalance / pricePerMinute : 0m;
-                var totalMinutesExact = balanceMinutes;
-                
-                totalSecs = (int)Math.Floor(totalMinutesExact * 60m);
-                remainingSecs = totalSecs;
-                
-                remainingMins = Math.Max(0, (int)Math.Floor(totalMinutesExact));
-                totalMins = remainingMins;
+                totalMins = Math.Max(1, _totalSessionMinutes);
+                totalSecs = totalMins * 60;
+                remainingMins = ComputeRoundedMemberRemainingMinutesFromAccount();
+                remainingSecs = remainingMins * 60;
             }
             else if (_isVipSession)
             {
@@ -873,13 +912,20 @@ public partial class MainWindow : Window
             TimeExpired?.Invoke(this, EventArgs.Empty);
         }
 
-        var displayRemainingSecs = (int)Math.Ceiling(remainingSecs / 60.0) * 60;
+        var displayRemainingSecs = remainingSecs;
         var displayUsedSecs = (usedSecs / 60) * 60;
-        var displayTotalSecs = displayRemainingSecs + displayUsedSecs;
+        var displayTotalSecs = _isMemberSession
+            ? displayRemainingSecs + displayUsedSecs
+            : totalMins * 60;
 
         TotalTimeValueTextBlock.Text = FormatSeconds(displayTotalSecs);
         UsedTimeValueTextBlock.Text = FormatSeconds(displayUsedSecs);
         RemainingTimeValueTextBlock.Text = FormatSeconds(displayRemainingSecs);
+
+        bool showTotalTime = (_isMemberSession && !_isVipSession && !_isAdminSession) || 
+                             (!_isMemberSession && !_isPostpaidSession && !_isAdminSession);
+        var totalTimeVisibility = showTotalTime ? Visibility.Visible : Visibility.Collapsed;
+        TotalTimeContainer.Visibility = totalTimeVisibility;
 
         double percentage = 1.0;
         if (totalMins > 0)
@@ -889,6 +935,9 @@ public partial class MainWindow : Window
             percentage = remainingSeconds / totalSeconds;
         }
         UpdateProgressArc(percentage);
+
+        PercentageValueTextBlock.Text = $"{(int)Math.Round(percentage * 100)}%";
+        PercentageBadge.Visibility = totalTimeVisibility;
 
         if (_isMemberSession)
         {

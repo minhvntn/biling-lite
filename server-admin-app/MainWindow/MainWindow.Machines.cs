@@ -245,11 +245,12 @@ public partial class MainWindow : Window
             else
             {
                 var pricePerMinute = (item.ActiveSession?.PricePerMinute > 0) ? item.ActiveSession.PricePerMinute : (item.HourlyRate / 60m);
-                var balanceMinutes = pricePerMinute > 0 ? activeMember.Balance / pricePerMinute : 0m;
-                var totalSecondsExact = balanceMinutes * 60m;
-                
-                var remainingSeconds = (int)Math.Floor(totalSecondsExact);
-                var displayRemainingSeconds = (int)Math.Ceiling(remainingSeconds / 60.0) * 60;
+                var balanceSeconds = pricePerMinute > 0 ? (activeMember.Balance / pricePerMinute) * 60m : 0m;
+                var totalRemainingSeconds = Math.Max(0m, balanceSeconds) + Math.Max(0, activeMember.PlaySeconds);
+                var remainingMinutes = totalRemainingSeconds <= 0m
+                    ? 0
+                    : Math.Max(1, (int)Math.Ceiling((double)(totalRemainingSeconds / 60m)));
+                var displayRemainingSeconds = remainingMinutes * 60;
                 remainingText = FormatRemainingTime(Math.Max(0, displayRemainingSeconds));
             }
         }

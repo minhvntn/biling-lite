@@ -88,6 +88,7 @@ public sealed class ClientRuntimeSettingsResponse
     public decimal MinimumCharge { get; set; } = 1000m;
     public bool AllowMemberWithdraw { get; set; } = true;
     public bool AllowMemberTopupRequest { get; set; } = true;
+    public int AutoCollapseIntervalSeconds { get; set; } = 0;
 
     public string ServerTime { get; set; } = string.Empty;
 }

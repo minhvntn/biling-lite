@@ -428,15 +428,23 @@ export function PcsPage() {
 
   const getRemainingTime = (pc: PcListItem, elapsedSeconds: number) => {
     if (pc.activeMember) {
-      if ((pc.activeMember as any).memberType === 'VIP') {
+      if (pc.activeMember.memberType === 'VIP') {
         const remainingSeconds = Math.max(0, 3600000 - elapsedSeconds);
         return formatDuration(remainingSeconds);
       }
       const balance = Number(pc.activeMember.balance) || 0;
-      const rate = pc.hourlyRate || 10000;
-      const playSeconds = (pc.activeMember as any).playSeconds || 0;
-      const totalSeconds = playSeconds + (balance / rate) * 3600;
-      return formatDuration(Math.max(0, totalSeconds - elapsedSeconds));
+      const playSeconds = Number(pc.activeMember.playSeconds) || 0;
+      const pricePerMinute =
+        (pc.activeSession?.pricePerMinute && pc.activeSession.pricePerMinute > 0)
+          ? pc.activeSession.pricePerMinute
+          : ((pc.hourlyRate || 10000) / 60);
+      const balanceSeconds = pricePerMinute > 0 ? ((balance / pricePerMinute) * 60) : 0;
+      const totalRemainingSeconds = Math.max(0, balanceSeconds) + Math.max(0, playSeconds);
+      const remainingMinutes = totalRemainingSeconds <= 0
+        ? 0
+        : Math.max(1, Math.ceil(totalRemainingSeconds / 60));
+      const displayRemainingSeconds = remainingMinutes * 60;
+      return formatDuration(displayRemainingSeconds);
     }
     return '-';
   };
@@ -454,7 +462,7 @@ export function PcsPage() {
       const paddedMinutes = minutes.toString().padStart(2, '0');
       return { icon: '⌛', text: `${paddedHours}:${paddedMinutes}` };
     }
-    if (pc.activeMember && (pc.activeMember as any).memberType === 'VIP') {
+    if (pc.activeMember && pc.activeMember.memberType === 'VIP') {
       const balance = Number(pc.activeMember.balance) || 0;
       if (balance < 0 && pc.hourlyRate) {
         const rawDebt = (elapsedSeconds / 3600) * pc.hourlyRate;

@@ -16,14 +16,18 @@ export type PcListItem = {
     startedAt: string;
     elapsedSeconds: number;
     billableMinutes: number;
+    pricePerMinute: number;
     estimatedAmount: number;
   } | null;
   hasUnpaidServices: boolean;
   activeMember: {
+    memberId?: string;
     id: string;
     username: string;
     fullName: string;
     balance: number;
+    playSeconds?: number;
+    memberType?: string;
   } | null;
   activeGuest: {
     displayName: string;

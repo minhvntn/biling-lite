@@ -1243,6 +1243,24 @@ public partial class MainWindow : Window
         await RefreshMembersAsync();
     }
 
+    private async void MembersAutoRefreshTimer_Tick(object? sender, EventArgs e)
+    {
+        if (!IsMembersTabActive() || _isRefreshingMembersAuto)
+        {
+            return;
+        }
+
+        _isRefreshingMembersAuto = true;
+        try
+        {
+            await RefreshMembersAsync(forceRefresh: true);
+        }
+        finally
+        {
+            _isRefreshingMembersAuto = false;
+        }
+    }
+
     private async void MembersDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (MembersDataGrid.SelectedItem is not MemberRow row)
@@ -2761,7 +2779,6 @@ public partial class MainWindow : Window
         public string Details { get; set; } = "-";
     }
 }
-
 
 
 

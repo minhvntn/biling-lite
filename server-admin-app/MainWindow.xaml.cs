@@ -33,6 +33,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _healthTimer = new();
     private readonly DispatcherTimer _machinesTimer = new();
     private readonly DispatcherTimer _systemLogsTimer = new();
+    private readonly DispatcherTimer _membersAutoRefreshTimer = new();
     private readonly DispatcherTimer _machineSearchDebounceTimer = new();
     private readonly DispatcherTimer _memberSearchDebounceTimer = new();
     private readonly DispatcherTimer _memberModalAutoCloseTimer = new();
@@ -65,6 +66,7 @@ public partial class MainWindow : Window
     private string? _selectedServiceItemId;
     private bool _isRefreshingMachines;
     private bool _isRefreshingSystemLogs;
+    private bool _isRefreshingMembersAuto;
     private bool _fontSizeInitialized;
     private bool _machineTableFontSizeInitialized;
     private bool _machineContextMenuPaddingInitialized;
@@ -74,6 +76,7 @@ public partial class MainWindow : Window
     private bool _readyShutdownSettingsInitialized;
     private bool _isLoadingReadyShutdownSettings;
     private int _readyAutoShutdownMinutes = 3;
+    private int _autoCollapseIntervalSeconds = 0;
     private string _lockScreenBackgroundMode = "none";
     private string _lockScreenBackgroundUrl = string.Empty;
     private bool _webFilterSettingsInitialized;
@@ -210,6 +213,10 @@ public partial class MainWindow : Window
             _systemLogsTimer.Tick += SystemLogsTimer_Tick;
             _systemLogsTimer.Start();
 
+            _membersAutoRefreshTimer.Interval = TimeSpan.FromMinutes(1);
+            _membersAutoRefreshTimer.Tick += MembersAutoRefreshTimer_Tick;
+            _membersAutoRefreshTimer.Start();
+
             ReportStartupProgress("Đang kết nối realtime...", 40);
             InitializeGuestLoginNotifications();
             InitializeRealtimeMachineRefreshBridge();
@@ -286,6 +293,7 @@ public partial class MainWindow : Window
         _healthTimer.Stop();
         _machinesTimer.Stop();
         _systemLogsTimer.Stop();
+        _membersAutoRefreshTimer.Stop();
         _machineSearchDebounceTimer.Stop();
         _memberSearchDebounceTimer.Stop();
         ShutdownGuestLoginNotifications();
