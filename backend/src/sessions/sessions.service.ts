@@ -439,14 +439,18 @@ export class SessionsService {
       id: string;
       pcId: string;
       startedAt: Date;
+      createdAt: Date;
       pc: { lastSeenAt: Date | null };
     },
     sourceEvent: string,
   ): Promise<{ sessionId: string; amount: number; billableMinutes: number }> {
+    const effectiveStartedAt = new Date(
+      Math.max(session.startedAt.getTime(), session.createdAt.getTime()),
+    );
     const endedAt = new Date();
     const durationSeconds = Math.max(
       0,
-      Math.floor((endedAt.getTime() - session.startedAt.getTime()) / 1000),
+      Math.floor((endedAt.getTime() - effectiveStartedAt.getTime()) / 1000),
     );
     const billableMinutes = Math.max(0, Math.ceil(durationSeconds / 60));
     const baseHourlyRate = await this.resolveBaseHourlyRateForPc(session.pcId);
@@ -461,7 +465,7 @@ export class SessionsService {
       },
     });
     const rawAmount = calculateSessionAmountByPromotions({
-      startedAt: session.startedAt,
+      startedAt: effectiveStartedAt,
       endedAt,
       baseHourlyRate,
       promotions: activePromotions,

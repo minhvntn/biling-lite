@@ -3048,6 +3048,12 @@ public partial class MainWindow : Window
                 displayedElapsedSeconds,
                 machineSnapshot.HourlyRate);
             var totalAmount = playAmountToPay + serviceAmount;
+            if (machineSnapshot.ActiveMemberId != null && machineSnapshot.ActiveMemberBalance >= 0)
+            {
+                // Member sessions already settle usage progressively from account balance.
+                // For checkout display, show full session play amount plus service instead of 0.
+                totalAmount = playAmount + serviceAmount;
+            }
 
             statusLine.ValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.StatusText) ? "-" : machineSnapshot.StatusText;
             groupLine.ValueText.Text = string.IsNullOrWhiteSpace(machineSnapshot.GroupName) ? "-" : machineSnapshot.GroupName;

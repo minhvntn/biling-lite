@@ -106,7 +106,17 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
     const resumeGuestSession =
       !!activeSession && activePresenceKind === 'GUEST';
     const elapsedSeconds = activeSession
-      ? Math.max(0, Math.floor((Date.now() - activeSession.startedAt.getTime()) / 1000))
+      ? Math.max(
+          0,
+          Math.floor(
+            (Date.now() -
+              Math.max(
+                activeSession.startedAt.getTime(),
+                activeSession.createdAt.getTime(),
+              )) /
+              1000,
+          ),
+        )
       : 0;
 
     let resumeMemberSession = false;
@@ -169,7 +179,17 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
 
     const activeSession = await this.pcsService.getActiveSessionForPc(transition.pc.id);
     const elapsedSeconds = activeSession
-      ? Math.max(0, Math.floor((Date.now() - activeSession.startedAt.getTime()) / 1000))
+      ? Math.max(
+          0,
+          Math.floor(
+            (Date.now() -
+              Math.max(
+                activeSession.startedAt.getTime(),
+                activeSession.createdAt.getTime(),
+              )) /
+              1000,
+          ),
+        )
       : 0;
 
     client.emit('agent.heartbeat.ack', {

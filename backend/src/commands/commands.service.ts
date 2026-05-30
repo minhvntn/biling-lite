@@ -1669,19 +1669,22 @@ export class CommandsService {
     const pricingStep = pricingStepSetting ? Number(pricingStepSetting.value) : 1000;
     const minimumCharge = minimumChargeSetting ? Number(minimumChargeSetting.value) : 1000;
 
+    const effectiveStartedAt = new Date(
+      Math.max(activeSession.startedAt.getTime(), activeSession.createdAt.getTime()),
+    );
     const now = new Date();
     const endedAt =
       activeSession.pc.status === PcStatus.OFFLINE && activeSession.pc.lastSeenAt
         ? new Date(
             Math.max(
-              activeSession.startedAt.getTime(),
+              effectiveStartedAt.getTime(),
               Math.min(now.getTime(), activeSession.pc.lastSeenAt.getTime()),
             ),
           )
         : now;
     const durationSeconds = Math.max(
       0,
-      Math.floor((endedAt.getTime() - activeSession.startedAt.getTime()) / 1000),
+      Math.floor((endedAt.getTime() - effectiveStartedAt.getTime()) / 1000),
     );
     const billableMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
     const baseHourlyRate = await this.resolveHourlyRateForPcTx(tx, pcId);
@@ -1696,7 +1699,7 @@ export class CommandsService {
       },
     });
     let amount = calculateSessionAmountByPromotions({
-      startedAt: activeSession.startedAt,
+      startedAt: effectiveStartedAt,
       endedAt,
       baseHourlyRate,
       promotions: activePromotions,
@@ -1707,19 +1710,8 @@ export class CommandsService {
       if (pricingStep > 0) {
         amount = Math.ceil(amount / pricingStep) * pricingStep;
       }
-      
-      const latestPresence = await tx.eventLog.findFirst({
-        where: {
-          pcId,
-          eventType: {
-            in: ['member.pc.presence', 'guest.pc.presence', 'admin.pc.presence'],
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      });
-      const isGuest = latestPresence?.eventType === 'guest.pc.presence';
 
-      if (isGuest && amount < minimumCharge) {
+      if (amount < minimumCharge) {
         amount = minimumCharge;
       }
     } else {

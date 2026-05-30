@@ -3698,64 +3698,33 @@ export class MembersService {
     note: string,
     createdBy: string,
   ): Promise<void> {
-    const latestPresenceLogs = await tx.eventLog.findMany({
-      where: { eventType: 'member.pc.presence' },
-      orderBy: { createdAt: 'desc' },
-      take: 2000,
+    const member = await tx.member.findUnique({
+      where: { id: memberId },
+      select: { playSeconds: true },
     });
-    
-    const activeLog = latestPresenceLogs.find((log) => {
-      const payload = log.payload as any;
-      return payload && payload.memberId === memberId && payload.isActive === true;
-    });
-
-    let appliedToSession = false;
-
-    if (activeLog && activeLog.pcId) {
-      const activeSession = await tx.session.findFirst({
-        where: { pcId: activeLog.pcId, status: 'ACTIVE' },
-        orderBy: { startedAt: 'desc' },
-      });
-
-      if (activeSession) {
-        const newStartedAt = new Date(activeSession.startedAt.getTime() + secondsDelta * 1000);
-        await tx.session.update({
-          where: { id: activeSession.id },
-          data: { startedAt: newStartedAt },
-        });
-
-        await tx.memberTransaction.create({
-          data: {
-            memberId,
-            type: MemberTransactionType.ADJUSTMENT,
-            amountDelta: 0,
-            playSecondsDelta: 0,
-            note: `${note} (VIP: Dịch chuyển Bắt đầu ${secondsDelta > 0 ? '+' : ''}${secondsDelta}s)`,
-            createdBy,
-          },
-        });
-        
-        appliedToSession = true;
-      }
+    if (!member) {
+      return;
     }
 
-    if (!appliedToSession) {
-      await tx.member.update({
-        where: { id: memberId },
-        data: { playSeconds: { increment: secondsDelta } },
-      });
+    const currentPlaySeconds = Math.max(0, Number(member.playSeconds ?? 0));
+    const nextPlaySeconds = Math.max(0, currentPlaySeconds + secondsDelta);
+    const appliedDelta = nextPlaySeconds - currentPlaySeconds;
 
-      await tx.memberTransaction.create({
-        data: {
-          memberId,
-          type: MemberTransactionType.ADJUSTMENT,
-          amountDelta: 0,
-          playSecondsDelta: secondsDelta,
-          note: `${note} (VIP: Dự phòng cộng vào tài khoản do không có phiên đang chạy)`,
-          createdBy,
-        },
-      });
-    }
+    await tx.member.update({
+      where: { id: memberId },
+      data: { playSeconds: nextPlaySeconds },
+    });
+
+    await tx.memberTransaction.create({
+      data: {
+        memberId,
+        type: MemberTransactionType.ADJUSTMENT,
+        amountDelta: 0,
+        playSecondsDelta: appliedDelta,
+        note: `${note} (VIP: update playSeconds ${appliedDelta > 0 ? '+' : ''}${appliedDelta}s; never shift session startedAt)`,
+        createdBy,
+      },
+    });
   }
 
   private async ensureNoActiveGuestSession(pcId: string) {

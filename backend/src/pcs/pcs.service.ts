@@ -211,20 +211,22 @@ export class PcsService {
                 pc.lastSeenAt?.getTime() ?? activeSession?.startedAt.getTime() ?? now,
               )
             : now;
-        const elapsedSeconds = activeSession
+        const effectiveStartedAtMs = activeSession
           ? Math.max(
-              0,
-              Math.floor(
-                (sessionClockAtMs - activeSession.startedAt.getTime()) / 1000,
-              ),
+              activeSession.startedAt.getTime(),
+              activeSession.createdAt.getTime(),
             )
+          : sessionClockAtMs;
+        const effectiveStartedAt = new Date(effectiveStartedAtMs);
+        const elapsedSeconds = activeSession
+          ? Math.max(0, Math.floor((sessionClockAtMs - effectiveStartedAtMs) / 1000))
           : 0;
         const billableMinutes = activeSession
           ? Math.max(1, Math.ceil(elapsedSeconds / 60))
           : 0;
         let estimatedAmount = activeSession
           ? calculateSessionAmountByPromotions({
-              startedAt: activeSession.startedAt,
+              startedAt: effectiveStartedAt,
               endedAt: new Date(sessionClockAtMs),
               baseHourlyRate,
               promotions: activePromotions,
@@ -236,7 +238,7 @@ export class PcsService {
           if (pricingStep > 0) {
             estimatedAmount = Math.ceil(estimatedAmount / pricingStep) * pricingStep;
           }
-          if (activeGuest && estimatedAmount < minimumCharge) {
+          if (estimatedAmount < minimumCharge) {
             estimatedAmount = minimumCharge;
           }
         }
@@ -268,7 +270,7 @@ export class PcsService {
           activeSession: activeSession
             ? {
                 id: activeSession.id,
-                startedAt: activeSession.startedAt.toISOString(),
+                startedAt: effectiveStartedAt.toISOString(),
                 elapsedSeconds,
                 billableMinutes,
                 pricePerMinute: Number(activeSession.pricePerMinute ?? 0),
