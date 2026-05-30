@@ -799,7 +799,11 @@ public partial class MainWindow : Window
     {
         if (_isMemberSession && !_isVipSession)
         {
-            return ComputeRoundedMemberRemainingMinutesFromAccount();
+            var elapsedNow = Math.Max(0, (int)GetCurrentUsedDuration().TotalSeconds);
+            var remainingRawSeconds = ComputeMemberRemainingSecondsRealtime(elapsedNow);
+            return remainingRawSeconds <= 0
+                ? 0
+                : Math.Max(1, (int)Math.Ceiling(remainingRawSeconds / 60.0));
         }
 
         var total = TimeSpan.FromMinutes(Math.Max(1, _totalSessionMinutes));
@@ -829,6 +833,18 @@ public partial class MainWindow : Window
         return Math.Max(1, (int)Math.Ceiling((double)(totalRemainingSeconds / 60m)));
     }
 
+    private int ComputeMemberRemainingSecondsRealtime(int elapsedSecondsNow)
+    {
+        var pricePerMinute = _hourlyRate > 0 ? (_hourlyRate / 60m) : 0m;
+        var balanceSecondsAtSync = pricePerMinute > 0
+            ? (_lastSyncMemberBalance / pricePerMinute) * 60m
+            : 0m;
+        var remainingSecondsAtSync = Math.Max(0m, balanceSecondsAtSync) + Math.Max(0, _playSeconds);
+        var elapsedSinceSync = Math.Max(0, elapsedSecondsNow - _lastSyncElapsedSeconds);
+        var remainingRawSeconds = remainingSecondsAtSync - elapsedSinceSync;
+        return Math.Max(0, (int)Math.Floor((double)remainingRawSeconds));
+    }
+
     private void UpdateUsageUi()
     {
         var total = TimeSpan.FromMinutes(Math.Max(1, _totalSessionMinutes));
@@ -841,6 +857,7 @@ public partial class MainWindow : Window
         var hasSessionUsage = _runningStartedAtUtc is not null || _usedDuration > TimeSpan.Zero;
         var totalSecs = 0;
         var remainingSecs = 0;
+        var remainingRawSecsForProgress = 0;
         var usedSecs = 0;
         var usedMins = 0;
         var remainingMins = 0;
@@ -861,7 +878,10 @@ public partial class MainWindow : Window
             {
                 totalMins = Math.Max(1, _totalSessionMinutes);
                 totalSecs = totalMins * 60;
-                remainingMins = ComputeRoundedMemberRemainingMinutesFromAccount();
+                remainingRawSecsForProgress = ComputeMemberRemainingSecondsRealtime(elapsedSeconds);
+                remainingMins = remainingRawSecsForProgress <= 0
+                    ? 0
+                    : Math.Max(1, (int)Math.Ceiling(remainingRawSecsForProgress / 60.0));
                 remainingSecs = remainingMins * 60;
             }
             else
@@ -879,6 +899,7 @@ public partial class MainWindow : Window
                 totalSecs = totalMins * 60;
                 remainingMins = ComputeRoundedMemberRemainingMinutesFromAccount();
                 remainingSecs = remainingMins * 60;
+                remainingRawSecsForProgress = remainingSecs;
             }
             else if (_isVipSession)
             {
@@ -928,7 +949,12 @@ public partial class MainWindow : Window
         TotalTimeContainer.Visibility = totalTimeVisibility;
 
         double percentage = 1.0;
-        if (totalMins > 0)
+        if (_isMemberSession && !_isVipSession)
+        {
+            var totalSecondsForProgress = Math.Max(1.0, usedSecs + remainingRawSecsForProgress);
+            percentage = Math.Max(0, remainingRawSecsForProgress) / totalSecondsForProgress;
+        }
+        else if (totalMins > 0)
         {
             double totalSeconds = totalMins * 60.0;
             double remainingSeconds = Math.Max(0, totalSeconds - elapsedSeconds);
