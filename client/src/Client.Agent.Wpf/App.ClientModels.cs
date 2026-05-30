@@ -67,7 +67,7 @@ public sealed class LoyaltySettingsResponse
 {
     public bool Enabled { get; set; }
 
-    public int MinutesPerPoint { get; set; }
+    public double MinutesPerPoint { get; set; }
 
     public int PointsToMinutes { get; set; }
 
@@ -267,11 +267,11 @@ public sealed class MemberLoyaltyItem
 
     public int RedeemedPoints { get; set; }
 
-    public int ProgressSeconds { get; set; }
+    public double ProgressSeconds { get; set; }
 
     public double ProgressMinutes { get; set; }
 
-    public int MinutesPerPoint { get; set; }
+    public double MinutesPerPoint { get; set; }
 }
 
 public sealed class MemberDailyCheckinStatus

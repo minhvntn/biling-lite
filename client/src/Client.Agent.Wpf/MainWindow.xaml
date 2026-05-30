@@ -213,39 +213,38 @@
                                          <TextBlock x:Name="PercentageValueTextBlock" Text="72%" Foreground="White" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                                      </Border>
 
-                                     <!-- Label -->
-                                     <TextBlock Text="CÒN LẠI" Foreground="#334155" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                     <!-- Label (Removed) -->
 
                                      <!-- Big Hero Value -->
                                      <Viewbox MaxWidth="220" MaxHeight="80" HorizontalAlignment="Center" Margin="0,0,0,8">
-                                         <TextBlock x:Name="RemainingTimeValueTextBlock" Text="260:37" FontSize="54" FontWeight="Bold" FontFamily="Segoe UI" HorizontalAlignment="Center">
+                                         <TextBlock x:Name="RemainingTimeValueTextBlock" Text="260:37" FontSize="50" FontWeight="Bold" FontFamily="Segoe UI" HorizontalAlignment="Center">
                                              <TextBlock.Foreground>
                                                  <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                     <GradientStop Color="#22C55E" Offset="0"/>
+                                                     <GradientStop Color="#0088FF" Offset="0"/>
                                                      <GradientStop Color="#00D4FF" Offset="0.6"/>
-                                                     <GradientStop Color="#0088FF" Offset="1"/>
+                                                     <GradientStop Color="#22C55E" Offset="1"/>
                                                  </LinearGradientBrush>
                                              </TextBlock.Foreground>
                                          </TextBlock>
                                      </Viewbox>
 
                                      <!-- Bottom Stats Pill -->
-                                     <Border x:Name="BottomStatsPill" Background="#FFF0F4F8" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="16" Padding="14,6" HorizontalAlignment="Center">
+                                     <Border x:Name="BottomStatsPill" Background="#80FFFFFF" BorderBrush="#80FFFFFF" BorderThickness="1" CornerRadius="16" Padding="10,3" HorizontalAlignment="Center">
                                          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                              <!-- Total Time Part -->
                                              <StackPanel x:Name="TotalTimeContainer" Orientation="Horizontal" VerticalAlignment="Center">
                                                  <Path Data="M12,20 C16.41,20 20,16.41 20,12 C20,7.59 16.41,4 12,4 C7.59,4 4,7.59 4,12 C4,16.41 7.59,20 12,20 Z M12,7 L12,12 L15,14" 
-                                                       Stroke="#334155" StrokeThickness="1.5" Width="14" Height="14" Margin="0,0,6,0" Stretch="Uniform" Fill="{x:Null}"/>
-                                                 <TextBlock x:Name="TotalTimeValueTextBlock" Text="260:44" Foreground="#334155" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                       Stroke="#334155" StrokeThickness="1.5" Width="18" Height="18" Margin="0,0,6,0" Stretch="Uniform" Fill="{x:Null}"/>
+                                                 <TextBlock x:Name="TotalTimeValueTextBlock" Text="260:44" Foreground="#334155" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
                                                  <!-- Divider -->
-                                                 <Border x:Name="BottomStatsDivider" Width="1" Height="12" Background="#E2E8F0" Margin="12,0"/>
+                                                 <Border x:Name="BottomStatsDivider" Width="1" Height="16" Background="#E2E8F0" Margin="12,0"/>
                                              </StackPanel>
                                              <!-- Used Time Part -->
                                              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                  <Path Data="M12,20 C16.41,20 20,16.41 20,12 C20,7.59 16.41,4 12,4 C7.59,4 4,7.59 4,12 C4,16.41 7.59,20 12,20 Z M12,4 V2 M10,2 H14 M12,12 L15,9"
-                                                       Stroke="#EF4444" StrokeThickness="1.5" Width="14" Height="14" Margin="0,0,6,0" Stretch="Uniform" Fill="{x:Null}"/>
+                                                       Stroke="#EF4444" StrokeThickness="1.5" Width="18" Height="18" Margin="0,0,6,0" Stretch="Uniform" Fill="{x:Null}"/>
                                                  <TextBlock x:Name="UsedTimeLabelTextBlock" Visibility="Collapsed"/>
-                                                 <TextBlock x:Name="UsedTimeValueTextBlock" Text="00:07" Foreground="#EF4444" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                                                 <TextBlock x:Name="UsedTimeValueTextBlock" Text="00:07" Foreground="#EF4444" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
                                              </StackPanel>
                                          </StackPanel>
                                      </Border>

@@ -4208,8 +4208,13 @@ LIMIT $limit;";
 
         void RefreshLoyaltyUi()
         {
+            var tSecs = (int)Math.Floor(settings.MinutesPerPoint * 60.0);
+            var tStr = tSecs % 60 == 0 ? $"{tSecs / 60} phút" : $"{tSecs / 60} phút {tSecs % 60} giây";
+            var pSecs = (int)Math.Floor(currentLoyalty.ProgressMinutes * 60.0);
+            var pStr = $"{pSecs / 60:00}:{pSecs % 60:00}";
+
             summaryTextBlock.Text =
-                $"Số dư: {member.Balance:N0} VND | Điểm: {currentLoyalty.AvailablePoints:N0} | Tích lũy: {currentLoyalty.ProgressMinutes:0.##}/{settings.MinutesPerPoint} phút";
+                $"Số dư: {member.Balance:N0} VND | Điểm: {currentLoyalty.AvailablePoints:N0} | Tích lũy: {pStr}/{tStr}";
             spinPointsTextBlock.Text = $"Điểm hiện có: {currentLoyalty.AvailablePoints:N0}";
             redeemAllButton.IsEnabled = currentLoyalty.AvailablePoints > 0;
             redeemButton.IsEnabled = currentLoyalty.AvailablePoints > 0;

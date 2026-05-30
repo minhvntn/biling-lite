@@ -383,9 +383,17 @@ public partial class MainWindow : Window
         LastCommandTextBlock.Text = $"Lệnh gần nhất: {value}";
     }
 
-    public void SetLoyaltyProgress(int points, double progressMinutes, int minutesPerPoint)
+    public void SetLoyaltyProgress(int points, double progressMinutes, double minutesPerPoint)
     {
-        MemberPointsTextBlock.Text = $"Điểm: {points:N0} | {progressMinutes:0.##}/{minutesPerPoint} phút";
+        var progressSecs = (int)Math.Floor(progressMinutes * 60.0);
+        var progressStr = $"{progressSecs / 60:00}:{progressSecs % 60:00}";
+
+        var totalSecs = (int)Math.Floor(minutesPerPoint * 60.0);
+        var totalStr = totalSecs % 60 == 0 
+            ? $"{totalSecs / 60} phút" 
+            : $"{totalSecs / 60} phút {totalSecs % 60} giây";
+
+        MemberPointsTextBlock.Text = $"Điểm: {points:N0} | {progressStr} / {totalStr}";
         MemberPointsTextBlock.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1D4ED8"));
 
         LoyaltyProgressContainer.Visibility = Visibility.Visible;
