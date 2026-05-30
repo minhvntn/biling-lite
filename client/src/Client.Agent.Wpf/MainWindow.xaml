@@ -218,7 +218,15 @@
 
                                      <!-- Big Hero Value -->
                                      <Viewbox MaxWidth="220" MaxHeight="80" HorizontalAlignment="Center" Margin="0,0,0,8">
-                                         <TextBlock x:Name="RemainingTimeValueTextBlock" Text="260:37" FontSize="54" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#0F172A" HorizontalAlignment="Center"/>
+                                         <TextBlock x:Name="RemainingTimeValueTextBlock" Text="260:37" FontSize="54" FontWeight="Bold" FontFamily="Segoe UI" HorizontalAlignment="Center">
+                                             <TextBlock.Foreground>
+                                                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                     <GradientStop Color="#22C55E" Offset="0"/>
+                                                     <GradientStop Color="#00D4FF" Offset="0.6"/>
+                                                     <GradientStop Color="#0088FF" Offset="1"/>
+                                                 </LinearGradientBrush>
+                                             </TextBlock.Foreground>
+                                         </TextBlock>
                                      </Viewbox>
 
                                      <!-- Bottom Stats Pill -->
