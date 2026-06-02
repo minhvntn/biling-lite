@@ -17,6 +17,7 @@ public partial class MainWindow : Window
     public static decimal PricingStep { get; set; } = 1000m;
     public static decimal MinimumCharge { get; set; } = 1000m;
     private const int DefaultTotalSessionMinutes = 60_000; // 1000 giờ
+    private const int VipOrPostpaidTotalSessionMinutes = 6_000; // 100 giờ
     public event EventHandler? TopupRequestRequested;
 
     public event EventHandler? TimeExpired;
@@ -162,6 +163,9 @@ public partial class MainWindow : Window
             LeftColumnGrid.HorizontalAlignment = HorizontalAlignment.Center;
             LeftColumnGrid.SetValue(System.Windows.Controls.Grid.ColumnSpanProperty, 2);
             
+            // Hide rank banner when collapsed
+            MemberRankContainer.Visibility = Visibility.Collapsed;
+
             if (RightColumnRankPanel.Children.Contains(MemberRankContainer))
             {
                 RightColumnRankPanel.Children.Remove(MemberRankContainer);
@@ -184,6 +188,9 @@ public partial class MainWindow : Window
             LeftColumnGrid.HorizontalAlignment = HorizontalAlignment.Stretch;
             LeftColumnGrid.SetValue(System.Windows.Controls.Grid.ColumnSpanProperty, 1);
             
+            // Show rank banner when expanded (only if it is a member session)
+            MemberRankContainer.Visibility = _isMemberSession ? Visibility.Visible : Visibility.Collapsed;
+
             if (LeftColumnRankPanel.Children.Contains(MemberRankContainer))
             {
                 LeftColumnRankPanel.Children.Remove(MemberRankContainer);
@@ -814,7 +821,7 @@ public partial class MainWindow : Window
                 : Math.Max(1, (int)Math.Ceiling(remainingRawSeconds / 60.0));
         }
 
-        var total = TimeSpan.FromMinutes(Math.Max(1, _totalSessionMinutes));
+        var total = TimeSpan.FromMinutes(GetEffectiveTotalSessionMinutes());
         var used = GetCurrentUsedDuration();
         var totalMins = (int)total.TotalMinutes;
         var elapsedSeconds = Math.Max(0, (int)used.TotalSeconds);
@@ -824,6 +831,16 @@ public partial class MainWindow : Window
             : 0;
 
         return Math.Max(0, totalMins - usedMins);
+    }
+
+    private int GetEffectiveTotalSessionMinutes()
+    {
+        if (_isVipSession || _isPostpaidSession)
+        {
+            return VipOrPostpaidTotalSessionMinutes;
+        }
+
+        return Math.Max(1, _totalSessionMinutes);
     }
 
     private int ComputeRoundedMemberRemainingMinutesFromAccount()
@@ -855,7 +872,7 @@ public partial class MainWindow : Window
 
     private void UpdateUsageUi()
     {
-        var total = TimeSpan.FromMinutes(Math.Max(1, _totalSessionMinutes));
+        var total = TimeSpan.FromMinutes(GetEffectiveTotalSessionMinutes());
         var used = GetCurrentUsedDuration();
 
         // Keep client display aligned with server/admin:
@@ -877,7 +894,7 @@ public partial class MainWindow : Window
             
             if (_isVipSession)
             {
-                totalMins = 60000; // 1000 hours
+                totalMins = VipOrPostpaidTotalSessionMinutes;
                 totalSecs = totalMins * 60;
                 remainingMins = Math.Max(0, totalMins - usedMins);
                 remainingSecs = Math.Max(0, totalSecs - usedSecs);
@@ -911,7 +928,7 @@ public partial class MainWindow : Window
             }
             else if (_isVipSession)
             {
-                totalMins = 60000;
+                totalMins = VipOrPostpaidTotalSessionMinutes;
                 totalSecs = totalMins * 60;
                 remainingMins = totalMins;
                 remainingSecs = totalSecs;

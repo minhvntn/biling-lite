@@ -128,6 +128,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         Loaded += MainWindow_Loaded;
         Closed += MainWindow_Closed;
+        PreviewMouseLeftButtonDown += MainWindow_PreviewMouseLeftButtonDown;
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -492,6 +493,67 @@ public partial class MainWindow : Window
         {
             CloseTopupModal(null);
         }
+    }
+
+    private void MainWindow_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        var hit = e.OriginalSource as DependencyObject;
+        if (hit == null) return;
+
+        var dataGrid = FindVisualParent<DataGrid>(hit);
+        if (dataGrid != null)
+        {
+            // If clicking inside a DataGrid, check if it hit a row
+            var row = FindVisualParent<DataGridRow>(hit);
+            if (row == null)
+            {
+                // Clicking blank area of the DataGrid -> Unselect it
+                dataGrid.SelectedItem = null;
+            }
+        }
+        else
+        {
+            // Clicking completely outside DataGrid
+            // Check if we are clicking on action controls. If so, preserve selection so actions can proceed.
+            if (!IsActionControl(hit))
+            {
+                if (MachinesDataGrid != null) MachinesDataGrid.SelectedItem = null;
+                if (MembersDataGrid != null) MembersDataGrid.SelectedItem = null;
+                if (ServiceItemsDataGrid != null) ServiceItemsDataGrid.SelectedItem = null;
+            }
+        }
+    }
+
+    private static T? FindVisualParent<T>(DependencyObject child) where T : DependencyObject
+    {
+        var parentObject = VisualTreeHelper.GetParent(child);
+        if (parentObject == null) return null;
+        if (parentObject is T parent) return parent;
+        return FindVisualParent<T>(parentObject);
+    }
+
+    private static bool IsActionControl(DependencyObject element)
+    {
+        var current = element;
+        while (current != null)
+        {
+            if (current is Button || 
+                current is MenuItem || 
+                current is ComboBox || 
+                current is TextBox || 
+                current is CheckBox || 
+                current is TabItem || 
+                current is ContextMenu ||
+                current is ScrollBar ||
+                current is DatePicker ||
+                current is System.Windows.Controls.Calendar ||
+                current is System.Windows.Controls.Primitives.ToggleButton)
+            {
+                return true;
+            }
+            current = VisualTreeHelper.GetParent(current);
+        }
+        return false;
     }
 }
 

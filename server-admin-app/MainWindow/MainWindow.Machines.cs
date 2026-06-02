@@ -128,7 +128,7 @@ public partial class MainWindow : Window
     }
     private static MachineRow ToMachineRow(PcListItem item)
     {
-        const int GuestSessionStartingHours = 1000;
+        const int VipOrPostpaidStartingHours = 100;
         var now = DateTime.Now;
         var activeAdmin = item.ActiveAdmin;
         var activeMember = item.ActiveMember;
@@ -223,7 +223,7 @@ public partial class MainWindow : Window
         var remainingText = "-";
         if (activeMember is null && item.ActiveSession is not null)
         {
-            var guestRemainingSecondsBase = GuestSessionStartingHours * 3600;
+            var guestRemainingSecondsBase = VipOrPostpaidStartingHours * 3600;
             if (activeGuest is not null && activeGuest.PrepaidAmount > 0 && item.HourlyRate > 0)
             {
                 guestRemainingSecondsBase = (int)Math.Floor((activeGuest.PrepaidAmount / item.HourlyRate) * 3600m);
@@ -238,7 +238,7 @@ public partial class MainWindow : Window
             if (isVipSession)
             {
                 var elapsedSeconds = item.ActiveSession?.ElapsedSeconds ?? 0;
-                var remainingSeconds = 60000 * 60 - elapsedSeconds;
+                var remainingSeconds = (VipOrPostpaidStartingHours * 3600) - elapsedSeconds;
                 var displayRemainingSeconds = (int)Math.Ceiling(remainingSeconds / 60.0) * 60;
                 remainingText = FormatRemainingTime(Math.Max(0, displayRemainingSeconds));
             }

@@ -83,6 +83,7 @@ function getPcIconPath(pc: PcListItem): string {
 }
 
 export function PcsPage() {
+  type PowerActionType = 'restart' | 'shutdown';
   const [pcs, setPcs] = useState<PcListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +106,11 @@ export function PcsPage() {
   const [drawerError, setDrawerError] = useState<string | null>(null);
   const [drawerSuccess, setDrawerSuccess] = useState<string | null>(null);
   const [actionPending, setActionPending] = useState(false);
+  const [powerActionConfirm, setPowerActionConfirm] = useState<{
+    action: PowerActionType;
+    pcId: string;
+    pcName: string;
+  } | null>(null);
 
   const [guestAmount, setGuestAmount] = useState<string>('0');
 
@@ -304,38 +310,37 @@ export function PcsPage() {
     }
   };
 
-  const handleShutdown = async () => {
-    if (!selectedPc) return;
-    if (!window.confirm(`Tắt máy ${selectedPc.name}?`)) return;
+  const executePowerAction = async () => {
+    if (!powerActionConfirm) return;
+
+    const { action, pcId } = powerActionConfirm;
     setActionPending(true);
     setDrawerError(null);
     setDrawerSuccess(null);
     try {
-      await shutdownPc(selectedPc.id);
-      setDrawerSuccess('Đã gửi lệnh tắt máy');
+      if (action === 'shutdown') {
+        await shutdownPc(pcId);
+        setDrawerSuccess('Đã gửi lệnh tắt máy');
+      } else {
+        await restartPc(pcId);
+        setDrawerSuccess('Đã gửi lệnh khởi động lại');
+      }
       await loadPcs();
     } catch (e) {
       setDrawerError(e instanceof Error ? e.message : 'Gửi lệnh thất bại');
     } finally {
       setActionPending(false);
+      setPowerActionConfirm(null);
     }
   };
 
-  const handleRestart = async () => {
+  const requestPowerActionConfirm = (action: PowerActionType) => {
     if (!selectedPc) return;
-    if (!window.confirm(`Khởi động lại máy ${selectedPc.name}?`)) return;
-    setActionPending(true);
-    setDrawerError(null);
-    setDrawerSuccess(null);
-    try {
-      await restartPc(selectedPc.id);
-      setDrawerSuccess('Đã gửi lệnh khởi động lại');
-      await loadPcs();
-    } catch (e) {
-      setDrawerError(e instanceof Error ? e.message : 'Gửi lệnh thất bại');
-    } finally {
-      setActionPending(false);
-    }
+    setPowerActionConfirm({
+      action,
+      pcId: selectedPc.id,
+      pcName: selectedPc.name,
+    });
   };
 
   const handleAddService = async () => {
@@ -429,7 +434,7 @@ export function PcsPage() {
   const getRemainingTime = (pc: PcListItem, elapsedSeconds: number) => {
     if (pc.activeMember) {
       if (pc.activeMember.memberType === 'VIP') {
-        const remainingSeconds = Math.max(0, 3600000 - elapsedSeconds);
+        const remainingSeconds = Math.max(0, 360000 - elapsedSeconds);
         return formatDuration(remainingSeconds);
       }
       const balance = Number(pc.activeMember.balance) || 0;
@@ -483,15 +488,17 @@ export function PcsPage() {
   };
 
   const getPlayAmountToPay = (pc: PcListItem, elapsedSeconds: number) => {
+    const serverAmount = pc.activeSession?.estimatedAmount || 0;
+
     if (pc.activeMember) {
       const balance = Number(pc.activeMember.balance) || 0;
-      if (balance < 0 && pc.hourlyRate) {
-        const rawDebt = (elapsedSeconds / 3600) * pc.hourlyRate;
+      if (balance < 0) {
+        const rawDebt = Math.abs(balance);
         return Math.ceil(rawDebt / 500) * 500;
       }
-      return 0;
+      return serverAmount;
     }
-    const serverAmount = pc.activeSession?.estimatedAmount || 0;
+
     const rawCost = (elapsedSeconds / 3600) * (pc.hourlyRate || 5000);
     const roundedRawCost = Math.ceil(rawCost / 500) * 500;
     const dynamicEstimatedAmount = Math.max(serverAmount, roundedRawCost);
@@ -888,7 +895,7 @@ export function PcsPage() {
                       </button>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button
-                          onClick={handleRestart}
+                          onClick={() => requestPowerActionConfirm('restart')}
                           disabled={actionPending}
                           className="btn-secondary"
                           style={{ flex: 1 }}
@@ -896,7 +903,7 @@ export function PcsPage() {
                           Khởi động lại
                         </button>
                         <button
-                          onClick={handleShutdown}
+                          onClick={() => requestPowerActionConfirm('shutdown')}
                           disabled={actionPending}
                           className="btn-secondary"
                           style={{ flex: 1, color: '#d32f2f' }}
@@ -1054,7 +1061,56 @@ export function PcsPage() {
             </div>
 
             <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setShowDrawer(false)}>Đóng</button>
+              <button
+                className="btn-secondary"
+                onClick={() => {
+                  setPowerActionConfirm(null);
+                  setShowDrawer(false);
+                }}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {powerActionConfirm && (
+        <div className="modal-backdrop" style={{ zIndex: 1400 }}>
+          <div className="modal-container" style={{ maxWidth: '420px', width: '94vw' }}>
+            <div className="modal-header">
+              <h2>Xác nhận</h2>
+              <button
+                className="modal-close"
+                onClick={() => setPowerActionConfirm(null)}
+                disabled={actionPending}
+              >
+                ×
+              </button>
+            </div>
+            <div className="drawer-body" style={{ display: 'grid', gap: '0.9rem' }}>
+              <p style={{ margin: 0 }}>
+                {powerActionConfirm.action === 'shutdown'
+                  ? `Bạn chắc chắn muốn tắt máy ${powerActionConfirm.pcName}?`
+                  : `Bạn chắc chắn muốn khởi động lại máy ${powerActionConfirm.pcName}?`}
+              </p>
+              <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
+                <button
+                  className="btn-secondary"
+                  onClick={() => setPowerActionConfirm(null)}
+                  disabled={actionPending}
+                >
+                  Hủy
+                </button>
+                <button
+                  className="btn-danger"
+                  onClick={executePowerAction}
+                  disabled={actionPending}
+                  style={{ minWidth: '132px' }}
+                >
+                  {actionPending ? 'Đang gửi...' : 'Xác nhận'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -579,6 +579,34 @@ public partial class MainWindow : Window
         Grid.SetRow(contentGrid, 1);
         root.Children.Add(contentGrid);
 
+        var acknowledgedOrderIds = items
+            .Select(x => x.OrderId?.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 10, 0, 0),
+        };
+
+        var acceptButton = new Button
+        {
+            Content = "Chấp nhận",
+            Width = 120,
+            Height = 38,
+            FontSize = 15,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 10, 0),
+            Background = new SolidColorBrush(Color.FromRgb(22, 163, 74)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(21, 128, 61)),
+            Foreground = Brushes.White,
+            IsDefault = true,
+        };
+
         var closeButton = new Button
         {
             Content = "Đóng",
@@ -586,16 +614,29 @@ public partial class MainWindow : Window
             Height = 38,
             FontSize = 15,
             FontWeight = FontWeights.SemiBold,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            IsDefault = true,
-            Margin = new Thickness(0, 10, 0, 0),
             Background = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
             BorderBrush = new SolidColorBrush(Color.FromRgb(29, 78, 216)),
             Foreground = Brushes.White,
         };
+
+        acceptButton.Click += (_, _) =>
+        {
+            if (acknowledgedOrderIds.Count > 0)
+            {
+                AcknowledgeClientServiceOrders(acknowledgedOrderIds);
+                InvalidateServiceAmountCacheForPcId(pcId);
+                QueueRealtimeMachineRefresh();
+                AppendServiceLog(
+                    $"[{DateTime.Now:HH:mm:ss}] {machineName}: đã xác nhận {acknowledgedOrderIds.Count} order dịch vụ từ popup realtime.");
+            }
+
+            window.Close();
+        };
         closeButton.Click += (_, _) => window.Close();
-        Grid.SetRow(closeButton, 2);
-        root.Children.Add(closeButton);
+        buttonPanel.Children.Add(acceptButton);
+        buttonPanel.Children.Add(closeButton);
+        Grid.SetRow(buttonPanel, 2);
+        root.Children.Add(buttonPanel);
 
         window.Content = root;
         window.Show();
