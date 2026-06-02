@@ -79,6 +79,12 @@ public partial class MainWindow : Window
 
         filteredRows = ApplyStatusFilter(filteredRows);
 
+        var summaryRows = filteredRows.ToList();
+        if (!_showOfflineMachines)
+        {
+            filteredRows = filteredRows.Where(r => r.StatusCode != "OFFLINE").ToList();
+        }
+
         _machineRows.Clear();
         foreach (var row in filteredRows)
         {
@@ -86,7 +92,7 @@ public partial class MainWindow : Window
         }
 
         RestoreMachineSelections(selectedPcIds ?? GetSelectedMachineIdsSnapshot());
-        UpdateMachineSummary(filteredRows);
+        UpdateMachineSummary(summaryRows);
     }
 
     private async Task RefreshMachineSummaryMemberCountAsync(bool forceRefresh = false)
@@ -161,8 +167,9 @@ public partial class MainWindow : Window
             _ => Brushes.Gray,
         };
 
-        var startedAt = ParseDateLocal(item.ActiveSession?.StartedAt);
-        var usedText = item.ActiveSession is null ? "-" : FormatUsed(item.ActiveSession.ElapsedSeconds);
+        var isOffline = item.Status == "OFFLINE" && item.ActiveSession is null;
+        var startedAt = (item.ActiveSession is null) ? null : ParseDateLocal(item.ActiveSession.StartedAt);
+        var usedText = (item.ActiveSession is null) ? "-" : FormatUsed(item.ActiveSession.ElapsedSeconds);
 
 
         var statusIconBrush = Brushes.Gray;
@@ -221,53 +228,58 @@ public partial class MainWindow : Window
             : item.Name;
         var guestDisplayName = $"Khách {guestMachineLabel}";
         var remainingText = "-";
-        if (activeMember is null && item.ActiveSession is not null)
+        if (!isOffline)
         {
-            var guestRemainingSecondsBase = VipOrPostpaidStartingHours * 3600;
-            if (activeGuest is not null && activeGuest.PrepaidAmount > 0 && item.HourlyRate > 0)
+            if (activeMember is null && item.ActiveSession is not null)
             {
-                guestRemainingSecondsBase = (int)Math.Floor((activeGuest.PrepaidAmount / item.HourlyRate) * 3600m);
+                var guestRemainingSecondsBase = VipOrPostpaidStartingHours * 3600;
+                if (activeGuest is not null && activeGuest.PrepaidAmount > 0 && item.HourlyRate > 0)
+                {
+                    guestRemainingSecondsBase = (int)Math.Floor((activeGuest.PrepaidAmount / item.HourlyRate) * 3600m);
+                }
+                var guestUsedSeconds = Math.Max(0, item.ActiveSession!.ElapsedSeconds);
+                var guestRemainingSeconds = Math.Max(0, guestRemainingSecondsBase - guestUsedSeconds);
+                var displayRemainingSeconds = (int)Math.Ceiling(guestRemainingSeconds / 60.0) * 60;
+                remainingText = FormatRemainingTime(displayRemainingSeconds);
             }
-            var guestUsedSeconds = Math.Max(0, item.ActiveSession!.ElapsedSeconds);
-            var guestRemainingSeconds = Math.Max(0, guestRemainingSecondsBase - guestUsedSeconds);
-            var displayRemainingSeconds = (int)Math.Ceiling(guestRemainingSeconds / 60.0) * 60;
-            remainingText = FormatRemainingTime(displayRemainingSeconds);
-        }
-        else if (activeMember is not null)
-        {
-            if (isVipSession)
+            else if (activeMember is not null)
             {
-                var elapsedSeconds = item.ActiveSession?.ElapsedSeconds ?? 0;
-                var remainingSeconds = (VipOrPostpaidStartingHours * 3600) - elapsedSeconds;
-                var displayRemainingSeconds = (int)Math.Ceiling(remainingSeconds / 60.0) * 60;
-                remainingText = FormatRemainingTime(Math.Max(0, displayRemainingSeconds));
-            }
-            else
-            {
-                var pricePerMinute = (item.ActiveSession?.PricePerMinute > 0) ? item.ActiveSession.PricePerMinute : (item.HourlyRate / 60m);
-                var balanceSeconds = pricePerMinute > 0 ? (activeMember.Balance / pricePerMinute) * 60m : 0m;
-                var totalRemainingSeconds = Math.Max(0m, balanceSeconds) + Math.Max(0, activeMember.PlaySeconds);
-                var remainingMinutes = totalRemainingSeconds <= 0m
-                    ? 0
-                    : Math.Max(1, (int)Math.Ceiling((double)(totalRemainingSeconds / 60m)));
-                var displayRemainingSeconds = remainingMinutes * 60;
-                remainingText = FormatRemainingTime(Math.Max(0, displayRemainingSeconds));
+                if (isVipSession)
+                {
+                    var elapsedSeconds = item.ActiveSession?.ElapsedSeconds ?? 0;
+                    var remainingSeconds = (VipOrPostpaidStartingHours * 3600) - elapsedSeconds;
+                    var displayRemainingSeconds = (int)Math.Ceiling(remainingSeconds / 60.0) * 60;
+                    remainingText = FormatRemainingTime(Math.Max(0, displayRemainingSeconds));
+                }
+                else
+                {
+                    var pricePerMinute = (item.ActiveSession?.PricePerMinute > 0) ? item.ActiveSession.PricePerMinute : (item.HourlyRate / 60m);
+                    var balanceSeconds = pricePerMinute > 0 ? (activeMember.Balance / pricePerMinute) * 60m : 0m;
+                    var totalRemainingSeconds = Math.Max(0m, balanceSeconds) + Math.Max(0, activeMember.PlaySeconds);
+                    var remainingMinutes = totalRemainingSeconds <= 0m
+                        ? 0
+                        : Math.Max(1, (int)Math.Ceiling((double)(totalRemainingSeconds / 60m)));
+                    var displayRemainingSeconds = remainingMinutes * 60;
+                    remainingText = FormatRemainingTime(Math.Max(0, displayRemainingSeconds));
+                }
             }
         }
         
         var moneyText = "-";
-        if (item.ActiveSession is not null)
+        if (item.ActiveSession is not null && !isOffline)
         {
             moneyText = (activeMember is not null && !isVipSession) ? "-" : item.ActiveSession.EstimatedAmount.ToString("N0");
         }
 
-        var userName = !string.IsNullOrWhiteSpace(activeMember?.Username)
-            ? (isVipSession ? $"VIP: {activeMember!.Username}" : activeMember!.Username)
-            : isAdminSession
-                ? "Admin"
-            : isGuestSession
-                ? guestDisplayName
-                : "-";
+        var userName = isOffline
+            ? "-"
+            : !string.IsNullOrWhiteSpace(activeMember?.Username)
+                ? (isVipSession ? $"VIP: {activeMember!.Username}" : activeMember!.Username)
+                : isAdminSession
+                    ? "Admin"
+                : isGuestSession
+                    ? guestDisplayName
+                    : "-";
 
         return new MachineRow
         {
@@ -292,7 +304,7 @@ public partial class MainWindow : Window
             RemainingText = remainingText,
             MoneyText = moneyText,
             ServiceAmountRaw = 0,
-            ServiceAmountText = item.ActiveSession is null ? "-" : "0",
+            ServiceAmountText = (item.ActiveSession is null || isOffline) ? "-" : "0",
             HasPendingClientServiceOrderHighlight = false,
             HasServiceDebtHighlight = false,
             DateText = now.ToString("dd-MM-yyyy"),
@@ -546,13 +558,18 @@ public partial class MainWindow : Window
 
         var total = rows.Count;
         var usingCount = rows.Count(r => r.StatusCode == "IN_USE");
-        var lockedCount = rows.Count(r => r.StatusCode is "LOCKED" or "OFFLINE" or "BOOTING");
+        var lockedCount = rows.Count(r => r.StatusCode is "LOCKED" or "BOOTING");
+        var offlineCount = rows.Count(r => r.StatusCode == "OFFLINE");
         var runningMoney = rows.Sum(r => ParseMoney(r.MoneyText) + r.ServiceAmountRaw);
 
         SummaryTotalTextBlock.Text = $"{I18n.TotalPcPrefix}: {total}";
         SummaryMemberCountTextBlock.Text = $"Tổng hội viên: {_cachedMachineSummaryMemberCount}";
         SummaryUsingTextBlock.Text = $"{I18n.InUsePcPrefix}: {usingCount}";
-        SummaryLockedTextBlock.Text = $"{I18n.LockedPcPrefix}: {lockedCount}";
+        SummaryLockedTextBlock.Text = $"Đang tắt: {lockedCount}";
+        if (SummaryOfflineTextBlock != null)
+        {
+            SummaryOfflineTextBlock.Text = $"Mất kết nối: {offlineCount}";
+        }
         SummaryMoneyTextBlock.Text = $"{I18n.TempMoneyPrefix}: {runningMoney:N0}";
 
         var unpaidGuests = rows.Where(r => r.IsOfflineUnpaidGuest).ToList();
@@ -4691,6 +4708,23 @@ public class LatestRunningAppsResponse
 public partial class MainWindow
 {
     private bool _isIconViewMode;
+    private bool _showOfflineMachines;
+
+    private void ShowOfflineMachines_Click(object sender, RoutedEventArgs e)
+    {
+        _showOfflineMachines = !_showOfflineMachines;
+        if (_showOfflineMachines)
+        {
+            ShowOfflineMachinesIcon.Text = "✔";
+            ShowOfflineMachinesMenuItem.FontWeight = FontWeights.Bold;
+        }
+        else
+        {
+            ShowOfflineMachinesIcon.Text = "";
+            ShowOfflineMachinesMenuItem.FontWeight = FontWeights.Normal;
+        }
+        ApplyMachineFiltersToGrid(GetSelectedMachineIdsSnapshot());
+    }
 
     private void ViewModeList_Click(object sender, RoutedEventArgs e)
     {
