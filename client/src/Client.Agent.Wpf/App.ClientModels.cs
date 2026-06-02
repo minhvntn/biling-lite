@@ -76,6 +76,10 @@ public sealed class LoyaltySettingsResponse
     public double WeekendMultiplier { get; set; }
 
     public double CurrentMultiplier { get; set; }
+
+    public decimal HorseRaceMinTopup { get; set; }
+
+    public string HorseRaceMinRankName { get; set; } = string.Empty;
 }
 
 public sealed class ClientRuntimeSettingsResponse
@@ -120,6 +124,8 @@ public sealed class MemberLoyaltyResponse
     public MemberLoyaltyItem Loyalty { get; set; } = new();
 
     public MemberDailyCheckinStatus? DailyCheckin { get; set; }
+
+    public bool CanPlayHorseRace { get; set; } = true;
 }
 
 public sealed class MemberLoyaltyRedeemResponse

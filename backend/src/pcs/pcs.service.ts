@@ -10,7 +10,7 @@ import { AgentHeartbeatPayload, AgentHelloPayload } from './types/agent-events.t
 import {
   calculateSessionAmountByPromotions,
   getEffectiveHourlyRateAt,
-  getActivePromotionAt,
+  getActivePromotionsAt,
 } from '../pricing/time-based-billing.util';
 
 type PresencePayload = AgentHelloPayload | AgentHeartbeatPayload;
@@ -131,6 +131,7 @@ export class PcsService {
       where: { isActive: true },
       select: {
         daysOfWeek: true,
+        annualDates: true,
         startTime: true,
         endTime: true,
         discountPercent: true,
@@ -293,6 +294,7 @@ export class PcsService {
       where: { isActive: true },
       select: {
         daysOfWeek: true,
+        annualDates: true,
         startTime: true,
         endTime: true,
         discountPercent: true,
@@ -307,12 +309,13 @@ export class PcsService {
     );
   }
 
-  async getActivePromotion(): Promise<{ name: string; discountPercent: number } | null> {
+  async getActivePromotions(): Promise<{ name: string; discountPercent: number }[]> {
     const promotions = await this.prisma.timeBasedPromotion.findMany({
       where: { isActive: true },
       select: {
         name: true,
         daysOfWeek: true,
+        annualDates: true,
         startTime: true,
         endTime: true,
         discountPercent: true,
@@ -320,14 +323,11 @@ export class PcsService {
       },
     });
 
-    const activePromo = getActivePromotionAt(new Date(), promotions);
-    if (!activePromo) {
-      return null;
-    }
-    return {
-      name: activePromo.name ?? '',
-      discountPercent: Number(activePromo.discountPercent ?? 0),
-    };
+    const activePromos = getActivePromotionsAt(new Date(), promotions);
+    return activePromos.map(promo => ({
+      name: promo.name ?? '',
+      discountPercent: Number(promo.discountPercent ?? 0),
+    }));
   }
 
   async getGuestLoginEnabled(): Promise<boolean> {

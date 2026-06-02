@@ -329,11 +329,11 @@ public partial class App : Application
 
         _socketService.GetRunningAppsHandler = HandleGetRunningAppsRequestedAsync;
         _socketService.KillProcessHandler = HandleKillProcessRequestedAsync;
-        _socketService.PromotionChangedHandler = (promoName, discount) =>
+        _socketService.PromotionChangedHandler = promos =>
         {
             Dispatcher.Invoke(() =>
             {
-                _mainWindow?.UpdatePromotion(promoName, discount);
+                _mainWindow?.UpdatePromotions(promos);
             });
         };
         _socketService.GuestPrepaidConfigureHandler = payload =>
@@ -4190,9 +4190,10 @@ LIMIT $limit;";
             Width = 180,
             Height = 40,
             HorizontalAlignment = HorizontalAlignment.Left,
-            Background = new SolidColorBrush(Color.FromRgb(16, 185, 129)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(5, 150, 105)),
-            Foreground = Brushes.White,
+            Background = loyaltyResponse.CanPlayHorseRace ? new SolidColorBrush(Color.FromRgb(16, 185, 129)) : Brushes.LightGray,
+            BorderBrush = loyaltyResponse.CanPlayHorseRace ? new SolidColorBrush(Color.FromRgb(5, 150, 105)) : Brushes.Gray,
+            Foreground = loyaltyResponse.CanPlayHorseRace ? Brushes.White : Brushes.DarkGray,
+            IsEnabled = loyaltyResponse.CanPlayHorseRace,
         };
         openHorseRaceButton.Click += (_, _) =>
         {
@@ -4200,6 +4201,17 @@ LIMIT $limit;";
             ShowHorseRaceMiniDialog(activeSession, currentLoyalty.AvailablePoints);
         };
         horseRacePanel.Children.Add(openHorseRaceButton);
+
+        if (!loyaltyResponse.CanPlayHorseRace)
+        {
+            var minRankName = string.IsNullOrWhiteSpace(settings.HorseRaceMinRankName) ? "quy định" : settings.HorseRaceMinRankName;
+            horseRacePanel.Children.Add(new TextBlock
+            {
+                Text = $"⚠️ Yêu cầu đạt hạng {minRankName} trở lên để mở khóa.",
+                Foreground = Brushes.Firebrick,
+                Margin = new Thickness(0, 8, 0, 0),
+            });
+        }
         tabControl.Items.Add(new TabItem
         {
             Header = CreateLeftTabHeader("🐎", "Đua ngựa"),

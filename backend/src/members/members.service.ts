@@ -44,6 +44,7 @@ const LOYALTY_POINTS_TO_MINUTES = 1;
 const LOYALTY_MINUTES_PER_POINT_SETTING_KEY = '__LOYALTY_MINUTES_PER_POINT__';
 const LOYALTY_LOWEST_RANK_MINUTES_PER_POINT_SETTING_KEY = '__LOYALTY_LOWEST_RANK_MINUTES_PER_POINT__';
 const LOYALTY_POINTS_TO_MINUTES_SETTING_KEY = '__LOYALTY_POINTS_TO_MINUTES__';
+const LOYALTY_HORSE_RACE_MIN_TOPUP_KEY = '__LOYALTY_HORSE_RACE_MIN_TOPUP__';
 const LOYALTY_WEEKDAY_MULTIPLIER_SETTING_KEY = '__LOYALTY_WEEKDAY_MULTIPLIER__';
 const LOYALTY_WEEKEND_MULTIPLIER_SETTING_KEY = '__LOYALTY_WEEKEND_MULTIPLIER__';
 const LOYALTY_USAGE_CREATED_BY = 'client.session.loyalty';
@@ -770,6 +771,14 @@ export class MembersService {
           create: { key: LOYALTY_WEEKEND_MULTIPLIER_SETTING_KEY, value: payload.weekendMultiplier.toString() },
         });
       }
+
+      if (payload.horseRaceMinTopup !== undefined) {
+        await tx.appSetting.upsert({
+          where: { key: LOYALTY_HORSE_RACE_MIN_TOPUP_KEY },
+          update: { value: payload.horseRaceMinTopup.toString() },
+          create: { key: LOYALTY_HORSE_RACE_MIN_TOPUP_KEY, value: payload.horseRaceMinTopup.toString() },
+        });
+      }
     });
 
     const settings = await this.getLoyaltySettingsItem();
@@ -792,6 +801,9 @@ export class MembersService {
       this.getDailyCheckinStatus(member.id, this.prisma),
     ]);
 
+    const totalTopup = Number(member.totalTopup || 0);
+    const canPlayHorseRace = settings.horseRaceMinTopup <= 0 || totalTopup >= settings.horseRaceMinTopup;
+
     return {
       enabled: settings.enabled,
       config: settings,
@@ -801,6 +813,7 @@ export class MembersService {
       exchangeRate: {
         pointsToMinutes: settings.pointsToMinutes,
       },
+      canPlayHorseRace,
     };
   }
 
@@ -1305,6 +1318,10 @@ export class MembersService {
       }
 
       const loyaltySettings = await this.getLoyaltySettingsItem(tx);
+      if (Number(member.totalTopup) < loyaltySettings.horseRaceMinTopup) {
+        throw new BadRequestException(`Tính năng này chỉ dành cho hạng ${loyaltySettings.horseRaceMinRankName} trở lên.`);
+      }
+
       const spendSecondsPerPoint = loyaltySettings.pointsToMinutes * 60;
       const earnSecondsPerPoint = loyaltySettings.minutesPerPoint * 60;
 
@@ -2735,10 +2752,12 @@ export class MembersService {
     weekdayMultiplier: number;
     weekendMultiplier: number;
     currentMultiplier: number;
+    horseRaceMinTopup: number;
+    horseRaceMinRankName: string;
     updatedAt: string;
   }> {
     const prisma = tx ?? this.prisma;
-    const [config, minutesSetting, lowestRankSetting, redeemSetting, weekdaySetting, weekendSetting] = await Promise.all([
+    const [config, minutesSetting, lowestRankSetting, redeemSetting, weekdaySetting, weekendSetting, horseRaceSetting, rankConfigs] = await Promise.all([
       prisma.pricingConfig.findUnique({
         where: { name: LOYALTY_CONFIG_KEY },
       }),
@@ -2756,6 +2775,12 @@ export class MembersService {
       }),
       prisma.appSetting.findUnique({
         where: { key: LOYALTY_WEEKEND_MULTIPLIER_SETTING_KEY },
+      }),
+      prisma.appSetting.findUnique({
+        where: { key: LOYALTY_HORSE_RACE_MIN_TOPUP_KEY },
+      }),
+      prisma.loyaltyRankConfig.findMany({
+        orderBy: { minTopup: 'asc' },
       }),
     ]);
 
@@ -2779,6 +2804,12 @@ export class MembersService {
     const weekdayMultiplier = parseMultiplier(weekdaySetting?.value, 1.0);
     const weekendMultiplier = parseMultiplier(weekendSetting?.value, 2.0);
 
+    const horseRaceMinTopup = Number(horseRaceSetting?.value) || 0;
+    let horseRaceMinRankName = "N/A";
+    if (rankConfigs.length > 0) {
+        const matched = [...rankConfigs].reverse().find(c => horseRaceMinTopup >= Number(c.minTopup));
+        horseRaceMinRankName = matched?.rankName || rankConfigs[0].rankName;
+    }
     const day = new Date().getDay();
     const isWeekend = day === 0 || day === 6;
     const currentMultiplier = isWeekend ? weekendMultiplier : weekdayMultiplier;
@@ -2790,6 +2821,7 @@ export class MembersService {
       redeemSetting?.updatedAt,
       weekdaySetting?.updatedAt,
       weekendSetting?.updatedAt,
+      horseRaceSetting?.updatedAt,
     ].filter((item): item is Date => item instanceof Date);
 
     const updatedAt = updatedAtCandidates.length === 0
@@ -2806,6 +2838,8 @@ export class MembersService {
       weekdayMultiplier,
       weekendMultiplier,
       currentMultiplier,
+      horseRaceMinTopup,
+      horseRaceMinRankName,
       updatedAt: updatedAt.toISOString(),
     };
   }
@@ -3755,3 +3789,4 @@ export class MembersService {
     }
   }
 }
+

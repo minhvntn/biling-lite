@@ -2,8 +2,10 @@ using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Collections.Generic;
 using Client.Agent.Wpf.Localization;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Media;
@@ -620,7 +622,7 @@ public partial class MainWindow : Window
                 return null;
             }
 
-            var fileUri = new Uri(iconPath, UriKind.Absolute);
+            var fileUri = new System.Uri(iconPath, System.UriKind.Absolute);
             return new BitmapImage(fileUri);
         }
         catch
@@ -1057,29 +1059,147 @@ public partial class MainWindow : Window
         ProgressArcPath.Data = geometry;
     }
 
-    public void UpdatePromotion(string? promotionName, decimal discountPercent)
+    public void UpdatePromotions(List<(string Name, decimal Discount)> promotions)
     {
-        if (string.IsNullOrWhiteSpace(promotionName))
+        var toRemove = new List<UIElement>();
+        foreach (UIElement child in PromotionsContainer.Children)
         {
-            PromotionBannerBorder.Visibility = Visibility.Collapsed;
-            GuestPromotionBannerBorder.Visibility = Visibility.Collapsed;
+            if (child != LoyaltyPromotionBannerBorder)
+            {
+                toRemove.Add(child);
+            }
         }
-        else
+        foreach (var child in toRemove)
+        {
+            PromotionsContainer.Children.Remove(child);
+        }
+
+        if (promotions != null && promotions.Count > 0)
         {
             if (!_isMemberSession)
             {
-                PromotionBannerBorder.Visibility = Visibility.Collapsed;
-                GuestPromotionBannerBorder.Visibility = Visibility.Visible;
+                var border = CreateGuestPromotionBanner();
+                PromotionsContainer.Children.Insert(0, border);
             }
             else
             {
-                PromotionNameTextBlock.Text = promotionName;
-                PromotionDiscountTextBlock.Text = $"Giảm {discountPercent:0.#}% tiền giờ chơi";
-                PromotionBannerBorder.Visibility = Visibility.Visible;
-                GuestPromotionBannerBorder.Visibility = Visibility.Collapsed;
+                for (int i = promotions.Count - 1; i >= 0; i--)
+                {
+                    var border = CreatePromotionBanner(promotions[i].Name, promotions[i].Discount);
+                    PromotionsContainer.Children.Insert(0, border);
+                }
             }
         }
+
         UpdatePromotionsLayout();
+    }
+
+    private Border CreatePromotionBanner(string name, decimal discountPercent)
+    {
+        var border = new Border
+        {
+            Padding = new Thickness(14, 12, 14, 12),
+            CornerRadius = new CornerRadius(12),
+            BorderThickness = new Thickness(1.5),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF)),
+            Background = new SolidColorBrush(Color.FromArgb(0x60, 0xFF, 0xE4, 0xE6))
+        };
+        
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var viewBox = new Viewbox
+        {
+            Width = 24, Height = 24, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center
+        };
+        var path = new System.Windows.Shapes.Path
+        {
+            Fill = new SolidColorBrush(Color.FromRgb(0xE1, 0x1D, 0x48)),
+            Data = Geometry.Parse("M12,2 L15,9 L22,9 L16,14 L18,21 L12,17 L6,21 L8,14 L2,9 L9,9 Z")
+        };
+        viewBox.Child = path;
+        Grid.SetColumn(viewBox, 0);
+        grid.Children.Add(viewBox);
+
+        var stackPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        var nameText = new TextBlock
+        {
+            Foreground = new SolidColorBrush(Color.FromRgb(0xBE, 0x12, 0x3C)),
+            FontWeight = FontWeights.Bold,
+            FontSize = 18,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            Text = name
+        };
+        var discountText = new TextBlock
+        {
+            Foreground = new SolidColorBrush(Color.FromRgb(0xE1, 0x1D, 0x48)),
+            FontSize = 18,
+            Text = $"Giảm {discountPercent:0.#}% tiền giờ chơi",
+            Margin = new Thickness(0, 2, 0, 0)
+        };
+        stackPanel.Children.Add(nameText);
+        stackPanel.Children.Add(discountText);
+        Grid.SetColumn(stackPanel, 1);
+        grid.Children.Add(stackPanel);
+
+        border.Child = grid;
+        return border;
+    }
+
+    private Border CreateGuestPromotionBanner()
+    {
+        var border = new Border
+        {
+            Padding = new Thickness(14, 12, 14, 12),
+            CornerRadius = new CornerRadius(12),
+            BorderThickness = new Thickness(1.5),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF)),
+            Background = new SolidColorBrush(Color.FromArgb(0x60, 0xFE, 0xF0, 0x8A))
+        };
+        
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var viewBox = new Viewbox
+        {
+            Width = 24, Height = 24, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center
+        };
+        var path = new System.Windows.Shapes.Path
+        {
+            Fill = new SolidColorBrush(Color.FromRgb(0xB4, 0x53, 0x09)),
+            Stroke = new SolidColorBrush(Color.FromRgb(0xB4, 0x53, 0x09)),
+            StrokeThickness = 2,
+            Data = Geometry.Parse("M12,2 L22,20 L2,20 Z M12,8 L12,14 M12,17 L12,17.5")
+        };
+        viewBox.Child = path;
+        Grid.SetColumn(viewBox, 0);
+        grid.Children.Add(viewBox);
+
+        var stackPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        var nameText = new TextBlock
+        {
+            Foreground = new SolidColorBrush(Color.FromRgb(0x92, 0x40, 0x0E)),
+            FontWeight = FontWeights.Bold,
+            FontSize = 18,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            Text = "Thông báo khuyến mãi"
+        };
+        var discountText = new TextBlock
+        {
+            Foreground = new SolidColorBrush(Color.FromRgb(0xB4, 0x53, 0x09)),
+            FontSize = 18,
+            Text = "Chỉ dành cho Hội Viên",
+            Margin = new Thickness(0, 2, 0, 0)
+        };
+        stackPanel.Children.Add(nameText);
+        stackPanel.Children.Add(discountText);
+        Grid.SetColumn(stackPanel, 1);
+        grid.Children.Add(stackPanel);
+
+        border.Child = grid;
+        return border;
     }
 
     public void UpdateLoyaltyMultiplier(double multiplier)
@@ -1099,23 +1219,34 @@ public partial class MainWindow : Window
     private void UpdatePromotionsLayout()
     {
         int visibleCount = 0;
-        if (PromotionBannerBorder.Visibility == Visibility.Visible) visibleCount++;
-        if (LoyaltyPromotionBannerBorder.Visibility == Visibility.Visible) visibleCount++;
-        if (GuestPromotionBannerBorder.Visibility == Visibility.Visible) visibleCount++;
+        foreach (UIElement child in PromotionsContainer.Children)
+        {
+            if (child is Border border && border.Visibility == Visibility.Visible)
+            {
+                visibleCount++;
+            }
+        }
         
         PromotionsContainer.Columns = visibleCount >= 2 ? 2 : 1;
         
-        if (visibleCount >= 2)
+        int currentIndex = 0;
+        foreach (UIElement child in PromotionsContainer.Children)
         {
-            PromotionBannerBorder.Margin = new Thickness(0, 0, 4, 8);
-            GuestPromotionBannerBorder.Margin = new Thickness(0, 0, 4, 8);
-            LoyaltyPromotionBannerBorder.Margin = new Thickness(4, 0, 0, 8);
-        }
-        else
-        {
-            PromotionBannerBorder.Margin = new Thickness(0, 0, 0, 8);
-            GuestPromotionBannerBorder.Margin = new Thickness(0, 0, 0, 8);
-            LoyaltyPromotionBannerBorder.Margin = new Thickness(0, 0, 0, 8);
+            if (child is Border border && border.Visibility == Visibility.Visible)
+            {
+                if (visibleCount >= 2)
+                {
+                    if (currentIndex % 2 == 0)
+                        border.Margin = new Thickness(0, 0, 4, 8);
+                    else
+                        border.Margin = new Thickness(4, 0, 0, 8);
+                }
+                else
+                {
+                    border.Margin = new Thickness(0, 0, 0, 8);
+                }
+                currentIndex++;
+            }
         }
     }
 

@@ -698,6 +698,7 @@ export class PricingService {
         data: {
           name: 'Khuyến mãi ngày thường (Giảm 10% T2 - T6)',
           daysOfWeek: [1, 2, 3, 4, 5],
+          annualDates: [],
           startTime: '08:00',
           endTime: '16:00',
           discountPercent: 10,
@@ -720,6 +721,7 @@ export class PricingService {
       data: {
         name,
         daysOfWeek: Array.isArray(payload.daysOfWeek) ? payload.daysOfWeek : [1, 2, 3, 4, 5],
+        annualDates: Array.isArray(payload.annualDates) ? payload.annualDates : [],
         startTime: payload.startTime || '08:00',
         endTime: payload.endTime || '16:00',
         discountPercent: Number(payload.discountPercent) || 0,
@@ -739,6 +741,7 @@ export class PricingService {
     const data: any = {};
     if (payload.name !== undefined) data.name = payload.name.trim();
     if (payload.daysOfWeek !== undefined) data.daysOfWeek = payload.daysOfWeek;
+    if (payload.annualDates !== undefined) data.annualDates = payload.annualDates;
     if (payload.startTime !== undefined) data.startTime = payload.startTime;
     if (payload.endTime !== undefined) data.endTime = payload.endTime;
     if (payload.discountPercent !== undefined) data.discountPercent = Number(payload.discountPercent);

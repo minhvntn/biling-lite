@@ -1068,6 +1068,29 @@ public partial class MainWindow : Window
                 BuildApiUrl("/members/loyalty/settings"),
                 JsonOptions());
 
+            var ranksResponse = await _httpClient.GetFromJsonAsync<List<LoyaltyRankItem>>(
+                BuildApiUrl("/members/loyalty/ranks"),
+                JsonOptions());
+
+            if (ranksResponse != null)
+            {
+                var rankItems = ranksResponse.Select(r => new LoyaltyRankRow
+                {
+                    Id = r.Id,
+                    RankName = r.RankName,
+                    MinTopup = r.MinTopup
+                }).OrderBy(r => r.MinTopup).ToList();
+
+                rankItems.Insert(0, new LoyaltyRankRow
+                {
+                    Id = "all",
+                    RankName = "Tất cả các hạng",
+                    MinTopup = -1m
+                });
+
+                HorseRaceMinRankComboBox.ItemsSource = rankItems;
+            }
+
             if (response is null)
             {
                 LoyaltySettingsStatusTextBlock.Text = "Không tải được cài đặt điểm tích lũy.";
@@ -1083,6 +1106,16 @@ public partial class MainWindow : Window
             LoyaltyPointsToMinutesTextBox.Text = Math.Max(1, response.PointsToMinutes).ToString(CultureInfo.InvariantCulture);
             LoyaltyWeekdayMultiplierTextBox.Text = response.WeekdayMultiplier.ToString(CultureInfo.InvariantCulture);
             LoyaltyWeekendMultiplierTextBox.Text = response.WeekendMultiplier.ToString(CultureInfo.InvariantCulture);
+            
+            if (response.HorseRaceMinTopup > 0)
+            {
+                HorseRaceMinRankComboBox.SelectedValue = response.HorseRaceMinTopup;
+            }
+            else
+            {
+                HorseRaceMinRankComboBox.SelectedValue = -1m;
+            }
+
             LoyaltySettingsStatusTextBlock.Text = response.Enabled
                 ? $"Đang bật tích lũy: {response.MinutesPerPoint} phút = 1 điểm, 1 điểm = {response.PointsToMinutes} phút chơi. (Ngày thường x{response.WeekdayMultiplier}, Cuối tuần x{response.WeekendMultiplier})"
                 : "Đang tắt tích lũy điểm cho hội viên.";
@@ -1145,6 +1178,12 @@ public partial class MainWindow : Window
             }
         }
 
+        var horseRaceMinTopup = -1m;
+        if (HorseRaceMinRankComboBox.SelectedValue is decimal selectedMinTopup)
+        {
+            horseRaceMinTopup = selectedMinTopup;
+        }
+
         try
         {
             using var response = await _httpClient.PatchAsJsonAsync(
@@ -1157,6 +1196,7 @@ public partial class MainWindow : Window
                     pointsToMinutes,
                     weekdayMultiplier,
                     weekendMultiplier,
+                    horseRaceMinTopup,
                     updatedBy = "admin.desktop",
                 });
 
@@ -1229,6 +1269,18 @@ public partial class MainWindow : Window
 
         LoyaltySettingsStatusTextBlock.Text =
             "Đã thay đổi thông số tích lũy. Bấm \"Lưu cài đặt\" để áp dụng lên backend.";
+        LoyaltySettingsStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+    }
+
+    private void HorseRaceMinRankComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_loyaltySettingsInitialized || _isLoadingLoyaltySettings)
+        {
+            return;
+        }
+
+        LoyaltySettingsStatusTextBlock.Text =
+            "Đã thay đổi điều kiện hạng chơi đua ngựa. Bấm \"Lưu cài đặt\" để áp dụng lên backend.";
         LoyaltySettingsStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
     }
 

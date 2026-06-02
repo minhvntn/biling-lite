@@ -33,7 +33,7 @@ public sealed class AgentSocketService : IAsyncDisposable
     public Func<AdminKillProcessPayload, Task>? KillProcessHandler { get; set; }
     public Action<GuestPrepaidConfigurePayload>? GuestPrepaidConfigureHandler { get; set; }
     public Action<string, string, string, string?, string, int, decimal>? ResumeMemberSessionHandler { get; set; }
-    public Action<string?, decimal>? PromotionChangedHandler { get; set; }
+    public Action<List<(string Name, decimal Discount)>>? PromotionChangedHandler { get; set; }
 
     public AgentSocketService(
         AgentSettings settings,
@@ -250,31 +250,35 @@ public sealed class AgentSocketService : IAsyncDisposable
                 }
             }
 
-            if (element.TryGetProperty("activePromotion", out var promoElement) && promoElement.ValueKind == JsonValueKind.Object)
+            var promosList1 = new List<(string Name, decimal Discount)>();
+            if (element.TryGetProperty("activePromotions", out var promosElement1) && promosElement1.ValueKind == JsonValueKind.Array)
             {
-                string? promoName = null;
-                if (promoElement.TryGetProperty("name", out var nameProp))
+                foreach (var promoElement in promosElement1.EnumerateArray())
                 {
-                    promoName = nameProp.GetString();
-                }
-                decimal discount = 0m;
-                if (promoElement.TryGetProperty("discountPercent", out var discountProp))
-                {
-                    if (discountProp.ValueKind == JsonValueKind.Number)
+                    string promoName = string.Empty;
+                    if (promoElement.TryGetProperty("name", out var nameProp))
                     {
-                        discount = discountProp.GetDecimal();
+                        promoName = nameProp.GetString() ?? string.Empty;
                     }
-                    else if (discountProp.ValueKind == JsonValueKind.String && decimal.TryParse(discountProp.GetString(), out var val))
+                    decimal discount = 0m;
+                    if (promoElement.TryGetProperty("discountPercent", out var discountProp))
                     {
-                        discount = val;
+                        if (discountProp.ValueKind == JsonValueKind.Number)
+                        {
+                            discount = discountProp.GetDecimal();
+                        }
+                        else if (discountProp.ValueKind == JsonValueKind.String && decimal.TryParse(discountProp.GetString(), out var val))
+                        {
+                            discount = val;
+                        }
+                    }
+                    if (!string.IsNullOrWhiteSpace(promoName))
+                    {
+                        promosList1.Add((promoName, discount));
                     }
                 }
-                PromotionChangedHandler?.Invoke(promoName, discount);
             }
-            else
-            {
-                PromotionChangedHandler?.Invoke(null, 0m);
-            }
+            PromotionChangedHandler?.Invoke(promosList1);
         });
 
         _socket.On("agent.heartbeat.ack", response =>
@@ -293,31 +297,35 @@ public sealed class AgentSocketService : IAsyncDisposable
                 _elapsedSecondsHandler?.Invoke(elapsed.GetInt32());
             }
 
-            if (element.TryGetProperty("activePromotion", out var promoElement) && promoElement.ValueKind == JsonValueKind.Object)
+            var promosList2 = new List<(string Name, decimal Discount)>();
+            if (element.TryGetProperty("activePromotions", out var promosElement2) && promosElement2.ValueKind == JsonValueKind.Array)
             {
-                string? promoName = null;
-                if (promoElement.TryGetProperty("name", out var nameProp))
+                foreach (var promoElement in promosElement2.EnumerateArray())
                 {
-                    promoName = nameProp.GetString();
-                }
-                decimal discount = 0m;
-                if (promoElement.TryGetProperty("discountPercent", out var discountProp))
-                {
-                    if (discountProp.ValueKind == JsonValueKind.Number)
+                    string promoName = string.Empty;
+                    if (promoElement.TryGetProperty("name", out var nameProp))
                     {
-                        discount = discountProp.GetDecimal();
+                        promoName = nameProp.GetString() ?? string.Empty;
                     }
-                    else if (discountProp.ValueKind == JsonValueKind.String && decimal.TryParse(discountProp.GetString(), out var val))
+                    decimal discount = 0m;
+                    if (promoElement.TryGetProperty("discountPercent", out var discountProp))
                     {
-                        discount = val;
+                        if (discountProp.ValueKind == JsonValueKind.Number)
+                        {
+                            discount = discountProp.GetDecimal();
+                        }
+                        else if (discountProp.ValueKind == JsonValueKind.String && decimal.TryParse(discountProp.GetString(), out var val))
+                        {
+                            discount = val;
+                        }
+                    }
+                    if (!string.IsNullOrWhiteSpace(promoName))
+                    {
+                        promosList2.Add((promoName, discount));
                     }
                 }
-                PromotionChangedHandler?.Invoke(promoName, discount);
             }
-            else
-            {
-                PromotionChangedHandler?.Invoke(null, 0m);
-            }
+            PromotionChangedHandler?.Invoke(promosList2);
         });
 
         _socket.On("member.account.changed", async response =>

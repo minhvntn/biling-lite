@@ -107,7 +107,7 @@
                                     Background="White" 
                                     BorderBrush="#F1F5F9" 
                                     BorderThickness="0,0,0,1" 
-                                    Padding="16,8,16,12">
+                                    Padding="16,8,16,4">
                                 <Grid>
                                     <!-- Nơi chứa các tab items header -->
                                     <TabPanel x:Name="HeaderPanel" 
@@ -163,21 +163,21 @@
 
         <!-- Main TabItem Style -->
         <Style x:Key="MainTabItemStyle" TargetType="TabItem">
-            <Setter Property="Padding" Value="16,0" />
-            <Setter Property="Height" Value="48" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="Height" Value="42" />
             <Setter Property="Foreground" Value="#0F172A" /> <!-- Xanh Navy đậm -->
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
-                        <Grid x:Name="TabRoot" Margin="4,0,4,0" Background="Transparent" Cursor="Hand">
+                        <Grid x:Name="TabRoot" Margin="2,0,2,0" Background="Transparent" Cursor="Hand">
                             <!-- Nền của Tab, bo góc -->
                             <Border x:Name="BackgroundBorder" 
                                     Background="Transparent" 
-                                    CornerRadius="12" 
+                                    CornerRadius="8" 
                                     Padding="{TemplateBinding Padding}"
-                                    Margin="0,0,0,4">
+                                    Margin="0,0,0,1">
                                 <ContentPresenter x:Name="ContentSite"
                                                    ContentSource="Header"
                                                    HorizontalAlignment="Center"
@@ -187,12 +187,15 @@
                             
                             <!-- Đường gạch chân indicator -->
                             <Border x:Name="Indicator" 
-                                    Height="3.5" 
+                                    Height="3" 
                                     Background="#DC2626" 
-                                    CornerRadius="1.75,1.75,0,0"
+                                    CornerRadius="1.5,1.5,0,0"
                                     VerticalAlignment="Bottom" 
-                                    Margin="12,0,12,0"
+                                    Margin="8,0,8,0"
                                     Visibility="Collapsed" />
+
+                            <!-- Separator line (viền ngăn cách) -->
+                            <Border Width="1" Background="#E2E8F0" HorizontalAlignment="Right" VerticalAlignment="Center" Height="20" Margin="0,0,-2,0" />
                         </Grid>
                         
                         <ControlTemplate.Triggers>
@@ -2869,6 +2872,13 @@
                                     </Style>
                                 </Button.Resources>
                             </Button>
+                            <Button Content="Thêm KM Ngày Lễ" Padding="12,6" Background="#3B82F6" Foreground="White" FontWeight="SemiBold" Cursor="Hand" Click="AddAnnualPromotionButton_Click" Margin="0,0,8,0">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
                             <Button Content="Tải lại" Padding="12,6" Background="#F3F4F6" Foreground="#374151" FontWeight="SemiBold" Cursor="Hand" Click="ReloadPromotionsButton_Click">
                                 <Button.Resources>
                                     <Style TargetType="Border">
@@ -3521,6 +3531,25 @@
                                                          HorizontalAlignment="Left"
                                                          VerticalContentAlignment="Center"
                                                          TextChanged="LoyaltyRateTextBox_TextChanged" />
+                                            </Grid>
+                                            <Grid Margin="0,8,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="280" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="#334155"
+                                                           Text="Hạng tối thiểu chơi Đua ngựa:" />
+                                                <ComboBox x:Name="HorseRaceMinRankComboBox"
+                                                          Grid.Column="1"
+                                                          Width="140"
+                                                          Height="30"
+                                                          HorizontalAlignment="Left"
+                                                          VerticalContentAlignment="Center"
+                                                          DisplayMemberPath="RankName"
+                                                          SelectedValuePath="MinTopup"
+                                                          SelectionChanged="HorseRaceMinRankComboBox_SelectionChanged" />
                                             </Grid>
                                             <TextBlock x:Name="LoyaltySettingsStatusTextBlock"
                                                        Margin="0,8,0,0"

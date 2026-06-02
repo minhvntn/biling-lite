@@ -97,7 +97,7 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
     const baseRate = transition.pc.group?.hourlyRate ? Number(transition.pc.group.hourlyRate) : 12000;
     const hourlyRate = await this.pcsService.getEffectiveHourlyRate(baseRate);
     const isGuestLoginEnabled = await this.pcsService.getGuestLoginEnabled();
-    const activePromo = await this.pcsService.getActivePromotion();
+    const activePromos = await this.pcsService.getActivePromotions();
 
     const activeSession = await this.pcsService.getActiveSessionForPc(transition.pc.id);
     const activePresenceKind = activeSession
@@ -147,7 +147,7 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
       resumeMemberSession,
       memberInfo,
       elapsedSeconds,
-      activePromotion: activePromo,
+      activePromotions: activePromos,
       serverTime: new Date().toISOString(),
     });
   }
@@ -175,7 +175,7 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
     const baseRate = transition.pc.group?.hourlyRate ? Number(transition.pc.group.hourlyRate) : 12000;
     const hourlyRate = await this.pcsService.getEffectiveHourlyRate(baseRate);
     const isGuestLoginEnabled = await this.pcsService.getGuestLoginEnabled();
-    const activePromo = await this.pcsService.getActivePromotion();
+    const activePromos = await this.pcsService.getActivePromotions();
 
     const activeSession = await this.pcsService.getActiveSessionForPc(transition.pc.id);
     const elapsedSeconds = activeSession
@@ -198,7 +198,7 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
       hourlyRate,
       isGuestLoginEnabled,
       elapsedSeconds,
-      activePromotion: activePromo,
+      activePromotions: activePromos,
       serverTime: new Date().toISOString(),
     });
   }

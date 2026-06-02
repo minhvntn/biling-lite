@@ -1,6 +1,7 @@
 export type TimeBasedPromotionLite = {
   name?: string;
   daysOfWeek: number[];
+  annualDates?: string[];
   startTime: string;
   endTime: string;
   discountPercent: unknown;
@@ -40,18 +41,29 @@ function isPromotionActiveAt(
     return false;
   }
 
-  if (!Array.isArray(promotion.daysOfWeek)) {
-    return false;
-  }
-
-  const day = at.getDay();
-  if (!promotion.daysOfWeek.includes(day)) {
-    return false;
-  }
-
   const start = parseTimeToMinuteOfDay(promotion.startTime);
   const end = parseTimeToMinuteOfDay(promotion.endTime);
   if (start === null || end === null) {
+    return false;
+  }
+
+  let dayMatched = false;
+
+  if (Array.isArray(promotion.annualDates) && promotion.annualDates.length > 0) {
+    const d = String(at.getDate()).padStart(2, '0');
+    const m = String(at.getMonth() + 1).padStart(2, '0');
+    const ddmm = `${d}/${m}`;
+    if (promotion.annualDates.includes(ddmm)) {
+      dayMatched = true;
+    }
+  } else if (Array.isArray(promotion.daysOfWeek) && promotion.daysOfWeek.length > 0) {
+    const day = at.getDay();
+    if (promotion.daysOfWeek.includes(day)) {
+      dayMatched = true;
+    }
+  }
+
+  if (!dayMatched) {
     return false;
   }
 
@@ -89,23 +101,17 @@ export function getEffectiveHourlyRateAt(
   return Math.round(baseHourlyRate * (1 - bestDiscount / 100));
 }
 
-export function getActivePromotionAt(
+export function getActivePromotionsAt(
   at: Date,
   promotions: TimeBasedPromotionLite[],
-): TimeBasedPromotionLite | null {
-  let bestDiscount = 0;
-  let activePromo: TimeBasedPromotionLite | null = null;
+): TimeBasedPromotionLite[] {
+  const activePromos: TimeBasedPromotionLite[] = [];
   for (const promotion of promotions) {
-    if (!isPromotionActiveAt(at, promotion)) {
-      continue;
-    }
-    const discount = Number(promotion.discountPercent ?? 0);
-    if (Number.isFinite(discount) && discount > bestDiscount) {
-      bestDiscount = discount;
-      activePromo = promotion;
+    if (isPromotionActiveAt(at, promotion)) {
+      activePromos.push(promotion);
     }
   }
-  return activePromo;
+  return activePromos;
 }
 
 function nextMinuteBoundaryMs(currentMs: number): number {

@@ -907,7 +907,9 @@ public partial class MainWindow : Window
                     Id = p.Id,
                     Name = p.Name,
                     TimeRange = $"{p.StartTime} - {p.EndTime}",
-                    DaysOfWeekText = string.Join(", ", p.DaysOfWeek.Select(d => d == 0 ? "CN" : $"T{d + 1}")),
+                    DaysOfWeekText = p.AnnualDates != null && p.AnnualDates.Count > 0 
+                        ? $"Ngày lễ: {string.Join(", ", p.AnnualDates)}" 
+                        : string.Join(", ", p.DaysOfWeek.Select(d => d == 0 ? "CN" : $"T{d + 1}")),
                     DiscountText = $"{p.DiscountPercent:N0}%",
                     StatusText = p.IsActive ? "Đang chạy" : "Tạm dừng",
                     StatusBackground = p.IsActive ? "#ECFDF5" : "#F3F4F6",
@@ -977,6 +979,7 @@ public partial class MainWindow : Window
                 {
                     name = "Khuyến mãi Giờ vàng Ngày thường",
                     daysOfWeek = new List<int> { 1, 2, 3, 4, 5 },
+                    annualDates = new List<string>(),
                     startTime = "08:00",
                     endTime = "16:00",
                     discountPercent = 10,
@@ -992,6 +995,52 @@ public partial class MainWindow : Window
                 else
                 {
                     MessageBox.Show("Thêm chương trình khuyến mãi thất bại.", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Lỗi: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+    }
+
+    private async void AddAnnualPromotionButton_Click(object sender, RoutedEventArgs e)
+    {
+        var result = MessageBox.Show(
+            "Hệ thống sẽ tạo tự động một chương trình Khuyến mãi Ngày Lễ:\n\n" +
+            "• Tên: Khuyến mãi Lễ 30/4\n" +
+            "• Khung giờ: 00:00 - 23:59\n" +
+            "• Ngày áp dụng: 30/04, 01/05\n" +
+            "• Giảm giá: 50%\n\n" +
+            "Bạn có đồng ý tạo chương trình khuyến mãi này không?",
+            "Thêm chương trình Khuyến mãi Lễ",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result == MessageBoxResult.Yes)
+        {
+            try
+            {
+                var payload = new
+                {
+                    name = "Khuyến mãi Lễ 30/4",
+                    daysOfWeek = new List<int>(),
+                    annualDates = new List<string> { "30/04", "01/05" },
+                    startTime = "00:00",
+                    endTime = "23:59",
+                    discountPercent = 50,
+                    isActive = true
+                };
+
+                var res = await _httpClient.PostAsJsonAsync(BuildApiUrl("/pricing/promotions"), payload, JsonOptions());
+                if (res.IsSuccessStatusCode)
+                {
+                    MessageBox.Show("Thêm chương trình sự kiện ngày lễ thành công!", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+                    await LoadPromotionsAsync();
+                }
+                else
+                {
+                    MessageBox.Show("Thêm chương trình thất bại.", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
@@ -1035,25 +1084,41 @@ public partial class MainWindow : Window
         }
         else if (header == "Ngày áp dụng")
         {
-            var daysText = newVal.Split(',');
-            var days = new List<int>();
-            foreach (var d in daysText)
+            if (newVal.StartsWith("Ngày lễ:", StringComparison.OrdinalIgnoreCase))
             {
-                string clean = d.Trim().ToUpper();
-                if (clean == "CN") days.Add(0);
-                else if (clean.StartsWith("T") && int.TryParse(clean.Substring(1), out int dayNum) && dayNum >= 2 && dayNum <= 7)
+                var datesText = newVal.Substring("Ngày lễ:".Length).Split(',');
+                var dates = new List<string>();
+                foreach (var d in datesText)
                 {
-                    days.Add(dayNum - 1);
+                    string clean = d.Trim();
+                    if (!string.IsNullOrEmpty(clean)) dates.Add(clean);
                 }
+                payload["annualDates"] = dates;
+                payload["daysOfWeek"] = new List<int>(); // Xoá ngày thường
             }
-
-            if (days.Count == 0)
+            else
             {
-                MessageBox.Show("Ngày áp dụng không đúng định dạng. Định dạng chuẩn: T2, T3, T4 (hoặc CN)", "Lỗi định dạng", MessageBoxButton.OK, MessageBoxImage.Error);
-                e.Cancel = true;
-                return;
+                var daysText = newVal.Split(',');
+                var days = new List<int>();
+                foreach (var d in daysText)
+                {
+                    string clean = d.Trim().ToUpper();
+                    if (clean == "CN") days.Add(0);
+                    else if (clean.StartsWith("T") && int.TryParse(clean.Substring(1), out int dayNum) && dayNum >= 2 && dayNum <= 7)
+                    {
+                        days.Add(dayNum - 1);
+                    }
+                }
+
+                if (days.Count == 0)
+                {
+                    MessageBox.Show("Định dạng không đúng. Cần là T2, T3 (hoặc CN). Nếu là lễ thì gõ: 'Ngày lễ: 30/04, 01/05'", "Lỗi định dạng", MessageBoxButton.OK, MessageBoxImage.Error);
+                    e.Cancel = true;
+                    return;
+                }
+                payload["daysOfWeek"] = days;
+                payload["annualDates"] = new List<string>(); // Xóa ngày lễ
             }
-            payload["daysOfWeek"] = days;
         }
         else if (header == "% Giảm giá")
         {
@@ -1476,6 +1541,7 @@ public class TimeBasedPromotionDto
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public List<int> DaysOfWeek { get; set; } = new();
+    public List<string> AnnualDates { get; set; } = new();
     public string StartTime { get; set; } = string.Empty;
     public string EndTime { get; set; } = string.Empty;
     public decimal DiscountPercent { get; set; }

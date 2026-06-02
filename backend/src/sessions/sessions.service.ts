@@ -458,6 +458,7 @@ export class SessionsService {
       where: { isActive: true },
       select: {
         daysOfWeek: true,
+        annualDates: true,
         startTime: true,
         endTime: true,
         discountPercent: true,

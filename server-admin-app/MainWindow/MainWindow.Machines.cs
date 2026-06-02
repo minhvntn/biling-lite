@@ -3216,12 +3216,22 @@ public partial class MainWindow : Window
                 continue;
             }
 
-            if (promo.DaysOfWeek is null || promo.DaysOfWeek.Count == 0)
+            if (promo.AnnualDates != null && promo.AnnualDates.Count > 0)
             {
-                continue;
+                var ddmm = now.ToString("dd/MM");
+                if (!promo.AnnualDates.Contains(ddmm))
+                {
+                    continue;
+                }
             }
-
-            if (!promo.DaysOfWeek.Contains(currentDay))
+            else if (promo.DaysOfWeek != null && promo.DaysOfWeek.Count > 0)
+            {
+                if (!promo.DaysOfWeek.Contains(currentDay))
+                {
+                    continue;
+                }
+            }
+            else
             {
                 continue;
             }

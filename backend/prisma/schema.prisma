@@ -211,6 +211,7 @@ model TimeBasedPromotion {
   id              String   @id @default(uuid()) @db.Uuid
   name            String   @db.VarChar(100)
   daysOfWeek      Int[]    @map("days_of_week")
+  annualDates     String[] @default([]) @map("annual_dates")
   startTime       String   @db.VarChar(5)
   endTime         String   @db.VarChar(5)
   discountPercent Decimal  @default(0) @map("discount_percent") @db.Decimal(5, 2)

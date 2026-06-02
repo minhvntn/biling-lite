@@ -218,6 +218,8 @@ public sealed class LoyaltySettingsResponse
     public int PointsToMinutes { get; set; }
     public double WeekdayMultiplier { get; set; }
     public double WeekendMultiplier { get; set; }
+    public decimal HorseRaceMinTopup { get; set; }
+    public string HorseRaceMinRankName { get; set; } = string.Empty;
     public string UpdatedAt { get; set; } = string.Empty;
 }
 
