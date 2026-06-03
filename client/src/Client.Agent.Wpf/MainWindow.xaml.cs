@@ -151,6 +151,10 @@ public static decimal PricingStep { get; set; } = 1000m;
     private int _autoCollapseIntervalSeconds = 0;
     private DateTime _lastClientInteractionTime = DateTime.UtcNow;
     private bool _isCollapsed = false;
+    private string? _currentUsername;
+    private string? _currentRank;
+    private string? _currentMemberType;
+    private string? _currentAvatarId;
 
     private void CollapseButton_Click(object sender, RoutedEventArgs e)
     {
@@ -212,6 +216,9 @@ public static decimal PricingStep { get; set; } = 1000m;
                 UserInfoPanel.HorizontalAlignment = HorizontalAlignment.Stretch;
             }
         }
+        
+        // Reapply member info to trigger animation suspension or resumption
+        SetMemberInfo(_currentUsername, _currentRank, _currentMemberType, _currentAvatarId);
     }
 
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
@@ -422,6 +429,11 @@ public static decimal PricingStep { get; set; } = 1000m;
 
     public void SetMemberInfo(string? username, string? rank, string? memberType = null, string? avatarId = null)
     {
+        _currentUsername = username;
+        _currentRank = rank;
+        _currentMemberType = memberType;
+        _currentAvatarId = avatarId;
+
         _isMemberSession = !string.IsNullOrWhiteSpace(username);
         _isAdminSession = string.Equals(username, "Admin", StringComparison.OrdinalIgnoreCase) ||
                            string.Equals(rank, "ADMIN", StringComparison.OrdinalIgnoreCase);
@@ -432,9 +444,9 @@ public static decimal PricingStep { get; set; } = 1000m;
         SetTransferActionVisible(_isMemberSession && !_isAdminSession);
         SetWithdrawActionVisible(_withdrawActionEnabledSetting);
         SetTopupRequestActionVisible(_topupActionEnabledSetting);
-        LoyaltyActionButton.Visibility = _isMemberSession ? Visibility.Visible : Visibility.Collapsed;
-        PasswordActionButton.Visibility = _isMemberSession ? Visibility.Visible : Visibility.Collapsed;
-        FooterContainer.Visibility = _isMemberSession ? Visibility.Visible : Visibility.Collapsed;
+        LoyaltyActionButton.Visibility = (_isMemberSession && !_isCollapsed) ? Visibility.Visible : Visibility.Collapsed;
+        PasswordActionButton.Visibility = (_isMemberSession && !_isCollapsed) ? Visibility.Visible : Visibility.Collapsed;
+        FooterContainer.Visibility = (_isMemberSession && !_isCollapsed) ? Visibility.Visible : Visibility.Collapsed;
         UpdateActionButtonsLayout();
         if (string.IsNullOrWhiteSpace(username))
         {
@@ -450,7 +462,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         }
 
         UserInfoPanel.Visibility = Visibility.Visible;
-        MemberRankContainer.Visibility = Visibility.Visible;
+        MemberRankContainer.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
         MemberUsernameTextBlock.Text = username;
         
         var avatarToLoad = string.IsNullOrWhiteSpace(avatarId) ? "avatar_1.png" : avatarId;
@@ -629,17 +641,20 @@ public static decimal PricingStep { get; set; } = 1000m;
             gradientBrush.GradientStops.Add(stop4);
             gradientBrush.GradientStops.Add(stop5);
 
-            var anim1 = new DoubleAnimation(-0.5, 1.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
-            var anim2 = new DoubleAnimation(0.0, 2.0, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
-            var anim3 = new DoubleAnimation(0.5, 2.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
-            var anim4 = new DoubleAnimation(1.0, 3.0, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
-            var anim5 = new DoubleAnimation(1.5, 3.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+            if (!_isCollapsed)
+            {
+                var anim1 = new DoubleAnimation(-0.5, 1.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+                var anim2 = new DoubleAnimation(0.0, 2.0, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+                var anim3 = new DoubleAnimation(0.5, 2.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+                var anim4 = new DoubleAnimation(1.0, 3.0, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+                var anim5 = new DoubleAnimation(1.5, 3.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
 
-            stop1.BeginAnimation(GradientStop.OffsetProperty, anim1);
-            stop2.BeginAnimation(GradientStop.OffsetProperty, anim2);
-            stop3.BeginAnimation(GradientStop.OffsetProperty, anim3);
-            stop4.BeginAnimation(GradientStop.OffsetProperty, anim4);
-            stop5.BeginAnimation(GradientStop.OffsetProperty, anim5);
+                stop1.BeginAnimation(GradientStop.OffsetProperty, anim1);
+                stop2.BeginAnimation(GradientStop.OffsetProperty, anim2);
+                stop3.BeginAnimation(GradientStop.OffsetProperty, anim3);
+                stop4.BeginAnimation(GradientStop.OffsetProperty, anim4);
+                stop5.BeginAnimation(GradientStop.OffsetProperty, anim5);
+            }
         }
         else if (bgColor3 != null)
         {
@@ -653,15 +668,18 @@ public static decimal PricingStep { get; set; } = 1000m;
             gradientBrush.GradientStops.Add(stop3);
             gradientBrush.GradientStops.Add(stop4);
 
-            var anim1 = new DoubleAnimation(-0.5, 1.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
-            var anim2 = new DoubleAnimation(0.0, 2.0, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
-            var anim3 = new DoubleAnimation(0.5, 2.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
-            var anim4 = new DoubleAnimation(1.0, 3.0, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+            if (!_isCollapsed)
+            {
+                var anim1 = new DoubleAnimation(-0.5, 1.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+                var anim2 = new DoubleAnimation(0.0, 2.0, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+                var anim3 = new DoubleAnimation(0.5, 2.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+                var anim4 = new DoubleAnimation(1.0, 3.0, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
 
-            stop1.BeginAnimation(GradientStop.OffsetProperty, anim1);
-            stop2.BeginAnimation(GradientStop.OffsetProperty, anim2);
-            stop3.BeginAnimation(GradientStop.OffsetProperty, anim3);
-            stop4.BeginAnimation(GradientStop.OffsetProperty, anim4);
+                stop1.BeginAnimation(GradientStop.OffsetProperty, anim1);
+                stop2.BeginAnimation(GradientStop.OffsetProperty, anim2);
+                stop3.BeginAnimation(GradientStop.OffsetProperty, anim3);
+                stop4.BeginAnimation(GradientStop.OffsetProperty, anim4);
+            }
         }
         else
         {
@@ -673,13 +691,16 @@ public static decimal PricingStep { get; set; } = 1000m;
             gradientBrush.GradientStops.Add(stop2);
             gradientBrush.GradientStops.Add(stop3);
 
-            var anim1 = new DoubleAnimation(-0.5, 1.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
-            var anim2 = new DoubleAnimation(0.0, 2.0, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
-            var anim3 = new DoubleAnimation(0.5, 2.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+            if (!_isCollapsed)
+            {
+                var anim1 = new DoubleAnimation(-0.5, 1.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+                var anim2 = new DoubleAnimation(0.0, 2.0, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+                var anim3 = new DoubleAnimation(0.5, 2.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
 
-            stop1.BeginAnimation(GradientStop.OffsetProperty, anim1);
-            stop2.BeginAnimation(GradientStop.OffsetProperty, anim2);
-            stop3.BeginAnimation(GradientStop.OffsetProperty, anim3);
+                stop1.BeginAnimation(GradientStop.OffsetProperty, anim1);
+                stop2.BeginAnimation(GradientStop.OffsetProperty, anim2);
+                stop3.BeginAnimation(GradientStop.OffsetProperty, anim3);
+            }
         }
 
         MemberRankBorder.Background = gradientBrush;
@@ -689,7 +710,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         MemberRankIconBadgeBorder.Background = (Brush)bc.ConvertFromString(bgColor)!;
         MemberRankIconBadgeBorder.BorderBrush = (Brush)bc.ConvertFromString(bgColor)!;
         ApplyRankIcon(rankIconAsset, rankIcon);
-        ApplyRankPulseAnimation(shouldPulse, rankAccentBrush, showSparkles);
+        ApplyRankPulseAnimation(!_isCollapsed && shouldPulse, rankAccentBrush, !_isCollapsed && showSparkles);
         UpdateUsageUi();
     }
 

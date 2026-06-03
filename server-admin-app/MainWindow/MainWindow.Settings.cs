@@ -2392,6 +2392,140 @@ public partial class MainWindow : Window
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }
+
+    private async Task LoadTopupPromoSettingsAsync()
+    {
+        try
+        {
+            _isLoadingTopupPromoSettings = true;
+            var settings = await _httpClient.GetFromJsonAsync<Dictionary<string, string>>(
+                BuildApiUrl("/settings"),
+                JsonOptions());
+
+            _topupPromoTierRows.Clear();
+
+            if (settings != null)
+            {
+                _topupPromoEnabled = settings.TryGetValue("TOPUP_PROMO_ENABLED", out var val) && val == "true";
+                
+                if (settings.TryGetValue("TOPUP_PROMO_TIERS", out var tiersJson) && !string.IsNullOrWhiteSpace(tiersJson))
+                {
+                    try
+                    {
+                        var tiers = JsonSerializer.Deserialize<List<TopupPromoTierDto>>(tiersJson, JsonOptions());
+                        if (tiers != null)
+                        {
+                            foreach (var tier in tiers)
+                            {
+                                _topupPromoTierRows.Add(new TopupPromoTierRow
+                                {
+                                    MinAmountText = tier.MinAmount.ToString("0"),
+                                    BonusRateText = tier.BonusRate.ToString("0.##")
+                                });
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore parse errors
+                    }
+                }
+            }
+
+            TopupPromoEnabledCheckBox.IsChecked = _topupPromoEnabled;
+            
+            TopupPromoStatusTextBlock.Text = "Đã tải cài đặt khuyến mãi nạp tiền.";
+            TopupPromoStatusTextBlock.Foreground = Brushes.DimGray;
+        }
+        catch (Exception ex)
+        {
+            TopupPromoStatusTextBlock.Text = $"Lỗi tải cài đặt KM: {ex.Message}";
+            TopupPromoStatusTextBlock.Foreground = Brushes.Firebrick;
+        }
+        finally
+        {
+            _isLoadingTopupPromoSettings = false;
+            _topupPromoSettingsInitialized = true;
+        }
+    }
+
+    private async Task SaveTopupPromoSettingsAsync()
+    {
+        try
+        {
+            _topupPromoEnabled = TopupPromoEnabledCheckBox.IsChecked == true;
+            
+            var dtos = new List<TopupPromoTierDto>();
+            foreach (var row in _topupPromoTierRows)
+            {
+                if (!decimal.TryParse(row.MinAmountText, out var minAmt) || minAmt < 0)
+                {
+                    TopupPromoStatusTextBlock.Text = $"Mốc nạp '{row.MinAmountText}' không hợp lệ.";
+                    TopupPromoStatusTextBlock.Foreground = Brushes.Firebrick;
+                    return;
+                }
+                
+                if (!decimal.TryParse(row.BonusRateText, out var rate) || rate < 0)
+                {
+                    TopupPromoStatusTextBlock.Text = $"Tỷ lệ thưởng '{row.BonusRateText}' không hợp lệ.";
+                    TopupPromoStatusTextBlock.Foreground = Brushes.Firebrick;
+                    return;
+                }
+                
+                dtos.Add(new TopupPromoTierDto { MinAmount = minAmt, BonusRate = rate });
+            }
+
+            var tiersJson = JsonSerializer.Serialize(dtos, JsonOptions());
+
+            await _httpClient.PostAsJsonAsync(BuildApiUrl("/settings"), new { key = "TOPUP_PROMO_ENABLED", value = _topupPromoEnabled ? "true" : "false" });
+            await _httpClient.PostAsJsonAsync(BuildApiUrl("/settings"), new { key = "TOPUP_PROMO_TIERS", value = tiersJson });
+
+            TopupPromoStatusTextBlock.Text = "Đã lưu cài đặt khuyến mãi nạp tiền.";
+            TopupPromoStatusTextBlock.Foreground = Brushes.DarkGreen;
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã lưu cài đặt khuyến mãi nạp tiền");
+        }
+        catch (Exception ex)
+        {
+            TopupPromoStatusTextBlock.Text = $"Lỗi khi lưu: {ex.Message}";
+            TopupPromoStatusTextBlock.Foreground = Brushes.Firebrick;
+        }
+    }
+
+    private void TopupPromoConfigControl_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_topupPromoSettingsInitialized || _isLoadingTopupPromoSettings) return;
+        TopupPromoStatusTextBlock.Text = "Cài đặt đã thay đổi. Bấm \"Lưu cài đặt khuyến mãi\" để áp dụng.";
+        TopupPromoStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+    }
+
+    private async void SaveTopupPromoSettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        await SaveTopupPromoSettingsAsync();
+    }
+    
+    private void AddTopupPromoTierButton_Click(object sender, RoutedEventArgs e)
+    {
+        _topupPromoTierRows.Add(new TopupPromoTierRow { MinAmountText = "0", BonusRateText = "0" });
+        TopupPromoConfigControl_Changed(sender, e);
+    }
+
+    private void DeleteTopupPromoTierButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string id)
+        {
+            var row = _topupPromoTierRows.FirstOrDefault(r => r.Id == id);
+            if (row != null)
+            {
+                _topupPromoTierRows.Remove(row);
+                TopupPromoConfigControl_Changed(sender, e);
+            }
+        }
+    }
+
+    private void TopupPromoTiersDataGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+    {
+        TopupPromoConfigControl_Changed(sender, new RoutedEventArgs());
+    }
 }
 
 

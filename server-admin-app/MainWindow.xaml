@@ -2847,85 +2847,6 @@
                     </ScrollViewer>
                 </TabItem>
 
-                <TabItem x:Name="PromotionsConfigTabItem">
-                    <TabItem.Header>
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock VerticalAlignment="Center" Text="🛠️" Margin="0,0,6,0" FontSize="20" />
-                            <TextBlock VerticalAlignment="Center" Text="Cấu hình Khuyến mãi" />
-                        </StackPanel>
-                    </TabItem.Header>
-                    <Grid Margin="16">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="12" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="12" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-
-                        <!-- Row 0: Action Bar -->
-                        <StackPanel Grid.Row="0" Orientation="Horizontal">
-                            <Button Content="Thêm chương trình" Padding="12,6" Background="#10B981" Foreground="White" FontWeight="SemiBold" Cursor="Hand" Click="AddPromotionButton_Click" Margin="0,0,8,0">
-                                <Button.Resources>
-                                    <Style TargetType="Border">
-                                        <Setter Property="CornerRadius" Value="6"/>
-                                    </Style>
-                                </Button.Resources>
-                            </Button>
-                            <Button Content="Thêm KM Ngày Lễ" Padding="12,6" Background="#3B82F6" Foreground="White" FontWeight="SemiBold" Cursor="Hand" Click="AddAnnualPromotionButton_Click" Margin="0,0,8,0">
-                                <Button.Resources>
-                                    <Style TargetType="Border">
-                                        <Setter Property="CornerRadius" Value="6"/>
-                                    </Style>
-                                </Button.Resources>
-                            </Button>
-                            <Button Content="Tải lại" Padding="12,6" Background="#F3F4F6" Foreground="#374151" FontWeight="SemiBold" Cursor="Hand" Click="ReloadPromotionsButton_Click">
-                                <Button.Resources>
-                                    <Style TargetType="Border">
-                                        <Setter Property="CornerRadius" Value="6"/>
-                                    </Style>
-                                </Button.Resources>
-                            </Button>
-                        </StackPanel>
-
-                        <!-- Row 2: Promotions Grid -->
-                        <DataGrid Grid.Row="2" x:Name="PromotionsDataGrid" AutoGenerateColumns="False" CanUserAddRows="False" SelectionMode="Single" HeadersVisibility="Column" Background="White" RowHeight="40" FontSize="13" BorderBrush="#E5E7EB" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F3F4F6" CellEditEnding="PromotionsDataGrid_CellEditEnding">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Tên chương trình" Binding="{Binding Name}" Width="3*" IsReadOnly="False" />
-                                <DataGridTextColumn Header="Khung giờ áp dụng" Binding="{Binding TimeRange}" Width="1.5*" IsReadOnly="False" />
-                                <DataGridTextColumn Header="Ngày áp dụng" Binding="{Binding DaysOfWeekText}" Width="2*" IsReadOnly="False" />
-                                <DataGridTextColumn Header="% Giảm giá" Binding="{Binding DiscountText}" Width="1*" IsReadOnly="False" />
-                                <DataGridTemplateColumn Header="Trạng thái" Width="1.2*">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Border CornerRadius="10" Padding="8,4" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{Binding StatusBackground}">
-                                                <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusForeground}" FontWeight="Bold" FontSize="11" />
-                                            </Border>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Thao tác" Width="1.2*">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                                <Button Content="Xóa" Background="#FEE2E2" Foreground="#DC2626" FontSize="11" Padding="8,3" BorderThickness="0" Cursor="Hand" Click="DeletePromotionButton_Click" Tag="{Binding Id}">
-                                                    <Button.Resources>
-                                                        <Style TargetType="Border">
-                                                            <Setter Property="CornerRadius" Value="4"/>
-                                                        </Style>
-                                                    </Button.Resources>
-                                                </Button>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                            </DataGrid.Columns>
-                        </DataGrid>
-
-                        <!-- Row 4: Info Tip -->
-                        <TextBlock Grid.Row="4" Text="🏆 Khuyến mãi theo giờ giúp kích cầu giờ chơi trống, tự động áp dụng giảm giá trực tiếp vào phiên chơi khi thỏa mãn điều kiện khung giờ và ngày trong tuần." Foreground="#4B5563" FontSize="12" FontWeight="SemiBold" />
-                    </Grid>
-                </TabItem>
             </TabControl>
         </TabItem>
 
@@ -3744,6 +3665,143 @@
                                         </Grid>
                                     </Border>
                                 </TabItem>
+                                <TabItem x:Name="PromotionsConfigTabItem" Header="KM Giờ chơi">
+                                    <Border Margin="0,8,0,0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="14,12">
+                                        <Grid Margin="0">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="12" />
+                                                <RowDefinition Height="*" />
+                                                <RowDefinition Height="12" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Row 0: Action Bar -->
+                                            <StackPanel Grid.Row="0" Orientation="Horizontal">
+                                                <Button Content="Thêm chương trình" Padding="12,6" Background="#10B981" Foreground="White" FontWeight="SemiBold" Cursor="Hand" Click="AddPromotionButton_Click" Margin="0,0,8,0">
+                                                    <Button.Resources>
+                                                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                                                    </Button.Resources>
+                                                </Button>
+                                                <Button Content="Thêm KM Ngày Lễ" Padding="12,6" Background="#3B82F6" Foreground="White" FontWeight="SemiBold" Cursor="Hand" Click="AddAnnualPromotionButton_Click" Margin="0,0,8,0">
+                                                    <Button.Resources>
+                                                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                                                    </Button.Resources>
+                                                </Button>
+                                                <Button Content="Tải lại" Padding="12,6" Background="#F3F4F6" Foreground="#374151" FontWeight="SemiBold" Cursor="Hand" Click="ReloadPromotionsButton_Click">
+                                                    <Button.Resources>
+                                                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                                                    </Button.Resources>
+                                                </Button>
+                                            </StackPanel>
+
+                                            <!-- Row 2: Promotions Grid -->
+                                            <DataGrid Grid.Row="2" x:Name="PromotionsDataGrid" AutoGenerateColumns="False" CanUserAddRows="False" SelectionMode="Single" HeadersVisibility="Column" Background="White" RowHeight="40" FontSize="13" BorderBrush="#E5E7EB" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F3F4F6" CellEditEnding="PromotionsDataGrid_CellEditEnding">
+                                                <DataGrid.Columns>
+                                                    <DataGridTextColumn Header="Tên chương trình" Binding="{Binding Name}" Width="3*" IsReadOnly="False" />
+                                                    <DataGridTextColumn Header="Khung giờ áp dụng" Binding="{Binding TimeRange}" Width="1.5*" IsReadOnly="False" />
+                                                    <DataGridTextColumn Header="Ngày áp dụng" Binding="{Binding DaysOfWeekText}" Width="2*" IsReadOnly="False" />
+                                                    <DataGridTextColumn Header="% Giảm giá" Binding="{Binding DiscountText}" Width="1*" IsReadOnly="False" />
+                                                    <DataGridTemplateColumn Header="Trạng thái" Width="1.2*">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <Border CornerRadius="10" Padding="8,4" HorizontalAlignment="Center" VerticalAlignment="Center" Background="{Binding StatusBackground}">
+                                                                    <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusForeground}" FontWeight="Bold" FontSize="11" />
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                    <DataGridTemplateColumn Header="Thao tác" Width="1.2*">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                                    <Button Content="Xóa" Background="#FEE2E2" Foreground="#DC2626" FontSize="11" Padding="8,3" BorderThickness="0" Cursor="Hand" Click="DeletePromotionButton_Click" Tag="{Binding Id}">
+                                                                        <Button.Resources>
+                                                                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style>
+                                                                        </Button.Resources>
+                                                                    </Button>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+
+                                            <!-- Row 4: Info Tip -->
+                                            <TextBlock Grid.Row="4" Text="🏆 Khuyến mãi theo giờ giúp kích cầu giờ chơi trống, tự động áp dụng giảm giá trực tiếp vào phiên chơi khi thỏa mãn điều kiện khung giờ và ngày trong tuần." Foreground="#4B5563" FontSize="12" FontWeight="SemiBold" />
+                                        </Grid>
+                                    </Border>
+                                </TabItem>
+
+                                <TabItem Header="KM Nạp tiền">
+                                    <Border Margin="0,8,0,0"
+                                            Background="White"
+                                            BorderBrush="#E2E8F0"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="14,12">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <TextBlock Grid.Row="0"
+                                                       FontSize="17"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#1E293B"
+                                                       Text="Cấu hình Khuyến mãi Nạp tiền" />
+
+                                            <CheckBox x:Name="TopupPromoEnabledCheckBox"
+                                                      Grid.Row="1"
+                                                      Margin="0,10,0,0"
+                                                      Content="Bật chương trình khuyến mãi tự động khi nạp tiền"
+                                                      Checked="TopupPromoConfigControl_Changed"
+                                                      Unchecked="TopupPromoConfigControl_Changed" />
+
+                                            <StackPanel Grid.Row="2" Margin="0,15,0,0">
+                                                <Button Content="Thêm mức mới" Padding="12,6" Background="#3B82F6" Foreground="White" FontWeight="SemiBold" Cursor="Hand" Click="AddTopupPromoTierButton_Click" HorizontalAlignment="Left" Margin="0,0,0,10">
+                                                    <Button.Resources>
+                                                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                                                    </Button.Resources>
+                                                </Button>
+                                                <DataGrid x:Name="TopupPromoTiersDataGrid" AutoGenerateColumns="False" CanUserAddRows="False" SelectionMode="Single" HeadersVisibility="Column" Background="White" RowHeight="36" FontSize="13" BorderBrush="#E5E7EB" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F3F4F6" CellEditEnding="TopupPromoTiersDataGrid_CellEditEnding" Height="200">
+                                                    <DataGrid.Columns>
+                                                        <DataGridTextColumn Header="Mức nạp từ (VND)" Binding="{Binding MinAmountText, UpdateSourceTrigger=PropertyChanged}" Width="200" IsReadOnly="False" />
+                                                        <DataGridTextColumn Header="Tỷ lệ thưởng (%)" Binding="{Binding BonusRateText, UpdateSourceTrigger=PropertyChanged}" Width="150" IsReadOnly="False" />
+                                                        <DataGridTemplateColumn Header="Thao tác" Width="100">
+                                                            <DataGridTemplateColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <Button Content="Xóa" Background="#FEE2E2" Foreground="#DC2626" FontSize="11" Padding="8,3" BorderThickness="0" Cursor="Hand" Click="DeleteTopupPromoTierButton_Click" Tag="{Binding Id}">
+                                                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                                    </Button>
+                                                                </DataTemplate>
+                                                            </DataGridTemplateColumn.CellTemplate>
+                                                        </DataGridTemplateColumn>
+                                                    </DataGrid.Columns>
+                                                </DataGrid>
+                                            </StackPanel>
+
+                                            <Button Grid.Row="4"
+                                                    Width="200"
+                                                    Height="38"
+                                                    Margin="0,16,0,0"
+                                                    HorizontalAlignment="Left"
+                                                    Content="Lưu cài đặt khuyến mãi"
+                                                    Click="SaveTopupPromoSettingsButton_Click" />
+
+                                            <TextBlock x:Name="TopupPromoStatusTextBlock"
+                                                       Grid.Row="5"
+                                                       Margin="0,8,0,0"
+                                                       Foreground="#64748B"
+                                                       Text="Đang tải cài đặt khuyến mãi..." />
+                                        </Grid>
+                                    </Border>
+                                </TabItem>
                             </TabControl>
 
                             <StackPanel Grid.Row="4">
@@ -4179,6 +4237,13 @@
                                Foreground="#B42318"
                                Margin="0,0,0,8"
                                TextWrapping="Wrap" />
+                    <TextBlock x:Name="TopupModalBonusTextBlock"
+                               Grid.Row="7"
+                               Foreground="Green"
+                               FontWeight="SemiBold"
+                               Margin="0,-4,0,8"
+                               TextWrapping="Wrap"
+                               Visibility="Collapsed" />
 
                     <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button x:Name="TopupUndoButton"

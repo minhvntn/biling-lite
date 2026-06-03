@@ -772,3 +772,16 @@ public sealed class DatabaseStorageHistoryRow
     public long SizeBytes { get; set; }
     public string SizePretty { get; set; } = string.Empty;
 }
+
+public sealed class TopupPromoTierDto
+{
+    public decimal MinAmount { get; set; }
+    public decimal BonusRate { get; set; }
+}
+
+public sealed class TopupPromoTierRow
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string MinAmountText { get; set; } = "0";
+    public string BonusRateText { get; set; } = "0";
+}

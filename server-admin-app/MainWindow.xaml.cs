@@ -90,6 +90,12 @@ public partial class MainWindow : Window
     private bool _isUpdatingWebsiteLogMachineFilters;
     private bool _guestLoginSettingsInitialized;
     private bool _isLoadingGuestLoginSettings;
+    
+    private bool _topupPromoSettingsInitialized;
+    private bool _isLoadingTopupPromoSettings;
+    private bool _topupPromoEnabled = false;
+    private readonly ObservableCollection<TopupPromoTierRow> _topupPromoTierRows = new();
+
     private bool _backupSettingsInitialized;
     private bool _isLoadingBackupSettings;
     private bool _transactionReportInitialized;
@@ -166,6 +172,7 @@ public partial class MainWindow : Window
             ServiceItemsDataGrid.ItemsSource = _serviceItemRows;
             WebFilterDomainsListBox.ItemsSource = _webFilterDomainRows;
             MiniGameSpinSettingsDataGrid.ItemsSource = _loyaltySpinSettingRows;
+            TopupPromoTiersDataGrid.ItemsSource = _topupPromoTierRows;
             FontSizeSlider.Value = _settings.UiFontSize;
             FontSizeValueTextBlock.Text = _settings.UiFontSize.ToString("0");
             MachineTableFontSizeSlider.Value = _settings.MachineTableFontSize;
@@ -420,6 +427,7 @@ public partial class MainWindow : Window
         await LoadLoyaltySettingsAsync();
         await LoadClientRuntimeSettingsAsync();
         await LoadGuestLoginSettingsAsync();
+        await LoadTopupPromoSettingsAsync();
         await LoadBackupSettingsAsync();
         await RefreshWebFilterSettingsAsync();
         await LoadWebsiteLogSettingsAsync();

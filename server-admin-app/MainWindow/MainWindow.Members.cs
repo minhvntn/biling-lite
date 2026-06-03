@@ -608,6 +608,17 @@ public partial class MainWindow : Window
             ? new SolidColorBrush(Color.FromRgb(185, 28, 28))
             : new SolidColorBrush(Color.FromRgb(9, 36, 140));
 
+        var bonus = CalculatePromotionBonus(_topupModalAmount);
+        if (!_topupModalIsDeduct && bonus > 0)
+        {
+            TopupModalBonusTextBlock.Text = $"+ Khuyến mãi: {bonus:N0} VND";
+            TopupModalBonusTextBlock.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            TopupModalBonusTextBlock.Visibility = Visibility.Collapsed;
+        }
+
         TopupModeAddButton.Visibility = _topupModalAllowDeduct ? Visibility.Visible : Visibility.Collapsed;
         TopupModeSubtractButton.Visibility = _topupModalAllowDeduct ? Visibility.Visible : Visibility.Collapsed;
 
@@ -729,7 +740,36 @@ public partial class MainWindow : Window
         }
 
         var signedAmount = _topupModalIsDeduct ? -_topupModalAmount : _topupModalAmount;
+        if (!_topupModalIsDeduct)
+        {
+            signedAmount += CalculatePromotionBonus(_topupModalAmount);
+        }
         CloseTopupModal(signedAmount);
+    }
+
+    private decimal CalculatePromotionBonus(decimal amount)
+    {
+        if (!_topupPromoEnabled || _topupPromoTierRows.Count == 0)
+        {
+            return 0m;
+        }
+
+        var validTiers = _topupPromoTierRows
+            .Select(r => new { 
+                MinAmount = decimal.TryParse(r.MinAmountText, out var m) ? m : 0, 
+                BonusRate = decimal.TryParse(r.BonusRateText, out var b) ? b : 0 
+            })
+            .Where(t => t.MinAmount > 0 && t.BonusRate > 0 && amount >= t.MinAmount)
+            .OrderByDescending(t => t.MinAmount)
+            .ToList();
+
+        if (validTiers.Count > 0)
+        {
+            var bestTier = validTiers.First();
+            return amount * (bestTier.BonusRate / 100m);
+        }
+
+        return 0m;
     }
 
     private void TopupCustomAmountTextBox_TextChanged(object sender, TextChangedEventArgs e)
