@@ -306,6 +306,45 @@
                         <StackPanel x:Name="RightColumnRankPanel" Grid.Row="0" Margin="6,0,6,0">
                             <!-- VIP Card -->
                             <Grid x:Name="MemberRankContainer" Visibility="Collapsed" Margin="0,0,0,8" Height="80" HorizontalAlignment="Stretch">
+                                <Border x:Name="MemberRankGlowBorder" CornerRadius="16" Opacity="0" Background="White" BorderThickness="0">
+                                    <Border.Effect>
+                                        <DropShadowEffect x:Name="MemberRankGlowEffect" BlurRadius="0" ShadowDepth="0" Color="#FF4500" Opacity="0" RenderingBias="Performance"/>
+                                    </Border.Effect>
+                                </Border>
+                                
+                                <Grid x:Name="SparklesContainer" Visibility="Collapsed" Panel.ZIndex="10">
+                                    <TextBlock Text="✨" Foreground="#FDE047" FontSize="14" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10, -20, 0, 0" x:Name="Sparkle1" Opacity="0">
+                                        <TextBlock.RenderTransform><TranslateTransform x:Name="Sparkle1Transform" Y="0"/></TextBlock.RenderTransform>
+                                        <TextBlock.Effect>
+                                            <DropShadowEffect Color="#FDE047" BlurRadius="5" ShadowDepth="0" Opacity="0.8" RenderingBias="Performance"/>
+                                        </TextBlock.Effect>
+                                    </TextBlock>
+                                    <TextBlock Text="✨" Foreground="#A855F7" FontSize="18" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0, -12, 15, 0" x:Name="Sparkle2" Opacity="0">
+                                        <TextBlock.RenderTransform><TranslateTransform x:Name="Sparkle2Transform" Y="0"/></TextBlock.RenderTransform>
+                                        <TextBlock.Effect>
+                                            <DropShadowEffect Color="#A855F7" BlurRadius="8" ShadowDepth="0" Opacity="0.8" RenderingBias="Performance"/>
+                                        </TextBlock.Effect>
+                                    </TextBlock>
+                                    <TextBlock Text="✨" Foreground="#2DD4BF" FontSize="12" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="40, -30, 0, 0" x:Name="Sparkle3" Opacity="0">
+                                        <TextBlock.RenderTransform><TranslateTransform x:Name="Sparkle3Transform" Y="0"/></TextBlock.RenderTransform>
+                                        <TextBlock.Effect>
+                                            <DropShadowEffect Color="#2DD4BF" BlurRadius="4" ShadowDepth="0" Opacity="0.8" RenderingBias="Performance"/>
+                                        </TextBlock.Effect>
+                                    </TextBlock>
+                                    <TextBlock Text="✨" Foreground="#F43F5E" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0, -10, 25, 0" x:Name="Sparkle4" Opacity="0">
+                                        <TextBlock.RenderTransform><TranslateTransform x:Name="Sparkle4Transform" Y="0"/></TextBlock.RenderTransform>
+                                        <TextBlock.Effect>
+                                            <DropShadowEffect Color="#F43F5E" BlurRadius="6" ShadowDepth="0" Opacity="0.8" RenderingBias="Performance"/>
+                                        </TextBlock.Effect>
+                                    </TextBlock>
+                                    <TextBlock Text="✨" Foreground="#3B82F6" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0, -25, 0, 0" x:Name="Sparkle5" Opacity="0">
+                                        <TextBlock.RenderTransform><TranslateTransform x:Name="Sparkle5Transform" Y="0"/></TextBlock.RenderTransform>
+                                        <TextBlock.Effect>
+                                            <DropShadowEffect Color="#3B82F6" BlurRadius="4" ShadowDepth="0" Opacity="0.8" RenderingBias="Performance"/>
+                                        </TextBlock.Effect>
+                                    </TextBlock>
+                                </Grid>
+                                
                                 <Border x:Name="MemberRankBorder" CornerRadius="16" BorderThickness="0">
                                     <Border.Background>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">

@@ -444,7 +444,7 @@ public static decimal PricingStep { get; set; } = 1000m;
             {
                 VipIconImage.Visibility = Visibility.Collapsed;
             }
-            ApplyRankPulseAnimation(false);
+            ApplyRankPulseAnimation(false, null, false);
             UpdateUsageUi();
             return;
         }
@@ -481,10 +481,15 @@ public static decimal PricingStep { get; set; } = 1000m;
 
         string bgColor = "#F1F5F9";
         string bgColor2 = "#E2E8F0";
+        string? bgColor3 = null;
+        string? bgColor4 = null;
         string fgColor = "#475569";
         string rankIcon = "🔰";
         string? rankIconAsset = null;
         var shouldPulse = false;
+        var showSparkles = false;
+        double waveOpacity = 0.6;
+        double waveSpeed = 3.0;
 
         if (rankNormalized.Contains("SAT") || rankUpper.Contains("IRON"))
         {
@@ -530,54 +535,74 @@ public static decimal PricingStep { get; set; } = 1000m;
         {
             bgColor = "#D1FAE5";
             bgColor2 = "#34D399";
+            bgColor3 = "#059669";
             fgColor = "#047857";
             rankIconAsset = "tinh-anh.png";
             rankIcon = "💚";
+            waveOpacity = 0.65;
+            waveSpeed = 2.8;
         }
         else if (rankNormalized.Contains("KIM CUONG") || rankUpper.Contains("DIAMOND"))
         {
             bgColor = "#E0E7FF";
             bgColor2 = "#818CF8";
+            bgColor3 = "#67E8F9"; // Cyan streak
             fgColor = "#4338CA";
             rankIconAsset = "kim-cuong.png";
             rankIcon = "💎";
             shouldPulse = true;
+            waveOpacity = 0.7;
+            waveSpeed = 2.5;
         }
         else if (rankNormalized.Contains("DAI CAO THU") || rankUpper.Contains("GRANDMASTER"))
         {
             bgColor = "#FEE2E2";
             bgColor2 = "#F87171";
+            bgColor3 = "#FDE047"; // Yellow streak
             fgColor = "#B91C1C";
             rankIconAsset = "dai-cao-thu.png";
             rankIcon = "🛡️";
             shouldPulse = true;
+            waveOpacity = 0.75;
+            waveSpeed = 2.0;
         }
         else if (rankNormalized.Contains("CAO THU") || rankUpper.Contains("MASTER"))
         {
             bgColor = "#FAE8FF";
             bgColor2 = "#D946EF";
+            bgColor3 = "#A78BFA"; // Violet streak
             fgColor = "#A21CAF";
             rankIconAsset = "cao-thu.png";
             rankIcon = "👑";
             shouldPulse = true;
+            waveOpacity = 0.7;
+            waveSpeed = 2.5;
         }
         else if (rankNormalized.Contains("THACH DAU") ||
                  rankCompact.Contains("THACHDAU") ||
                  rankUpper.Contains("CHALLENGER"))
         {
-            bgColor = "#DBEAFE";
-            bgColor2 = "#60A5FA";
+            bgColor = "#BFDBFE";
+            bgColor2 = "#FDE047"; // Gold streak
+            bgColor3 = "#D946EF"; // Strong purple streak
+            bgColor4 = "#E9D5FF"; // Light purple streak
             fgColor = "#1D4ED8";
             rankIconAsset = "thach-dau.png";
             rankIcon = "🏆";
             shouldPulse = true;
+            showSparkles = true;
+            waveOpacity = 0.85;
+            waveSpeed = 1.5; // Very fast shimmering
         }
         else if (rankUpper.Contains("VIP"))
         {
             bgColor = "#FCE7F3";
             bgColor2 = "#F472B6";
+            bgColor3 = "#FDE047"; // Gold streak
             fgColor = "#BE185D";
             rankIcon = "✨";
+            waveOpacity = 0.75;
+            waveSpeed = 2.0;
         }
 
         var bc = new BrushConverter();
@@ -587,24 +612,75 @@ public static decimal PricingStep { get; set; } = 1000m;
         {
             StartPoint = new Point(0, 0),
             EndPoint = new Point(1, 1),
-            Opacity = 0.6
+            Opacity = waveOpacity
         };
         
-        var stop1 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor), -0.5);
-        var stop2 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor2), 0.0);
-        var stop3 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor), 0.5);
+        if (bgColor4 != null)
+        {
+            var stop1 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor), -0.5);
+            var stop2 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor2), 0.0);
+            var stop3 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor3), 0.5);
+            var stop4 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor4), 1.0);
+            var stop5 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor), 1.5);
 
-        gradientBrush.GradientStops.Add(stop1);
-        gradientBrush.GradientStops.Add(stop2);
-        gradientBrush.GradientStops.Add(stop3);
+            gradientBrush.GradientStops.Add(stop1);
+            gradientBrush.GradientStops.Add(stop2);
+            gradientBrush.GradientStops.Add(stop3);
+            gradientBrush.GradientStops.Add(stop4);
+            gradientBrush.GradientStops.Add(stop5);
 
-        var anim1 = new DoubleAnimation(-0.5, 1.5, new Duration(TimeSpan.FromSeconds(3))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
-        var anim2 = new DoubleAnimation(0.0, 2.0, new Duration(TimeSpan.FromSeconds(3))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
-        var anim3 = new DoubleAnimation(0.5, 2.5, new Duration(TimeSpan.FromSeconds(3))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+            var anim1 = new DoubleAnimation(-0.5, 1.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+            var anim2 = new DoubleAnimation(0.0, 2.0, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+            var anim3 = new DoubleAnimation(0.5, 2.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+            var anim4 = new DoubleAnimation(1.0, 3.0, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+            var anim5 = new DoubleAnimation(1.5, 3.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
 
-        stop1.BeginAnimation(GradientStop.OffsetProperty, anim1);
-        stop2.BeginAnimation(GradientStop.OffsetProperty, anim2);
-        stop3.BeginAnimation(GradientStop.OffsetProperty, anim3);
+            stop1.BeginAnimation(GradientStop.OffsetProperty, anim1);
+            stop2.BeginAnimation(GradientStop.OffsetProperty, anim2);
+            stop3.BeginAnimation(GradientStop.OffsetProperty, anim3);
+            stop4.BeginAnimation(GradientStop.OffsetProperty, anim4);
+            stop5.BeginAnimation(GradientStop.OffsetProperty, anim5);
+        }
+        else if (bgColor3 != null)
+        {
+            var stop1 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor), -0.5);
+            var stop2 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor2), 0.0);
+            var stop3 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor3), 0.5);
+            var stop4 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor), 1.0);
+
+            gradientBrush.GradientStops.Add(stop1);
+            gradientBrush.GradientStops.Add(stop2);
+            gradientBrush.GradientStops.Add(stop3);
+            gradientBrush.GradientStops.Add(stop4);
+
+            var anim1 = new DoubleAnimation(-0.5, 1.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+            var anim2 = new DoubleAnimation(0.0, 2.0, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+            var anim3 = new DoubleAnimation(0.5, 2.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+            var anim4 = new DoubleAnimation(1.0, 3.0, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+
+            stop1.BeginAnimation(GradientStop.OffsetProperty, anim1);
+            stop2.BeginAnimation(GradientStop.OffsetProperty, anim2);
+            stop3.BeginAnimation(GradientStop.OffsetProperty, anim3);
+            stop4.BeginAnimation(GradientStop.OffsetProperty, anim4);
+        }
+        else
+        {
+            var stop1 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor), -0.5);
+            var stop2 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor2), 0.0);
+            var stop3 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor), 0.5);
+
+            gradientBrush.GradientStops.Add(stop1);
+            gradientBrush.GradientStops.Add(stop2);
+            gradientBrush.GradientStops.Add(stop3);
+
+            var anim1 = new DoubleAnimation(-0.5, 1.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+            var anim2 = new DoubleAnimation(0.0, 2.0, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+            var anim3 = new DoubleAnimation(0.5, 2.5, new Duration(TimeSpan.FromSeconds(waveSpeed))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+
+            stop1.BeginAnimation(GradientStop.OffsetProperty, anim1);
+            stop2.BeginAnimation(GradientStop.OffsetProperty, anim2);
+            stop3.BeginAnimation(GradientStop.OffsetProperty, anim3);
+        }
 
         MemberRankBorder.Background = gradientBrush;
         MemberRankBorder.BorderBrush = rankAccentBrush;
@@ -613,8 +689,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         MemberRankIconBadgeBorder.Background = (Brush)bc.ConvertFromString(bgColor)!;
         MemberRankIconBadgeBorder.BorderBrush = (Brush)bc.ConvertFromString(bgColor)!;
         ApplyRankIcon(rankIconAsset, rankIcon);
-        // Shadow effect removed to fix text blur
-        ApplyRankPulseAnimation(shouldPulse);
+        ApplyRankPulseAnimation(shouldPulse, rankAccentBrush, showSparkles);
         UpdateUsageUi();
     }
 
@@ -678,9 +753,62 @@ public static decimal PricingStep { get; set; } = 1000m;
         }
     }
 
-    private void ApplyRankPulseAnimation(bool shouldPulse)
+    private void ApplyRankPulseAnimation(bool shouldPulse, Brush? accentBrush, bool showSparkles)
     {
-        // Pulse animation removed due to shadow effect removal
+        if (shouldPulse && accentBrush is SolidColorBrush solidBrush)
+        {
+            MemberRankGlowBorder.Opacity = 1;
+            MemberRankGlowEffect.Color = solidBrush.Color;
+
+            var blurAnim = new DoubleAnimation(20, 30, new Duration(TimeSpan.FromMilliseconds(1000))) 
+            { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+            
+            var opacAnim = new DoubleAnimation(0.6, 0.9, new Duration(TimeSpan.FromMilliseconds(1200))) 
+            { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+
+            MemberRankGlowEffect.BeginAnimation(DropShadowEffect.BlurRadiusProperty, blurAnim);
+            MemberRankGlowEffect.BeginAnimation(DropShadowEffect.OpacityProperty, opacAnim);
+        }
+        else
+        {
+            MemberRankGlowBorder.Opacity = 0;
+            MemberRankGlowEffect.BeginAnimation(DropShadowEffect.BlurRadiusProperty, null);
+            MemberRankGlowEffect.BeginAnimation(DropShadowEffect.OpacityProperty, null);
+        }
+
+        if (SparklesContainer != null)
+        {
+            if (showSparkles)
+            {
+                SparklesContainer.Visibility = Visibility.Visible;
+                Sparkle1.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.2, 1.0, new Duration(TimeSpan.FromMilliseconds(800))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle2.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.1, 0.9, new Duration(TimeSpan.FromMilliseconds(1100))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle3.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.3, 1.0, new Duration(TimeSpan.FromMilliseconds(600))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle4.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.0, 0.8, new Duration(TimeSpan.FromMilliseconds(1300))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle5.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.4, 1.0, new Duration(TimeSpan.FromMilliseconds(900))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever });
+
+                Sparkle1Transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-10, 100, new Duration(TimeSpan.FromMilliseconds(3000))) { RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle2Transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(0, 120, new Duration(TimeSpan.FromMilliseconds(4500))) { RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle3Transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-20, 90, new Duration(TimeSpan.FromMilliseconds(2500))) { RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle4Transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(0, 110, new Duration(TimeSpan.FromMilliseconds(3500))) { RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle5Transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-5, 95, new Duration(TimeSpan.FromMilliseconds(4000))) { RepeatBehavior = RepeatBehavior.Forever });
+            }
+            else
+            {
+                SparklesContainer.Visibility = Visibility.Collapsed;
+                Sparkle1.BeginAnimation(UIElement.OpacityProperty, null);
+                Sparkle2.BeginAnimation(UIElement.OpacityProperty, null);
+                Sparkle3.BeginAnimation(UIElement.OpacityProperty, null);
+                Sparkle4.BeginAnimation(UIElement.OpacityProperty, null);
+                Sparkle5.BeginAnimation(UIElement.OpacityProperty, null);
+
+                Sparkle1Transform.BeginAnimation(TranslateTransform.YProperty, null);
+                Sparkle2Transform.BeginAnimation(TranslateTransform.YProperty, null);
+                Sparkle3Transform.BeginAnimation(TranslateTransform.YProperty, null);
+                Sparkle4Transform.BeginAnimation(TranslateTransform.YProperty, null);
+                Sparkle5Transform.BeginAnimation(TranslateTransform.YProperty, null);
+            }
+        }
     }
 
     private static string NormalizeRankKey(string value)
