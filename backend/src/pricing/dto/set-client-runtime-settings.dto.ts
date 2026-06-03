@@ -50,4 +50,9 @@ export class SetClientRuntimeSettingsDto {
   @Min(0)
   @Max(3600)
   autoCollapseIntervalSeconds?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  gameLauncherPath?: string;
 }

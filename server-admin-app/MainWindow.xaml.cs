@@ -77,6 +77,7 @@ public partial class MainWindow : Window
     private bool _isLoadingReadyShutdownSettings;
     private int _readyAutoShutdownMinutes = 3;
     private int _autoCollapseIntervalSeconds = 0;
+    private string _gameLauncherPath = string.Empty;
     private string _lockScreenBackgroundMode = "none";
     private string _lockScreenBackgroundUrl = string.Empty;
     private bool _webFilterSettingsInitialized;

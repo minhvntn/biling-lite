@@ -455,6 +455,19 @@
                                 </StackPanel>
                             </Button>
 
+                            <Button x:Name="GameLauncherActionButton" Style="{StaticResource ActionButtonStyle}" Click="GameLauncherButton_Click" Visibility="Collapsed">
+                                <StackPanel>
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                        <Path Style="{StaticResource NeonIconStyle}" Data="M21,10 C21,6 17,4 12,4 C7,4 3,6 3,10 C3,14 5,17 7,17 C8,17 9,16 9,15 L10,14 L14,14 L15,15 C15,16 16,17 17,17 C19,17 21,14 21,10 Z M6,10 L8,10 M7,9 L7,11 M16,11 L16,11 M18,9 L18,9">
+                                            <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#A855F7" Offset="0"/><GradientStop Color="#D946EF" Offset="1"/></LinearGradientBrush></Path.Stroke>
+                                            <Path.Effect><DropShadowEffect Color="#A855F7" BlurRadius="8" ShadowDepth="0" Opacity="0"/></Path.Effect>
+                                        </Path>
+                                    </Viewbox>
+                                    <TextBlock x:Name="GameLauncherIconTextBlock" Visibility="Collapsed" />
+                                    <TextBlock x:Name="GameLauncherLabelTextBlock" Text="Menu Game" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#1E293B" />
+                                </StackPanel>
+                            </Button>
+
                             <Button Style="{StaticResource LockButtonStyle}" Click="LockButton_Click">
                                 <StackPanel>
                                     <Viewbox Width="26" Height="26" Margin="0,0,0,8">

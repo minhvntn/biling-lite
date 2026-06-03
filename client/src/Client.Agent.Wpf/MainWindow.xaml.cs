@@ -12,6 +12,7 @@ using System.Windows.Media.Effects;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Diagnostics;
 
 namespace Client.Agent.Wpf;
 
@@ -36,6 +37,7 @@ public static decimal PricingStep { get; set; } = 1000m;
     private decimal _serviceCost;
     private int _serviceOrderCount;
     private int _phaseStartedElapsedSeconds;
+    private const string DefaultGameLauncherExecutableName = "GameLauncher.Client.exe";
     private int _lastSyncElapsedSeconds;
     private decimal _lastSyncMemberBalance;
     private bool _isMemberSession;
@@ -1426,6 +1428,126 @@ public static decimal PricingStep { get; set; } = 1000m;
         var window = new AvatarSelectionWindow(CurrentMemberId);
         window.Owner = this;
         window.ShowDialog();
+    }
+
+    private string _gameLauncherPath = string.Empty;
+
+    public void SetGameLauncherPath(string? path)
+    {
+        _gameLauncherPath = path ?? string.Empty;
+        var hasValidPath = !string.IsNullOrWhiteSpace(_gameLauncherPath);
+        if (GameLauncherActionButton is not null)
+        {
+            GameLauncherActionButton.Visibility = hasValidPath ? Visibility.Visible : Visibility.Collapsed;
+        }
+        UpdateActionButtonsLayout();
+    }
+
+    private void GameLauncherButton_Click(object sender, RoutedEventArgs e)
+    {
+        _ = TryLaunchConfiguredGameLauncher(showDialogs: true, out _);
+    }
+
+    public bool TryLaunchConfiguredGameLauncher(bool showDialogs, out string? errorMessage)
+    {
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(_gameLauncherPath))
+        {
+            errorMessage = "Chưa cấu hình đường dẫn Menu Game.";
+            if (showDialogs)
+            {
+                MessageBox.Show(errorMessage, "Menu Game", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            return false;
+        }
+
+        if (!TryResolveGameLauncherExecutablePath(_gameLauncherPath, out var executablePath, out errorMessage))
+        {
+            if (showDialogs)
+            {
+                MessageBox.Show(errorMessage, "Menu Game", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            return false;
+        }
+
+        try
+        {
+            var directory = Path.GetDirectoryName(executablePath);
+            var processStartInfo = new ProcessStartInfo
+            {
+                FileName = executablePath,
+                UseShellExecute = false
+            };
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                processStartInfo.WorkingDirectory = directory;
+            }
+            Process.Start(processStartInfo);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Không thể mở Menu Game: {ex.Message}";
+            if (showDialogs)
+            {
+                MessageBox.Show(errorMessage, "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            return false;
+        }
+    }
+
+    private static bool TryResolveGameLauncherExecutablePath(
+        string? configuredPath,
+        out string executablePath,
+        out string errorMessage)
+    {
+        executablePath = string.Empty;
+        errorMessage = "Chưa cấu hình đường dẫn Menu Game.";
+
+        var candidate = (configuredPath ?? string.Empty).Trim().Trim('"');
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return false;
+        }
+
+        try
+        {
+            if (File.Exists(candidate))
+            {
+                var fullPath = Path.GetFullPath(candidate);
+                if (!string.Equals(Path.GetExtension(fullPath), ".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    errorMessage = $"Đường dẫn Menu Game phải trỏ tới file .exe, hiện tại là: {fullPath}";
+                    return false;
+                }
+
+                executablePath = fullPath;
+                return true;
+            }
+
+            if (Directory.Exists(candidate))
+            {
+                var directExecutable = Path.Combine(candidate, DefaultGameLauncherExecutableName);
+                if (File.Exists(directExecutable))
+                {
+                    executablePath = Path.GetFullPath(directExecutable);
+                    return true;
+                }
+
+                errorMessage =
+                    $"Thư mục Menu Game chưa có {DefaultGameLauncherExecutableName}: {Path.GetFullPath(candidate)}";
+                return false;
+            }
+
+            errorMessage = $"Không tìm thấy Menu Game tại: {candidate}";
+            return false;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Đường dẫn Menu Game không hợp lệ: {ex.Message}";
+            return false;
+        }
     }
 
 }

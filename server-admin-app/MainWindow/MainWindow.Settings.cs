@@ -362,6 +362,7 @@ public partial class MainWindow : Window
             _autoCollapseIntervalSeconds = Math.Clamp(response.AutoCollapseIntervalSeconds, 0, 3600);
             _lockScreenBackgroundMode = NormalizeLockScreenBackgroundMode(response.LockScreenBackgroundMode);
             _lockScreenBackgroundUrl = (response.LockScreenBackgroundUrl ?? string.Empty).Trim();
+            _gameLauncherPath = (response.GameLauncherPath ?? string.Empty).Trim();
             MemberWithdrawEnabledCheckBox.IsChecked = response.AllowMemberWithdraw;
             MemberTopupRequestEnabledCheckBox.IsChecked = response.AllowMemberTopupRequest;
 
@@ -369,6 +370,7 @@ public partial class MainWindow : Window
             AutoCollapseIntervalTextBox.Text = _autoCollapseIntervalSeconds.ToString(CultureInfo.InvariantCulture);
             SetLockScreenBackgroundModeUi(_lockScreenBackgroundMode);
             LockScreenBackgroundUrlTextBox.Text = _lockScreenBackgroundUrl;
+            GameLauncherPathTextBox.Text = _gameLauncherPath;
             RebuildMediaContainerFromTextBox();
             LockScreenIntervalTextBox.Text = Math.Max(1, response.LockScreenIntervalSeconds).ToString(CultureInfo.InvariantCulture);
 
@@ -397,8 +399,11 @@ public partial class MainWindow : Window
             ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.Firebrick;
             LockScreenBackgroundStatusTextBlock.Text = "Khong ket noi duoc backend de doc cai dat nen lock screen.";
             LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
+            LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
             AutoCollapseStatusTextBlock.Text = "Không kết nối được backend để đọc cài đặt tự động thu gọn.";
             AutoCollapseStatusTextBlock.Foreground = Brushes.Firebrick;
+            GameLauncherPathStatusTextBlock.Text = "Không kết nối được backend để tải đường dẫn Menu Game.";
+            GameLauncherPathStatusTextBlock.Foreground = Brushes.Firebrick;
         }
         finally
         {
@@ -468,6 +473,7 @@ public partial class MainWindow : Window
                     allowMemberWithdraw = MemberWithdrawEnabledCheckBox.IsChecked == true,
                     allowMemberTopupRequest = MemberTopupRequestEnabledCheckBox.IsChecked == true,
                     autoCollapseIntervalSeconds = collapseSeconds,
+                    gameLauncherPath = GameLauncherPathTextBox.Text.Trim(),
                 });
 
             if (!response.IsSuccessStatusCode)
@@ -490,6 +496,7 @@ public partial class MainWindow : Window
             _autoCollapseIntervalSeconds = Math.Clamp(payload?.AutoCollapseIntervalSeconds ?? collapseSeconds, 0, 3600);
             _lockScreenBackgroundMode = NormalizeLockScreenBackgroundMode(payload?.LockScreenBackgroundMode ?? mode);
             _lockScreenBackgroundUrl = (payload?.LockScreenBackgroundUrl ?? effectiveUrl).Trim();
+            _gameLauncherPath = (payload?.GameLauncherPath ?? GameLauncherPathTextBox.Text.Trim()).Trim();
             MemberWithdrawEnabledCheckBox.IsChecked = payload?.AllowMemberWithdraw ?? (MemberWithdrawEnabledCheckBox.IsChecked == true);
             MemberTopupRequestEnabledCheckBox.IsChecked = payload?.AllowMemberTopupRequest ?? (MemberTopupRequestEnabledCheckBox.IsChecked == true);
 
@@ -497,6 +504,7 @@ public partial class MainWindow : Window
             AutoCollapseIntervalTextBox.Text = _autoCollapseIntervalSeconds.ToString(CultureInfo.InvariantCulture);
             SetLockScreenBackgroundModeUi(_lockScreenBackgroundMode);
             LockScreenBackgroundUrlTextBox.Text = _lockScreenBackgroundUrl;
+            GameLauncherPathTextBox.Text = _gameLauncherPath;
             RebuildMediaContainerFromTextBox();
             LockScreenIntervalTextBox.Text = Math.Max(1, payload?.LockScreenIntervalSeconds ?? intervalSeconds).ToString(CultureInfo.InvariantCulture);
 
@@ -515,9 +523,10 @@ public partial class MainWindow : Window
                 AutoCollapseStatusTextBlock.Foreground = Brushes.Gray;
             }
 
-            LockScreenBackgroundStatusTextBlock.Text =
-                $"Da luu: {DescribeLockScreenBackground(_lockScreenBackgroundMode, _lockScreenBackgroundUrl)}";
             LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGreen;
+            
+            GameLauncherPathStatusTextBlock.Text = "Đã lưu đường dẫn Menu Game.";
+            GameLauncherPathStatusTextBlock.Foreground = Brushes.DarkGreen;
             AppendServiceLog(
                 $"[{DateTime.Now:HH:mm:ss}] Da luu runtime client: auto-shutdown={_readyAutoShutdownMinutes}m, auto-collapse={_autoCollapseIntervalSeconds}s, lockscreen={_lockScreenBackgroundMode}, member-withdraw={(MemberWithdrawEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}, member-topup-request={(MemberTopupRequestEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}");
         }
@@ -527,8 +536,11 @@ public partial class MainWindow : Window
             ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.Firebrick;
             LockScreenBackgroundStatusTextBlock.Text = "Khong ket noi duoc backend khi luu nen lock screen.";
             LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
+            LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
             AutoCollapseStatusTextBlock.Text = "Không kết nối được backend khi lưu cài đặt tự động thu gọn.";
             AutoCollapseStatusTextBlock.Foreground = Brushes.Firebrick;
+            GameLauncherPathStatusTextBlock.Text = "Không kết nối được backend khi lưu đường dẫn Menu Game.";
+            GameLauncherPathStatusTextBlock.Foreground = Brushes.Firebrick;
             AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Loi ket noi khi luu runtime client");
         }
     }

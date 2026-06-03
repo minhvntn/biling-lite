@@ -96,6 +96,8 @@ public partial class App : Application
         new(StringComparer.OrdinalIgnoreCase);
     private bool _isBillingServerConnected;
     private bool _suppressGuestPresenceForAutoResumedUnpaidSession;
+    private string _lastAutoLaunchAttemptedGameLauncherPath = string.Empty;
+    private string _lastAutoLaunchSucceededGameLauncherPath = string.Empty;
     private static readonly int[] MemberRemainingWarningThresholds = [];
     private static readonly object MemberWarningAudioPlaybackSync = new();
     private static MediaPlayer? _memberWarningAudioPlayer;
@@ -114,6 +116,24 @@ public partial class App : Application
             Shutdown();
             return;
         }
+
+        AppDomain.CurrentDomain.UnhandledException += (s, ev) =>
+        {
+            var ex = ev.ExceptionObject as Exception;
+            _logger?.ErrorAsync("AppDomain UnhandledException", ex ?? new Exception("Unknown")).GetAwaiter().GetResult();
+        };
+
+        DispatcherUnhandledException += (s, ev) =>
+        {
+            _logger?.ErrorAsync("Dispatcher UnhandledException", ev.Exception).GetAwaiter().GetResult();
+            ev.Handled = true; // Prevent immediate crash if possible
+        };
+
+        TaskScheduler.UnobservedTaskException += (s, ev) =>
+        {
+            try { _logger?.ErrorAsync("TaskScheduler UnobservedTaskException", ev.Exception).GetAwaiter().GetResult(); } catch { }
+            ev.SetObserved();
+        };
 
         _settings = LoadSettings();
         if (!EnsureServerEndpointConfigured())
@@ -2173,7 +2193,9 @@ public async void OpenLoyaltyPanelFromClientUi()
                 _mainWindow?.SetWithdrawActionVisible(_isMemberWithdrawEnabled);
                 _mainWindow?.SetTopupRequestActionVisible(_isMemberTopupRequestEnabled);
                 _mainWindow?.UpdateAutoCollapseInterval(_autoCollapseIntervalSeconds);
+                _mainWindow?.SetGameLauncherPath(payload.GameLauncherPath);
             });
+            await TryAutoLaunchConfiguredGameLauncherAsync(payload.GameLauncherPath);
         }
         catch (Exception ex)
         {
@@ -2181,6 +2203,61 @@ public async void OpenLoyaltyPanelFromClientUi()
             {
                 await _logger.ErrorAsync("Fetch client runtime settings failed", ex);
             }
+        }
+    }
+
+    private async Task TryAutoLaunchConfiguredGameLauncherAsync(string? configuredPath)
+    {
+        var normalizedPath = (configuredPath ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalizedPath))
+        {
+            return;
+        }
+
+        if (string.Equals(
+                _lastAutoLaunchSucceededGameLauncherPath,
+                normalizedPath,
+                StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(
+                _lastAutoLaunchAttemptedGameLauncherPath,
+                normalizedPath,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _lastAutoLaunchAttemptedGameLauncherPath = normalizedPath;
+
+        var launched = false;
+        string? errorMessage = null;
+        Dispatcher.Invoke(() =>
+        {
+            if (_mainWindow is null)
+            {
+                errorMessage = "Main window chưa sẵn sàng để tự mở Menu Game.";
+                return;
+            }
+
+            launched = _mainWindow.TryLaunchConfiguredGameLauncher(
+                showDialogs: false,
+                out errorMessage);
+        });
+
+        if (launched)
+        {
+            _lastAutoLaunchSucceededGameLauncherPath = normalizedPath;
+            if (_logger is not null)
+            {
+                await _logger.InfoAsync($"Auto-launched Menu Game: {normalizedPath}");
+            }
+            return;
+        }
+
+        if (_logger is not null)
+        {
+            await _logger.ErrorAsync(
+                "Auto-launch Menu Game failed",
+                new InvalidOperationException(errorMessage ?? "Unknown error"));
         }
     }
 
@@ -2401,7 +2478,24 @@ public async void OpenLoyaltyPanelFromClientUi()
                 return;
             }
 
-            await File.WriteAllTextAsync(HostsFilePath, nextText);
+            var attrs = File.GetAttributes(HostsFilePath);
+            var isReadOnly = (attrs & FileAttributes.ReadOnly) == FileAttributes.ReadOnly;
+            if (isReadOnly)
+            {
+                File.SetAttributes(HostsFilePath, attrs & ~FileAttributes.ReadOnly);
+            }
+
+            try
+            {
+                await File.WriteAllTextAsync(HostsFilePath, nextText);
+            }
+            finally
+            {
+                if (isReadOnly)
+                {
+                    File.SetAttributes(HostsFilePath, attrs);
+                }
+            }
 
             if (_logger is not null)
             {

@@ -31,6 +31,7 @@ const DEFAULT_MEMBER_WITHDRAW_ENABLED = true;
 const DEFAULT_MEMBER_TOPUP_REQUEST_ENABLED = true;
 const CLIENT_AUTO_COLLAPSE_INTERVAL_SECONDS_KEY = '__CLIENT_AUTO_COLLAPSE_INTERVAL_SECONDS__';
 const DEFAULT_AUTO_COLLAPSE_INTERVAL_SECONDS = 0;
+const CLIENT_GAME_LAUNCHER_PATH_KEY = '__CLIENT_GAME_LAUNCHER_PATH__';
 const LOCK_SCREEN_MEDIA_DIR = path.join(
   process.cwd(),
   'storage',
@@ -80,6 +81,7 @@ export class PricingService {
       memberTopupRequestSetting,
       intervalSetting,
       collapseSetting,
+      gameLauncherPathSetting,
     ] = await Promise.all([
       this.ensureClientRuntimeSettings(),
       this.prisma.appSetting.findUnique({
@@ -101,6 +103,9 @@ export class PricingService {
       }),
       this.prisma.appSetting.findUnique({
         where: { key: CLIENT_AUTO_COLLAPSE_INTERVAL_SECONDS_KEY },
+      }),
+      this.prisma.appSetting.findUnique({
+        where: { key: CLIENT_GAME_LAUNCHER_PATH_KEY },
       }),
     ]);
 
@@ -131,6 +136,7 @@ export class PricingService {
       autoCollapseIntervalSeconds: collapseSetting
         ? Math.max(0, isNaN(Number(collapseSetting.value)) ? DEFAULT_AUTO_COLLAPSE_INTERVAL_SECONDS : Number(collapseSetting.value))
         : DEFAULT_AUTO_COLLAPSE_INTERVAL_SECONDS,
+      gameLauncherPath: (gameLauncherPathSetting?.value ?? '').trim(),
       serverTime: new Date().toISOString(),
     };
   }
@@ -143,6 +149,7 @@ export class PricingService {
     const hasAllowMemberTopupRequest = payload.allowMemberTopupRequest !== undefined;
     const hasLockScreenInterval = payload.lockScreenIntervalSeconds !== undefined;
     const hasAutoCollapseInterval = payload.autoCollapseIntervalSeconds !== undefined;
+    const hasGameLauncherPath = payload.gameLauncherPath !== undefined;
 
     if (
       !hasReadyMinutes &&
@@ -151,7 +158,8 @@ export class PricingService {
       !hasAllowMemberWithdraw &&
       !hasAllowMemberTopupRequest &&
       !hasLockScreenInterval &&
-      !hasAutoCollapseInterval
+      !hasAutoCollapseInterval &&
+      !hasGameLauncherPath
     ) {
       throw new BadRequestException('Khong co du lieu cai dat de cap nhat');
     }
@@ -234,6 +242,15 @@ export class PricingService {
         where: { key: CLIENT_AUTO_COLLAPSE_INTERVAL_SECONDS_KEY },
         update: { value: interval.toString() },
         create: { key: CLIENT_AUTO_COLLAPSE_INTERVAL_SECONDS_KEY, value: interval.toString() },
+      });
+    }
+
+    if (hasGameLauncherPath) {
+      const pathValue = (payload.gameLauncherPath ?? '').trim().slice(0, 2048);
+      await this.prisma.appSetting.upsert({
+        where: { key: CLIENT_GAME_LAUNCHER_PATH_KEY },
+        update: { value: pathValue },
+        create: { key: CLIENT_GAME_LAUNCHER_PATH_KEY, value: pathValue },
       });
     }
 

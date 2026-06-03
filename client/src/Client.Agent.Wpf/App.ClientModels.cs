@@ -94,6 +94,7 @@ public sealed class ClientRuntimeSettingsResponse
     public bool AllowMemberWithdraw { get; set; } = true;
     public bool AllowMemberTopupRequest { get; set; } = true;
     public int AutoCollapseIntervalSeconds { get; set; } = 0;
+    public string? GameLauncherPath { get; set; }
 
     public string ServerTime { get; set; } = string.Empty;
 }

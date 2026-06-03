@@ -3152,6 +3152,7 @@
                                                  <RowDefinition Height="Auto" />
                                                  <RowDefinition Height="Auto" />
                                                  <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
                                              </Grid.RowDefinitions>
 
                                             <TextBlock Grid.Row="0" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B" Text="Cài đặt máy trạm" />
@@ -3252,6 +3253,27 @@
                                                        Margin="0,8,0,0"
                                                        Foreground="#64748B"
                                                        Text="Đang tải cài đặt tự động thu gọn..." />
+                                                       
+                                            <Grid Grid.Row="10" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="260" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Đường dẫn Menu Game (Client):" />
+                                                <TextBox x:Name="GameLauncherPathTextBox"
+                                                         Grid.Column="1"
+                                                         Height="30"
+                                                         Width="800"
+                                                         HorizontalAlignment="Left"
+                                                         VerticalContentAlignment="Center"
+                                                         Text="I:\servermanagergame\src\GameLauncher.Client\bin\Release\net8.0-windows" />
+                                            </Grid>
+
+                                            <TextBlock x:Name="GameLauncherPathStatusTextBlock"
+                                                       Grid.Row="11"
+                                                       Margin="0,8,0,0"
+                                                       Foreground="#64748B"
+                                                       Text="Đang tải cấu hình Menu Game..." />
 
                                         </Grid>
                                     </Border>
