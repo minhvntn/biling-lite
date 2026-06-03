@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Collections.Generic;
+using System.Linq;
 using Client.Agent.Wpf.Localization;
 using System.Windows;
 using System.Windows.Controls;
@@ -1083,11 +1084,9 @@ public partial class MainWindow : Window
             }
             else
             {
-                for (int i = promotions.Count - 1; i >= 0; i--)
-                {
-                    var border = CreatePromotionBanner(promotions[i].Name, promotions[i].Discount);
-                    PromotionsContainer.Children.Insert(0, border);
-                }
+                var highestPromo = promotions.OrderByDescending(p => p.Discount).First();
+                var border = CreatePromotionBanner(highestPromo.Name, highestPromo.Discount);
+                PromotionsContainer.Children.Insert(0, border);
             }
         }
 

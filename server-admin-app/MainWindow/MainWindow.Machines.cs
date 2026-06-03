@@ -3035,9 +3035,26 @@ public partial class MainWindow : Window
             var hasSession = !string.IsNullOrWhiteSpace(machineSnapshot.ActiveSessionId);
             var displayedElapsedSeconds = hasSession ? ResolveDisplayedElapsedSeconds(machineSnapshot) : 0;
             var playDurationText = hasSession ? FormatUsed(displayedElapsedSeconds) : "0 phút";
-            var sessionHourlyRate = machineSnapshot.ActiveSessionPricePerMinute > 0
-                ? machineSnapshot.ActiveSessionPricePerMinute * 60m
-                : machineSnapshot.HourlyRate;
+            
+            var groups = _pricingSettings?.Groups?.ToList() ?? new List<PricingGroupItem>();
+            var defaultGroup = groups.FirstOrDefault(x => x.IsDefault) ?? new PricingGroupItem
+            {
+                Id = _pricingSettings?.DefaultGroupId ?? "default",
+                HourlyRate = _pricingSettings?.DefaultRatePerHour > 0 ? _pricingSettings.DefaultRatePerHour : 5000,
+                MemberHourlyRate = _pricingSettings?.DefaultMemberRatePerHour > 0
+                    ? _pricingSettings.DefaultMemberRatePerHour
+                    : (_pricingSettings?.DefaultRatePerHour > 0 ? _pricingSettings.DefaultRatePerHour : 5000),
+                IsDefault = true,
+            };
+            var groupById = groups.ToDictionary(x => x.Id, StringComparer.OrdinalIgnoreCase);
+            var machineGroup = ResolveGroup(machineSnapshot, groupById, defaultGroup);
+
+            var baseHourlyRate = machineSnapshot.IsVipSession
+                ? (machineGroup.MemberHourlyRate > 0 ? machineGroup.MemberHourlyRate : machineGroup.HourlyRate)
+                : machineGroup.HourlyRate;
+
+            var sessionHourlyRate = baseHourlyRate;
+            
             var isVip = machineSnapshot.IsVipSession;
             var playAmount = machineSnapshot.ActiveSessionEstimatedAmount;
             
@@ -3091,22 +3108,6 @@ public partial class MainWindow : Window
             }
 
             SetMoneyText(currentRatePlayAmountLine.ValueText, currentRatePlayAmount, new SolidColorBrush(Color.FromRgb(8, 145, 178)));
-            var groups = _pricingSettings?.Groups?.ToList() ?? new List<PricingGroupItem>();
-            var defaultGroup = groups.FirstOrDefault(x => x.IsDefault) ?? new PricingGroupItem
-            {
-                Id = _pricingSettings?.DefaultGroupId ?? "default",
-                HourlyRate = _pricingSettings?.DefaultRatePerHour > 0 ? _pricingSettings.DefaultRatePerHour : 5000,
-                MemberHourlyRate = _pricingSettings?.DefaultMemberRatePerHour > 0
-                    ? _pricingSettings.DefaultMemberRatePerHour
-                    : (_pricingSettings?.DefaultRatePerHour > 0 ? _pricingSettings.DefaultRatePerHour : 5000),
-                IsDefault = true,
-            };
-            var groupById = groups.ToDictionary(x => x.Id, StringComparer.OrdinalIgnoreCase);
-            var machineGroup = ResolveGroup(machineSnapshot, groupById, defaultGroup);
-
-            var baseHourlyRate = machineSnapshot.IsVipSession
-                ? (machineGroup.MemberHourlyRate > 0 ? machineGroup.MemberHourlyRate : machineGroup.HourlyRate)
-                : machineGroup.HourlyRate;
 
             var discountPercent = activePromotionDiscountPercent > 0
                 ? activePromotionDiscountPercent

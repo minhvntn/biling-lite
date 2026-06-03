@@ -2,13 +2,21 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function run() {
-  const settings = await prisma.appSetting.findMany();
-  console.log('AppSettings:');
-  settings.forEach(s => console.log(s.key, s.value));
-
-  const groups = await prisma.pcGroup.findMany();
-  console.log('Groups:');
-  groups.forEach(g => console.log(g.name, g.hourlyRate, g.memberHourlyRate));
+  const promos = await prisma.timeBasedPromotion.findMany();
+  console.log('Promotions:', promos);
+  
+  const sessions = await prisma.session.findMany({
+    where: { status: 'ACTIVE' },
+    orderBy: { startedAt: 'desc' },
+    take: 1
+  });
+  console.log('Active Session:', sessions);
+  
+  const pc = await prisma.pc.findFirst({
+    where: { id: sessions[0].pcId },
+    include: { group: true }
+  });
+  console.log('PC:', pc);
 }
 
-run().catch(console.error).finally(() => prisma.$disconnect());
+run().finally(() => prisma.$disconnect());
