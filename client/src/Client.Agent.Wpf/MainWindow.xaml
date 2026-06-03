@@ -117,7 +117,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- HEADER -->
-                <Grid x:Name="HeaderGrid" Grid.Row="0" Margin="0,0,0,25">
+                <Grid x:Name="HeaderGrid" Grid.Row="0" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
@@ -188,7 +188,7 @@
                 </Grid>
 
                 <!-- BODY -->
-                <Grid Grid.Row="1" Margin="0,0,0,20">
+                <Grid Grid.Row="1" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
@@ -303,9 +303,9 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <StackPanel x:Name="RightColumnRankPanel" Grid.Row="0" Margin="6,0,6,16">
+                        <StackPanel x:Name="RightColumnRankPanel" Grid.Row="0" Margin="6,0,6,0">
                             <!-- VIP Card -->
-                            <Grid x:Name="MemberRankContainer" Visibility="Collapsed" Margin="0,0,0,16" Height="80" HorizontalAlignment="Stretch">
+                            <Grid x:Name="MemberRankContainer" Visibility="Collapsed" Margin="0,0,0,8" Height="80" HorizontalAlignment="Stretch">
                                 <Border x:Name="MemberRankBorder" CornerRadius="16" BorderThickness="0">
                                     <Border.Background>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
@@ -486,7 +486,7 @@
                 </Grid>
 
                 <!-- FOOTER -->
-                <Grid x:Name="FooterContainer" Grid.Row="3" Margin="0,15,0,0" MinHeight="90">
+                <Grid x:Name="FooterContainer" Grid.Row="3" Margin="0,8,0,0" MinHeight="90">
                     <Border CornerRadius="16" Background="#60FFFFFF">
                     </Border>
                     <Border CornerRadius="16" BorderThickness="1.5" BorderBrush="#80FFFFFF" Padding="25,15" Background="Transparent">

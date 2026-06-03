@@ -480,6 +480,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         MemberRankTextBlock.Text = rankUpper;
 
         string bgColor = "#F1F5F9";
+        string bgColor2 = "#E2E8F0";
         string fgColor = "#475569";
         string rankIcon = "🔰";
         string? rankIconAsset = null;
@@ -488,10 +489,13 @@ public static decimal PricingStep { get; set; } = 1000m;
         if (rankNormalized.Contains("SAT") || rankUpper.Contains("IRON"))
         {
             rankIconAsset = "sat.png";
+            bgColor = "#F1F5F9";
+            bgColor2 = "#CBD5E1";
         }
         else if (rankNormalized.Contains("DONG") || rankUpper.Contains("BRONZE"))
         {
             bgColor = "#FEF3C7";
+            bgColor2 = "#FDE047";
             fgColor = "#B45309";
             rankIconAsset = "dong.png";
             rankIcon = "🥉";
@@ -499,6 +503,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         else if (rankNormalized.Contains("BAC") || rankUpper.Contains("SILVER"))
         {
             bgColor = "#F3F4F6";
+            bgColor2 = "#D1D5DB";
             fgColor = "#4B5563";
             rankIconAsset = "bac.png";
             rankIcon = "🥈";
@@ -506,6 +511,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         else if (rankNormalized.Contains("VANG") || rankUpper.Contains("GOLD"))
         {
             bgColor = "#FEF08A";
+            bgColor2 = "#F59E0B";
             fgColor = "#A16207";
             rankIconAsset = "vang.png";
             rankIcon = "🥇";
@@ -513,6 +519,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         else if (rankNormalized.Contains("BACH KIM") || rankUpper.Contains("PLATINUM"))
         {
             bgColor = "#CFFAFE";
+            bgColor2 = "#2DD4BF";
             fgColor = "#0E7490";
             rankIconAsset = "back-kim.png";
             rankIcon = "💠";
@@ -522,6 +529,7 @@ public static decimal PricingStep { get; set; } = 1000m;
                  rankUpper.Contains("EMERALD"))
         {
             bgColor = "#D1FAE5";
+            bgColor2 = "#34D399";
             fgColor = "#047857";
             rankIconAsset = "tinh-anh.png";
             rankIcon = "💚";
@@ -529,6 +537,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         else if (rankNormalized.Contains("KIM CUONG") || rankUpper.Contains("DIAMOND"))
         {
             bgColor = "#E0E7FF";
+            bgColor2 = "#818CF8";
             fgColor = "#4338CA";
             rankIconAsset = "kim-cuong.png";
             rankIcon = "💎";
@@ -537,6 +546,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         else if (rankNormalized.Contains("DAI CAO THU") || rankUpper.Contains("GRANDMASTER"))
         {
             bgColor = "#FEE2E2";
+            bgColor2 = "#F87171";
             fgColor = "#B91C1C";
             rankIconAsset = "dai-cao-thu.png";
             rankIcon = "🛡️";
@@ -545,6 +555,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         else if (rankNormalized.Contains("CAO THU") || rankUpper.Contains("MASTER"))
         {
             bgColor = "#FAE8FF";
+            bgColor2 = "#D946EF";
             fgColor = "#A21CAF";
             rankIconAsset = "cao-thu.png";
             rankIcon = "👑";
@@ -555,6 +566,7 @@ public static decimal PricingStep { get; set; } = 1000m;
                  rankUpper.Contains("CHALLENGER"))
         {
             bgColor = "#DBEAFE";
+            bgColor2 = "#60A5FA";
             fgColor = "#1D4ED8";
             rankIconAsset = "thach-dau.png";
             rankIcon = "🏆";
@@ -563,13 +575,38 @@ public static decimal PricingStep { get; set; } = 1000m;
         else if (rankUpper.Contains("VIP"))
         {
             bgColor = "#FCE7F3";
+            bgColor2 = "#F472B6";
             fgColor = "#BE185D";
             rankIcon = "✨";
         }
 
         var bc = new BrushConverter();
         var rankAccentBrush = (Brush)bc.ConvertFromString(fgColor)!;
-        MemberRankBorder.Background = (Brush)bc.ConvertFromString("#60FFFFFF")!;
+        
+        var gradientBrush = new LinearGradientBrush
+        {
+            StartPoint = new Point(0, 0),
+            EndPoint = new Point(1, 1),
+            Opacity = 0.6
+        };
+        
+        var stop1 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor), -0.5);
+        var stop2 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor2), 0.0);
+        var stop3 = new GradientStop((Color)ColorConverter.ConvertFromString(bgColor), 0.5);
+
+        gradientBrush.GradientStops.Add(stop1);
+        gradientBrush.GradientStops.Add(stop2);
+        gradientBrush.GradientStops.Add(stop3);
+
+        var anim1 = new DoubleAnimation(-0.5, 1.5, new Duration(TimeSpan.FromSeconds(3))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+        var anim2 = new DoubleAnimation(0.0, 2.0, new Duration(TimeSpan.FromSeconds(3))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+        var anim3 = new DoubleAnimation(0.5, 2.5, new Duration(TimeSpan.FromSeconds(3))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+
+        stop1.BeginAnimation(GradientStop.OffsetProperty, anim1);
+        stop2.BeginAnimation(GradientStop.OffsetProperty, anim2);
+        stop3.BeginAnimation(GradientStop.OffsetProperty, anim3);
+
+        MemberRankBorder.Background = gradientBrush;
         MemberRankBorder.BorderBrush = rankAccentBrush;
         MemberRankTextBlock.Foreground = rankAccentBrush;
         MemberRankIconTextBlock.Foreground = rankAccentBrush;
