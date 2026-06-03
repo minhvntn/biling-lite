@@ -17,7 +17,8 @@ namespace Client.Agent.Wpf;
 
 public partial class MainWindow : Window
 {
-    public static decimal PricingStep { get; set; } = 1000m;
+    public string? CurrentMemberId { get; set; }
+public static decimal PricingStep { get; set; } = 1000m;
     public static decimal MinimumCharge { get; set; } = 1000m;
     private const int DefaultTotalSessionMinutes = 60_000; // 1000 giờ
     private const int VipOrPostpaidTotalSessionMinutes = 6_000; // 100 giờ
@@ -417,7 +418,7 @@ public partial class MainWindow : Window
         }
     }
 
-    public void SetMemberInfo(string? username, string? rank, string? memberType = null)
+    public void SetMemberInfo(string? username, string? rank, string? memberType = null, string? avatarId = null)
     {
         _isMemberSession = !string.IsNullOrWhiteSpace(username);
         _isAdminSession = string.Equals(username, "Admin", StringComparison.OrdinalIgnoreCase) ||
@@ -450,6 +451,12 @@ public partial class MainWindow : Window
         MemberRankContainer.Visibility = Visibility.Visible;
         MemberUsernameTextBlock.Text = username;
         
+        var avatarToLoad = string.IsNullOrWhiteSpace(avatarId) ? "avatar_1.png" : avatarId;
+        var avatarSource = ResolveRankIconSource("Avatars/" + avatarToLoad);
+        if (avatarSource != null)
+        {
+            AvatarButton.Background = new ImageBrush(avatarSource) { Stretch = Stretch.UniformToFill };
+        }
         if (MemberRankVipLabel is not null)
         {
             MemberRankVipLabel.Visibility = _isVipSession ? Visibility.Visible : Visibility.Collapsed;
@@ -1407,4 +1414,18 @@ public partial class MainWindow : Window
             return;
         }
     }
+
+    private void AvatarButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_isMemberSession || string.IsNullOrWhiteSpace(MemberUsernameTextBlock.Text))
+        {
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(CurrentMemberId)) return;
+
+        var window = new AvatarSelectionWindow(CurrentMemberId);
+        window.Owner = this;
+        window.ShowDialog();
+    }
+
 }

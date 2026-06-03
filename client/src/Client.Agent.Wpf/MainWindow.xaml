@@ -135,16 +135,26 @@
                     </StackPanel>
 
                     <!-- User Badge -->
-                    <Border Grid.Column="1" x:Name="UserInfoPanel" Background="#60FFFFFF" BorderBrush="#80FFFFFF" BorderThickness="1.5" CornerRadius="20" Padding="8,4,16,4" Margin="0,0,20,0" VerticalAlignment="Center">
+                    <Border Grid.Column="1" x:Name="UserInfoPanel" Background="Transparent" BorderThickness="0" CornerRadius="20" Padding="8,4,16,4" Margin="0,0,20,0" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
-                            <Ellipse Width="32" Height="32" Margin="0,0,10,0">
-                                <Ellipse.Fill>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                        <GradientStop Color="#00E5FF" Offset="0" />
-                                        <GradientStop Color="#B200FF" Offset="1" />
-                                    </LinearGradientBrush>
-                                </Ellipse.Fill>
-                            </Ellipse>
+                            <Button x:Name="AvatarButton" Click="AvatarButton_Click" Cursor="Hand" Background="Transparent" BorderThickness="0" Margin="0,0,10,0" Padding="0" ToolTip="Đổi Avatar">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="RootBorder" Width="60" Height="60" CornerRadius="30" BorderBrush="#40FFFFFF" BorderThickness="2" Background="{TemplateBinding Background}">
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="RootBorder" Property="BorderBrush" Value="#00E5FF" />
+                                                <Setter TargetName="RootBorder" Property="Effect">
+                                                    <Setter.Value>
+                                                        <DropShadowEffect Color="#00E5FF" BlurRadius="8" ShadowDepth="0" Opacity="0.8" />
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
                             <TextBlock x:Name="MemberUsernameTextBlock" Foreground="#0F172A" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
                             <Image x:Name="VipIconImage" Width="28" Height="28" Visibility="Collapsed" Margin="8,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>

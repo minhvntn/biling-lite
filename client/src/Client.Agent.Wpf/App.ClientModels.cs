@@ -61,6 +61,7 @@ public sealed class MemberLoginItem
 
     public string? Rank { get; set; }
     public string MemberType { get; set; } = "REGULAR";
+    public string? AvatarId { get; set; }
 }
 
 public sealed class LoyaltySettingsResponse
@@ -317,6 +318,7 @@ public sealed class ActiveMemberSession
 
     public string? Rank { get; set; }
     public string MemberType { get; set; } = "REGULAR";
+    public string? AvatarId { get; set; }
 }
 
 public sealed class ClientPcListResponse

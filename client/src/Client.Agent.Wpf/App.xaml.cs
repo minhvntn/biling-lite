@@ -754,7 +754,8 @@ public partial class App : Application
 
                 _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: member.PlaySeconds);
                 _mainWindow?.SetUpfrontUsedDuration();
-                _mainWindow?.SetMemberInfo(member.Username, member.Rank, member.MemberType);
+                _mainWindow?.SetMemberInfo(member.Username, member.Rank, member.MemberType, member.AvatarId);
+                if (_mainWindow != null) _mainWindow.CurrentMemberId = member.Id;
                 _ = Task.Run(async () =>
                 {
                     var loyalty = await GetMemberLoyaltyAsync(member.Id);
@@ -5442,6 +5443,7 @@ LIMIT $limit;";
             memberBalance,
             isPostpaid: _isPostpaidGuestSession);
         _mainWindow?.SetMemberInfo(username, rank, memberType);
+        if (_mainWindow != null) _mainWindow.CurrentMemberId = memberId;
         _mainWindow?.SynchronizeUsedDuration(elapsedSeconds);
         UnlockMachine();
         _mainWindow?.SetLastCommand($"VIP RESUME {username} @ {DateTime.Now:HH:mm:ss}");
@@ -5660,7 +5662,8 @@ LIMIT $limit;";
         var reasonText = string.IsNullOrWhiteSpace(payload.Reason) ? "SYNC" : payload.Reason;
         Dispatcher.Invoke(() =>
         {
-            _mainWindow?.SetMemberInfo(activeSession.Username, activeSession.Rank, activeSession.MemberType);
+            _mainWindow?.SetMemberInfo(activeSession.Username, activeSession.Rank, activeSession.MemberType, activeSession.AvatarId);
+            if (_mainWindow != null) _mainWindow.CurrentMemberId = activeSession.MemberId;
             _mainWindow?.SetLastCommand(
                 $"MEMBER ACCOUNT {reasonText} @ {DateTime.Now:HH:mm:ss}");
         });
@@ -6301,7 +6304,7 @@ LIMIT $limit;";
     [DllImport("user32.dll", SetLastError = true)]
     private static extern int GetSystemMetrics(int nIndex);
 
-    private string BuildApiUrl(string path)
+    internal string BuildApiUrl(string path)
     {
         var serverBase = _settings.ServerUrl.TrimEnd('/');
         var apiBase = serverBase.EndsWith("/api/v1", StringComparison.OrdinalIgnoreCase)

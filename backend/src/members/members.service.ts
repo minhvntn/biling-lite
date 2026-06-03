@@ -2554,6 +2554,7 @@ export class MembersService {
       rank: rankName || 'N/A',
       availablePoints: availablePoints ?? 0,
       memberType: member.memberType ?? 'REGULAR',
+      avatarId: member.avatarId,
       isActive: member.isActive,
       createdAt: member.createdAt.toISOString(),
       updatedAt: member.updatedAt.toISOString(),
@@ -2682,8 +2683,8 @@ export class MembersService {
         const tier = (i % tiersPerCategory) + 1;
         const rankName = `${categories[catIndex]} ${tier}`;
         const factor = i / (totalRanks - 1);
-
-        const minTopup = Math.round(maxThreshold * factor);
+        const topupFactor = Math.pow(factor, 2);
+        const minTopup = Math.round(maxThreshold * topupFactor);
         const rawMinutes = startMinutes - (startMinutes - endMinutes) * factor;
         const minutesPerPoint = Number(rawMinutes.toFixed(4));
         const bonusPercent = Math.round(startBonus + (endBonus - startBonus) * factor);
@@ -3788,5 +3789,48 @@ export class MembersService {
       }
     }
   }
-}
 
+  async getMemberAvatars(memberId: string) {
+    const member = await this.prisma.member.findUnique({ where: { id: memberId } });
+    if (!member) throw new NotFoundException("Member not found");
+    const ranks = await this.prisma.loyaltyRankConfig.findMany({ orderBy: { minTopup: "asc" } });
+    let rankIndex = 0;
+    for (let i = 0; i < ranks.length; i++) {
+      if (Number(member.totalTopup) >= Number(ranks[i].minTopup)) rankIndex = i;
+    }
+    const maxUnlocked = Math.min(10, rankIndex + 1);
+    const availableAvatars = [];
+    const styles = [
+      { id: "", count: 10 },
+      { id: "_bottts", count: 10 },
+      { id: "_micah", count: 10 },
+      { id: "_adventurer-neutral", count: 10 },
+      { id: "_roblox", count: 10 },
+      { id: "_tutien", count: 3 },
+      { id: "_wukong", count: 2 },
+      { id: "_starcraft", count: 2 },
+      { id: "_mecha", count: 2 },
+      { id: "_cute", count: 5 },
+      { id: "_3d", count: 5 },
+      { id: "_cartoon", count: 5 },
+      { id: "_superhero", count: 3 },
+      { id: "_demon", count: 3 },
+      { id: "_angel", count: 3 },
+      { id: "_ghost", count: 3 },
+      { id: "_dragonball", count: 3 }
+    ];
+    for (const style of styles) {
+      const unlockCount = Math.min(style.count, rankIndex + 1);
+      for (let i = 1; i <= unlockCount; i++) {
+        availableAvatars.push(`avatar${style.id}_${i}.png`);
+      }
+    }
+    return { currentAvatarId: member.avatarId || 'avatar_1.png', availableAvatars };
+  }
+
+  async updateMemberAvatar(memberId: string, avatarId: string) {
+    await this.prisma.member.update({ where: { id: memberId }, data: { avatarId } });
+    return { success: true, avatarId };
+  }
+
+}

@@ -120,6 +120,7 @@ model Member {
   totalTopup     Decimal             @default(0) @map("total_topup") @db.Decimal(12, 2)
   playSeconds    Int                 @default(0) @map("play_seconds")
   memberType     String              @default("REGULAR") @map("member_type") @db.VarChar(20)
+  avatarId       String?             @map("avatar_id") @db.VarChar(50)
   transactions   MemberTransaction[]
   dailyCheckins  MemberDailyCheckin[]
 

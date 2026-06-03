@@ -140,6 +140,19 @@ export class MembersController {
     return this.membersService.getMemberLoyalty(memberId);
   }
 
+  @Get(':memberId/avatars')
+  async getMemberAvatars(@Param('memberId') memberId: string) {
+    return this.membersService.getMemberAvatars(memberId);
+  }
+
+  @Patch(':memberId/avatar')
+  async updateMemberAvatar(
+    @Param('memberId') memberId: string,
+    @Body() payload: { avatarId: string },
+  ) {
+    return this.membersService.updateMemberAvatar(memberId, payload.avatarId);
+  }
+
   @Post(':memberId/usage')
   async recordMemberUsage(
     @Param('memberId') memberId: string,
