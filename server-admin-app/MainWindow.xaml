@@ -1183,7 +1183,14 @@
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="130" />
+                                <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="130">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Margin" Value="8,0,0,0" />
+                                            <Setter Property="VerticalAlignment" Value="Center" />
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                                 <DataGridTextColumn Header="Họ tên" Binding="{Binding FullName}" Width="160" />
                                 <DataGridTextColumn Header="Bậc VIP" Binding="{Binding Rank}" Width="100" />
                                 <DataGridTextColumn Header="Loại hội viên" Binding="{Binding MemberTypeText}" Width="120" />

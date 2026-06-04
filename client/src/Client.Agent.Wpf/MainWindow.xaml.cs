@@ -151,6 +151,7 @@ public static decimal PricingStep { get; set; } = 1000m;
     private int _autoCollapseIntervalSeconds = 0;
     private DateTime _lastClientInteractionTime = DateTime.UtcNow;
     private bool _isCollapsed = false;
+    private bool _hasTopupPromotion = false;
     private string? _currentUsername;
     private string? _currentRank;
     private string? _currentMemberType;
@@ -164,6 +165,11 @@ public static decimal PricingStep { get; set; } = 1000m;
         ActionButtonsGrid.Visibility = visibility;
         PromotionsContainer.Visibility = visibility;
         FooterContainer.Visibility = visibility;
+        
+        if (_hasTopupPromotion)
+        {
+            TopupPromotionBannerBorder.Visibility = visibility;
+        }
         
         if (_isCollapsed)
         {
@@ -807,12 +813,18 @@ public static decimal PricingStep { get; set; } = 1000m;
                 Sparkle3.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.3, 1.0, new Duration(TimeSpan.FromMilliseconds(600))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever });
                 Sparkle4.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.0, 0.8, new Duration(TimeSpan.FromMilliseconds(1300))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever });
                 Sparkle5.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.4, 1.0, new Duration(TimeSpan.FromMilliseconds(900))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle6?.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.2, 1.0, new Duration(TimeSpan.FromMilliseconds(1000))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle7?.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.1, 0.9, new Duration(TimeSpan.FromMilliseconds(700))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle8?.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0.3, 0.8, new Duration(TimeSpan.FromMilliseconds(1200))) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever });
 
-                Sparkle1Transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-10, 100, new Duration(TimeSpan.FromMilliseconds(3000))) { RepeatBehavior = RepeatBehavior.Forever });
-                Sparkle2Transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(0, 120, new Duration(TimeSpan.FromMilliseconds(4500))) { RepeatBehavior = RepeatBehavior.Forever });
-                Sparkle3Transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-20, 90, new Duration(TimeSpan.FromMilliseconds(2500))) { RepeatBehavior = RepeatBehavior.Forever });
-                Sparkle4Transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(0, 110, new Duration(TimeSpan.FromMilliseconds(3500))) { RepeatBehavior = RepeatBehavior.Forever });
-                Sparkle5Transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-5, 95, new Duration(TimeSpan.FromMilliseconds(4000))) { RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle1Transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-20, 150, new Duration(TimeSpan.FromMilliseconds(4000))) { RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle2Transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-10, 160, new Duration(TimeSpan.FromMilliseconds(5500))) { RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle3Transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-30, 140, new Duration(TimeSpan.FromMilliseconds(4500))) { RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle4Transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-15, 170, new Duration(TimeSpan.FromMilliseconds(6000))) { RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle5Transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-5, 145, new Duration(TimeSpan.FromMilliseconds(5000))) { RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle6Transform?.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-25, 155, new Duration(TimeSpan.FromMilliseconds(4800))) { RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle7Transform?.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-10, 165, new Duration(TimeSpan.FromMilliseconds(6500))) { RepeatBehavior = RepeatBehavior.Forever });
+                Sparkle8Transform?.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(-35, 150, new Duration(TimeSpan.FromMilliseconds(5200))) { RepeatBehavior = RepeatBehavior.Forever });
             }
             else
             {
@@ -822,12 +834,18 @@ public static decimal PricingStep { get; set; } = 1000m;
                 Sparkle3.BeginAnimation(UIElement.OpacityProperty, null);
                 Sparkle4.BeginAnimation(UIElement.OpacityProperty, null);
                 Sparkle5.BeginAnimation(UIElement.OpacityProperty, null);
+                Sparkle6?.BeginAnimation(UIElement.OpacityProperty, null);
+                Sparkle7?.BeginAnimation(UIElement.OpacityProperty, null);
+                Sparkle8?.BeginAnimation(UIElement.OpacityProperty, null);
 
                 Sparkle1Transform.BeginAnimation(TranslateTransform.YProperty, null);
                 Sparkle2Transform.BeginAnimation(TranslateTransform.YProperty, null);
                 Sparkle3Transform.BeginAnimation(TranslateTransform.YProperty, null);
                 Sparkle4Transform.BeginAnimation(TranslateTransform.YProperty, null);
                 Sparkle5Transform.BeginAnimation(TranslateTransform.YProperty, null);
+                Sparkle6Transform?.BeginAnimation(TranslateTransform.YProperty, null);
+                Sparkle7Transform?.BeginAnimation(TranslateTransform.YProperty, null);
+                Sparkle8Transform?.BeginAnimation(TranslateTransform.YProperty, null);
             }
         }
     }
@@ -1260,7 +1278,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         var toRemove = new List<UIElement>();
         foreach (UIElement child in PromotionsContainer.Children)
         {
-            if (child != LoyaltyPromotionBannerBorder)
+            if (child != LoyaltyPromotionBannerBorder && child != TopupPromotionBannerBorder)
             {
                 toRemove.Add(child);
             }
@@ -1406,6 +1424,31 @@ public static decimal PricingStep { get; set; } = 1000m;
         else
         {
             LoyaltyPromotionBannerBorder.Visibility = Visibility.Collapsed;
+        }
+        UpdatePromotionsLayout();
+    }
+
+    public void UpdateTopupPromotion(bool enabled, List<(decimal MinAmount, decimal BonusRate)> tiers)
+    {
+        try { System.IO.File.AppendAllText(@"C:\ProgramData\ServerManagerBilling\logs\client-agent.log", $"[{DateTime.Now:O}] [INFO] UpdateTopupPromotion called: enabled={enabled}, tiers={tiers?.Count}\n"); } catch {}
+        
+        _hasTopupPromotion = enabled && tiers != null && tiers.Count > 0;
+        
+        if (_hasTopupPromotion)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("Đang có chương trình khuyến mãi nạp tiền:");
+            foreach (var tier in tiers!.OrderBy(t => t.MinAmount))
+            {
+                var formattedAmount = (tier.MinAmount / 1000m).ToString("0.##") + "k";
+                sb.AppendLine($"- Nạp từ {formattedAmount} khuyến mãi {tier.BonusRate:0.##}%");
+            }
+            TopupPromotionDiscountTextBlock.Text = sb.ToString().TrimEnd();
+            TopupPromotionBannerBorder.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        }
+        else
+        {
+            TopupPromotionBannerBorder.Visibility = Visibility.Collapsed;
         }
         UpdatePromotionsLayout();
     }
@@ -1663,7 +1706,7 @@ public static decimal PricingStep { get; set; } = 1000m;
             var processStartInfo = new ProcessStartInfo
             {
                 FileName = executablePath,
-                UseShellExecute = false
+                UseShellExecute = true
             };
             if (!string.IsNullOrWhiteSpace(directory))
             {
@@ -1721,8 +1764,15 @@ public static decimal PricingStep { get; set; } = 1000m;
                     return true;
                 }
 
+                var exeFiles = Directory.GetFiles(candidate, "*.exe", SearchOption.TopDirectoryOnly);
+                if (exeFiles.Length > 0)
+                {
+                    executablePath = Path.GetFullPath(exeFiles[0]);
+                    return true;
+                }
+
                 errorMessage =
-                    $"Thư mục Menu Game chưa có {DefaultGameLauncherExecutableName}: {Path.GetFullPath(candidate)}";
+                    $"Thư mục Menu Game chưa có file thực thi (.exe) nào: {Path.GetFullPath(candidate)}";
                 return false;
             }
 

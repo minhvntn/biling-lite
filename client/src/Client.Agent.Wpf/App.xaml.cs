@@ -280,6 +280,7 @@ public partial class App : Application
         _backgroundSyncTimer.Tick += BackgroundSyncTimer_Tick;
         _backgroundSyncTimer.Start();
         _ = RefreshClientRuntimeSettingsAsync();
+        _ = RefreshTopupPromotionsAsync();
 
         // Web filter is applied once on startup and then refreshed only by realtime update/reconnect.
         _ = RefreshAndApplyWebFilterAsync(true);
@@ -2114,6 +2115,7 @@ public async void OpenLoyaltyPanelFromClientUi()
 
         await RefreshClientRuntimeSettingsAsync();
         await RefreshLoyaltySettingsPeriodicAsync();
+        await RefreshTopupPromotionsAsync();
     }
 
     private async Task RefreshLoyaltySettingsPeriodicAsync()
@@ -2203,6 +2205,58 @@ public async void OpenLoyaltyPanelFromClientUi()
             {
                 await _logger.ErrorAsync("Fetch client runtime settings failed", ex);
             }
+        }
+    }
+
+    private async Task RefreshTopupPromotionsAsync()
+    {
+        try
+        {
+            using var response = await _httpClient.GetAsync(BuildApiUrl("/settings"));
+            if (response.IsSuccessStatusCode)
+            {
+                var settings = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+                if (settings != null)
+                {
+                    bool enabled = settings.TryGetValue("TOPUP_PROMO_ENABLED", out var val) && val == "true";
+                    var tiers = new List<(decimal MinAmount, decimal BonusRate)>();
+                    
+                    if (settings.TryGetValue("TOPUP_PROMO_TIERS", out var tiersJson) && !string.IsNullOrWhiteSpace(tiersJson))
+                    {
+                        try
+                        {
+                            var tiersArray = JsonSerializer.Deserialize<JsonElement>(tiersJson);
+                            if (tiersArray.ValueKind == JsonValueKind.Array)
+                            {
+                                foreach (var item in tiersArray.EnumerateArray())
+                                {
+                                    bool hasRate = item.TryGetProperty("BonusRate", out var bonusProp) || 
+                                                   item.TryGetProperty("bonusRate", out bonusProp);
+                                                   
+                                    bool hasMinAmount = item.TryGetProperty("MinAmount", out var minAmtProp) || 
+                                                        item.TryGetProperty("minAmount", out minAmtProp);
+                                                        
+                                    if (hasRate && bonusProp.TryGetDecimal(out var rate) && hasMinAmount && minAmtProp.TryGetDecimal(out var minAmt))
+                                    {
+                                        tiers.Add((minAmt, rate));
+                                    }
+                                }
+                            }
+                            _logger?.InfoAsync($"Parsed {tiers.Count} topup promo tiers.");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.ErrorAsync($"Failed to parse TOPUP_PROMO_TIERS: {tiersJson}", ex);
+                        }
+                    }
+                    
+                    Dispatcher.Invoke(() => _mainWindow?.UpdateTopupPromotion(enabled, tiers));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _ = _logger?.ErrorAsync("Failed to refresh topup promotions", ex);
         }
     }
 
