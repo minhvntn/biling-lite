@@ -1,0 +1,369 @@
+<Window x:Class="Server.Admin.App.Windows.PaymentDetailsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svgc="clr-namespace:SharpVectors.Converters;assembly=SharpVectors.Converters.Wpf"
+        Title="Chi tiết thanh toán" 
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        SizeToContent="WidthAndHeight"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="Segoe UI">
+    <Window.Resources>
+        <!-- Styles for TextBlocks -->
+        <Style TargetType="TextBlock" x:Key="LabelStyle">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#1E293B"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="ValueStyle">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#0F172A"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        
+        <!-- Style for Info Lines Container -->
+        <Style TargetType="Border" x:Key="CardBorderStyle">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="16"/>
+        </Style>
+        
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+
+    <Border Background="#F8FAFC" CornerRadius="16" BorderBrush="#E2E8F0" BorderThickness="1" Margin="16">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="20" ShadowDepth="4" Opacity="0.1" Color="Black"/>
+        </Border.Effect>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- Title bar -->
+                <RowDefinition Height="*"/> <!-- Main Content -->
+                <RowDefinition Height="Auto"/> <!-- Footer -->
+            </Grid.RowDefinitions>
+
+            <!-- Title Bar -->
+            <Grid Grid.Row="0" Margin="20,16,20,16" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" Background="Transparent">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <svgc:SvgViewbox Grid.Column="0" Source="/Assets/payment/pc.svg" Width="20" Height="20" Margin="0,0,10,0"/>
+                <TextBlock Grid.Column="1" Text="Chi tiết thanh toán" FontSize="16" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center"/>
+                <Button Grid.Column="2" Click="CloseButton_Click" Background="Transparent" BorderThickness="0" Cursor="Hand">
+                    <svgc:SvgViewbox Source="/Assets/payment/close.svg" Width="14" Height="14"/>
+                </Button>
+            </Grid>
+
+            <!-- Separator -->
+            <Border Grid.Row="0" VerticalAlignment="Bottom" Height="1" Background="#E2E8F0"/>
+
+            <!-- Main Content Area (2 columns if expanded) -->
+            <Grid Grid.Row="1" Margin="20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="380"/> <!-- Left Column -->
+                    <ColumnDefinition Width="Auto" /> <!-- Right Column (Collapses) -->
+                </Grid.ColumnDefinitions>
+
+                <!-- LEFT COLUMN -->
+                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                    <!-- Header Card -->
+                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <Border Grid.Column="0" Width="60" Height="60" Background="#F3F4F6" CornerRadius="12" Margin="0,0,16,0">
+                                <svgc:SvgViewbox Source="/Assets/payment/pc.svg" Width="32" Height="32"/>
+                            </Border>
+                            
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <TextBlock Text="Máy trạm: PC" FontSize="20" FontWeight="Bold" Foreground="#1E1B4B" Margin="0,0,8,0"/>
+                                    <Border Background="#EDE9FE" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="{Binding MachineName}" FontSize="12" FontWeight="SemiBold" Foreground="#6D28D9"/>
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Trạng thái:" FontSize="13" Foreground="#64748B" Margin="0,0,4,0"/>
+                                    <Ellipse Width="8" Height="8" Fill="{Binding StatusColor}" Margin="0,0,4,0"/>
+                                    <TextBlock Text="{Binding StatusText}" FontSize="13" Foreground="{Binding StatusColor}"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- Toggle Expand Button -->
+                            <Button Grid.Column="2" VerticalAlignment="Center" Width="32" Height="32" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" Cursor="Hand" Click="ToggleExpandButton_Click">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="16"/>
+                                    </Style>
+                                </Button.Resources>
+                                <Path Data="M 1,1 L 6,6 L 11,1" Stroke="#64748B" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center" Width="12" Height="7" Stretch="Uniform" RenderTransformOrigin="0.5,0.5">
+                                    <Path.RenderTransform>
+                                        <RotateTransform Angle="{Binding ExpandAngle}"/>
+                                    </Path.RenderTransform>
+                                </Path>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- Primary Info List -->
+                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,16">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <svgc:SvgViewbox Grid.Column="0" Source="/Assets/payment/clock.svg" Width="18" Height="18" Margin="0,0,12,0"/>
+                                <TextBlock Grid.Column="1" Style="{StaticResource LabelStyle}" Text="Bắt đầu:"/>
+                                <TextBlock Grid.Column="2" Style="{StaticResource ValueStyle}" Text="{Binding StartedAt}"/>
+                            </Grid>
+                            
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <svgc:SvgViewbox Grid.Column="0" Source="/Assets/payment/timer.svg" Width="18" Height="18" Margin="0,0,12,0"/>
+                                <TextBlock Grid.Column="1" Style="{StaticResource LabelStyle}" Text="Thời gian chơi:"/>
+                                <TextBlock Grid.Column="2" Style="{StaticResource ValueStyle}" Text="{Binding PlayDuration}"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <svgc:SvgViewbox Grid.Column="0" Source="/Assets/payment/price_tag.svg" Width="18" Height="18" Margin="0,0,12,0"/>
+                                <TextBlock Grid.Column="1" Style="{StaticResource LabelStyle}" Text="Đơn giá phiên tính tiền:"/>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource ValueStyle}" Foreground="#6D28D9" Text="{Binding SessionRate}"/>
+                                    <TextBlock Style="{StaticResource ValueStyle}" Foreground="#64748B" Text=" VND/giờ" FontWeight="Normal"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <svgc:SvgViewbox Grid.Column="0" Source="/Assets/payment/money.svg" Width="18" Height="18" Margin="0,0,12,0"/>
+                                <TextBlock Grid.Column="1" Style="{StaticResource LabelStyle}" Text="Tiền giờ chơi (theo phiên):"/>
+                                <TextBlock Grid.Column="2" Style="{StaticResource ValueStyle}" Foreground="#EA580C" Text="{Binding PlayAmountText}"/>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <svgc:SvgViewbox Grid.Column="0" Source="/Assets/payment/wallet.svg" Width="18" Height="18" Margin="0,0,12,0"/>
+                                <TextBlock Grid.Column="1" Style="{StaticResource LabelStyle}" Text="Tổng tiền dịch vụ:"/>
+                                <TextBlock Grid.Column="2" Style="{StaticResource ValueStyle}" Foreground="#10B981" Text="{Binding TotalServiceAmountText}"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Expanded Info (Hidden when collapsed) -->
+                    <StackPanel Visibility="{Binding ExpandedVisibility}">
+                        <Button Background="Transparent" BorderThickness="0" HorizontalAlignment="Left" Foreground="#64748B" Margin="0,0,0,8" Click="ToggleExpandButton_Click" Cursor="Hand">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="M 1,6 L 6,1 L 11,6" Stroke="#64748B" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="Transparent" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,6,0" Width="10" Height="6" Stretch="Uniform"/>
+                                <TextBlock Text="Ẩn chi tiết" FontSize="13" FontWeight="Medium"/>
+                            </StackPanel>
+                        </Button>
+                        
+                        <Border Style="{StaticResource CardBorderStyle}" Background="#F8FAFC" Margin="0,0,0,16">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <svgc:SvgViewbox Grid.Column="0" Source="/Assets/payment/pc.svg" Width="16" Height="16" Margin="0,0,12,0"/>
+                                    <TextBlock Grid.Column="1" Style="{StaticResource LabelStyle}" FontSize="13" Text="Nhóm máy:"/>
+                                    <TextBlock Grid.Column="2" Style="{StaticResource ValueStyle}" FontSize="13" Text="{Binding GroupName}"/>
+                                </Grid>
+                                
+                                <Grid Margin="0,0,0,16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <svgc:SvgViewbox Grid.Column="0" Source="/Assets/payment/price_tag.svg" Width="16" Height="16" Margin="0,0,12,0"/>
+                                    <TextBlock Grid.Column="1" Style="{StaticResource LabelStyle}" FontSize="13" Text="Đơn giá hiện tại (tham khảo):"/>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource ValueStyle}" FontSize="13" Foreground="#6D28D9" Text="{Binding CurrentRate}"/>
+                                        <TextBlock Style="{StaticResource ValueStyle}" FontSize="13" Foreground="#64748B" Text=" VND/giờ" FontWeight="Normal"/>
+                                    </StackPanel>
+                                </Grid>
+                                
+                                <Grid Margin="0,0,0,16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <svgc:SvgViewbox Grid.Column="0" Source="/Assets/payment/money.svg" Width="16" Height="16" Margin="0,0,12,0"/>
+                                    <TextBlock Grid.Column="1" Style="{StaticResource LabelStyle}" FontSize="13" Text="Tiền giờ chơi theo giá hiện tại (tham khảo):"/>
+                                    <TextBlock Grid.Column="2" Style="{StaticResource ValueStyle}" FontSize="13" Foreground="#EA580C" Text="{Binding CurrentRatePlayAmountText}"/>
+                                </Grid>
+                                
+                                <Border Height="1" Background="#E2E8F0" Margin="0,0,0,16"/>
+                                
+                                <Grid Margin="0,0,0,16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <svgc:SvgViewbox Grid.Column="0" Source="/Assets/payment/service.svg" Width="16" Height="16" Margin="0,0,12,0"/>
+                                    <TextBlock Grid.Column="1" Style="{StaticResource LabelStyle}" FontSize="13" Text="Tiền dịch vụ từ máy trạm:"/>
+                                    <TextBlock Grid.Column="2" Style="{StaticResource ValueStyle}" FontSize="13" Foreground="#10B981" Text="{Binding ClientServiceAmountText}"/>
+                                </Grid>
+                                
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <svgc:SvgViewbox Grid.Column="0" Source="/Assets/payment/service.svg" Width="16" Height="16" Margin="0,0,12,0"/>
+                                    <TextBlock Grid.Column="1" Style="{StaticResource LabelStyle}" FontSize="13" Text="Tiền dịch vụ từ server:"/>
+                                    <TextBlock Grid.Column="2" Style="{StaticResource ValueStyle}" FontSize="13" Foreground="#10B981" Text="{Binding ServerServiceAmountText}"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Total Block -->
+                    <Border Background="#F5F3FF" BorderBrush="#EDE9FE" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,0,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Background="#DDD6FE" CornerRadius="12" Width="48" Height="48" Margin="0,0,16,0">
+                                <svgc:SvgViewbox Source="/Assets/payment/wallet.svg" Width="24" Height="24"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="Tổng thanh toán:" FontSize="13" Foreground="#475569" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding TotalAmountValue}" FontSize="30" FontWeight="Bold" Foreground="#6D28D9" Margin="0,0,8,0"/>
+                                    <TextBlock Text="VND" FontSize="24" FontWeight="Bold" Foreground="#6D28D9" VerticalAlignment="Bottom" Margin="0,0,0,1"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    
+                    <!-- VIP Note -->
+                    <Grid Visibility="{Binding IsVipSession, Converter={StaticResource BoolToVis}}" Margin="0,0,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="#6D28D9" CornerRadius="4" Padding="6,2" Margin="0,0,8,0" VerticalAlignment="Top">
+                            <TextBlock Text="VIP" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                        </Border>
+                        <TextBlock Grid.Column="1" Text="Hội viên VIP: Tiền giờ chơi được tính vào tổng nạp (tích lũy VIP) của hội viên khi kết thúc phiên." FontSize="11" Foreground="#64748B" TextWrapping="Wrap"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- RIGHT COLUMN (Breakdown blocks) -->
+                <StackPanel Grid.Column="1" Width="340" Margin="10,0,0,0" Visibility="{Binding ExpandedVisibility}">
+                    <Border Style="{StaticResource CardBorderStyle}" Background="#FEF2F2" BorderBrush="#FEE2E2" Padding="20">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                <svgc:SvgViewbox Source="/Assets/payment/gift.svg" Width="20" Height="20" Margin="0,0,12,0"/>
+                                <TextBlock Text="Phân bổ giờ chơi:" FontSize="16" FontWeight="Bold" Foreground="#E11D48"/>
+                            </StackPanel>
+
+                            <ItemsControl ItemsSource="{Binding BreakdownBlocks}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="White" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                            <Border.Effect>
+                                                <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.05" Color="Black"/>
+                                            </Border.Effect>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <!-- Icon inside border -->
+                                                <Border Grid.Column="0" Background="#FEF3C7" CornerRadius="8" Width="32" Height="32" Margin="0,0,12,0" VerticalAlignment="Top">
+                                                    <svgc:SvgViewbox Source="{Binding IconPath}" Width="20" Height="20"/>
+                                                </Border>
+                                                
+                                                <StackPanel Grid.Column="1">
+                                                    <TextBlock Text="{Binding TimeRange}" FontSize="15" FontWeight="Bold" Foreground="#6D28D9" Margin="0,0,0,4"/>
+                                                    <TextBlock Text="{Binding Title}" FontSize="14" Foreground="#1E293B" Margin="0,0,0,6"/>
+                                                    <TextBlock Text="{Binding Info}" FontSize="14" Foreground="#1E293B" Margin="0,0,0,6"/>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="→" FontSize="14" Foreground="#10B981" Margin="0,0,8,0"/>
+                                                        <TextBlock Text="{Binding AmountText}" FontSize="15" FontWeight="Bold" Foreground="#10B981"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+            </Grid>
+
+            <!-- Separator -->
+            <Border Grid.Row="1" VerticalAlignment="Bottom" Height="1" Background="#E2E8F0" Margin="0,16,0,0"/>
+
+            <!-- Footer -->
+            <Grid Grid.Row="2" Margin="20,16,20,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <Button Grid.Column="1" Content="X Đóng" FontSize="14" FontWeight="SemiBold" Width="100" Height="40" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" Foreground="#475569" Cursor="Hand" Margin="0,0,12,0" Click="CloseButton_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="6"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+                
+                <Button Grid.Column="2" Width="120" Height="40" Background="#10B981" BorderThickness="0" Cursor="Hand" Click="CheckoutButton_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="6"/>
+                        </Style>
+                    </Button.Resources>
+                    <StackPanel Orientation="Horizontal">
+                        <svgc:SvgViewbox Source="/Assets/payment/payment_lock.svg" Width="16" Height="16" Margin="0,0,8,0"/>
+                        <TextBlock Text="Tính tiền" Foreground="White" FontSize="14" FontWeight="Bold"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

@@ -40,6 +40,7 @@
     <Resource Include="Assets\pc-guest.svg" />
     <Resource Include="Assets\pc-admin.svg" />
     <Resource Include="Assets\pc-offline.svg" />
+    <Resource Include="Assets\payment\*.svg" />
   </ItemGroup>
 
 </Project>
