@@ -153,6 +153,7 @@ public sealed class MachineRow
     public string VersionText { get; set; } = "0.1.0";
     public string GroupName { get; set; } = "M\u1eb7c \u0111\u1ecbnh";
     public string? ActiveSessionId { get; set; }
+    public string? ActiveSessionStartedAt { get; set; }
     public int ActiveSessionElapsedSeconds { get; set; }
     public decimal ActiveSessionPricePerMinute { get; set; }
     public decimal ActiveSessionEstimatedAmount { get; set; }

@@ -312,6 +312,7 @@ public partial class MainWindow : Window
             GroupName = string.IsNullOrWhiteSpace(item.GroupName) ? "Mặc định" : item.GroupName,
             StatusCode = item.Status,
             ActiveSessionId = item.ActiveSession?.Id,
+            ActiveSessionStartedAt = item.ActiveSession?.StartedAt,
             ActiveSessionElapsedSeconds = item.ActiveSession?.ElapsedSeconds ?? 0,
             ActiveSessionPricePerMinute = item.ActiveSession?.PricePerMinute ?? 0,
             ActiveSessionEstimatedAmount = item.ActiveSession?.EstimatedAmount ?? 0,
@@ -2805,19 +2806,14 @@ public partial class MainWindow : Window
     private async Task ShowMachineBillingDetailsAsync(MachineRow machine)
     {
         var latestMachine = FindMachineRowById(machine.Id) ?? machine;
-        decimal activePromotionDiscountPercent = 0m;
-        string activePromotionName = string.Empty;
+        List<TimeBasedPromotionDto> allPromotions = new();
         try
         {
-            var activePromotion = await GetCurrentActivePromotionAsync();
-            activePromotionDiscountPercent = activePromotion.DiscountPercent;
-            activePromotionName = activePromotion.PromotionName;
+            allPromotions = await _httpClient.GetFromJsonAsync<List<TimeBasedPromotionDto>>(
+                BuildApiUrl("/pricing/promotions"),
+                JsonOptions()) ?? new();
         }
-        catch
-        {
-            activePromotionDiscountPercent = 0m;
-            activePromotionName = string.Empty;
-        }
+        catch { }
 
         decimal serviceAmount;
         decimal clientServiceAmount;
@@ -2897,31 +2893,33 @@ public partial class MainWindow : Window
         var groupLine = AddBillingLine(detailsGrid, 9, "Nhóm máy", machine.GroupName);
         var currentRateLine = AddBillingLine(detailsGrid, 10, "Đơn giá hiện tại (tham khảo)", "-");
         var currentRatePlayAmountLine = AddBillingLine(detailsGrid, 11, "Tiền giờ chơi theo giá hiện tại (tham khảo)", "-");
-        var discountPercentLine = AddBillingLine(detailsGrid, 12, "Giảm giá phiên", "-");
-        var discountSourceLine = AddBillingLine(detailsGrid, 13, "Nguồn giảm giá", "-");
+        var breakdownContainer = new StackPanel { Margin = new Thickness(0, 10, 0, 10) };
+        Grid.SetRow(breakdownContainer, 12);
+        Grid.SetColumnSpan(breakdownContainer, 2);
+        detailsGrid.Children.Add(breakdownContainer);
+
         var clientServiceAmountLine = AddBillingLine(detailsGrid, 14, "Tiền dịch vụ từ máy trạm", $"{clientServiceAmount:N0} VND");
         var serverServiceAmountLine = AddBillingLine(detailsGrid, 15, "Tiền dịch vụ từ server", $"{serverServiceAmount:N0} VND");
 
-        var extraLines = new[]
+        var extraElements = new UIElement[]
         {
             groupLine.Row,
             currentRateLine.Row,
             currentRatePlayAmountLine.Row,
-            discountPercentLine.Row,
-            discountSourceLine.Row,
+            breakdownContainer,
             clientServiceAmountLine.Row,
             serverServiceAmountLine.Row
         };
 
         bool isDetailsVisible = false;
-        foreach (var line in extraLines) line.Visibility = Visibility.Collapsed;
+        foreach (var el in extraElements) el.Visibility = Visibility.Collapsed;
 
         toggleDetailsBtn.Click += (s, e) =>
         {
             isDetailsVisible = !isDetailsVisible;
-            foreach (var line in extraLines)
+            foreach (var el in extraElements)
             {
-                line.Visibility = isDetailsVisible ? Visibility.Visible : Visibility.Collapsed;
+                el.Visibility = isDetailsVisible ? Visibility.Visible : Visibility.Collapsed;
             }
             toggleDetailsBtn.Content = isDetailsVisible ? "▲ Ẩn chi tiết" : "▼ Xem chi tiết";
             dialog.SizeToContent = SizeToContent.Height;
@@ -3109,19 +3107,65 @@ public partial class MainWindow : Window
 
             SetMoneyText(currentRatePlayAmountLine.ValueText, currentRatePlayAmount, new SolidColorBrush(Color.FromRgb(8, 145, 178)));
 
-            var discountPercent = activePromotionDiscountPercent > 0
-                ? activePromotionDiscountPercent
-                : CalculateSessionDiscountPercent(sessionHourlyRate, baseHourlyRate);
-            
-            if (discountPercent > 0)
+            var startedAtTime = DateTime.TryParse(machineSnapshot.ActiveSessionStartedAt, out var dt) 
+                ? dt : DateTime.Now.AddSeconds(-displayedElapsedSeconds);
+                
+            var breakdowns = CalculateSessionBreakdown(
+                startedAtTime,
+                displayedElapsedSeconds,
+                baseHourlyRate,
+                allPromotions);
+
+            breakdownContainer.Children.Clear();
+            if (breakdowns.Count > 0)
             {
-                discountPercentLine.ValueText.Text = $"{discountPercent:0.##}%";
-                discountSourceLine.ValueText.Text = string.IsNullOrWhiteSpace(activePromotionName) ? "Chương trình tự động" : activePromotionName;
-            }
-            else
-            {
-                discountPercentLine.ValueText.Text = "-";
-                discountSourceLine.ValueText.Text = "-";
+                var titleGrid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+                titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
+                titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                
+                var titleText = new TextBlock
+                {
+                    Text = "Phân bổ giờ chơi:",
+                    FontSize = 15,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = Brushes.Black,
+                };
+                Grid.SetColumn(titleText, 0);
+                titleGrid.Children.Add(titleText);
+                breakdownContainer.Children.Add(titleGrid);
+
+                var breakdownListBorder = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(4),
+                    Padding = new Thickness(10)
+                };
+                var listStack = new StackPanel();
+
+                foreach (var block in breakdowns)
+                {
+                    var blockText = new TextBlock
+                    {
+                        Text = $"• {block.TimeRange}: {block.Title}\n  {block.Info}",
+                        FontSize = 14,
+                        Foreground = Brushes.DarkSlateGray,
+                        Margin = new Thickness(0, 0, 0, 6)
+                    };
+                    listStack.Children.Add(blockText);
+                }
+                
+                breakdownListBorder.Child = listStack;
+                
+                var listGrid = new Grid();
+                listGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
+                listGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                
+                Grid.SetColumn(breakdownListBorder, 1);
+                listGrid.Children.Add(breakdownListBorder);
+                
+                breakdownContainer.Children.Add(listGrid);
             }
             
             SetMoneyText(clientServiceAmountLine.ValueText, clientServiceAmount, new SolidColorBrush(Color.FromRgb(5, 150, 105)));
@@ -3168,6 +3212,120 @@ public partial class MainWindow : Window
         _ = dialog.ShowDialog();
     }
 
+    public class BillingTimeBlock
+    {
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+        public decimal BaseHourlyRate { get; set; }
+        public decimal DiscountPercent { get; set; }
+        public string PromotionName { get; set; } = string.Empty;
+        public decimal HourlyRate { get; set; }
+        public decimal Amount { get; set; }
+        
+        public string Title => string.IsNullOrEmpty(PromotionName) ? "Không có KM" : PromotionName;
+        public string TimeRange => $"{StartTime:HH:mm} - {EndTime:HH:mm}";
+        public string Info => DiscountPercent > 0 
+            ? $"Giảm {DiscountPercent:0.##}% (còn {HourlyRate:N0}đ/h) -> {(Amount):N0}đ" 
+            : $"{HourlyRate:N0}đ/h -> {(Amount):N0}đ";
+    }
+
+    private static List<BillingTimeBlock> CalculateSessionBreakdown(
+        DateTime startedAt,
+        int elapsedSeconds,
+        decimal baseHourlyRate,
+        List<TimeBasedPromotionDto> promotions)
+    {
+        var blocks = new List<BillingTimeBlock>();
+        if (elapsedSeconds <= 0) return blocks;
+
+        var startMs = new DateTimeOffset(startedAt).ToUnixTimeMilliseconds();
+        var endMs = new DateTimeOffset(startedAt.AddSeconds(elapsedSeconds)).ToUnixTimeMilliseconds();
+        if (endMs <= startMs) return blocks;
+
+        var cursorMs = startMs;
+        BillingTimeBlock? currentBlock = null;
+
+        while (cursorMs < endMs)
+        {
+            var at = DateTimeOffset.FromUnixTimeMilliseconds(cursorMs).ToLocalTime().DateTime;
+            
+            var currentDay = (int)at.DayOfWeek;
+            var currentTime = at.TimeOfDay;
+            decimal bestDiscount = 0m;
+            string bestPromotionName = string.Empty;
+
+            foreach (var promo in promotions)
+            {
+                if (promo is null || !promo.IsActive) continue;
+
+                if (promo.AnnualDates != null && promo.AnnualDates.Count > 0)
+                {
+                    var ddmm = at.ToString("dd/MM");
+                    if (!promo.AnnualDates.Contains(ddmm)) continue;
+                }
+                else if (promo.DaysOfWeek != null && promo.DaysOfWeek.Count > 0)
+                {
+                    if (!promo.DaysOfWeek.Contains(currentDay)) continue;
+                }
+                else continue;
+
+                if (!TryParsePromotionTime(promo.StartTime, out var start) ||
+                    !TryParsePromotionTime(promo.EndTime, out var end))
+                {
+                    continue;
+                }
+
+                bool inRange;
+                if (start <= end) inRange = currentTime >= start && currentTime <= end;
+                else inRange = currentTime >= start || currentTime <= end;
+
+                if (!inRange) continue;
+
+                if (promo.DiscountPercent > bestDiscount)
+                {
+                    bestDiscount = promo.DiscountPercent;
+                    bestPromotionName = (promo.Name ?? string.Empty).Trim();
+                }
+            }
+
+            var hourlyRate = bestDiscount > 0 
+                ? Math.Round(baseHourlyRate * (1m - bestDiscount / 100m)) 
+                : baseHourlyRate;
+
+            var amountForThisMinute = hourlyRate / 60m;
+            
+            var minuteMs = 60_000L;
+            var nextBoundary = (cursorMs / minuteMs) * minuteMs + minuteMs;
+            var sliceEndMs = Math.Min(endMs, nextBoundary);
+            
+            if (currentBlock == null || 
+                currentBlock.DiscountPercent != bestDiscount || 
+                currentBlock.PromotionName != bestPromotionName)
+            {
+                currentBlock = new BillingTimeBlock
+                {
+                    StartTime = at,
+                    EndTime = DateTimeOffset.FromUnixTimeMilliseconds(sliceEndMs).ToLocalTime().DateTime,
+                    BaseHourlyRate = baseHourlyRate,
+                    DiscountPercent = bestDiscount,
+                    PromotionName = bestPromotionName,
+                    HourlyRate = hourlyRate,
+                    Amount = amountForThisMinute
+                };
+                blocks.Add(currentBlock);
+            }
+            else
+            {
+                currentBlock.EndTime = DateTimeOffset.FromUnixTimeMilliseconds(sliceEndMs).ToLocalTime().DateTime;
+                currentBlock.Amount += amountForThisMinute;
+            }
+
+            cursorMs = sliceEndMs;
+        }
+
+        return blocks;
+    }
+    
     private static decimal CalculatePrecisePlayAmount(int elapsedSeconds, decimal hourlyRate)
     {
         if (elapsedSeconds <= 0 || hourlyRate <= 0)
