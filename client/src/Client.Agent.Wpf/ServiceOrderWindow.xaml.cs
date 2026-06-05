@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 
 namespace Client.Agent.Wpf;
@@ -11,6 +12,7 @@ public partial class ServiceOrderWindow : Window
 {
     public ObservableCollection<ClientServiceOrderSelectionRow> Rows { get; }
     public string OrderNote => NoteTextBox.Text;
+    private ICollectionView _servicesView;
 
     public ServiceOrderWindow(string pcName, ObservableCollection<ClientServiceOrderSelectionRow> rows, string orderedPreview)
     {
@@ -20,7 +22,22 @@ public partial class ServiceOrderWindow : Window
         TitleTextBlock.Text = $"Máy trạm: {pcName}";
         OrderedPreviewTextBlock.Text = $"Đã gọi: {orderedPreview}";
 
-        ServicesItemsControl.ItemsSource = Rows;
+        _servicesView = CollectionViewSource.GetDefaultView(Rows);
+        _servicesView.Filter = FilterServiceItem;
+        ServicesItemsControl.ItemsSource = _servicesView;
+        
+        CartItemsControl.ItemsSource = Rows;
+
+        var defaultCategories = new System.Collections.Generic.List<string> { "Tất cả", "Nước", "Đồ ăn", "Ăn vặt", "Thuốc" };
+        var otherCategories = Rows.Select(x => string.IsNullOrWhiteSpace(x.Category) ? "Khác" : x.Category)
+                             .Where(x => !defaultCategories.Contains(x))
+                             .Distinct()
+                             .OrderBy(x => x)
+                             .ToList();
+                             
+        var categories = defaultCategories.Concat(otherCategories).ToList();
+        CategoryListBox.ItemsSource = categories;
+        CategoryListBox.SelectedIndex = 0;
 
         foreach (var row in Rows)
         {
@@ -42,11 +59,69 @@ public partial class ServiceOrderWindow : Window
     {
         var selectedRows = Rows.Where(x => x.Quantity != 0).ToList();
         var selectedItemCount = selectedRows.Count;
-        var totalAdded = selectedRows.Where(x => x.Quantity > 0).Sum(x => x.Quantity);
-        var totalCanceled = selectedRows.Where(x => x.Quantity < 0).Sum(x => -x.Quantity);
+        
+        var totalAddedAmount = selectedRows.Where(x => x.Quantity > 0).Sum(x => x.LineTotal);
+        var totalCanceledAmount = Math.Abs(selectedRows.Where(x => x.Quantity < 0).Sum(x => x.LineTotal));
         var netAmount = selectedRows.Sum(x => x.LineTotal);
         
-        SummaryTextBlock.Text = $"Đã chọn {selectedItemCount} món | Gọi thêm: {totalAdded} | Hủy: {totalCanceled} | Chênh lệch: {netAmount:N0} VND";
+        if (SummaryItemCountTextBlock != null)
+            SummaryItemCountTextBlock.Text = $"Đã chọn {selectedItemCount} món";
+            
+        if (SummaryAddedTextBlock != null)
+            SummaryAddedTextBlock.Text = $"{totalAddedAmount:N0} đ";
+            
+        if (SummaryCanceledTextBlock != null)
+            SummaryCanceledTextBlock.Text = $"{totalCanceledAmount:N0} đ";
+            
+        if (SummaryNetTextBlock != null)
+        {
+            SummaryNetTextBlock.Text = $"{netAmount:N0} đ";
+            SummaryTotalTextBlock.Text = $"{netAmount:N0} đ";
+        }
+
+        if (EmptyCartPanel != null && CartItemsScrollViewer != null)
+        {
+            if (selectedItemCount == 0)
+            {
+                EmptyCartPanel.Visibility = Visibility.Visible;
+                CartItemsScrollViewer.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                EmptyCartPanel.Visibility = Visibility.Collapsed;
+                CartItemsScrollViewer.Visibility = Visibility.Visible;
+            }
+        }
+    }
+
+    private bool FilterServiceItem(object item)
+    {
+        if (item is not ClientServiceOrderSelectionRow row)
+            return false;
+
+        var searchText = SearchTextBox.Text.Trim().ToLowerInvariant();
+        if (!string.IsNullOrEmpty(searchText) && !row.ServiceName.ToLowerInvariant().Contains(searchText))
+            return false;
+
+        var selectedCategory = CategoryListBox.SelectedItem as string;
+        if (selectedCategory != null && selectedCategory != "Tất cả")
+        {
+            var rowCategory = string.IsNullOrWhiteSpace(row.Category) ? "Khác" : row.Category;
+            if (rowCategory != selectedCategory)
+                return false;
+        }
+
+        return true;
+    }
+
+    private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        _servicesView?.Refresh();
+    }
+
+    private void CategoryListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        _servicesView?.Refresh();
     }
 
     private void DecreaseQuantity_Click(object sender, RoutedEventArgs e)

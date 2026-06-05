@@ -87,7 +87,7 @@ public partial class MainWindow : Window
         PropertyNameCaseInsensitive = true, NumberHandling = JsonNumberHandling.AllowReadingFromString
     };
 
-    private string BuildApiUrl(string path)
+    internal string BuildApiUrl(string path)
     {
         var baseUri = new Uri(_settings.BackendApiBaseUrl.TrimEnd('/') + "/");
         return new Uri(baseUri, path.TrimStart('/')).ToString();

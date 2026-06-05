@@ -29,8 +29,8 @@ public sealed class StartupProgressEventArgs : EventArgs
 
 public partial class MainWindow : Window
 {
-    private readonly HttpClient _httpClient = new();
-    private readonly DispatcherTimer _healthTimer = new();
+    internal readonly HttpClient _httpClient = new();
+    internal readonly DispatcherTimer _healthTimer = new();
     private readonly DispatcherTimer _machinesTimer = new();
     private readonly DispatcherTimer _systemLogsTimer = new();
     private readonly DispatcherTimer _membersAutoRefreshTimer = new();

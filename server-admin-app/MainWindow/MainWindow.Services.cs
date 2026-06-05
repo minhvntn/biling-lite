@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Net.Http.Json;
 using System.IO;
 using System.Windows;
@@ -157,8 +157,17 @@ public partial class MainWindow : Window
 
         var colLeft = new StackPanel();
         colLeft.Children.Add(new TextBlock { Text = "Danh mục:", Margin = new Thickness(0, 0, 0, 4) });
-        var categoryTextBox = new TextBox { Height = 28, VerticalContentAlignment = VerticalAlignment.Center };
-        colLeft.Children.Add(categoryTextBox);
+        var categoryComboBox = new ComboBox 
+        { 
+            Height = 28, 
+            VerticalContentAlignment = VerticalAlignment.Center,
+            IsEditable = true 
+        };
+        categoryComboBox.Items.Add("Nước");
+        categoryComboBox.Items.Add("Đồ ăn");
+        categoryComboBox.Items.Add("Ăn vặt");
+        categoryComboBox.Items.Add("Thuốc");
+        colLeft.Children.Add(categoryComboBox);
         Grid.SetColumn(colLeft, 0);
         gridFields.Children.Add(colLeft);
 
@@ -386,7 +395,7 @@ public partial class MainWindow : Window
             errorTextBlock.Text = string.Empty;
 
             var name = nameTextBox.Text.Trim();
-            var category = categoryTextBox.Text.Trim();
+            var category = categoryComboBox.Text.Trim();
             var priceRaw = priceTextBox.Text.Trim();
 
             if (string.IsNullOrWhiteSpace(name))
@@ -529,13 +538,18 @@ public partial class MainWindow : Window
 
         var colLeft = new StackPanel();
         colLeft.Children.Add(new TextBlock { Text = "Danh mục:", Margin = new Thickness(0, 0, 0, 4) });
-        var categoryTextBox = new TextBox
+        var categoryComboBox = new ComboBox
         {
             Height = 28,
             VerticalContentAlignment = VerticalAlignment.Center,
             Text = selected.Category == "-" ? string.Empty : selected.Category,
+            IsEditable = true
         };
-        colLeft.Children.Add(categoryTextBox);
+        categoryComboBox.Items.Add("Nước");
+        categoryComboBox.Items.Add("Đồ ăn");
+        categoryComboBox.Items.Add("Ăn vặt");
+        categoryComboBox.Items.Add("Thuốc");
+        colLeft.Children.Add(categoryComboBox);
         Grid.SetColumn(colLeft, 0);
         gridFields.Children.Add(colLeft);
 
@@ -739,7 +753,7 @@ public partial class MainWindow : Window
             errorTextBlock.Text = string.Empty;
 
             var name = nameTextBox.Text.Trim();
-            var category = categoryTextBox.Text.Trim();
+            var category = categoryComboBox.Text.Trim();
             var priceRaw = priceTextBox.Text.Trim();
 
             if (string.IsNullOrWhiteSpace(name))
@@ -846,6 +860,47 @@ public partial class MainWindow : Window
 
         AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã đổi giá dịch vụ {selected.Name} -> {newPrice:N0} VND");
         await RefreshServiceItemsAsync();
+    }
+
+    private async void DeleteServiceItemMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (ServiceItemsDataGrid.SelectedItem is not ServiceItemRow selected)
+        {
+            return;
+        }
+
+        var confirm = MessageBox.Show($"Bạn có chắc chắn muốn xóa dịch vụ \"{selected.Name}\" không?", "Xác nhận xóa", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        using var response = await _httpClient.DeleteAsync(BuildApiUrl($"/services/items/{selected.Id}"));
+        if (!response.IsSuccessStatusCode)
+        {
+            var err = await response.Content.ReadAsStringAsync();
+            MessageBox.Show(string.IsNullOrWhiteSpace(err) ? "Không thể xóa dịch vụ này. Có thể dịch vụ đã được sử dụng trong các đơn hàng." : err, "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã xóa dịch vụ: {selected.Name}");
+        await RefreshServiceItemsAsync();
+    }
+
+    private void ServiceItemsDataGridRow_PreviewMouseRightButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is DataGridRow row)
+        {
+            row.IsSelected = true;
+        }
+    }
+
+    private async void ServiceItemsDataGrid_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (ServiceItemsDataGrid.SelectedItem is ServiceItemRow)
+        {
+            await UpdateSelectedServiceItemAsync();
+        }
     }
 
     private async Task OpenServiceOrderDialogForSelectedMachineAsync()

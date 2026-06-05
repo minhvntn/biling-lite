@@ -145,20 +145,26 @@ export class MembersService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly realtime: RealtimeService,
-  ) {}
+  ) { }
 
-  async getMembers(search?: string) {
+  async getMembers(search?: string, memberType?: string) {
     const keyword = search?.trim();
-    const where: Prisma.MemberWhereInput | undefined = keyword
-      ? {
-          OR: [
-            { username: { contains: keyword, mode: 'insensitive' } },
-            { fullName: { contains: keyword, mode: 'insensitive' } },
-            { phone: { contains: keyword, mode: 'insensitive' } },
-            { identityNumber: { contains: keyword, mode: 'insensitive' } },
-          ],
-        }
-      : undefined;
+    let where: Prisma.MemberWhereInput = {};
+
+    if (keyword) {
+      where.OR = [
+        { username: { contains: keyword, mode: 'insensitive' } },
+        { fullName: { contains: keyword, mode: 'insensitive' } },
+        { phone: { contains: keyword, mode: 'insensitive' } },
+        { identityNumber: { contains: keyword, mode: 'insensitive' } },
+      ];
+    }
+
+    if (memberType) {
+      where.memberType = memberType;
+    } else {
+      where.memberType = { not: 'COMBO' };
+    }
 
     const [members, total, rankConfigs] = await Promise.all([
       this.prisma.member.findMany({
@@ -178,10 +184,10 @@ export class MembersService {
       members.map(async (member) => {
         const rank = this.calculateRankName(Number(member.totalTopup), rankConfigs);
         const loyalty = await this.buildLoyaltySnapshot(member.id, this.prisma);
-        
+
         const lastLoginEvent = await this.prisma.eventLog.findFirst({
-          where: { 
-            eventType: 'member.pc.presence', 
+          where: {
+            eventType: 'member.pc.presence',
             payload: { path: ['memberId'], equals: member.id },
           },
           orderBy: { createdAt: 'desc' }
@@ -193,7 +199,7 @@ export class MembersService {
         };
       }),
     );
-    
+
     return {
       items,
       total,
@@ -290,14 +296,14 @@ export class MembersService {
     const normalizedAgentId = payload.agentId?.trim();
     const currentPc = normalizedAgentId
       ? await this.prisma.pc.findFirst({
-          where: {
-            agentId: {
-              equals: normalizedAgentId,
-              mode: 'insensitive',
-            },
+        where: {
+          agentId: {
+            equals: normalizedAgentId,
+            mode: 'insensitive',
           },
-          select: { id: true },
-        })
+        },
+        select: { id: true },
+      })
       : null;
     const activeOnOtherPc = await this.findMemberActivePc(
       member.id,
@@ -334,10 +340,10 @@ export class MembersService {
         });
         const baseRate = Number(
           pc.group?.memberHourlyRate ??
-            pc.group?.hourlyRate ??
-            defaultGroup?.memberHourlyRate ??
-            defaultGroup?.hourlyRate ??
-            12000,
+          pc.group?.hourlyRate ??
+          defaultGroup?.memberHourlyRate ??
+          defaultGroup?.hourlyRate ??
+          12000,
         );
         // We need to call PcsService or duplicate the logic.
         // For simplicity, I'll duplicate the logic or inject PcsService if possible.
@@ -351,14 +357,30 @@ export class MembersService {
     const upfrontLoginCharge = 0; // Members do not pay upfront charges
     const currentBalance = Number(member.balance);
     const isVip = member.memberType === 'VIP';
+    const isCombo = member.memberType === 'COMBO';
+    
+    let hasSufficientBalance = currentBalance > 0;
+    
+    if (isCombo && member.comboExpiresAt && new Date() <= member.comboExpiresAt) {
+      if (member.isLimitedCombo) {
+        hasSufficientBalance = member.playSeconds > 0 || currentBalance > 0;
+      } else {
+        hasSufficientBalance = true;
+      }
+    }
+
     if (
       !isVip &&
       !isUsageAlreadyActiveOnCurrentPc &&
-      currentBalance <= 0
+      !hasSufficientBalance
     ) {
-      throw new BadRequestException(
-        'Số dư tài khoản không đủ.',
-      );
+      if (isCombo && member.comboExpiresAt && new Date() > member.comboExpiresAt && currentBalance <= 0) {
+        throw new BadRequestException('Tài khoản Combo đã hết hạn sử dụng.');
+      }
+      if (isCombo && member.isLimitedCombo && member.playSeconds <= 0 && currentBalance <= 0) {
+        throw new BadRequestException('Tài khoản Combo đã hết thời lượng giới hạn.');
+      }
+      throw new BadRequestException('Số dư tài khoản không đủ.');
     }
 
     return {
@@ -421,20 +443,36 @@ export class MembersService {
         : null;
       const baseRate = Number(
         group?.memberHourlyRate ??
-          group?.hourlyRate ??
-          defaultGroup?.memberHourlyRate ??
-          defaultGroup?.hourlyRate ??
-          12000,
+        group?.hourlyRate ??
+        defaultGroup?.memberHourlyRate ??
+        defaultGroup?.hourlyRate ??
+        12000,
       );
       const hourlyRate = await this.getEffectiveHourlyRate(baseRate);
       pricePerMinute = Number(hourlyRate) / 60;
       const upfrontLoginCharge = 0; // Members do not pay upfront charges
       const currentBalance = Number(member.balance);
       const isVip = member.memberType === 'VIP';
-      if (!isVip && currentBalance <= 0) {
-        throw new BadRequestException(
-          'Số dư tài khoản không đủ.',
-        );
+      const isCombo = member.memberType === 'COMBO';
+      
+      let hasSufficientBalance = currentBalance > 0;
+      
+      if (isCombo && member.comboExpiresAt && new Date() <= member.comboExpiresAt) {
+        if (member.isLimitedCombo) {
+          hasSufficientBalance = member.playSeconds > 0 || currentBalance > 0;
+        } else {
+          hasSufficientBalance = true;
+        }
+      }
+
+      if (!isVip && !hasSufficientBalance) {
+        if (isCombo && member.comboExpiresAt && new Date() > member.comboExpiresAt && currentBalance <= 0) {
+          throw new BadRequestException('Tài khoản Combo đã hết hạn sử dụng.');
+        }
+        if (isCombo && member.isLimitedCombo && member.playSeconds <= 0 && currentBalance <= 0) {
+          throw new BadRequestException('Tài khoản Combo đã hết thời lượng giới hạn.');
+        }
+        throw new BadRequestException('Số dư tài khoản không đủ.');
       }
     }
 
@@ -835,6 +873,73 @@ export class MembersService {
         ? LOYALTY_USAGE_CREATED_BY
         : payload.createdBy?.trim() || 'client.session';
 
+      // COMBO Member logic: free play until comboExpiresAt OR limit reached
+      if (member.memberType === 'COMBO' && member.comboExpiresAt) {
+        if (new Date() <= member.comboExpiresAt) {
+          if (member.isLimitedCombo) {
+            // Limited combo: must deduct playSeconds
+            if (currentPlaySeconds > 0) {
+              const comboConsumed = Math.max(0, Math.min(currentPlaySeconds, requestedSeconds));
+              if (comboConsumed === 0) {
+                throw new BadRequestException('Hội viên Combo đã hết thời lượng giới hạn');
+              }
+              updatedMember = await tx.member.update({
+                where: { id: member.id },
+                data: { playSeconds: { decrement: comboConsumed } },
+              });
+
+              if (!payload.note?.includes('PERIODIC')) {
+                await tx.memberTransaction.create({
+                  data: {
+                    memberId: member.id,
+                    type: MemberTransactionType.ADJUSTMENT,
+                    amountDelta: 0,
+                    playSecondsDelta: -comboConsumed,
+                    note: payload.note || `Trừ ${comboConsumed}s chơi Combo giới hạn`,
+                    createdBy,
+                  },
+                });
+              } else {
+                // For periodic updates, we should try to merge transactions, but it's complex for combo.
+                // Simple append is fine for combo to save logic complexity here.
+                await tx.memberTransaction.create({
+                  data: {
+                    memberId: member.id,
+                    type: MemberTransactionType.ADJUSTMENT,
+                    amountDelta: 0,
+                    playSecondsDelta: -comboConsumed,
+                    note: 'PERIODIC: Session Usage',
+                    createdBy,
+                  },
+                });
+              }
+              const loyalty = await this.buildLoyaltySnapshot(member.id, tx);
+              return {
+                member: this.toMemberItem(updatedMember),
+                consumedSeconds: comboConsumed,
+                requestedSeconds,
+                enabled,
+                loyalty,
+                trackedAt: new Date().toISOString(),
+              };
+            } else {
+              throw new BadRequestException('Hội viên Combo đã hết thời lượng giới hạn');
+            }
+          } else {
+            // Unlimited combo: free play
+            const loyalty = await this.buildLoyaltySnapshot(member.id, tx);
+            return {
+              member: this.toMemberItem(updatedMember),
+              consumedSeconds: requestedSeconds,
+              requestedSeconds,
+              enabled,
+              loyalty,
+              trackedAt: new Date().toISOString(),
+            };
+          }
+        }
+      }
+
       const mergeOrCreateTx = async (
         amountDelta: number,
         playSecondsDelta: number,
@@ -921,10 +1026,10 @@ export class MembersService {
               : null;
             const baseRate = Number(
               group?.memberHourlyRate ??
-                group?.hourlyRate ??
-                defaultGroup?.memberHourlyRate ??
-                defaultGroup?.hourlyRate ??
-                12000,
+              group?.hourlyRate ??
+              defaultGroup?.memberHourlyRate ??
+              defaultGroup?.hourlyRate ??
+              12000,
             );
             const hourlyRate = await this.getEffectiveHourlyRate(baseRate);
             pricePerMinute = Number(hourlyRate) / 60;
@@ -933,12 +1038,12 @@ export class MembersService {
 
         const pricePerSecond = pricePerMinute / 60;
         const currentBalance = Number(member.balance);
-        
+
         let costAmount = 0;
         if (pricePerSecond > 0) {
           const maxSecondsForBalance = currentBalance / pricePerSecond;
           costAmount = Number((remainingSeconds * pricePerSecond).toFixed(2));
-          
+
           if (remainingSeconds >= Math.floor(maxSecondsForBalance) || (currentBalance - costAmount) < pricePerSecond) {
             costAmount = currentBalance;
           } else {
@@ -1015,8 +1120,8 @@ export class MembersService {
         });
         const hourlyRate = Number(
           defaultGroup?.memberHourlyRate ??
-            defaultGroup?.hourlyRate ??
-            6000,
+          defaultGroup?.hourlyRate ??
+          6000,
         );
         const cashAmount = Math.round((playSecondsDelta / 3600) * hourlyRate);
 
@@ -1098,7 +1203,7 @@ export class MembersService {
       const streakAfterCheckin = await this.getCurrentDailyCheckinStreak(member.id, tx);
       const bonusPoints =
         streakAfterCheckin > 0 &&
-        streakAfterCheckin % LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS === 0
+          streakAfterCheckin % LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS === 0
           ? LOYALTY_DAILY_CHECKIN_BONUS_POINTS
           : 0;
       const totalGainedPoints = LOYALTY_DAILY_CHECKIN_POINTS + bonusPoints;
@@ -1118,8 +1223,8 @@ export class MembersService {
         });
         const hourlyRate = Number(
           defaultGroup?.memberHourlyRate ??
-            defaultGroup?.hourlyRate ??
-            6000,
+          defaultGroup?.hourlyRate ??
+          6000,
         );
         const cashAmount = Math.round((rewardSeconds / 3600) * hourlyRate);
 
@@ -1216,7 +1321,7 @@ export class MembersService {
       // 2. Roll the dice for Spin
       const prizeTable = await this.getSpinPrizeTable(tx);
       let wonMinutes = 0;
-      
+
       const rand = Math.random() * 100;
       let cumulativeChance = 0;
       for (const prize of prizeTable) {
@@ -1226,7 +1331,7 @@ export class MembersService {
           break;
         }
       }
-      
+
       if (wonMinutes === 0 && prizeTable.length > 0 && rand > cumulativeChance) {
         wonMinutes = prizeTable[0].minutes; // Fallback
       }
@@ -1244,8 +1349,8 @@ export class MembersService {
           });
           const hourlyRate = Number(
             defaultGroup?.memberHourlyRate ??
-              defaultGroup?.hourlyRate ??
-              6000,
+            defaultGroup?.hourlyRate ??
+            6000,
           );
           const cashAmount = Math.round((secondsToReward / 3600) * hourlyRate);
 
@@ -1328,7 +1433,7 @@ export class MembersService {
       // 1. Deduct bet points
       const secondsToSpend = betPoints * spendSecondsPerPoint;
       const spendNote = `HORSE_RACE_BET: bet ${betPoints} points on horse #${selectedHorse + 1}`;
-      
+
       if (member.memberType === 'VIP') {
         await this.applyVipTimeDiscount(tx, memberId, -secondsToSpend, spendNote, createdBy);
       } else {
@@ -1364,10 +1469,10 @@ export class MembersService {
         [horses[i], horses[j]] = [horses[j], horses[i]];
       }
       const finishOrder = horses;
-      
+
       const rank = finishOrder.indexOf(selectedHorse); // 0 for 1st, 1 for 2nd, 2 for 3rd
       const isWin = rank < 3;
-      
+
       let wonPoints = 0;
       if (rank === 0) wonPoints = Math.floor(betPoints * 3);
       else if (rank === 1) wonPoints = Math.floor(betPoints * 2.25);
@@ -1386,8 +1491,8 @@ export class MembersService {
           });
           const hourlyRate = Number(
             defaultGroup?.memberHourlyRate ??
-              defaultGroup?.hourlyRate ??
-              6000,
+            defaultGroup?.hourlyRate ??
+            6000,
           );
           const cashAmount = Math.round((secondsToReward / 3600) * hourlyRate);
 
@@ -2049,17 +2154,17 @@ export class MembersService {
       this.prisma.member.findUnique({ where: { id: memberId } }),
       normalizedAgentId
         ? this.prisma.pc.findFirst({
-            where: {
-              agentId: {
-                equals: normalizedAgentId,
-                mode: 'insensitive',
-              },
+          where: {
+            agentId: {
+              equals: normalizedAgentId,
+              mode: 'insensitive',
             },
-            select: {
-              id: true,
-              name: true,
-            },
-          })
+          },
+          select: {
+            id: true,
+            name: true,
+          },
+        })
         : Promise.resolve(null),
     ]);
 
@@ -2298,17 +2403,17 @@ export class MembersService {
       this.prisma.member.findUnique({ where: { id: memberId } }),
       normalizedAgentId
         ? this.prisma.pc.findFirst({
-            where: {
-              agentId: {
-                equals: normalizedAgentId,
-                mode: 'insensitive',
-              },
+          where: {
+            agentId: {
+              equals: normalizedAgentId,
+              mode: 'insensitive',
             },
-            select: {
-              id: true,
-              name: true,
-            },
-          })
+          },
+          select: {
+            id: true,
+            name: true,
+          },
+        })
         : Promise.resolve(null),
     ]);
 
@@ -2540,6 +2645,12 @@ export class MembersService {
   }
 
   private toMemberItem(member: Member, rankName?: string, availablePoints?: number) {
+    let effectivePlaySeconds = member.playSeconds;
+    if (member.memberType === 'COMBO' && !member.isLimitedCombo) {
+      // Fake a huge amount of seconds for unlimited combos so the client does not auto-lock immediately
+      effectivePlaySeconds = 999999999;
+    }
+
     return {
       id: member.id,
       username: member.username,
@@ -2548,14 +2659,15 @@ export class MembersService {
       identityNumber: member.identityNumber,
       hasPassword: Boolean(member.passwordHash),
       balance: Number(member.balance),
-      playSeconds: member.playSeconds,
-      playHours: Number((member.playSeconds / 3600).toFixed(2)),
+      playSeconds: effectivePlaySeconds,
+      playHours: Number((effectivePlaySeconds / 3600).toFixed(2)),
       totalTopup: Number(member.totalTopup),
       rank: rankName || 'N/A',
       availablePoints: availablePoints ?? 0,
       memberType: member.memberType ?? 'REGULAR',
       avatarId: member.avatarId,
       isActive: member.isActive,
+      comboExpiresAt: member.comboExpiresAt ? member.comboExpiresAt.toISOString() : null,
       createdAt: member.createdAt.toISOString(),
       updatedAt: member.updatedAt.toISOString(),
     };
@@ -2661,7 +2773,7 @@ export class MembersService {
     }
 
     const categories = [
-      'Sắt', 'Đồng', 'Bạc', 'Vàng', 'Bạch Kim', 
+      'Sắt', 'Đồng', 'Bạc', 'Vàng', 'Bạch Kim',
       'Tinh Anh', 'Kim Cương', 'Cao Thủ', 'Đại Cao Thủ', 'Thách Đấu'
     ];
     const tiersPerCategory = 10;
@@ -2669,8 +2781,8 @@ export class MembersService {
 
     const loyaltySettings = await this.getLoyaltySettingsItem();
     const endMinutes = Math.max(1, Math.floor(loyaltySettings.minutesPerPoint));
-    const startMinutes = loyaltySettings.lowestRankMinutesPerPoint > 0 
-      ? Math.max(1, Math.floor(loyaltySettings.lowestRankMinutesPerPoint)) 
+    const startMinutes = loyaltySettings.lowestRankMinutesPerPoint > 0
+      ? Math.max(1, Math.floor(loyaltySettings.lowestRankMinutesPerPoint))
       : endMinutes * 10;
     const startBonus = 0;
     const endBonus = 100;
@@ -2726,8 +2838,8 @@ export class MembersService {
 
     const loyaltySettings = await this.getLoyaltySettingsItem(tx);
     const endMinutes = Math.max(1, Math.floor(baseMinutesPerPoint));
-    const startMinutes = loyaltySettings.lowestRankMinutesPerPoint > 0 
-      ? Math.max(1, Math.floor(loyaltySettings.lowestRankMinutesPerPoint)) 
+    const startMinutes = loyaltySettings.lowestRankMinutesPerPoint > 0
+      ? Math.max(1, Math.floor(loyaltySettings.lowestRankMinutesPerPoint))
       : endMinutes * 10;
     const denominator = Math.max(1, ranks.length - 1);
 
@@ -2808,8 +2920,8 @@ export class MembersService {
     const horseRaceMinTopup = Number(horseRaceSetting?.value) || 0;
     let horseRaceMinRankName = "N/A";
     if (rankConfigs.length > 0) {
-        const matched = [...rankConfigs].reverse().find(c => horseRaceMinTopup >= Number(c.minTopup));
-        horseRaceMinRankName = matched?.rankName || rankConfigs[0].rankName;
+      const matched = [...rankConfigs].reverse().find(c => horseRaceMinTopup >= Number(c.minTopup));
+      horseRaceMinRankName = matched?.rankName || rankConfigs[0].rankName;
     }
     const day = new Date().getDay();
     const isWeekend = day === 0 || day === 6;
@@ -2828,8 +2940,8 @@ export class MembersService {
     const updatedAt = updatedAtCandidates.length === 0
       ? new Date()
       : updatedAtCandidates.reduce((latest, current) =>
-          current.getTime() > latest.getTime() ? current : latest,
-      updatedAtCandidates[0]);
+        current.getTime() > latest.getTime() ? current : latest,
+        updatedAtCandidates[0]);
 
     return {
       enabled: config?.isActive ?? true,
@@ -2910,8 +3022,8 @@ export class MembersService {
     const daysUntilNextBonus =
       currentStreakDays > 0
         ? (LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS -
-            (currentStreakDays % LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS)) %
-          LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS
+          (currentStreakDays % LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS)) %
+        LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS
         : LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS - 1;
     const bonusReadyToday =
       todayCheckin !== null &&
@@ -3268,14 +3380,14 @@ export class MembersService {
     const activePcs = await this.prisma.pc.findMany({
       where: excludePcId
         ? {
-            status: PcStatus.IN_USE,
-            id: {
-              not: excludePcId,
-            },
-          }
-        : {
-            status: PcStatus.IN_USE,
+          status: PcStatus.IN_USE,
+          id: {
+            not: excludePcId,
           },
+        }
+        : {
+          status: PcStatus.IN_USE,
+        },
       select: {
         id: true,
         name: true,

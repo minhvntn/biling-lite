@@ -128,6 +128,22 @@ export class ServicesService {
     }
   }
 
+  async deleteServiceItem(serviceItemId: string) {
+    const existingOrdersCount = await this.prisma.pcServiceOrder.count({
+      where: { serviceItemId },
+    });
+
+    if (existingOrdersCount > 0) {
+      throw new BadRequestException('Không thể xóa dịch vụ này vì đã có đơn hàng sử dụng.');
+    }
+
+    await this.prisma.serviceItem.delete({
+      where: { id: serviceItemId },
+    });
+
+    return { success: true };
+  }
+
   async createPcServiceOrder(pcId: string, payload: CreatePcServiceOrderDto) {
     const quantity = payload.quantity ?? 1;
     const note = this.normalizeOptionalText(payload.note);

@@ -4,6 +4,7 @@
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns:svgc="clr-namespace:SharpVectors.Converters;assembly=SharpVectors.Converters.Wpf"
         xmlns:local="clr-namespace:Server.Admin.App"
+        xmlns:controls="clr-namespace:Server.Admin.App.Windows.Controls"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
@@ -1735,7 +1736,23 @@
                                   RowHeaderWidth="0"
                                   RowHeight="52"
                                   AlternationCount="2"
-                                  SelectionChanged="ServiceItemsDataGrid_SelectionChanged">
+                                  SelectionChanged="ServiceItemsDataGrid_SelectionChanged"
+                                  MouseDoubleClick="ServiceItemsDataGrid_MouseDoubleClick">
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Thêm dịch vụ..." Click="CreateServiceItemButton_Click" />
+                                    <MenuItem Header="Sửa dịch vụ..." Click="UpdateServiceItemButton_Click" />
+                                    <MenuItem Header="Đổi giá..." Click="UpdateServicePriceButton_Click" />
+                                    <MenuItem Header="Bật/Tắt dịch vụ" Click="ToggleServiceItemButton_Click" />
+                                    <Separator />
+                                    <MenuItem Header="Xóa dịch vụ" Click="DeleteServiceItemMenuItem_Click" Foreground="#DC2626" />
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                    <EventSetter Event="PreviewMouseRightButtonDown" Handler="ServiceItemsDataGridRow_PreviewMouseRightButtonDown" />
+                                </Style>
+                            </DataGrid.RowStyle>
                             <DataGrid.Columns>
                                 <DataGridTemplateColumn Header="Ảnh" Width="90" MinWidth="80">
                                     <DataGridTemplateColumn.CellTemplate>
@@ -2043,6 +2060,18 @@
                         </DataGrid>
 
                         <TextBlock Grid.Row="2" Margin="0,8,0,0" x:Name="LoyaltyRanksInfoTextBlock" Text="Dữ liệu được lưu tự động sau khi sửa ô và nhấn Enter hoặc chuyển ô." Foreground="#1E5AA8" FontWeight="SemiBold" />
+                    </Grid>
+                </TabItem>
+
+                <TabItem x:Name="ComboTab" Style="{StaticResource MainTabItemStyle}">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="🎟️" Margin="0,0,6,0" FontSize="18" />
+                            <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="Thẻ Combo" FontSize="12.5" />
+                        </StackPanel>
+                    </TabItem.Header>
+                    <Grid Margin="0">
+                        <controls:ComboTabControl />
                     </Grid>
                 </TabItem>
 

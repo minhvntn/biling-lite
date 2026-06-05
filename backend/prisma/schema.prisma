@@ -120,6 +120,8 @@ model Member {
   totalTopup     Decimal             @default(0) @map("total_topup") @db.Decimal(12, 2)
   playSeconds    Int                 @default(0) @map("play_seconds")
   memberType     String              @default("REGULAR") @map("member_type") @db.VarChar(20)
+  comboExpiresAt DateTime?           @map("combo_expires_at") @db.Timestamptz(6)
+  isLimitedCombo Boolean             @default(false) @map("is_limited_combo")
   avatarId       String?             @map("avatar_id") @db.VarChar(50)
   transactions   MemberTransaction[]
   dailyCheckins  MemberDailyCheckin[]
@@ -221,6 +223,21 @@ model TimeBasedPromotion {
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("time_based_promotions")
+}
+
+model ComboPackage {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @unique @db.VarChar(100)
+  price        Decimal  @db.Decimal(12, 2)
+  startTime    String   @map("start_time") @db.VarChar(5) // e.g. "22:00"
+  endTime      String   @map("end_time") @db.VarChar(5)   // e.g. "06:00"
+  validityDays Int      @default(1) @map("validity_days")
+  durationHours Int     @default(0) @map("duration_hours")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("combo_packages")
 }
 
 model AppSetting {

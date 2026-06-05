@@ -29,8 +29,8 @@ export class MembersController {
   constructor(private readonly membersService: MembersService) {}
 
   @Get()
-  async getMembers(@Query('search') search?: string) {
-    return this.membersService.getMembers(search);
+  async getMembers(@Query('search') search?: string, @Query('memberType') memberType?: string) {
+    return this.membersService.getMembers(search, memberType);
   }
 
   @Post()

@@ -16,6 +16,7 @@ import { ServicesModule } from './services/services.module';
 import { WebFilterModule } from './web-filter/web-filter.module';
 import { WebsiteLogsModule } from './website-logs/website-logs.module';
 import { SettingsModule } from './settings/settings.module';
+import { CombosModule } from './combos/combos.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SettingsModule } from './settings/settings.module';
     WebFilterModule,
     WebsiteLogsModule,
     SettingsModule,
+    CombosModule,
   ],
   controllers: [AppController],
   providers: [AppService],
