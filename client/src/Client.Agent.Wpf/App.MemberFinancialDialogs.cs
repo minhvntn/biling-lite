@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Windows;
@@ -492,8 +492,8 @@ public partial class App : Application
         var dialog = new Window
         {
             Title = $"Nạp tiền - {activeSession.Username}",
-            Width = 430,
-            Height = 360,
+            Width = 650,
+            Height = 420,
             ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Owner = _mainWindow,
@@ -501,25 +501,23 @@ public partial class App : Application
             WindowStyle = WindowStyle.SingleBorderWindow,
         };
 
-        var root = new Grid
+        var mainGrid = new Grid
         {
             Margin = new Thickness(16),
         };
+        mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(250) });
+
+        var formGrid = new Grid
+        {
+            Margin = new Thickness(0, 0, 16, 0)
+        };
         for (var i = 0; i < 9; i++)
         {
-            root.RowDefinitions.Add(new RowDefinition
-            {
-                Height = GridLength.Auto,
-            });
+            formGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         }
-        root.RowDefinitions.Add(new RowDefinition
-        {
-            Height = new GridLength(1, GridUnitType.Star),
-        });
-        root.RowDefinitions.Add(new RowDefinition
-        {
-            Height = GridLength.Auto,
-        });
+        formGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        formGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         var titleBlock = new TextBlock
         {
@@ -529,7 +527,7 @@ public partial class App : Application
             Margin = new Thickness(0, 0, 0, 8),
         };
         Grid.SetRow(titleBlock, 0);
-        root.Children.Add(titleBlock);
+        formGrid.Children.Add(titleBlock);
 
         var sourceBlock = new TextBlock
         {
@@ -538,7 +536,7 @@ public partial class App : Application
             Margin = new Thickness(0, 0, 0, 4),
         };
         Grid.SetRow(sourceBlock, 1);
-        root.Children.Add(sourceBlock);
+        formGrid.Children.Add(sourceBlock);
 
         var balanceBlock = new TextBlock
         {
@@ -547,7 +545,7 @@ public partial class App : Application
             Margin = new Thickness(0, 0, 0, 10),
         };
         Grid.SetRow(balanceBlock, 2);
-        root.Children.Add(balanceBlock);
+        formGrid.Children.Add(balanceBlock);
 
         var amountLabel = new TextBlock
         {
@@ -555,16 +553,16 @@ public partial class App : Application
             Margin = new Thickness(0, 0, 0, 4),
         };
         Grid.SetRow(amountLabel, 3);
-        root.Children.Add(amountLabel);
+        formGrid.Children.Add(amountLabel);
 
         var amountBox = new TextBox
         {
             Height = 32,
             VerticalContentAlignment = VerticalAlignment.Center,
-            Text = "1000",
+            Text = "20000",
         };
         Grid.SetRow(amountBox, 4);
-        root.Children.Add(amountBox);
+        formGrid.Children.Add(amountBox);
 
         var noteLabel = new TextBlock
         {
@@ -572,7 +570,7 @@ public partial class App : Application
             Margin = new Thickness(0, 10, 0, 4),
         };
         Grid.SetRow(noteLabel, 5);
-        root.Children.Add(noteLabel);
+        formGrid.Children.Add(noteLabel);
 
         var noteBox = new TextBox
         {
@@ -580,7 +578,7 @@ public partial class App : Application
             VerticalContentAlignment = VerticalAlignment.Center,
         };
         Grid.SetRow(noteBox, 6);
-        root.Children.Add(noteBox);
+        formGrid.Children.Add(noteBox);
 
         var hintBlock = new TextBlock
         {
@@ -589,7 +587,7 @@ public partial class App : Application
             Margin = new Thickness(0, 8, 0, 0),
         };
         Grid.SetRow(hintBlock, 7);
-        root.Children.Add(hintBlock);
+        formGrid.Children.Add(hintBlock);
 
         var errorTextBlock = new TextBlock
         {
@@ -598,7 +596,7 @@ public partial class App : Application
             Margin = new Thickness(0, 6, 0, 0),
         };
         Grid.SetRow(errorTextBlock, 8);
-        root.Children.Add(errorTextBlock);
+        formGrid.Children.Add(errorTextBlock);
 
         var actionPanel = new StackPanel
         {
@@ -625,6 +623,75 @@ public partial class App : Application
             BorderBrush = new SolidColorBrush(Color.FromRgb(63, 138, 46)),
         };
 
+        actionPanel.Children.Add(cancelButton);
+        actionPanel.Children.Add(requestButton);
+        Grid.SetRow(actionPanel, 10);
+        formGrid.Children.Add(actionPanel);
+
+        // QR Panel
+        var qrGrid = new StackPanel
+        {
+            Orientation = Orientation.Vertical,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        
+        var qrTitle = new TextBlock
+        {
+            Text = "Quét mã để nạp tiền",
+            FontSize = 16,
+            FontWeight = FontWeights.Medium,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 10)
+        };
+        qrGrid.Children.Add(qrTitle);
+
+        var qrImage = new Image
+        {
+            Width = 200,
+            Height = 200,
+            Stretch = Stretch.Uniform,
+            Margin = new Thickness(0, 0, 0, 10)
+        };
+        qrGrid.Children.Add(qrImage);
+
+        var qrHintBlock = new TextBlock
+        {
+            Text = "Mã QR sẽ tự động cập nhật số tiền\nSau khi chuyển khoản, bấm Gửi yêu cầu",
+            TextAlignment = TextAlignment.Center,
+            Foreground = Brushes.DimGray,
+            FontSize = 12
+        };
+        qrGrid.Children.Add(qrHintBlock);
+
+        Grid.SetColumn(formGrid, 0);
+        mainGrid.Children.Add(formGrid);
+
+        Grid.SetColumn(qrGrid, 1);
+        mainGrid.Children.Add(qrGrid);
+
+        Action updateQrImage = () =>
+        {
+            if (TryParsePositiveMoney(amountBox.Text.Trim(), out var amount) && amount >= 1000)
+            {
+                var memo = $"NAP {sourceMember.Username}";
+                var url = $"https://img.vietqr.io/image/{_vietQrBankId}-{_vietQrAccountNo}-compact2.png?amount={(int)amount}&addInfo={Uri.EscapeDataString(memo)}&accountName={Uri.EscapeDataString(_vietQrAccountName)}";
+                
+                var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = new Uri(url, UriKind.Absolute);
+                bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                bitmap.EndInit();
+                qrImage.Source = bitmap;
+            }
+            else
+            {
+                qrImage.Source = null;
+            }
+        };
+
+        amountBox.TextChanged += (_, _) => updateQrImage();
+        
         requestButton.Click += async (_, _) =>
         {
             errorTextBlock.Text = string.Empty;
@@ -689,16 +756,12 @@ public partial class App : Application
             }
         };
 
-        actionPanel.Children.Add(cancelButton);
-        actionPanel.Children.Add(requestButton);
-        Grid.SetRow(actionPanel, 10);
-        root.Children.Add(actionPanel);
-
-        dialog.Content = root;
+        dialog.Content = mainGrid;
         dialog.Loaded += (_, _) =>
         {
             amountBox.Focus();
             amountBox.SelectAll();
+            updateQrImage(); // Initialize QR image on load
         };
 
         dialog.ShowDialog();

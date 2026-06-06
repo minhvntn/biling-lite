@@ -41,6 +41,7 @@ namespace Server.Admin.App.Windows.Controls
         {
             public string id { get; set; } = string.Empty;
             public string username { get; set; } = string.Empty;
+            public string plainPassword { get; set; } = string.Empty;
             public DateTime createdAt { get; set; }
             public DateTime? comboExpiresAt { get; set; }
             public string status => (comboExpiresAt.HasValue && comboExpiresAt.Value > DateTime.Now) ? "Khả dụng" : "Đã hết hạn";
@@ -287,6 +288,46 @@ namespace Server.Admin.App.Windows.Controls
             await LoadOrGeneratePreCombosAsync();
         }
 
+        private async void BtnDeleteAllPreCombos_Click(object sender, RoutedEventArgs e)
+        {
+            if (MessageBox.Show("Bạn có chắc chắn muốn xóa toàn bộ các Combo đã tạo để tạo lại mới không?", "Xác nhận", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            {
+                BtnDeletePreCombos.IsEnabled = false;
+                BtnDeletePreCombos.Content = "Đang xóa...";
+                
+                try
+                {
+                    var mainWindow = (MainWindow)Application.Current.MainWindow;
+                    var client = mainWindow._httpClient;
+                    var url = mainWindow.BuildApiUrl("/members?memberType=COMBO");
+                    var response = await client.GetAsync(url);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var result = await response.Content.ReadFromJsonAsync<ComboCardResponse>();
+                        if (result != null && result.items != null)
+                        {
+                            foreach (var item in result.items)
+                            {
+                                await client.DeleteAsync(mainWindow.BuildApiUrl($"/members/{item.id}"));
+                            }
+                        }
+                    }
+                    
+                    // Reload and regenerate
+                    await LoadOrGeneratePreCombosAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Lỗi khi xóa: " + ex.Message, "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                finally
+                {
+                    BtnDeletePreCombos.IsEnabled = true;
+                    BtnDeletePreCombos.Content = "Xóa & Tạo Lại";
+                }
+            }
+        }
+
         private async Task LoadOrGeneratePreCombosAsync()
         {
             BtnGeneratePreCombos.IsEnabled = false;
@@ -319,7 +360,7 @@ namespace Server.Admin.App.Windows.Controls
                                 {
                                     comboName = "Combo (Đã tạo)",
                                     username = vc.username,
-                                    password = "***", // Password cannot be retrieved
+                                    password = string.IsNullOrWhiteSpace(vc.plainPassword) ? "***" : vc.plainPassword,
                                     expiresAt = vc.comboExpiresAt ?? DateTime.Now,
                                     price = 0,
                                     startTime = "N/A"

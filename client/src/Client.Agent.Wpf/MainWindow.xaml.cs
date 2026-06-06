@@ -23,7 +23,6 @@ public static decimal PricingStep { get; set; } = 1000m;
     public static decimal MinimumCharge { get; set; } = 1000m;
     private const int DefaultTotalSessionMinutes = 60_000; // 1000 giờ
     private const int VipOrPostpaidTotalSessionMinutes = 6_000; // 100 giờ
-    public event EventHandler? TopupRequestRequested;
 
     public event EventHandler? TimeExpired;
 
@@ -50,7 +49,6 @@ public static decimal PricingStep { get; set; } = 1000m;
     private bool _topupActionEnabledSetting = true;
     private TimeSpan _usedDuration = TimeSpan.Zero;
     private DateTime? _runningStartedAtUtc;
-    private int _fastSyncTickCount = 0;
 
     public MainWindow()
     {
@@ -156,6 +154,8 @@ public static decimal PricingStep { get; set; } = 1000m;
     private string? _currentRank;
     private string? _currentMemberType;
     private string? _currentAvatarId;
+    private string? _currentComboExpiresAt;
+
 
     private void CollapseButton_Click(object sender, RoutedEventArgs e)
     {
@@ -224,7 +224,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         }
         
         // Reapply member info to trigger animation suspension or resumption
-        SetMemberInfo(_currentUsername, _currentRank, _currentMemberType, _currentAvatarId);
+        SetMemberInfo(_currentUsername, _currentRank, _currentMemberType, _currentAvatarId, _currentComboExpiresAt);
     }
 
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
@@ -433,12 +433,13 @@ public static decimal PricingStep { get; set; } = 1000m;
         }
     }
 
-    public void SetMemberInfo(string? username, string? rank, string? memberType = null, string? avatarId = null)
+    public void SetMemberInfo(string? username, string? rank, string? memberType = null, string? avatarId = null, string? comboExpiresAt = null)
     {
         _currentUsername = username;
         _currentRank = rank;
         _currentMemberType = memberType;
         _currentAvatarId = avatarId;
+        _currentComboExpiresAt = comboExpiresAt;
 
         _isMemberSession = !string.IsNullOrWhiteSpace(username);
         _isAdminSession = string.Equals(username, "Admin", StringComparison.OrdinalIgnoreCase) ||
@@ -454,6 +455,27 @@ public static decimal PricingStep { get; set; } = 1000m;
         PasswordActionButton.Visibility = (_isMemberSession && !_isCollapsed) ? Visibility.Visible : Visibility.Collapsed;
         FooterContainer.Visibility = (_isMemberSession && !_isCollapsed) ? Visibility.Visible : Visibility.Collapsed;
         UpdateActionButtonsLayout();
+        
+        if (string.Equals(_currentMemberType, "COMBO", StringComparison.OrdinalIgnoreCase))
+        {
+            MessagesActionButton.Visibility = Visibility.Collapsed;
+            ServicesActionButton.Visibility = Visibility.Collapsed;
+            LoyaltyActionButton.Visibility = Visibility.Collapsed;
+            TransferActionButton.Visibility = Visibility.Collapsed;
+            WithdrawActionButton.Visibility = Visibility.Collapsed;
+            TopupRequestActionButton.Visibility = Visibility.Collapsed;
+            PasswordActionButton.Visibility = Visibility.Collapsed;
+            FooterContainer.Visibility = Visibility.Collapsed;
+            PromotionsContainer.Visibility = Visibility.Collapsed;
+            MemberRankContainer.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            MessagesActionButton.Visibility = Visibility.Visible;
+            ServicesActionButton.Visibility = Visibility.Visible;
+            PromotionsContainer.Visibility = Visibility.Visible;
+            MemberRankContainer.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        }
         if (string.IsNullOrWhiteSpace(username))
         {
             UserInfoPanel.Visibility = Visibility.Collapsed;
@@ -468,7 +490,10 @@ public static decimal PricingStep { get; set; } = 1000m;
         }
 
         UserInfoPanel.Visibility = Visibility.Visible;
-        MemberRankContainer.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        if (!string.Equals(_currentMemberType, "COMBO", StringComparison.OrdinalIgnoreCase))
+        {
+            MemberRankContainer.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        }
         MemberUsernameTextBlock.Text = username;
         
         var avatarToLoad = string.IsNullOrWhiteSpace(avatarId) ? "avatar_1.png" : avatarId;
@@ -876,7 +901,8 @@ public static decimal PricingStep { get; set; } = 1000m;
             return;
         }
 
-        LogoutActionButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        bool isCombo = string.Equals(_currentMemberType, "COMBO", StringComparison.OrdinalIgnoreCase);
+        LogoutActionButton.Visibility = (visible && !isCombo) ? Visibility.Visible : Visibility.Collapsed;
         UpdateActionButtonsLayout();
     }
 
@@ -887,7 +913,8 @@ public static decimal PricingStep { get; set; } = 1000m;
             return;
         }
 
-        TransferActionButton.Visibility = (visible && !_isVipSession) ? Visibility.Visible : Visibility.Collapsed;
+        bool isCombo = string.Equals(_currentMemberType, "COMBO", StringComparison.OrdinalIgnoreCase);
+        TransferActionButton.Visibility = (visible && !_isVipSession && !isCombo) ? Visibility.Visible : Visibility.Collapsed;
         UpdateActionButtonsLayout();
     }
 
@@ -899,7 +926,8 @@ public static decimal PricingStep { get; set; } = 1000m;
             return;
         }
 
-        WithdrawActionButton.Visibility = (visible && _isMemberSession && !_isVipSession) ? Visibility.Visible : Visibility.Collapsed;
+        bool isCombo = string.Equals(_currentMemberType, "COMBO", StringComparison.OrdinalIgnoreCase);
+        WithdrawActionButton.Visibility = (visible && _isMemberSession && !_isVipSession && !isCombo) ? Visibility.Visible : Visibility.Collapsed;
         UpdateActionButtonsLayout();
     }
 
@@ -911,7 +939,8 @@ public static decimal PricingStep { get; set; } = 1000m;
             return;
         }
 
-        TopupRequestActionButton.Visibility = (visible && _isMemberSession && !_isVipSession) ? Visibility.Visible : Visibility.Collapsed;
+        bool isCombo = string.Equals(_currentMemberType, "COMBO", StringComparison.OrdinalIgnoreCase);
+        TopupRequestActionButton.Visibility = (visible && _isMemberSession && !_isVipSession && !isCombo) ? Visibility.Visible : Visibility.Collapsed;
         UpdateActionButtonsLayout();
     }
 
@@ -1182,9 +1211,34 @@ public static decimal PricingStep { get; set; } = 1000m;
 
         TotalTimeValueTextBlock.Text = FormatSeconds(displayTotalSecs);
         UsedTimeValueTextBlock.Text = FormatSeconds(displayUsedSecs);
-        RemainingTimeValueTextBlock.Text = FormatSeconds(displayRemainingSecs);
+        var isUnlimitedCombo = string.Equals(_currentMemberType, "COMBO", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(_currentComboExpiresAt) && displayRemainingSecs > 100000 * 3600;
 
-        bool showTotalTime = (_isMemberSession && !_isVipSession && !_isAdminSession) || 
+        if (string.Equals(_currentMemberType, "COMBO", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(_currentComboExpiresAt))
+        {
+            if (isUnlimitedCombo) // Unlimited combo
+            {
+                if (DateTime.TryParse(_currentComboExpiresAt, out var parsedExpiresAt))
+                {
+                    var startTime = DateTime.Now.AddSeconds(-displayUsedSecs).ToString("HH:mm");
+                    var endTime = parsedExpiresAt.ToLocalTime().ToString("HH:mm");
+                    RemainingTimeValueTextBlock.Text = $"{startTime} - {endTime}";
+                }
+                else
+                {
+                    RemainingTimeValueTextBlock.Text = _currentComboExpiresAt;
+                }
+            }
+            else // Limited combo
+            {
+                RemainingTimeValueTextBlock.Text = FormatSeconds(displayRemainingSecs);
+            }
+        }
+        else
+        {
+            RemainingTimeValueTextBlock.Text = FormatSeconds(displayRemainingSecs);
+        }
+
+        bool showTotalTime = (_isMemberSession && !_isVipSession && !_isAdminSession && !isUnlimitedCombo) || 
                              (!_isMemberSession && !_isPostpaidSession && !_isAdminSession);
         var totalTimeVisibility = showTotalTime ? Visibility.Visible : Visibility.Collapsed;
         TotalTimeContainer.Visibility = totalTimeVisibility;
@@ -1520,6 +1574,12 @@ public static decimal PricingStep { get; set; } = 1000m;
             : _serviceOrderCount.ToString(CultureInfo.InvariantCulture);
     }
 
+
+    private void ComboPackagesButton_Click(object sender, RoutedEventArgs e)
+    {
+        var window = new ComboPackagesWindow();
+        window.ShowDialog();
+    }
 
     private void MessagesButton_Click(object sender, RoutedEventArgs e)
     {

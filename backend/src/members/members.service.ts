@@ -162,7 +162,7 @@ export class MembersService {
 
     if (memberType) {
       where.memberType = memberType;
-    } else {
+    } else if (!keyword) {
       where.memberType = { not: 'COMBO' };
     }
 

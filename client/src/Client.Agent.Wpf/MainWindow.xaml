@@ -396,7 +396,7 @@
 
                         <!-- Action Buttons Grid (3x3) using SVG Paths for perfect Neon Icons -->
                         <UniformGrid x:Name="ActionButtonsGrid" Grid.Row="1" Columns="3" VerticalAlignment="Center">
-                            <Button Style="{StaticResource ActionButtonStyle}" Click="MessagesButton_Click">
+                            <Button x:Name="MessagesActionButton" Style="{StaticResource ActionButtonStyle}" Click="MessagesButton_Click">
                                 <StackPanel>
                                     <Viewbox Width="26" Height="26" Margin="0,0,0,8">
                                         <Path Style="{StaticResource NeonIconStyle}" Data="M3,7 C3,5 5,3 8,3 L16,3 C19,3 21,5 21,7 L21,15 C21,17 19,19 16,19 L10,19 L5,22 L5,19 C4,18 3,16 3,15 Z">
@@ -410,7 +410,7 @@
                                 </StackPanel>
                             </Button>
 
-                            <Button Style="{StaticResource ActionButtonStyle}" Click="ServicesButton_Click">
+                            <Button x:Name="ServicesActionButton" Style="{StaticResource ActionButtonStyle}" Click="ServicesButton_Click">
                                 <StackPanel>
                                     <Grid Width="40" Height="34" HorizontalAlignment="Center" Margin="0,0,0,6">
                                         <Viewbox Width="26" Height="26" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -482,6 +482,18 @@
                                     <!-- Keep hidden textblock to preserve x:Name binding -->
                                     <TextBlock x:Name="TopupRequestIconTextBlock" Visibility="Collapsed" />
                                     <TextBlock x:Name="TopupRequestLabelTextBlock" Text="Nạp tiền" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#1E293B" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="ComboPackagesActionButton" Style="{StaticResource ActionButtonStyle}" Click="ComboPackagesButton_Click">
+                                <StackPanel>
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                        <Path Style="{StaticResource NeonIconStyle}" Data="M20,6 L12,2 L4,6 L4,18 L12,22 L20,18 L20,6 Z M12,2 L12,12 M4,6 L12,12 M20,6 L12,12">
+                                            <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#10B981" Offset="0"/><GradientStop Color="#059669" Offset="1"/></LinearGradientBrush></Path.Stroke>
+                                            <Path.Effect><DropShadowEffect Color="#10B981" BlurRadius="8" ShadowDepth="0" Opacity="0"/></Path.Effect>
+                                        </Path>
+                                    </Viewbox>
+                                    <TextBlock x:Name="ComboPackagesLabelTextBlock" Text="Gói combo" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#1E293B" />
                                 </StackPanel>
                             </Button>
 

@@ -67,17 +67,20 @@ public partial class ServiceOrderWindow : Window
         if (SummaryItemCountTextBlock != null)
             SummaryItemCountTextBlock.Text = $"Đã chọn {selectedItemCount} món";
             
+        if (SummaryNetTextBlock != null)
+            SummaryNetTextBlock.Text = $"Tạm tính: {totalAddedAmount:N0} đ";
+            
         if (SummaryAddedTextBlock != null)
             SummaryAddedTextBlock.Text = $"{totalAddedAmount:N0} đ";
             
         if (SummaryCanceledTextBlock != null)
             SummaryCanceledTextBlock.Text = $"{totalCanceledAmount:N0} đ";
+
+        if (SummaryDiffTextBlock != null)
+            SummaryDiffTextBlock.Text = $"{netAmount:N0} đ";
             
-        if (SummaryNetTextBlock != null)
-        {
-            SummaryNetTextBlock.Text = $"{netAmount:N0} đ";
+        if (SummaryTotalTextBlock != null)
             SummaryTotalTextBlock.Text = $"{netAmount:N0} đ";
-        }
 
         if (EmptyCartPanel != null && CartItemsScrollViewer != null)
         {
@@ -140,6 +143,16 @@ public partial class ServiceOrderWindow : Window
         }
     }
 
+    private void RemoveFromCart_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement element && element.Tag is ClientServiceOrderSelectionRow row)
+        {
+            // Set quantity to 0 to remove from cart
+            while (row.Quantity > 0) row.DecreaseQuantity();
+            while (row.Quantity < 0) row.IncreaseQuantity();
+        }
+    }
+
     private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
         DialogResult = false;
@@ -171,8 +184,7 @@ public partial class ServiceOrderWindow : Window
     public void SetProcessing(bool isProcessing)
     {
         // Disable or enable buttons during processing
-        var buttonsPanel = (StackPanel)SummaryTextBlock.Parent;
-        if (buttonsPanel.Children.Count >= 3 && buttonsPanel.Children[2] is StackPanel actionPanel)
+        if (ErrorTextBlock.Parent is StackPanel actionPanel)
         {
             foreach (var child in actionPanel.Children)
             {

@@ -62,6 +62,7 @@ public sealed class MemberLoginItem
     public string? Rank { get; set; }
     public string MemberType { get; set; } = "REGULAR";
     public string? AvatarId { get; set; }
+    public string? ComboExpiresAt { get; set; }
 }
 
 public sealed class LoyaltySettingsResponse
@@ -95,6 +96,9 @@ public sealed class ClientRuntimeSettingsResponse
     public bool AllowMemberTopupRequest { get; set; } = true;
     public int AutoCollapseIntervalSeconds { get; set; } = 0;
     public string? GameLauncherPath { get; set; }
+    public string? VietQrBankId { get; set; }
+    public string? VietQrAccountNo { get; set; }
+    public string? VietQrAccountName { get; set; }
 
     public string ServerTime { get; set; } = string.Empty;
 }
@@ -320,6 +324,7 @@ public sealed class ActiveMemberSession
     public string? Rank { get; set; }
     public string MemberType { get; set; } = "REGULAR";
     public string? AvatarId { get; set; }
+    public string? ComboExpiresAt { get; set; }
 }
 
 public sealed class ClientPcListResponse

@@ -163,7 +163,14 @@
                 
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
                     <TextBlock Text="Danh sách thẻ Combo sẵn sàng" FontSize="18" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center" />
-                    <Button x:Name="BtnGeneratePreCombos" Content="Tạo mới toàn bộ" Margin="20,0,0,0" Padding="15,8" Background="#10B981" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnGeneratePreCombos_Click" Visibility="Collapsed">
+                    <Button x:Name="BtnDeletePreCombos" Content="Xóa &amp; Tạo Lại" Margin="20,0,0,0" Padding="15,8" Background="#EF4444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnDeleteAllPreCombos_Click">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="4"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                    <Button x:Name="BtnGeneratePreCombos" Content="Tạo mới toàn bộ" Margin="10,0,0,0" Padding="15,8" Background="#10B981" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnGeneratePreCombos_Click" Visibility="Visible">
                         <Button.Resources>
                             <Style TargetType="Border">
                                 <Setter Property="CornerRadius" Value="4"/>

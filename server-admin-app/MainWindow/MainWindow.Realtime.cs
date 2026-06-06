@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -521,9 +521,8 @@ public partial class MainWindow : Window
         {
             Title = $"Thông báo order dịch vụ - {machineName}",
             Width = 560,
-            Height = 360,
             MinWidth = 520,
-            MinHeight = 320,
+            SizeToContent = SizeToContent.Height,
             ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             ShowInTaskbar = false,
@@ -569,10 +568,12 @@ public partial class MainWindow : Window
 
         var listBox = new ListBox
         {
-            Margin = new Thickness(4, 0, 4, 0),
-            FontSize = 13,
+            Margin = new Thickness(4, 0, 4, 10),
+            FontSize = 16,
+            BorderThickness = new Thickness(0),
             ItemsSource = items.Select(x => $"- {x.ServiceName}: {x.Quantity:N0} ({x.LineTotal:N0} VND)").ToList(),
         };
+        ScrollViewer.SetVerticalScrollBarVisibility(listBox, ScrollBarVisibility.Disabled);
         Grid.SetRow(listBox, 1);
         contentGrid.Children.Add(listBox);
 

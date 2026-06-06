@@ -1,0 +1,205 @@
+<Window x:Class="Client.Agent.Wpf.ComboPackagesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Gói Combo" Height="600" Width="900"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        FontFamily="Segoe UI">
+    
+    <Window.Resources>
+        <!-- Custom ScrollBar for ListBox -->
+        <Style TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Width" Value="6" />
+        </Style>
+    </Window.Resources>
+
+    <Border Background="White" CornerRadius="16" BorderThickness="1" BorderBrush="#E2E8F0">
+        <Border.Effect>
+            <DropShadowEffect Color="#0F172A" BlurRadius="30" ShadowDepth="10" Opacity="0.15"/>
+        </Border.Effect>
+        <Grid Margin="30">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- Header -->
+                <RowDefinition Height="Auto"/> <!-- Table Header -->
+                <RowDefinition Height="*"/>    <!-- ListBox -->
+                <RowDefinition Height="Auto"/> <!-- Footer -->
+            </Grid.RowDefinitions>
+            
+            <!-- Header -->
+            <Grid Grid.Row="0" Margin="0,0,0,30">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- Icon -->
+                <Border Width="56" Height="56" CornerRadius="14" Background="#DCFCE7" Margin="0,0,16,0">
+                    <TextBlock Text="&#xE7FC;" FontFamily="Segoe MDL2 Assets" FontSize="28" Foreground="#22C55E" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                
+                <!-- Title & Subtitle -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="Các Gói Combo" FontSize="28" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,4"/>
+                    <TextBlock Text="Danh sách các gói combo dịch vụ hiện có." FontSize="15" Foreground="#64748B"/>
+                </StackPanel>
+                
+                <!-- Close Button -->
+                <Button Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Top" Width="36" Height="36" Background="Transparent" BorderThickness="0" Cursor="Hand" Click="CloseButton_Click" ToolTip="Đóng">
+                    <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#8B5CF6" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold"/>
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Bg" Background="Transparent" CornerRadius="18">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bg" Property="Background" Value="#F3E8FF"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+
+            <!-- Table Header -->
+            <Border Grid.Row="1" Background="#F8FAFC" CornerRadius="10" Padding="20,15" Margin="0,0,0,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2.5*" /> <!-- Name -->
+                        <ColumnDefinition Width="1*" /> <!-- Start -->
+                        <ColumnDefinition Width="1*" /> <!-- End -->
+                        <ColumnDefinition Width="1*" /> <!-- Validity -->
+                    </Grid.ColumnDefinitions>
+                    
+                    <StackPanel Orientation="Horizontal" Grid.Column="0">
+                        <TextBlock Text="&#xE8EC;" FontFamily="Segoe MDL2 Assets" Foreground="#8B5CF6" Margin="0,0,8,0" VerticalAlignment="Center" FontSize="15"/>
+                        <TextBlock Text="Tên gói" Foreground="#64748B" FontWeight="SemiBold" FontSize="15"/>
+                    </StackPanel>
+                    
+                    <StackPanel Orientation="Horizontal" Grid.Column="1">
+                        <TextBlock Text="&#xE121;" FontFamily="Segoe MDL2 Assets" Foreground="#8B5CF6" Margin="0,0,8,0" VerticalAlignment="Center" FontSize="15"/>
+                        <TextBlock Text="Giờ BĐ" Foreground="#64748B" FontWeight="SemiBold" FontSize="15"/>
+                    </StackPanel>
+                    
+                    <StackPanel Orientation="Horizontal" Grid.Column="2">
+                        <TextBlock Text="&#xE121;" FontFamily="Segoe MDL2 Assets" Foreground="#8B5CF6" Margin="0,0,8,0" VerticalAlignment="Center" FontSize="15"/>
+                        <TextBlock Text="Giờ KT" Foreground="#64748B" FontWeight="SemiBold" FontSize="15"/>
+                    </StackPanel>
+                    
+                    <StackPanel Orientation="Horizontal" Grid.Column="3">
+                        <TextBlock Text="&#xE787;" FontFamily="Segoe MDL2 Assets" Foreground="#8B5CF6" Margin="0,0,8,0" VerticalAlignment="Center" FontSize="15"/>
+                        <TextBlock Text="Thời hạn" Foreground="#64748B" FontWeight="SemiBold" FontSize="15"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ListBox for Items -->
+            <ListBox x:Name="ComboListBox" Grid.Row="2" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     HorizontalContentAlignment="Stretch">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <Border x:Name="ItemBorder" BorderThickness="0,0,0,1" BorderBrush="#F1F5F9" Padding="20,15" Background="Transparent">
+                                        <ContentPresenter />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="ItemBorder" Property="Background" Value="#F8FAFC" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2.5*" /> <!-- Name -->
+                                <ColumnDefinition Width="1*" /> <!-- Start -->
+                                <ColumnDefinition Width="1*" /> <!-- End -->
+                                <ColumnDefinition Width="1*" /> <!-- Validity -->
+                            </Grid.ColumnDefinitions>
+                            
+                            <!-- Icon + Name -->
+                            <StackPanel Orientation="Horizontal" Grid.Column="0">
+                                <Border Width="40" Height="40" CornerRadius="10" Background="#EFF6FF" Margin="0,0,16,0">
+                                    <TextBlock Text="&#xE7FC;" FontFamily="Segoe MDL2 Assets" Foreground="#3B82F6" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="20"/>
+                                </Border>
+                                <TextBlock Text="{Binding name}" FontWeight="SemiBold" FontSize="16" Foreground="#1E293B" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            
+                            <!-- Start -->
+                            <TextBlock Grid.Column="1" Text="{Binding startTime}" FontSize="15" Foreground="#475569" VerticalAlignment="Center"/>
+                            
+                            <!-- End -->
+                            <TextBlock Grid.Column="2" Text="{Binding endTime}" FontSize="15" Foreground="#475569" VerticalAlignment="Center"/>
+                            
+                            <!-- Validity -->
+                            <StackPanel Orientation="Horizontal" Grid.Column="3" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding validityDays}" FontSize="15" Foreground="#475569"/>
+                                <TextBlock Text=" ngày" FontSize="15" Foreground="#475569"/>
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <TextBlock x:Name="LoadingText" Grid.Row="2" Text="Đang tải dữ liệu..." HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16" Foreground="#94A3B8" Visibility="Collapsed"/>
+
+            <!-- Footer -->
+            <Grid Grid.Row="3" Margin="0,20,0,0">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Tổng: " FontSize="15" Foreground="#64748B"/>
+                    <TextBlock x:Name="TotalCountText" Text="0" FontSize="15" FontWeight="Bold" Foreground="#8B5CF6"/>
+                    <TextBlock Text=" gói combo" FontSize="15" Foreground="#64748B"/>
+                </StackPanel>
+                
+                <!-- Close Button Bottom -->
+                <Button HorizontalAlignment="Right" Padding="20,10" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" Cursor="Hand" Click="CloseButton_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="8"/>
+                        </Style>
+                    </Button.Resources>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE711;" FontFamily="Segoe MDL2 Assets" FontSize="12" Foreground="#475569" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="Bold"/>
+                        <TextBlock Text="Đóng" FontSize="15" FontWeight="SemiBold" Foreground="#475569" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="BtnBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="BtnBorder" Property="Background" Value="#F1F5F9"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

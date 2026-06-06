@@ -4,24 +4,35 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Dịch vụ" Height="760" Width="1280"
+        Title="Dịch vụ" Height="820" Width="1280"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         MouseLeftButtonDown="Window_MouseLeftButtonDown">
     
     <Window.Resources>
         <!-- ScrollViewer Customization for sleek look -->
-        <Style TargetType="ScrollBar">
+        <Style TargetType="{x:Type ScrollBar}">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Width" Value="8"/>
+            <Setter Property="Width" Value="3"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="ScrollBar">
-                        <Grid>
-                            <Border Background="Transparent"/>
+                    <ControlTemplate TargetType="{x:Type ScrollBar}">
+                        <Grid Background="Transparent">
                             <Track x:Name="PART_Track" IsDirectionReversed="true">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False"/>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False"/>
+                                </Track.IncreaseRepeatButton>
                                 <Track.Thumb>
-                                    <Thumb Background="#33000000" Margin="0" />
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="#CBD5E1" CornerRadius="2" Margin="0"/>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
                                 </Track.Thumb>
                             </Track>
                         </Grid>
@@ -32,126 +43,93 @@
 
         <!-- Service Item Card Style -->
         <DataTemplate x:Key="ServiceItemCardTemplate">
-            <Grid Height="260" Margin="8">
-                <!-- Shadow layer -->
-                <Border CornerRadius="12" Background="#E6FFFFFF">
-                    <Border.Effect>
-                        <DropShadowEffect Color="#000000" Opacity="0.08" BlurRadius="10" Direction="270" ShadowDepth="4" />
-                    </Border.Effect>
-                </Border>
-                <!-- Content layer -->
-                <Border CornerRadius="12" Background="#E6FFFFFF" BorderBrush="#20000000" BorderThickness="1">
-                    <Grid>
+            <Border Margin="0,0,16,16" Background="White" CornerRadius="12" BorderBrush="#F1F5F9" BorderThickness="1">
+                <Border.Effect>
+                    <DropShadowEffect Color="#000000" Opacity="0.04" BlurRadius="8" Direction="270" ShadowDepth="2" />
+                </Border.Effect>
+                <Grid Height="280">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="120"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="140"/>
                         <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <!-- Image -->
+                    <!-- Image Section -->
                     <Border Grid.Row="0" CornerRadius="12,12,0,0" Background="#F8FAFC" ClipToBounds="True">
-                        <Image Source="{Binding ServiceImageSource}" Stretch="Uniform" Margin="4" SnapsToDevicePixels="True"/>
+                        <Grid>
+                            <Image Source="{Binding ServiceImageSource}" Stretch="UniformToFill" SnapsToDevicePixels="True"/>
+                            <!-- Category Badge -->
+                            <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" 
+                                    Background="#E6FFFFFF" CornerRadius="12" Padding="8,4">
+                                <TextBlock Text="{Binding Category}" FontSize="12" Foreground="#475569" FontWeight="Medium"/>
+                            </Border>
+                        </Grid>
                     </Border>
                     
-                    <Border Grid.Row="0" CornerRadius="12,12,0,0" BorderBrush="#10000000" BorderThickness="0,0,0,1"/>
+                    <!-- Content Section -->
+                    <Grid Grid.Row="1" Margin="16,12,16,12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                    <!-- Category tag -->
-                    <Border Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Top" 
-                            Margin="8" Background="#E6FFFFFF" CornerRadius="6" Padding="6,2">
-                        <TextBlock Text="{Binding Category}" FontSize="11" Foreground="#475569" FontWeight="Medium"/>
-                    </Border>
+                        <!-- Name -->
+                        <TextBlock Grid.Row="0" Text="{Binding ServiceName}" FontSize="15" FontWeight="Bold" 
+                                   Foreground="#1E293B" TextWrapping="Wrap" MaxHeight="40" TextTrimming="CharacterEllipsis"/>
 
-                    <!-- Name -->
-                    <TextBlock Grid.Row="1" Text="{Binding ServiceName}" FontSize="15" FontWeight="SemiBold" 
-                               Foreground="#1E293B" Margin="12,10,12,4" TextWrapping="Wrap" MaxHeight="40" TextTrimming="CharacterEllipsis"/>
+                        <!-- Price -->
+                        <TextBlock Grid.Row="1" Text="{Binding UnitPriceText}" FontSize="14" FontWeight="Bold" 
+                                   Foreground="#8B5CF6" Margin="0,4,0,0"/>
 
-                    <!-- Price -->
-                    <TextBlock Grid.Row="2" Text="{Binding UnitPriceText}" FontSize="14" FontWeight="Bold" 
-                               Foreground="#3B82F6" Margin="12,0,12,8"/>
-
-                    <!-- Order Stats -->
-                    <StackPanel Grid.Row="3" Margin="12,0" VerticalAlignment="Top">
-                        <TextBlock FontSize="12" Foreground="#64748B" TextWrapping="Wrap">
-                            <Run Text="Đã gọi: " FontWeight="Medium"/>
-                            <Run Text="{Binding ExistingText, Mode=OneWay}"/>
-                        </TextBlock>
-                    </StackPanel>
-
-                    <!-- Quantity Control -->
-                    <Border Grid.Row="4" Margin="12,10,12,12" Background="#F1F5F9" CornerRadius="8" Padding="4">
-                        <Grid>
+                        <!-- Quantity Control -->
+                        <Grid Grid.Row="3" Margin="0,12,0,0">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="36"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="36"/>
                             </Grid.ColumnDefinitions>
                             
                             <!-- Decrease -->
-                            <Button Grid.Column="0" Content="-" Width="32" Height="32" Padding="0" 
-                                    FontSize="18" FontWeight="Bold" Foreground="#DC2626" Background="#FEE2E2" 
-                                    BorderBrush="Transparent" IsEnabled="{Binding CanDecrease}"
+                            <Button Grid.Column="0" Content="-" Height="36" Padding="0" 
+                                    FontSize="18" FontWeight="Medium" Foreground="#64748B" Background="White" 
+                                    BorderBrush="#E2E8F0" BorderThickness="1" IsEnabled="{Binding CanDecrease}"
                                     Click="DecreaseQuantity_Click" Tag="{Binding}">
                                 <Button.Resources>
                                     <Style TargetType="Border">
-                                        <Setter Property="CornerRadius" Value="6"/>
+                                        <Setter Property="CornerRadius" Value="8"/>
                                     </Style>
                                 </Button.Resources>
                             </Button>
                             
                             <!-- Value -->
-                            <TextBlock Grid.Column="1" Text="{Binding Quantity}" FontSize="16" FontWeight="Bold" 
+                            <TextBlock Grid.Column="1" Text="{Binding Quantity}" FontSize="16" FontWeight="SemiBold" 
                                        Foreground="#0F172A" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                        
                             <!-- Increase -->
-                            <Button Grid.Column="2" Content="+" Width="32" Height="32" Padding="0" 
-                                    FontSize="18" FontWeight="Bold" Foreground="#16A34A" Background="#DCFCE7" 
-                                    BorderBrush="Transparent" Click="IncreaseQuantity_Click" Tag="{Binding}">
+                            <Button Grid.Column="2" Content="+" Height="36" Padding="0" 
+                                    FontSize="18" FontWeight="Medium" Foreground="#10B981" Background="#D1FAE5" 
+                                    BorderThickness="0" Click="IncreaseQuantity_Click" Tag="{Binding}">
                                 <Button.Resources>
                                     <Style TargetType="Border">
-                                        <Setter Property="CornerRadius" Value="6"/>
+                                        <Setter Property="CornerRadius" Value="8"/>
                                     </Style>
                                 </Button.Resources>
                             </Button>
                         </Grid>
-                    </Border>
                     </Grid>
-                </Border>
-            </Grid>
+                </Grid>
+            </Border>
         </DataTemplate>
     </Window.Resources>
 
     <!-- Main Window Content Container -->
-    <Grid>
-        <!-- Shadow Layer -->
-        <Border CornerRadius="16" Background="White">
-            <Border.Effect>
-                <DropShadowEffect Color="#000000" Opacity="0.15" BlurRadius="25" ShadowDepth="10" />
-            </Border.Effect>
-        </Border>
+    <Border CornerRadius="16" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" Margin="10">
+        <Border.Effect>
+            <DropShadowEffect Color="#000000" Opacity="0.1" BlurRadius="25" ShadowDepth="10" />
+        </Border.Effect>
 
-        <!-- Main Glassmorphism Content -->
-        <Border CornerRadius="16" BorderBrush="#80FFFFFF" BorderThickness="1.5">
-            <Border.Background>
-                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop x:Name="BgStop1" Color="#FFF0F8FF" Offset="0.0" />
-                    <GradientStop x:Name="BgStop2" Color="#FFE6FAFF" Offset="0.5" />
-                    <GradientStop x:Name="BgStop3" Color="#FFF0FFF0" Offset="1.0" />
-                </LinearGradientBrush>
-            </Border.Background>
-            <Border.Triggers>
-                <EventTrigger RoutedEvent="FrameworkElement.Loaded">
-                    <BeginStoryboard>
-                        <Storyboard RepeatBehavior="Forever" AutoReverse="True">
-                            <ColorAnimation Storyboard.TargetName="BgStop1" Storyboard.TargetProperty="Color" To="#FFFFE4E1" Duration="0:0:6" />
-                            <ColorAnimation Storyboard.TargetName="BgStop2" Storyboard.TargetProperty="Color" To="#FFF0FFFF" Duration="0:0:8" />
-                            <ColorAnimation Storyboard.TargetName="BgStop3" Storyboard.TargetProperty="Color" To="#FFFFF0F5" Duration="0:0:7" />
-                        </Storyboard>
-                    </BeginStoryboard>
-                </EventTrigger>
-            </Border.Triggers>
-            <Grid>
+        <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -159,18 +137,25 @@
             </Grid.RowDefinitions>
 
             <!-- Header -->
-            <Border Grid.Row="0" Padding="20,16" BorderBrush="#15000000" BorderThickness="0,0,0,1">
+            <Border Grid.Row="0" Padding="24,20" Background="Transparent">
                 <Grid>
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock x:Name="TitleTextBlock" Text="Máy trạm: PC" FontSize="22" FontWeight="Bold" Foreground="#0F172A"/>
-                        <TextBlock x:Name="OrderedPreviewTextBlock" Text="Đã gọi: Chưa gửi dịch vụ." FontSize="13" Foreground="#64748B" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                    
+                    <!-- Icon -->
+                    <Border Grid.Column="0" Width="48" Height="48" Background="#EDE9FE" CornerRadius="12" Margin="0,0,16,0">
+                        <TextBlock Text="🖥️" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock x:Name="TitleTextBlock" Text="Máy trạm: PC-12" FontSize="20" FontWeight="Bold" Foreground="#1E293B"/>
+                        <TextBlock x:Name="OrderedPreviewTextBlock" Text="Đã gọi: Chưa gửi dịch vụ." FontSize="14" Foreground="#64748B" Margin="0,2,0,0"/>
                     </StackPanel>
                     
-                    <Button Grid.Column="1" Content="✕" Width="36" Height="36" Background="Transparent" BorderThickness="0" 
+                    <Button Grid.Column="2" Content="✕" Width="36" Height="36" Background="Transparent" BorderThickness="0" 
                             FontSize="18" Foreground="#64748B" FontWeight="Bold" IsCancel="True" Click="CloseButton_Click">
                         <Button.Resources>
                             <Style TargetType="Border">
@@ -181,27 +166,34 @@
                 </Grid>
             </Border>
 
-            <Grid Grid.Row="1" Margin="10">
+            <!-- Main Content -->
+            <Grid Grid.Row="1" Margin="24,0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="220"/>
+                    <ColumnDefinition Width="180"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="350"/>
+                    <ColumnDefinition Width="240"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Category Menu -->
-                <Border Grid.Column="0" Margin="0,0,10,0" Background="#F8FAFC" CornerRadius="12" BorderBrush="#15000000" BorderThickness="1">
-                    <Grid Margin="12">
+                <!-- Left Panel: Category Menu -->
+                <Border Grid.Column="0" Background="White" CornerRadius="16" Margin="0,0,24,0">
+                    <Grid Margin="16,20">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Text="Mục lục" FontSize="18" FontWeight="Bold" Foreground="#1E293B" Margin="4,0,0,12"/>
+                        
+                        <TextBlock Grid.Row="0" Text="Danh mục" FontSize="18" FontWeight="Bold" Foreground="#1E293B" Margin="4,0,0,16"/>
                         
                         <!-- Search Box -->
-                        <Border Grid.Row="1" Background="White" CornerRadius="8" BorderThickness="1" BorderBrush="#E2E8F0" Padding="8,6" Margin="0,0,0,12">
+                        <Border Grid.Row="1" Background="#F1F5F9" CornerRadius="8" Padding="12,10" Margin="0,0,0,16">
                             <Grid>
-                                <TextBlock Text="Tìm kiếm..." Foreground="#94A3B8" VerticalAlignment="Center" IsHitTestVisible="False">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="🔍" FontSize="14" Foreground="#94A3B8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="Tìm kiếm món..." Foreground="#94A3B8" VerticalAlignment="Center" IsHitTestVisible="False">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -213,24 +205,49 @@
                                         </Style>
                                     </TextBlock.Style>
                                 </TextBlock>
-                                <TextBox x:Name="SearchTextBox" TextChanged="SearchTextBox_TextChanged" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" FontSize="14" Foreground="#1E293B"/>
+                                <TextBox Grid.Column="1" x:Name="SearchTextBox" TextChanged="SearchTextBox_TextChanged" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" FontSize="14" Foreground="#1E293B"/>
                             </Grid>
                         </Border>
 
                         <!-- Category List -->
                         <ListBox Grid.Row="2" x:Name="CategoryListBox" SelectionChanged="CategoryListBox_SelectionChanged" BorderThickness="0" Background="Transparent" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock x:Name="IconTxt" Text="🏷️" FontSize="16" Margin="0,0,12,0" Foreground="#8B5CF6"/>
+                                        <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding}" Value="Tất cả">
+                                            <Setter TargetName="IconTxt" Property="Text" Value="🎛️"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding}" Value="Nước">
+                                            <Setter TargetName="IconTxt" Property="Text" Value="🥤"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding}" Value="Đồ ăn">
+                                            <Setter TargetName="IconTxt" Property="Text" Value="🍜"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding}" Value="Ăn vặt">
+                                            <Setter TargetName="IconTxt" Property="Text" Value="🍟"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding}" Value="Thuốc">
+                                            <Setter TargetName="IconTxt" Property="Text" Value="💊"/>
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
                             <ListBox.ItemContainerStyle>
                                 <Style TargetType="ListBoxItem">
-                                    <Setter Property="Padding" Value="12,10"/>
+                                    <Setter Property="Padding" Value="16,14"/>
                                     <Setter Property="Margin" Value="0,0,0,4"/>
                                     <Setter Property="Background" Value="Transparent"/>
                                     <Setter Property="Foreground" Value="#475569"/>
                                     <Setter Property="FontSize" Value="15"/>
-                                    <Setter Property="FontWeight" Value="Medium"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
                                     <Setter Property="Template">
                                         <Setter.Value>
                                             <ControlTemplate TargetType="ListBoxItem">
-                                                <Border Background="{TemplateBinding Background}" CornerRadius="8">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="12">
                                                     <ContentPresenter Margin="{TemplateBinding Padding}"/>
                                                 </Border>
                                             </ControlTemplate>
@@ -238,18 +255,18 @@
                                     </Setter>
                                     <Style.Triggers>
                                         <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="#3B82F6"/>
+                                            <Setter Property="Background" Value="#8B5CF6"/>
                                             <Setter Property="Foreground" Value="White"/>
                                         </Trigger>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#E2E8F0"/>
+                                            <Setter Property="Background" Value="#F1F5F9"/>
                                         </Trigger>
                                         <MultiTrigger>
                                             <MultiTrigger.Conditions>
                                                 <Condition Property="IsSelected" Value="True"/>
                                                 <Condition Property="IsMouseOver" Value="True"/>
                                             </MultiTrigger.Conditions>
-                                            <Setter Property="Background" Value="#2563EB"/>
+                                            <Setter Property="Background" Value="#7C3AED"/>
                                         </MultiTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -258,30 +275,91 @@
                     </Grid>
                 </Border>
 
-                <!-- Services Grid -->
-                <ScrollViewer Grid.Column="1" Margin="0,0,10,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <ItemsControl x:Name="ServicesItemsControl" ItemTemplate="{StaticResource ServiceItemCardTemplate}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <UniformGrid Columns="3" VerticalAlignment="Top"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                    </ItemsControl>
-                </ScrollViewer>
+                <!-- Center Panel: Services Grid -->
+                <Grid Grid.Column="1" Margin="0,0,24,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
 
-                <!-- Cart Panel -->
-                <Border Grid.Column="2" Background="#E6FFFFFF" CornerRadius="12" BorderBrush="#15000000" BorderThickness="1">
+                    <!-- Center Toolbar -->
+                    <Grid Grid.Row="0" Margin="0,0,0,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <TextBlock Grid.Column="0" Text="Tất cả món" FontSize="18" FontWeight="Bold" Foreground="#1E293B" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Border Grid.Column="1" Background="#F1F5F9" CornerRadius="12" Padding="12,4" VerticalAlignment="Center">
+                            <TextBlock x:Name="ServiceCountBadge" Text="12 món" FontSize="13" Foreground="#64748B" FontWeight="Medium"/>
+                        </Border>
+                        
+                        <!-- Right Tools (Mock UI) -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Border Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1" Margin="0,0,12,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="⊞" Width="40" Height="36" Background="#8B5CF6" Foreground="White" BorderThickness="0" FontSize="18" ToolTip="Dạng lưới">
+                                        <Button.Resources>
+                                            <Style TargetType="Border">
+                                                <Setter Property="CornerRadius" Value="8,0,0,8"/>
+                                            </Style>
+                                        </Button.Resources>
+                                    </Button>
+                                    <Button Content="≡" Width="40" Height="36" Background="Transparent" Foreground="#64748B" BorderThickness="0" FontSize="18" ToolTip="Dạng danh sách"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1" Padding="12,0">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Height="36">
+                                    <TextBlock Text="Mới nhất" Foreground="#475569" FontSize="14" FontWeight="Medium" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBlock Text="⌄" Foreground="#64748B" FontSize="14" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Services Grid -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,4,0">
+                        <ItemsControl x:Name="ServicesItemsControl" ItemTemplate="{StaticResource ServiceItemCardTemplate}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="4" VerticalAlignment="Top"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- Right Panel: Cart -->
+                <Border Grid.Column="2" Background="White" CornerRadius="16">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Text="Giỏ hàng của bạn" FontSize="16" FontWeight="Bold" Foreground="#1E293B" Margin="16,16,16,8"/>
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        
+                        <!-- Header -->
+                        <Border Grid.Row="0" Background="#F8FAFC" CornerRadius="16,16,0,0" Padding="20,16">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🛒" FontSize="18" Margin="0,0,8,0" Foreground="#8B5CF6"/>
+                                <TextBlock Text="Giỏ hàng của bạn" FontSize="16" FontWeight="Bold" Foreground="#1E293B" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Empty State -->
+                        <StackPanel Grid.Row="1" x:Name="EmptyCartPanel" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
+                            <TextBlock Text="🛍️" FontSize="64" HorizontalAlignment="Center" Margin="0,0,0,16" Opacity="0.5"/>
+                            <TextBlock Text="Chưa có món nào được chọn" FontSize="16" FontWeight="Bold" Foreground="#1E293B" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                            <TextBlock Text="Hãy chọn món bạn muốn gọi từ danh sách" FontSize="13" Foreground="#94A3B8" HorizontalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Cart Items -->
+                        <ScrollViewer Grid.Row="1" x:Name="CartItemsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,8">
                             <ItemsControl x:Name="CartItemsControl">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Margin="12,4" Background="White" CornerRadius="8" Padding="12" BorderBrush="#10000000" BorderThickness="1">
+                                        <Border Margin="16,8" Background="White" CornerRadius="12" Padding="12" BorderBrush="#F1F5F9" BorderThickness="1">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Visibility" Value="Visible"/>
@@ -296,75 +374,129 @@
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel Grid.Column="0">
-                                                    <TextBlock Text="{Binding ServiceName}" FontSize="14" FontWeight="SemiBold" Foreground="#1E293B" TextWrapping="Wrap"/>
+                                                    <TextBlock Text="{Binding ServiceName}" FontSize="14" FontWeight="Bold" Foreground="#1E293B" TextWrapping="Wrap"/>
                                                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                                         <TextBlock Text="{Binding UnitPriceText}" FontSize="13" Foreground="#64748B"/>
                                                         <TextBlock Text=" x " FontSize="13" Foreground="#64748B"/>
-                                                        <TextBlock Text="{Binding Quantity}" FontSize="13" FontWeight="Bold" Foreground="#3B82F6"/>
+                                                        <TextBlock Text="{Binding Quantity}" FontSize="13" FontWeight="Bold" Foreground="#8B5CF6"/>
                                                     </StackPanel>
                                                 </StackPanel>
-                                                <TextBlock Grid.Column="1" Text="{Binding LineTotalText}" FontSize="14" FontWeight="Bold" Foreground="#1E293B" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding LineTotalText}" FontSize="15" FontWeight="Bold" Foreground="#1E293B" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                
+                                                <!-- Delete Button -->
+                                                <Button Grid.Column="2" Content="✕" Width="28" Height="28" Background="#FEE2E2" Foreground="#EF4444" BorderThickness="0" FontSize="14" FontWeight="Bold" Click="RemoveFromCart_Click" Tag="{Binding}" ToolTip="Xóa món">
+                                                    <Button.Resources>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="CornerRadius" Value="8"/>
+                                                        </Style>
+                                                    </Button.Resources>
+                                                </Button>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </ScrollViewer>
+
+                        <!-- Summary -->
+                        <Border Grid.Row="2" Padding="20" Background="#FAFAFA" CornerRadius="0,0,16,16" BorderBrush="#F1F5F9" BorderThickness="0,1,0,0">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="SummaryItemCountTextBlock" Grid.Column="0" Text="Đã chọn 0 món" FontSize="13" Foreground="#64748B"/>
+                                    <TextBlock x:Name="SummaryNetTextBlock" Grid.Column="1" Text="Tạm tính: 0 đ" FontSize="13" FontWeight="SemiBold" Foreground="#1E293B"/>
+                                </Grid>
+                                
+                                <WrapPanel Margin="0,0,0,16">
+                                    <TextBlock FontSize="12" Foreground="#64748B" Margin="0,0,12,4">
+                                        <Run Text="➕ " Foreground="#10B981"/>
+                                        <Run Text="Thêm: "/>
+                                        <Run x:Name="SummaryAddedTextBlock" Text="0 đ" FontWeight="Medium"/>
+                                    </TextBlock>
+                                    <TextBlock FontSize="12" Foreground="#64748B" Margin="0,0,12,4">
+                                        <Run Text="➖ " Foreground="#EF4444"/>
+                                        <Run Text="Hủy: "/>
+                                        <Run x:Name="SummaryCanceledTextBlock" Text="0 đ" FontWeight="Medium"/>
+                                    </TextBlock>
+                                    <TextBlock FontSize="12" Foreground="#64748B" Margin="0,0,0,4">
+                                        <Run Text="⚖ " Foreground="#3B82F6"/>
+                                        <Run Text="Lệch: "/>
+                                        <Run x:Name="SummaryDiffTextBlock" Text="0 đ" FontWeight="Medium"/>
+                                    </TextBlock>
+                                </WrapPanel>
+                                
+                                <Border Background="#EDE9FE" CornerRadius="12" Padding="12,14">
+                                    <Grid>
+                                        <TextBlock Text="Tổng cộng" FontSize="14" FontWeight="Bold" Foreground="#6D28D9" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="SummaryTotalTextBlock" Text="0 đ" FontSize="18" FontWeight="Bold" Foreground="#7C3AED" HorizontalAlignment="Right"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
                     </Grid>
                 </Border>
             </Grid>
 
-            <!-- Footer (Notes & Submit) -->
-            <Border Grid.Row="2" Background="#FAFFFFFF" CornerRadius="0,0,16,16" Padding="20,16" BorderBrush="#15000000" BorderThickness="0,1,0,0">
+            <!-- Footer Panel (Row 2) -->
+            <Border Grid.Row="2" Background="White" CornerRadius="0,0,16,16" Padding="24" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0">
                 <Grid>
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     
-                    <StackPanel Grid.Column="0" Margin="0,0,20,0">
-                        <TextBlock Text="Ghi chú (không bắt buộc):" FontSize="13" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,6"/>
-                        <TextBox x:Name="NoteTextBox" Height="48" TextWrapping="Wrap" AcceptsReturn="True" 
-                                 VerticalScrollBarVisibility="Auto" Padding="8" FontSize="14" 
-                                 BorderBrush="#CBD5E1" Background="#FFFFFF">
+                    <Border Grid.Column="0" Background="#EDE9FE" CornerRadius="12" Width="48" Height="48" Margin="0,0,16,0">
+                        <TextBlock Text="📝" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,24,0">
+                        <TextBlock Text="Ghi chú (không bắt buộc)" FontSize="13" FontWeight="Medium" Foreground="#64748B" Margin="0,0,0,8"/>
+                        <TextBox x:Name="NoteTextBox" Height="44" TextWrapping="Wrap" AcceptsReturn="True" 
+                                 VerticalScrollBarVisibility="Auto" Padding="12,10" FontSize="14" 
+                                 BorderBrush="#E2E8F0" Background="#F8FAFC"
+                                 Tag="Nhập ghi chú cho đơn hàng...">
                             <TextBox.Resources>
                                 <Style TargetType="Border">
-                                    <Setter Property="CornerRadius" Value="6"/>
+                                    <Setter Property="CornerRadius" Value="8"/>
                                 </Style>
                             </TextBox.Resources>
                         </TextBox>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Right">
-                        <TextBlock x:Name="SummaryTextBlock" FontSize="14" FontWeight="SemiBold" Foreground="#0F172A" HorizontalAlignment="Right" Margin="0,0,0,4"/>
-                        <TextBlock x:Name="ErrorTextBlock" FontSize="13" Foreground="#DC2626" HorizontalAlignment="Right" Margin="0,0,0,8" Visibility="Collapsed"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock x:Name="ErrorTextBlock" FontSize="13" Foreground="#EF4444" Margin="0,0,16,0" VerticalAlignment="Center" Visibility="Collapsed"/>
                         
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Content="Hủy" Width="100" Height="42" FontSize="15" FontWeight="SemiBold" 
-                                    Foreground="#475569" Background="#F1F5F9" BorderBrush="#CBD5E1" 
-                                    IsCancel="True" Margin="0,0,12,0" Click="CloseButton_Click">
-                                <Button.Resources>
-                                    <Style TargetType="Border">
-                                        <Setter Property="CornerRadius" Value="8"/>
-                                    </Style>
-                                </Button.Resources>
-                            </Button>
-                            <Button Content="Gửi dịch vụ" Width="150" Height="42" FontSize="15" FontWeight="Bold" 
-                                    Foreground="White" Background="#3B82F6" BorderThickness="0" 
-                                    IsDefault="True" Click="OrderButton_Click">
-                                <Button.Resources>
-                                    <Style TargetType="Border">
-                                        <Setter Property="CornerRadius" Value="8"/>
-                                    </Style>
-                                </Button.Resources>
-                            </Button>
-                        </StackPanel>
+                        <Button Content="✕ Hủy" Width="120" Height="48" FontSize="15" FontWeight="SemiBold" 
+                                Foreground="#475569" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" 
+                                IsCancel="True" Margin="0,0,16,0" Click="CloseButton_Click">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="12"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+                        <Button Width="160" Height="48" Background="#8B5CF6" BorderThickness="0" 
+                                IsDefault="True" Click="OrderButton_Click">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="12"/>
+                                </Style>
+                            </Button.Resources>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="✈" FontSize="16" Foreground="White" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Gửi dịch vụ" FontSize="15" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>
         </Grid>
     </Border>
-</Grid>
 </Window>

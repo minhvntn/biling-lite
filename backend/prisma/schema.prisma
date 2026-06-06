@@ -116,6 +116,7 @@ model Member {
   createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
   passwordHash   String?             @map("password_hash") @db.VarChar(255)
+  plainPassword  String?             @map("plain_password") @db.VarChar(50)
   identityNumber String?             @map("identity_number") @db.VarChar(30)
   totalTopup     Decimal             @default(0) @map("total_topup") @db.Decimal(12, 2)
   playSeconds    Int                 @default(0) @map("play_seconds")

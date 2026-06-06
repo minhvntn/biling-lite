@@ -96,6 +96,7 @@ export class CombosService {
           username,
           fullName: `Combo ${combo.name}`,
           passwordHash,
+          plainPassword: password,
           memberType: 'COMBO',
           comboExpiresAt: expiresAt,
           isLimitedCombo,

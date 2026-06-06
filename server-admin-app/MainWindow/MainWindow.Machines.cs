@@ -3071,7 +3071,7 @@ public partial class MainWindow : Window
         if (member is null)
         {
             MessageBox.Show(
-                "Máy này không có h?i viên dang s? d?ng d? n?p ti?n.",
+                "Máy này không có hội viên đang sử dụng để nạp tiền.",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);

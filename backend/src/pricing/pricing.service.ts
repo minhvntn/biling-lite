@@ -137,6 +137,9 @@ export class PricingService {
         ? Math.max(0, isNaN(Number(collapseSetting.value)) ? DEFAULT_AUTO_COLLAPSE_INTERVAL_SECONDS : Number(collapseSetting.value))
         : DEFAULT_AUTO_COLLAPSE_INTERVAL_SECONDS,
       gameLauncherPath: (gameLauncherPathSetting?.value ?? '').trim(),
+      vietQrBankId: 'VCB',
+      vietQrAccountNo: '0071001072225',
+      vietQrAccountName: 'VO NGOC MINH',
       serverTime: new Date().toISOString(),
     };
   }

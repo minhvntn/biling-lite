@@ -63,6 +63,9 @@ public partial class App : Application
     private bool _isAdminSession;
     private bool _isMemberWithdrawEnabled = true;
     private bool _isMemberTopupRequestEnabled = true;
+    private string _vietQrBankId = "MB";
+    private string _vietQrAccountNo = "0123456789";
+    private string _vietQrAccountName = "NGUYEN VAN A";
     private string? _manualLockPassword;
     private bool _skipSessionClearOnExit;
     private int _lastSyncedMemberUsedSeconds;
@@ -744,6 +747,8 @@ public partial class App : Application
                 FullName = member.FullName,
                 Rank = member.Rank,
                 MemberType = member.MemberType ?? "REGULAR",
+                AvatarId = member.AvatarId,
+                ComboExpiresAt = member.ComboExpiresAt,
             };
             _isAdminSession = false;
             _isPostpaidGuestSession = false;
@@ -775,7 +780,7 @@ public partial class App : Application
 
                 _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: member.PlaySeconds);
                 _mainWindow?.SetUpfrontUsedDuration();
-                _mainWindow?.SetMemberInfo(member.Username, member.Rank, member.MemberType, member.AvatarId);
+                _mainWindow?.SetMemberInfo(member.Username, member.Rank, member.MemberType, member.AvatarId, member.ComboExpiresAt);
                 if (_mainWindow != null) _mainWindow.CurrentMemberId = member.Id;
                 _ = Task.Run(async () =>
                 {
@@ -2186,6 +2191,9 @@ public async void OpenLoyaltyPanelFromClientUi()
             _isMemberTopupRequestEnabled = payload.AllowMemberTopupRequest;
             Client.Agent.Wpf.MainWindow.PricingStep = payload.PricingStep;
             Client.Agent.Wpf.MainWindow.MinimumCharge = payload.MinimumCharge;
+            _vietQrBankId = payload.VietQrBankId ?? "MB";
+            _vietQrAccountNo = payload.VietQrAccountNo ?? "0123456789";
+            _vietQrAccountName = payload.VietQrAccountName ?? "NGUYEN VAN A";
             Dispatcher.Invoke(() =>
             {
                 _lockScreenWindow?.ApplyBackgroundConfiguration(
@@ -5810,7 +5818,7 @@ LIMIT $limit;";
         var reasonText = string.IsNullOrWhiteSpace(payload.Reason) ? "SYNC" : payload.Reason;
         Dispatcher.Invoke(() =>
         {
-            _mainWindow?.SetMemberInfo(activeSession.Username, activeSession.Rank, activeSession.MemberType, activeSession.AvatarId);
+            _mainWindow?.SetMemberInfo(activeSession.Username, activeSession.Rank, activeSession.MemberType, activeSession.AvatarId, activeSession.ComboExpiresAt);
             if (_mainWindow != null) _mainWindow.CurrentMemberId = activeSession.MemberId;
             _mainWindow?.SetLastCommand(
                 $"MEMBER ACCOUNT {reasonText} @ {DateTime.Now:HH:mm:ss}");
