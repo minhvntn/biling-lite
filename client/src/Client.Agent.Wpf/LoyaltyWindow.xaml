@@ -1,0 +1,348 @@
+<Window x:Class="Client.Agent.Wpf.LoyaltyWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Điểm tích lũy"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Width="700"
+        Height="620">
+    <Window.Resources>
+        <LinearGradientBrush x:Key="PurpleGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#8B5CF6" Offset="0"/>
+            <GradientStop Color="#C084FC" Offset="1"/>
+        </LinearGradientBrush>
+
+        <Style x:Key="PurpleButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PurpleGradient}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="8" BorderThickness="0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#E2E8F0"/>
+                                <Setter Property="Foreground" Value="#94A3B8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="OutlineButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#475569"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#F8FAFC"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="LeftTabControlStyle" TargetType="TabControl">
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <Style x:Key="LeftTabItemStyle" TargetType="TabItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Border" Margin="0,0,0,4" CornerRadius="8" Padding="16,14" Background="Transparent">
+                            <ContentPresenter x:Name="ContentSite" VerticalAlignment="Center" HorizontalAlignment="Left" ContentSource="Header"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource PurpleGradient}"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="False">
+                                <Setter Property="Foreground" Value="#475569"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsSelected" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Border" Property="Background" Value="#F1F5F9"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="White" CornerRadius="12" BorderThickness="1" BorderBrush="#E2E8F0">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="20" ShadowDepth="5" Color="Black" Opacity="0.1"/>
+        </Border.Effect>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="60"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border BorderThickness="0,0,0,1" BorderBrush="#F1F5F9">
+                <Grid Margin="20,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="💎" Foreground="{StaticResource PurpleGradient}" FontSize="24" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="HeaderTitleText" Text="Điểm tích lũy - Username" FontSize="18" FontWeight="Bold" Foreground="#1E293B" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Button HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="30" Background="Transparent" BorderThickness="0" Cursor="Hand" Click="CloseButton_Click">
+                        <TextBlock Text="✕" FontSize="16" Foreground="#64748B" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Main Content -->
+            <Grid Grid.Row="1" Margin="24">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Member Info Card -->
+                <Border Background="#FAFAFA" BorderBrush="#F1F5F9" BorderThickness="1" CornerRadius="12" Padding="20">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Avatar -->
+                        <Border Width="64" Height="64" CornerRadius="32" Background="#F3E8FF" Margin="0,0,20,0">
+                            <TextBlock Text="👤" FontSize="32" Foreground="#8B5CF6" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+
+                        <!-- Info -->
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock x:Name="MemberNameText" Text="Hội viên: Username" FontSize="16" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,0,0,8"/>
+                            <WrapPanel Orientation="Horizontal">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,24,0">
+                                    <TextBlock Text="💳" Foreground="#8B5CF6" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="BalanceText" Text="Số dư: 0 VND" Foreground="#475569" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,24,0">
+                                    <TextBlock Text="⭐" Foreground="#8B5CF6" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="PointsText" Text="Điểm: 0" Foreground="#475569" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="⏱️" Foreground="#8B5CF6" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="ProgressText" Text="Tích lũy: 00:00 / 0 phút" Foreground="#475569" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Tabs Area -->
+                <Grid Grid.Row="1" Margin="0,24,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="200"/>
+                        <ColumnDefinition Width="24"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left Tabs -->
+                    <TabControl x:Name="MainTabControl" Style="{StaticResource LeftTabControlStyle}" TabStripPlacement="Left" Grid.ColumnSpan="3">
+                        
+                        <!-- Tab: Vòng quay -->
+                        <TabItem Style="{StaticResource LeftTabItemStyle}">
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🎡" Margin="0,0,12,0" FontSize="16" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Vòng quay" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </TabItem.Header>
+                            <Border Margin="200,0,0,0" Padding="24,0,0,0">
+                                <Border Background="#FAFAFA" BorderBrush="#F1F5F9" BorderThickness="1" CornerRadius="12" Padding="32">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,24">
+                                            <Border Width="80" Height="80" CornerRadius="16" Background="#F3E8FF" Margin="0,0,24,0">
+                                                <TextBlock Text="🎡" FontSize="40" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="Vòng quay may mắn" FontSize="20" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
+                                                <TextBlock Text="Thử vận may để nhận phút chơi thưởng." Foreground="#475569" FontSize="14"/>
+                                                <TextBlock Text="Mỗi lượt quay dùng 5 điểm." Foreground="#475569" FontSize="14"/>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <Border Background="#F5F3FF" CornerRadius="8" Padding="20,16" Margin="0,0,0,24">
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <TextBlock Text="⭐" Foreground="#8B5CF6" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Điểm hiện có: " Foreground="#475569" FontSize="15" VerticalAlignment="Center"/>
+                                                <TextBlock x:Name="SpinPointsText" Text="0" Foreground="#8B5CF6" FontWeight="Bold" FontSize="15" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <Button x:Name="OpenSpinButton" Content="Mở vòng quay may mắn" Style="{StaticResource PurpleButtonStyle}" Height="50" Click="OpenSpinButton_Click">
+                                            <Button.ContentTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="🎡" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </Button.ContentTemplate>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+                            </Border>
+                        </TabItem>
+
+                        <!-- Tab: Điểm danh -->
+                        <TabItem Style="{StaticResource LeftTabItemStyle}">
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="📅" Margin="0,0,12,0" FontSize="16" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Điểm danh" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </TabItem.Header>
+                            <Border Margin="200,0,0,0" Padding="24,0,0,0">
+                                <Border Background="#FAFAFA" BorderBrush="#F1F5F9" BorderThickness="1" CornerRadius="12" Padding="32">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,24">
+                                            <Border Width="80" Height="80" CornerRadius="16" Background="#ECFDF5" Margin="0,0,24,0">
+                                                <TextBlock Text="📅" FontSize="40" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="Điểm danh hàng ngày" FontSize="20" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
+                                                <TextBlock Text="Mỗi ngày điểm danh 1 lần để nhận điểm." Foreground="#475569" FontSize="14"/>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="20,16" Margin="0,0,0,24">
+                                            <TextBlock x:Name="CheckinStatusText" Text="Streak hiện tại: 0 ngày" Foreground="#475569" FontSize="15" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+                                        </Border>
+
+                                        <TextBlock x:Name="CheckinErrorText" Foreground="Firebrick" TextWrapping="Wrap" Margin="0,0,0,12" HorizontalAlignment="Center"/>
+
+                                        <Button x:Name="DailyCheckinButton" Content="Điểm danh hôm nay" Style="{StaticResource PurpleButtonStyle}" Height="50" Click="DailyCheckinButton_Click"/>
+                                    </StackPanel>
+                                </Border>
+                            </Border>
+                        </TabItem>
+
+                        <!-- Tab: Đổi điểm -->
+                        <TabItem Style="{StaticResource LeftTabItemStyle}">
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🎁" Margin="0,0,12,0" FontSize="16" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Đổi điểm" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </TabItem.Header>
+                            <Border Margin="200,0,0,0" Padding="24,0,0,0">
+                                <Border Background="#FAFAFA" BorderBrush="#F1F5F9" BorderThickness="1" CornerRadius="12" Padding="32">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,24">
+                                            <Border Width="80" Height="80" CornerRadius="16" Background="#FEF3C7" Margin="0,0,24,0">
+                                                <TextBlock Text="🎁" FontSize="40" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="Đổi điểm sang phút chơi" FontSize="20" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
+                                                <TextBlock Text="Tỷ lệ: 1 điểm = 1 phút chơi." Foreground="#475569" FontSize="14"/>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <StackPanel Margin="0,0,0,24">
+                                            <TextBlock Text="Số điểm muốn đổi:" Foreground="#475569" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                                            <TextBox x:Name="RedeemPointsBox" Height="45" Padding="12,0" FontSize="16" Background="White" BorderBrush="#E2E8F0" BorderThickness="1"/>
+                                        </StackPanel>
+
+                                        <TextBlock x:Name="RedeemErrorText" Foreground="Firebrick" TextWrapping="Wrap" Margin="0,0,0,12" HorizontalAlignment="Center"/>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="16"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Button x:Name="RedeemButton" Content="Đổi điểm" Style="{StaticResource PurpleButtonStyle}" Height="50" Click="RedeemButton_Click"/>
+                                            <Button x:Name="RedeemAllButton" Grid.Column="2" Content="Đổi tất cả" Style="{StaticResource OutlineButtonStyle}" Height="50" Click="RedeemAllButton_Click"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </Border>
+                        </TabItem>
+
+                        <!-- Tab: Đua ngựa -->
+                        <TabItem Style="{StaticResource LeftTabItemStyle}" x:Name="HorseRaceTabItem">
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🐎" Margin="0,0,12,0" FontSize="16" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Đua ngựa" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </TabItem.Header>
+                            <Border Margin="200,0,0,0" Padding="24,0,0,0">
+                                <Border Background="#FAFAFA" BorderBrush="#F1F5F9" BorderThickness="1" CornerRadius="12" Padding="32">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,24">
+                                            <Border Width="80" Height="80" CornerRadius="16" Background="#DBEAFE" Margin="0,0,24,0">
+                                                <TextBlock Text="🐎" FontSize="40" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="Trường đua ngựa" FontSize="20" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
+                                                <TextBlock Text="Dự đoán ngựa về nhất để nhân điểm." Foreground="#475569" FontSize="14"/>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <TextBlock x:Name="HorseRaceErrorText" Foreground="Firebrick" TextWrapping="Wrap" Margin="0,0,0,12" HorizontalAlignment="Center" Visibility="Collapsed"/>
+
+                                        <Button x:Name="OpenHorseRaceButton" Content="Mở trường đua" Style="{StaticResource PurpleButtonStyle}" Height="50" Click="OpenHorseRaceButton_Click">
+                                            <Button.ContentTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="🐎" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </Button.ContentTemplate>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+                            </Border>
+                        </TabItem>
+                        
+                    </TabControl>
+                </Grid>
+            </Grid>
+
+            <!-- Footer -->
+            <Border Grid.Row="2" BorderThickness="0,1,0,0" BorderBrush="#F1F5F9" Padding="24,16">
+                <Button Content="Đóng" Style="{StaticResource OutlineButtonStyle}" HorizontalAlignment="Right" Width="100" Click="CloseButton_Click"/>
+            </Border>
+        </Grid>
+    </Border>
+</Window>
