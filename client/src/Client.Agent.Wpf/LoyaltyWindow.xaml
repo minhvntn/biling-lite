@@ -185,7 +185,7 @@
                                     <TextBlock Text="Vòng quay" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </TabItem.Header>
-                            <Border Margin="200,0,0,0" Padding="24,0,0,0">
+                            <Border Margin="24,0,0,0">
                                 <Border Background="#FAFAFA" BorderBrush="#F1F5F9" BorderThickness="1" CornerRadius="12" Padding="32">
                                     <StackPanel VerticalAlignment="Center">
                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,24">
@@ -230,7 +230,7 @@
                                     <TextBlock Text="Điểm danh" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </TabItem.Header>
-                            <Border Margin="200,0,0,0" Padding="24,0,0,0">
+                            <Border Margin="24,0,0,0">
                                 <Border Background="#FAFAFA" BorderBrush="#F1F5F9" BorderThickness="1" CornerRadius="12" Padding="32">
                                     <StackPanel VerticalAlignment="Center">
                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,24">
@@ -263,7 +263,7 @@
                                     <TextBlock Text="Đổi điểm" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </TabItem.Header>
-                            <Border Margin="200,0,0,0" Padding="24,0,0,0">
+                            <Border Margin="24,0,0,0">
                                 <Border Background="#FAFAFA" BorderBrush="#F1F5F9" BorderThickness="1" CornerRadius="12" Padding="32">
                                     <StackPanel VerticalAlignment="Center">
                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,24">
@@ -305,7 +305,7 @@
                                     <TextBlock Text="Đua ngựa" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </TabItem.Header>
-                            <Border Margin="200,0,0,0" Padding="24,0,0,0">
+                            <Border Margin="24,0,0,0">
                                 <Border Background="#FAFAFA" BorderBrush="#F1F5F9" BorderThickness="1" CornerRadius="12" Padding="32">
                                     <StackPanel VerticalAlignment="Center">
                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,24">

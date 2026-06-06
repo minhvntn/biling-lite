@@ -2006,7 +2006,7 @@ public partial class MainWindow : Window
         var lastLoginText = FormatDateTime(usageSummary?.LastLoginAt);
         if (lastLoginText == "-")
         {
-            lastLoginText = "Ch\u01b0a c\u00f3";
+            lastLoginText = "Chưa có";
         }
 
         var loginMachineParts = new List<string>();
@@ -2026,311 +2026,26 @@ public partial class MainWindow : Window
         var totalUsageSeconds = Math.Max(0, usageSummary?.TotalUsageSeconds ?? 0);
         var totalUsageText = usageSummary is null
             ? "-"
-            : $"{FormatUsageDuration(totalUsageSeconds)} ({(totalUsageSeconds / 3600d):0.##} gi\u1edd)";
+            : $"{FormatUsageDuration(totalUsageSeconds)} ({(totalUsageSeconds / 3600d):0.##} giờ)";
 
-        var dialog = new Window
+        var dialog = new Windows.EditMemberWindow(
+            _httpClient,
+            BuildApiUrl(""),
+            member,
+            lastLoginText,
+            totalUsageText,
+            lifetimeTopup)
         {
-            Title = $"Th\u00f4ng tin h\u1ed9i vi\u00ean - {member.Username}",
-            Width = 780,
-            Height = 620,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            ResizeMode = ResizeMode.NoResize,
-            WindowStyle = WindowStyle.SingleBorderWindow,
-            ShowInTaskbar = false,
-            Owner = this,
+            Owner = this
         };
 
-        var root = new Grid { Margin = new Thickness(18) };
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-        var formGrid = new Grid();
-        formGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        formGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        for (var i = 0; i < 5; i++)
-        {
-            formGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        }
-
-        static void AddField(Grid container, string label, UIElement editor, int row, int column)
-        {
-            var panel = new StackPanel
-            {
-                Margin = new Thickness(column == 0 ? 0 : 10, row == 0 ? 0 : 10, column == 0 ? 10 : 0, 0),
-            };
-            panel.Children.Add(new TextBlock
-            {
-                Text = label,
-                Margin = new Thickness(0, 0, 0, 4),
-            });
-            panel.Children.Add(editor);
-            Grid.SetRow(panel, row);
-            Grid.SetColumn(panel, column);
-            container.Children.Add(panel);
-        }
-
-        var usernameBox = new TextBox
-        {
-            Text = member.Username,
-            Height = 32,
-            IsReadOnly = true,
-            VerticalContentAlignment = VerticalAlignment.Center,
-        };
-
-        var fullNameBox = new TextBox
-        {
-            Text = member.FullName,
-            Height = 32,
-            VerticalContentAlignment = VerticalAlignment.Center,
-        };
-
-        var phoneBox = new TextBox
-        {
-            Text = member.Phone == "-" ? string.Empty : member.Phone,
-            Height = 32,
-            VerticalContentAlignment = VerticalAlignment.Center,
-        };
-
-        var identityBox = new TextBox
-        {
-            Text = member.IdentityNumber == "-" ? string.Empty : member.IdentityNumber,
-            Height = 32,
-            VerticalContentAlignment = VerticalAlignment.Center,
-        };
-
-        var balanceBox = new TextBox
-        {
-            Text = member.BalanceRaw.ToString("0.##", CultureInfo.InvariantCulture),
-            Height = 32,
-            VerticalContentAlignment = VerticalAlignment.Center,
-        };
-        var totalTopupTextBlock = new TextBlock
-        {
-            Margin = new Thickness(0, 6, 0, 0),
-            Foreground = Brushes.DimGray,
-            Text = $"B\u1eadc VIP: {member.Rank} (T\u1ed5ng n\u1ea1p: {lifetimeTopup:N0} VND)",
-            FontWeight = FontWeights.SemiBold,
-        };
-        var balancePanel = new StackPanel();
-        balancePanel.Children.Add(balanceBox);
-        balancePanel.Children.Add(totalTopupTextBlock);
-
-        var lastLoginBox = new TextBox
-        {
-            Text = lastLoginText,
-            Height = 32,
-            IsReadOnly = true,
-            VerticalContentAlignment = VerticalAlignment.Center,
-            Background = Brushes.WhiteSmoke,
-        };
-
-        var totalUsageBox = new TextBox
-        {
-            Text = totalUsageText,
-            Height = 32,
-            IsReadOnly = true,
-            VerticalContentAlignment = VerticalAlignment.Center,
-            Background = Brushes.WhiteSmoke,
-        };
-
-        var pointsBox = new TextBox
-        {
-            Text = member.AvailablePoints.ToString(),
-            Height = 32,
-            VerticalContentAlignment = VerticalAlignment.Center,
-        };
-
-        var totalTopupBox = new TextBox
-        {
-            Text = lifetimeTopup.ToString("0.##", CultureInfo.InvariantCulture),
-            Height = 32,
-            VerticalContentAlignment = VerticalAlignment.Center,
-        };
-
-        var memberTypeComboBox = new ComboBox
-        {
-            Height = 32,
-            VerticalContentAlignment = VerticalAlignment.Center,
-        };
-        memberTypeComboBox.Items.Add(new ComboBoxItem { Content = "Th\u01b0\u1eddng", Tag = "REGULAR" });
-        memberTypeComboBox.Items.Add(new ComboBoxItem { Content = "VIP", Tag = "VIP" });
-
-        if (string.Equals(member.MemberType, "VIP", StringComparison.OrdinalIgnoreCase))
-        {
-            memberTypeComboBox.SelectedIndex = 1;
-        }
-        else
-        {
-            memberTypeComboBox.SelectedIndex = 0;
-        }
-
-        AddField(formGrid, "Username", usernameBox, 0, 0);
-        AddField(formGrid, "H\u1ecd t\u00ean", fullNameBox, 0, 1);
-        AddField(formGrid, "S\u1ed1 \u0111i\u1ec7n tho\u1ea1i", phoneBox, 1, 0);
-        AddField(formGrid, "CCCD/CMND", identityBox, 1, 1);
-        AddField(formGrid, "S\u1ed1 d\u01b0 (VND)", balancePanel, 2, 0);
-        AddField(formGrid, "\u0110i\u1ec3m t\u00edch l\u0169y", pointsBox, 2, 1);
-        AddField(formGrid, "T\u1ed5ng n\u1ea1p (VND)", totalTopupBox, 3, 0);
-        AddField(formGrid, "Lo\u1ea1i h\u1ed9i vi\u00ean", memberTypeComboBox, 3, 1);
-        AddField(formGrid, "L\u1ea7n \u0111\u0103ng nh\u1eadp g\u1ea7n \u0111\u00e2y", lastLoginBox, 4, 0);
-        AddField(formGrid, "T\u1ed5ng th\u1eddi gian s\u1eed d\u1ee5ng m\u00e1y", totalUsageBox, 4, 1);
-
-        Grid.SetRow(formGrid, 0);
-        root.Children.Add(formGrid);
-
-        var statusCheckBox = new CheckBox
-        {
-            Content = "T\u00e0i kho\u1ea3n \u0111ang ho\u1ea1t \u0111\u1ed9ng",
-            IsChecked = member.IsActive,
-            Margin = new Thickness(0, 12, 0, 0),
-        };
-        Grid.SetRow(statusCheckBox, 1);
-        root.Children.Add(statusCheckBox);
-
-        var passwordLabel = new TextBlock
-        {
-            Text = "\u0110\u1ed5i m\u1eadt kh\u1ea9u (\u0111\u1ec3 tr\u1ed1ng n\u1ebfu kh\u00f4ng \u0111\u1ed5i)",
-            Margin = new Thickness(0, 10, 0, 4),
-        };
-        Grid.SetRow(passwordLabel, 2);
-        root.Children.Add(passwordLabel);
-
-        var passwordBox = new PasswordBox
-        {
-            Height = 32,
-            VerticalContentAlignment = VerticalAlignment.Center,
-        };
-        Grid.SetRow(passwordBox, 3);
-        root.Children.Add(passwordBox);
-
-        var errorTextBlock = new TextBlock
-        {
-            Foreground = Brushes.Firebrick,
-            Margin = new Thickness(0, 8, 0, 0),
-            TextWrapping = TextWrapping.Wrap,
-        };
-        Grid.SetRow(errorTextBlock, 4);
-        root.Children.Add(errorTextBlock);
-
-        var actionsPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 18, 0, 0),
-        };
-        var saveButton = new Button
-        {
-            Content = "L\u01b0u",
-            Width = 130,
-            Height = 42,
-            Margin = new Thickness(0, 0, 10, 0),
-            IsDefault = true,
-            FontSize = 15,
-            FontWeight = FontWeights.SemiBold,
-            Background = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
-            Foreground = Brushes.White,
-            BorderThickness = new Thickness(0),
-        };
-        var cancelButton = new Button
-        {
-            Content = "H\u1ee7y",
-            Width = 130,
-            Height = 42,
-            IsCancel = true,
-            FontSize = 15,
-            FontWeight = FontWeights.SemiBold,
-            Style = TryFindResource("DangerButtonStyle") as Style,
-        };
-        actionsPanel.Children.Add(saveButton);
-        actionsPanel.Children.Add(cancelButton);
-        Grid.SetRow(actionsPanel, 5);
-        root.Children.Add(actionsPanel);
-
-        saveButton.Click += async (_, _) =>
-        {
-            errorTextBlock.Text = string.Empty;
-
-            if (!TryParseNonNegativeMoney(balanceBox.Text.Trim(), out var balance))
-            {
-                errorTextBlock.Text = "S\u1ed1 d\u01b0 kh\u00f4ng h\u1ee3p l\u1ec7.";
-                return;
-            }
-            if (!int.TryParse(pointsBox.Text.Trim(), out var points) || points < 0)
-            {
-                errorTextBlock.Text = "\u0110i\u1ec3m t\u00edch l\u0169y kh\u00f4ng h\u1ee3p l\u1ec7.";
-                return;
-            }
-            if (!TryParseNonNegativeMoney(totalTopupBox.Text.Trim(), out var totalTopup))
-            {
-                errorTextBlock.Text = "T\u1ed5ng n\u1ea1p kh\u00f4ng h\u1ee3p l\u1ec7.";
-                return;
-            }
-
-            var fullName = fullNameBox.Text.Trim();
-            if (string.IsNullOrWhiteSpace(fullName))
-            {
-                errorTextBlock.Text = "H\u1ecd t\u00ean kh\u00f4ng \u0111\u01b0\u1ee3c \u0111\u1ec3 tr\u1ed1ng.";
-                return;
-            }
-
-            var selectedMemberType = (memberTypeComboBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "REGULAR";
-
-            var payload = new Dictionary<string, object?>
-            {
-                ["fullName"] = fullName,
-                ["phone"] = string.IsNullOrWhiteSpace(phoneBox.Text) ? null : phoneBox.Text.Trim(),
-                ["identityNumber"] = string.IsNullOrWhiteSpace(identityBox.Text) ? null : identityBox.Text.Trim(),
-                ["isActive"] = statusCheckBox.IsChecked == true,
-                ["balance"] = Convert.ToDouble(balance),
-                ["totalTopup"] = Convert.ToDouble(totalTopup),
-                ["availablePoints"] = points,
-                ["memberType"] = selectedMemberType,
-                ["updatedBy"] = "admin.desktop",
-                ["note"] = "Cap nhat tu app server admin",
-            };
-
-            var newPassword = passwordBox.Password;
-            if (!string.IsNullOrWhiteSpace(newPassword))
-            {
-                payload["password"] = newPassword;
-            }
-
-            try
-            {
-                using var response = await _httpClient.PatchAsJsonAsync(
-                    BuildApiUrl($"/members/{member.Id}"),
-                    payload);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var err = await response.Content.ReadAsStringAsync();
-                    errorTextBlock.Text = string.IsNullOrWhiteSpace(err)
-                        ? $"C\u1eadp nh\u1eadt th\u1ea5t b\u1ea1i ({(int)response.StatusCode})"
-                        : err;
-                    return;
-                }
-
-                dialog.DialogResult = true;
-                dialog.Close();
-            }
-            catch (Exception ex)
-            {
-                errorTextBlock.Text = ex.Message;
-            }
-        };
-
-        dialog.Content = root;
         var submitted = dialog.ShowDialog() == true;
         if (!submitted)
         {
             return;
         }
 
-        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 c\u1eadp nh\u1eadt h\u1ed9i vi\u00ean {member.Username}");
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã cập nhật hội viên {member.Username}");
         InvalidateMembersCache();
         await RefreshMembersAsync(forceRefresh: true);
     }

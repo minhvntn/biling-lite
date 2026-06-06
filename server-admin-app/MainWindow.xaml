@@ -2890,59 +2890,93 @@
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="🎲" Margin="0,0,6,0" FontSize="18" />
-                            <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="Games" FontSize="12.5" />
+                            <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="Cấu hình Games" FontSize="12.5" />
                         </StackPanel>
                     </TabItem.Header>
-                    <Grid Margin="0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+                    <Grid Margin="12">
+                        <TabControl>
+                            <TabItem Header="Vòng quay">
+                                <Grid Margin="12">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="0">
-                            <TextBlock FontSize="18" FontWeight="SemiBold" Text="Cấu hình tỉ lệ vòng quay may mắn" />
-                            <TextBlock Margin="0,6,0,0"
-                                       Foreground="#666"
-                                       Text="Chỉnh % cho từng mốc điểm. Tổng tỉ lệ phải đúng 100%." />
-                        </StackPanel>
+                                    <StackPanel Grid.Row="0">
+                                        <TextBlock FontSize="18" FontWeight="SemiBold" Text="Cấu hình tỉ lệ vòng quay may mắn" />
+                                        <TextBlock Margin="0,6,0,0" Foreground="#666" Text="Chỉnh % cho từng mốc điểm. Tổng tỉ lệ phải đúng 100%." />
+                                    </StackPanel>
 
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,10">
-                            <Button Padding="12,6"
-                                    Margin="0,0,8,0"
-                                    Content="Làm mới"
-                                    Click="RefreshMiniGameSpinSettingsButton_Click" />
-                            <Button Padding="12,6"
-                                    Margin="0,0,8,0"
-                                    Content="Khôi phục mặc định"
-                                    Click="ResetMiniGameSpinDefaultButton_Click" />
-                            <Button Padding="12,6"
-                                    Content="Lưu tỉ lệ"
-                                    Click="SaveMiniGameSpinSettingsButton_Click" />
-                        </StackPanel>
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,10">
+                                        <Button Padding="12,6" Margin="0,0,8,0" Content="Làm mới" Click="RefreshMiniGameSpinSettingsButton_Click" />
+                                        <Button Padding="12,6" Margin="0,0,8,0" Content="Khôi phục mặc định" Click="ResetMiniGameSpinDefaultButton_Click" />
+                                        <Button Padding="12,6" Content="Lưu tỉ lệ" Click="SaveMiniGameSpinSettingsButton_Click" />
+                                    </StackPanel>
 
-                        <DataGrid x:Name="MiniGameSpinSettingsDataGrid"
-                                  Grid.Row="2"
-                                  AutoGenerateColumns="False"
-                                  CanUserAddRows="False"
-                                  SelectionMode="Single"
-                                  HeadersVisibility="Column"
-                                  CellEditEnding="MiniGameSpinSettingsDataGrid_CellEditEnding">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Mốc thưởng (phút)"
-                                                    Binding="{Binding Minutes, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
-                                                    Width="180"
-                                                    IsReadOnly="False" />
-                                <DataGridTextColumn Header="Tỉ lệ (%)" Binding="{Binding Chance}" Width="180" IsReadOnly="False" />
-                            </DataGrid.Columns>
-                        </DataGrid>
+                                    <DataGrid x:Name="MiniGameSpinSettingsDataGrid" Grid.Row="2" AutoGenerateColumns="False" CanUserAddRows="False" SelectionMode="Single" HeadersVisibility="Column" CellEditEnding="MiniGameSpinSettingsDataGrid_CellEditEnding">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Mốc thưởng (phút)" Binding="{Binding Minutes, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="180" IsReadOnly="False" />
+                                            <DataGridTextColumn Header="Tỉ lệ (%)" Binding="{Binding Chance}" Width="180" IsReadOnly="False" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
 
-                        <TextBlock x:Name="MiniGameSpinStatusTextBlock"
-                                   Grid.Row="3"
-                                   Margin="0,8,0,0"
-                                   Foreground="#555"
-                                   Text="Đang tải cấu hình mini game..." />
+                                    <TextBlock x:Name="MiniGameSpinStatusTextBlock" Grid.Row="3" Margin="0,8,0,0" Foreground="#555" Text="Đang tải cấu hình mini game..." />
+                                </Grid>
+                            </TabItem>
+
+                            <TabItem Header="Đua ngựa">
+                                <Grid Margin="12">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    
+                                    <StackPanel Grid.Row="0">
+                                        <TextBlock FontSize="18" FontWeight="SemiBold" Text="Cấu hình hệ số thưởng đua ngựa" />
+                                        <TextBlock Margin="0,6,0,0" Foreground="#666" Text="Chỉnh hệ số nhân thưởng khi dự đoán đúng ngựa về nhất, nhì, ba." />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,10">
+                                        <Button Padding="12,6" Margin="0,0,8,0" Content="Làm mới" Click="RefreshHorseRaceSettingsButton_Click" />
+                                        <Button Padding="12,6" Margin="0,0,8,0" Content="Khôi phục mặc định" Click="ResetHorseRaceDefaultButton_Click" />
+                                        <Button Padding="12,6" Content="Lưu cấu hình" Click="SaveHorseRaceSettingsButton_Click" />
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="150" />
+                                                <ColumnDefinition Width="200" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock VerticalAlignment="Center" Text="Ngựa về nhất (Top 1):" />
+                                            <TextBox x:Name="HorseRaceTop1TextBox" Grid.Column="1" Padding="6,4" Text="3.0" TextChanged="HorseRaceTextBox_TextChanged" />
+                                        </Grid>
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="150" />
+                                                <ColumnDefinition Width="200" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock VerticalAlignment="Center" Text="Ngựa về nhì (Top 2):" />
+                                            <TextBox x:Name="HorseRaceTop2TextBox" Grid.Column="1" Padding="6,4" Text="2.25" TextChanged="HorseRaceTextBox_TextChanged" />
+                                        </Grid>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="150" />
+                                                <ColumnDefinition Width="200" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock VerticalAlignment="Center" Text="Ngựa về ba (Top 3):" />
+                                            <TextBox x:Name="HorseRaceTop3TextBox" Grid.Column="1" Padding="6,4" Text="1.5" TextChanged="HorseRaceTextBox_TextChanged" />
+                                        </Grid>
+                                    </StackPanel>
+
+                                    <TextBlock x:Name="HorseRaceStatusTextBlock" Grid.Row="3" Margin="0,8,0,0" Foreground="#555" Text="Đang tải cấu hình đua ngựa..." />
+                                </Grid>
+                            </TabItem>
+                        </TabControl>
                     </Grid>
                 </TabItem>
 

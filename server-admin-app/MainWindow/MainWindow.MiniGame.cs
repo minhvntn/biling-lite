@@ -27,6 +27,8 @@ public partial class MainWindow
     private void InitializeMiniGameTab()
     {
         MiniGameSpinSettingsDataGrid.ItemsSource = _loyaltySpinSettingRows;
+        // Trigger fetch of horse race settings without blocking initialization
+        _ = RefreshHorseRaceSettingsAsync();
     }
 
     private async void RefreshMiniGameSpinSettingsButton_Click(object sender, RoutedEventArgs e)
@@ -225,5 +227,101 @@ public partial class MainWindow
     private static bool IsChanceTotalValid(decimal totalChance)
     {
         return Math.Abs(totalChance - 100m) <= 0.0001m;
+    }
+
+    private class HorseRaceSettingsResponse
+    {
+        public double Top1Multiplier { get; set; }
+        public double Top2Multiplier { get; set; }
+        public double Top3Multiplier { get; set; }
+    }
+
+    private async void RefreshHorseRaceSettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshHorseRaceSettingsAsync();
+    }
+
+    private async Task RefreshHorseRaceSettingsAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<HorseRaceSettingsResponse>(
+                BuildApiUrl("/members/loyalty/horse-race-settings"),
+                JsonOptions());
+
+            if (response != null)
+            {
+                HorseRaceTop1TextBox.Text = response.Top1Multiplier.ToString(CultureInfo.InvariantCulture);
+                HorseRaceTop2TextBox.Text = response.Top2Multiplier.ToString(CultureInfo.InvariantCulture);
+                HorseRaceTop3TextBox.Text = response.Top3Multiplier.ToString(CultureInfo.InvariantCulture);
+                
+                HorseRaceStatusTextBlock.Text = "Đã tải cấu hình đua ngựa.";
+                HorseRaceStatusTextBlock.Foreground = Brushes.DarkGreen;
+            }
+        }
+        catch
+        {
+            HorseRaceStatusTextBlock.Text = "Không kết nối được backend để tải cấu hình đua ngựa.";
+            HorseRaceStatusTextBlock.Foreground = Brushes.Firebrick;
+        }
+    }
+
+    private async void SaveHorseRaceSettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!double.TryParse(HorseRaceTop1TextBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var t1) ||
+            !double.TryParse(HorseRaceTop2TextBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var t2) ||
+            !double.TryParse(HorseRaceTop3TextBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var t3))
+        {
+            HorseRaceStatusTextBlock.Text = "Định dạng số không hợp lệ. Vui lòng nhập số hợp lệ.";
+            HorseRaceStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        try
+        {
+            using var response = await _httpClient.PatchAsJsonAsync(
+                BuildApiUrl("/members/loyalty/horse-race-settings"),
+                new
+                {
+                    top1Multiplier = t1,
+                    top2Multiplier = t2,
+                    top3Multiplier = t3
+                });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                HorseRaceStatusTextBlock.Text = $"Lưu thất bại: {error}";
+                HorseRaceStatusTextBlock.Foreground = Brushes.Firebrick;
+                return;
+            }
+
+            HorseRaceStatusTextBlock.Text = "Đã lưu cấu hình đua ngựa thành công.";
+            HorseRaceStatusTextBlock.Foreground = Brushes.DarkGreen;
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã lưu cấu hình đua ngựa.");
+        }
+        catch
+        {
+            HorseRaceStatusTextBlock.Text = "Không kết nối được backend khi lưu cấu hình.";
+            HorseRaceStatusTextBlock.Foreground = Brushes.Firebrick;
+        }
+    }
+
+    private void ResetHorseRaceDefaultButton_Click(object sender, RoutedEventArgs e)
+    {
+        HorseRaceTop1TextBox.Text = "3.0";
+        HorseRaceTop2TextBox.Text = "2.25";
+        HorseRaceTop3TextBox.Text = "1.5";
+        HorseRaceStatusTextBlock.Text = "Đã đưa về mặc định. Bấm \"Lưu cấu hình\" để áp dụng.";
+        HorseRaceStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+    }
+
+    private void HorseRaceTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (HorseRaceStatusTextBlock != null)
+        {
+            HorseRaceStatusTextBlock.Text = "Đã thay đổi. Bấm \"Lưu cấu hình\" để áp dụng.";
+            HorseRaceStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+        }
     }
 }

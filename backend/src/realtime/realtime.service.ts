@@ -36,8 +36,8 @@ export class RealtimeService {
       return false;
     }
 
-    const sockets = this.server.sockets?.sockets;
-    if (!sockets) {
+    const sockets = this.server.sockets as unknown as Map<string, any>;
+    if (!sockets || !sockets.values) {
       return false;
     }
 

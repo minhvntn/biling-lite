@@ -63,13 +63,13 @@ public partial class MainWindow : Window
 
     private async Task ShowMemberTopupApprovalDialogAsync(MemberTopupRequestItem request)
     {
-        if (!IsLoaded)
-        {
-            return;
-        }
-
         await Dispatcher.InvokeAsync(() =>
         {
+            if (!IsLoaded)
+            {
+                return;
+            }
+
             var memberName = string.IsNullOrWhiteSpace(request.FullName)
                 ? request.Username
                 : $"{request.FullName} ({request.Username})";

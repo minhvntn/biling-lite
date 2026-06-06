@@ -17,10 +17,45 @@ public partial class LockScreenWindow : Window
     private System.Windows.Threading.DispatcherTimer? _slideshowTimer;
     private System.Collections.Generic.List<string> _mediaSources = new();
     private int _currentMediaIndex = 0;
+    private System.Windows.Threading.DispatcherTimer _idleTimer;
 
     public LockScreenWindow()
     {
         InitializeComponent();
+        
+        _idleTimer = new System.Windows.Threading.DispatcherTimer();
+        _idleTimer.Interval = System.TimeSpan.FromSeconds(15);
+        _idleTimer.Tick += IdleTimer_Tick;
+        
+        this.PreviewMouseDown += (s, e) => ResetIdleTimer();
+        this.PreviewKeyDown += (s, e) => ResetIdleTimer();
+    }
+
+    private void IdleTimer_Tick(object? sender, System.EventArgs e)
+    {
+        _idleTimer.Stop();
+        if (!_isAuthenticating && MainContentCard.Visibility == Visibility.Visible)
+        {
+            MainContentCard.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void ResetIdleTimer()
+    {
+        _idleTimer.Stop();
+        if (MainContentCard.Visibility != Visibility.Visible)
+        {
+            MainContentCard.Visibility = Visibility.Visible;
+            if (_manualUnlockMode)
+            {
+                ManualUnlockPasswordBox.Focus();
+            }
+            else
+            {
+                UsernameTextBox.Focus();
+            }
+        }
+        _idleTimer.Start();
     }
 
     public void SetAgentId(string agentId)
@@ -203,19 +238,16 @@ public partial class LockScreenWindow : Window
 
         Show();
         Activate();
-        if (_manualUnlockMode)
-        {
-            ManualUnlockPasswordBox.Focus();
-        }
-        else
-        {
-            UsernameTextBox.Focus();
-        }
+        
+        _idleTimer.Stop();
+        MainContentCard.Visibility = Visibility.Collapsed;
     }
 
     public new void Hide()
     {
         base.Hide();
+        
+        _idleTimer.Stop();
         
         // Clear background media to save resources
         ClearBackgroundMedia();

@@ -21,6 +21,7 @@ public partial class HorseRaceWindow : Window
     private readonly ActiveMemberSession _session;
     private readonly string _apiBaseUrl;
     private int _availablePoints;
+    private HorseRaceSettingsResponse _raceSettings = new() { Top1Multiplier = 3.0, Top2Multiplier = 2.25, Top3Multiplier = 1.5 };
     
     public ObservableCollection<HorseViewModel> Horses { get; set; } = new();
     public MemberLoyaltyItem? LoyaltyAfterRace { get; private set; }
@@ -36,9 +37,17 @@ public partial class HorseRaceWindow : Window
         DataContext = this;
     }
 
-    private void Window_Loaded(object sender, RoutedEventArgs e)
+    private class HorseRaceSettingsResponse
+    {
+        public double Top1Multiplier { get; set; }
+        public double Top2Multiplier { get; set; }
+        public double Top3Multiplier { get; set; }
+    }
+
+    private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
         AvailablePointsText.Text = _availablePoints.ToString("N0");
+        _ = LoadRaceSettingsAsync();
 
         var horseNames = new[] 
         { 
@@ -52,11 +61,12 @@ public partial class HorseRaceWindow : Window
             "#F43F5E", "#EAB308", "#06B6D4", "#6366F1", "#14B8A6"
         };
 
-        var icons = new[]
+        var imageFiles = new[]
         {
-            "🐎", "🐴", "🦄", "🦓", "🦌",
-            "🐂", "🐃", "🐄", "🐅", "🐆"
+            "sam-chop.png", "bao-dem.png", "hoa-tien.png", "loc-xanh.png", "than-toc.png",
+            "mat-troi.png", "gio-bui.png", "tia-chop.png", "bong-dem.png", "vua-li-don.png"
         };
+        var basePath = AppDomain.CurrentDomain.BaseDirectory;
 
         for (int i = 0; i < 10; i++)
         {
@@ -67,14 +77,44 @@ public partial class HorseRaceWindow : Window
                 Name = horseNames[i],
                 ColorHex = colors[i],
                 ColorValue = (Color)ColorConverter.ConvertFromString(colors[i]),
-                Icon = icons[i],
+                ImagePath = System.IO.Path.Combine(basePath, "Assets", "horse", imageFiles[i]),
                 Transform = new TranslateTransform()
             });
         }
 
         TracksItemsControl.ItemsSource = Horses;
         HorseSelectionListBox.ItemsSource = Horses;
+        HorseSelectionListBox.SelectionChanged += (s, e) => 
+        {
+            foreach (var horse in Horses)
+            {
+                horse.IsSelectedInList = horse == HorseSelectionListBox.SelectedItem;
+            }
+        };
         HorseSelectionListBox.SelectedIndex = 0;
+    }
+
+    private async Task LoadRaceSettingsAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<HorseRaceSettingsResponse>(
+                $"{_apiBaseUrl}/members/loyalty/horse-race-settings",
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            
+            if (response != null)
+            {
+                _raceSettings = response;
+                Dispatcher.Invoke(() =>
+                {
+                    if (MultipliersInfoText != null)
+                    {
+                        MultipliersInfoText.Text = $"Dự đoán ngựa về nhất để nhân {_raceSettings.Top1Multiplier}, về nhì nhân {_raceSettings.Top2Multiplier}, về ba nhân {_raceSettings.Top3Multiplier} số điểm cược!";
+                    }
+                });
+            }
+        }
+        catch { }
     }
 
     private async void StartRaceButton_Click(object sender, RoutedEventArgs e)
@@ -101,14 +141,6 @@ public partial class HorseRaceWindow : Window
         StartRaceButton.IsEnabled = false;
         BetPointsSlider.IsEnabled = false;
         HorseSelectionListBox.IsEnabled = false;
-
-        // Reset positions
-        foreach (var horse in Horses)
-        {
-            horse.Transform.X = 0;
-            horse.TrailWidth = 0;
-            horse.DistanceText = "0m";
-        }
 
         try
         {
@@ -165,12 +197,36 @@ public partial class HorseRaceWindow : Window
         StartRaceButton.IsEnabled = true;
         BetPointsSlider.IsEnabled = true;
         HorseSelectionListBox.IsEnabled = true;
+
+        foreach (var horse in Horses)
+        {
+            horse.Transform.X = 0;
+            horse.TrailWidth = 0;
+            horse.DistanceText = "0m";
+            horse.IsBoosting = false;
+        }
+    }
+
+    private void DecreaseBet_Click(object sender, RoutedEventArgs e)
+    {
+        if (BetPointsSlider.Value > BetPointsSlider.Minimum)
+        {
+            BetPointsSlider.Value -= BetPointsSlider.TickFrequency;
+        }
+    }
+
+    private void IncreaseBet_Click(object sender, RoutedEventArgs e)
+    {
+        if (BetPointsSlider.Value < BetPointsSlider.Maximum)
+        {
+            BetPointsSlider.Value += BetPointsSlider.TickFrequency;
+        }
     }
 
     private async Task AnimateRace(List<int> finishOrder, int fallbackWinnerIndex)
     {
         var random = new Random();
-        var duration = 4.0; // 4 seconds base
+        var duration = 8.0; // 8 seconds base
         
         var trackLength = 720d;
 
@@ -373,7 +429,7 @@ public class HorseViewModel : INotifyPropertyChanged
     public string ColorHex { get; set; } = string.Empty;
     public Color ColorValue { get; set; }
     public string DisplayName => $"{Number} - {Name}";
-    public string Icon { get; set; } = "🐎";
+    public string ImagePath { get; set; } = string.Empty;
 
     private string _distanceText = "0m";
     public string DistanceText
@@ -409,6 +465,17 @@ public class HorseViewModel : INotifyPropertyChanged
         {
             _isBoosting = value;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsBoosting)));
+        }
+    }
+
+    private bool _isSelectedInList;
+    public bool IsSelectedInList
+    {
+        get => _isSelectedInList;
+        set
+        {
+            _isSelectedInList = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelectedInList)));
         }
     }
 }

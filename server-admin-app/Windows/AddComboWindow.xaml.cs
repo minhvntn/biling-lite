@@ -9,9 +9,9 @@ namespace Server.Admin.App.Windows
 {
     public partial class AddComboWindow : Window
     {
-        private string _comboId = null;
+        private string? _comboId = null;
 
-        public AddComboWindow(Server.Admin.App.Windows.Controls.ComboTabControl.ComboPackage existingCombo = null)
+        public AddComboWindow(Server.Admin.App.Windows.Controls.ComboTabControl.ComboPackage? existingCombo = null)
         {
             InitializeComponent();
             PopulateTimeComboBoxes();

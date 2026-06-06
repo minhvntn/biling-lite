@@ -177,6 +177,7 @@
 
             <Border x:Name="MainContentCard"
                     Width="380"
+                    Visibility="Collapsed"
                     Background="White"
                     CornerRadius="28"
                     Padding="24,24,24,20">

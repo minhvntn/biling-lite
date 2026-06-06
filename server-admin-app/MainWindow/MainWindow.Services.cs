@@ -1252,174 +1252,16 @@ public partial class MainWindow : Window
         MachineRow machine,
         IReadOnlyList<PcServiceOrderDto> unpaidOrders)
     {
-        var dialog = new Window
+        var dialog = new Windows.PayServiceWindow
         {
             Title = $"Thanh toán dịch vụ - {machine.Name}",
-            Width = 980,
-            Height = 620,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            ResizeMode = ResizeMode.CanResize,
-            WindowStyle = WindowStyle.SingleBorderWindow,
-            MinWidth = 900,
-            MinHeight = 520,
-            ShowInTaskbar = false,
             Owner = this,
         };
 
-        var root = new Grid { Margin = new Thickness(12) };
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-        var titleTextBlock = new TextBlock
-        {
-            Text = $"Máy trạm: {machine.Name}",
-            FontSize = 18,
-            FontWeight = FontWeights.SemiBold,
-            Margin = new Thickness(0, 0, 0, 6),
-        };
-        Grid.SetRow(titleTextBlock, 0);
-        root.Children.Add(titleTextBlock);
-
-        var summaryTextBlock = new TextBlock
-        {
-            Margin = new Thickness(0, 0, 0, 10),
-            Foreground = Brushes.DimGray,
-            TextWrapping = TextWrapping.Wrap,
-        };
-        Grid.SetRow(summaryTextBlock, 1);
-        root.Children.Add(summaryTextBlock);
-
+        dialog.TitleTextBlock.Text = $"Máy trạm: {machine.Name}";
+        
         var orderRows = new ObservableCollection<ServicePaymentRow>();
-        var ordersGrid = new DataGrid
-        {
-            AutoGenerateColumns = false,
-            CanUserAddRows = false,
-            CanUserDeleteRows = false,
-            CanUserReorderColumns = false,
-            CanUserResizeRows = false,
-            IsReadOnly = false,
-            HeadersVisibility = DataGridHeadersVisibility.Column,
-            SelectionMode = DataGridSelectionMode.Single,
-            SelectionUnit = DataGridSelectionUnit.FullRow,
-            GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-            ItemsSource = orderRows,
-            Margin = new Thickness(0, 0, 0, 10),
-        };
-
-        ordersGrid.Columns.Add(new DataGridCheckBoxColumn
-        {
-            Header = "Chọn",
-            Width = 68,
-            Binding = new Binding(nameof(ServicePaymentRow.IsSelected))
-            {
-                Mode = BindingMode.TwoWay,
-                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
-            },
-        });
-        ordersGrid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "Dịch vụ",
-            Width = new DataGridLength(2, DataGridLengthUnitType.Star),
-            Binding = new Binding(nameof(ServicePaymentRow.ServiceName)),
-        });
-        ordersGrid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "SL",
-            Width = 65,
-            Binding = new Binding(nameof(ServicePaymentRow.Quantity)),
-        });
-        ordersGrid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "Đơn giá",
-            Width = 120,
-            Binding = new Binding(nameof(ServicePaymentRow.UnitPriceText)),
-        });
-        ordersGrid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "Thành tiền",
-            Width = 130,
-            Binding = new Binding(nameof(ServicePaymentRow.LineTotalText)),
-        });
-        ordersGrid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "Thời gian gọi",
-            Width = 160,
-            Binding = new Binding(nameof(ServicePaymentRow.CreatedAtText)),
-        });
-        ordersGrid.Columns.Add(new DataGridTextColumn
-        {
-            Header = "Ghi chú",
-            Width = new DataGridLength(2, DataGridLengthUnitType.Star),
-            Binding = new Binding(nameof(ServicePaymentRow.Note)),
-        });
-
-        Grid.SetRow(ordersGrid, 2);
-        root.Children.Add(ordersGrid);
-
-        var statusTextBlock = new TextBlock
-        {
-            Foreground = Brushes.DimGray,
-            Margin = new Thickness(0, 0, 0, 8),
-            TextWrapping = TextWrapping.Wrap,
-            Text = "Chọn món cần thu rồi bấm \"Thanh toán món đã chọn\". Có thể lặp lại nhiều lần cho đến khi hết món.",
-        };
-        Grid.SetRow(statusTextBlock, 3);
-        root.Children.Add(statusTextBlock);
-
-        var actionPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-        };
-
-        var selectAllButton = new Button
-        {
-            Content = "Chọn tất cả",
-            Width = 110,
-            Margin = new Thickness(0, 0, 8, 0),
-        };
-        var clearSelectionButton = new Button
-        {
-            Content = "Bỏ chọn",
-            Width = 90,
-            Margin = new Thickness(0, 0, 16, 0),
-        };
-        var paySelectedButton = new Button
-        {
-            Content = "Thanh toán món đã chọn",
-            Width = 190,
-            Margin = new Thickness(0, 0, 8, 0),
-            Background = new SolidColorBrush(Color.FromRgb(34, 197, 94)),
-            Foreground = Brushes.White,
-            FontWeight = FontWeights.Bold,
-        };
-        var payAllButton = new Button
-        {
-            Content = "Thanh toán tất cả",
-            Width = 140,
-            Margin = new Thickness(0, 0, 8, 0),
-            Background = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
-            Foreground = Brushes.White,
-            FontWeight = FontWeights.SemiBold,
-        };
-        var closeButton = new Button
-        {
-            Content = "Đóng",
-            Width = 100,
-            IsCancel = true,
-        };
-
-        actionPanel.Children.Add(selectAllButton);
-        actionPanel.Children.Add(clearSelectionButton);
-        actionPanel.Children.Add(paySelectedButton);
-        actionPanel.Children.Add(payAllButton);
-        actionPanel.Children.Add(closeButton);
-
-        Grid.SetRow(actionPanel, 4);
-        root.Children.Add(actionPanel);
+        dialog.OrdersGrid.ItemsSource = orderRows;
 
         var isPaying = false;
         var hasSuccessfulPayment = false;
@@ -1430,11 +1272,11 @@ public partial class MainWindow : Window
             var hasSelected = orderRows.Any(x => x.IsSelected);
             var canInteract = !isPaying && hasRows;
 
-            selectAllButton.IsEnabled = canInteract;
-            clearSelectionButton.IsEnabled = canInteract;
-            payAllButton.IsEnabled = canInteract;
-            paySelectedButton.IsEnabled = canInteract && hasSelected;
-            closeButton.IsEnabled = !isPaying;
+            dialog.SelectAllButton.IsEnabled = canInteract;
+            dialog.ClearSelectionButton.IsEnabled = canInteract;
+            dialog.PayAllButton.IsEnabled = canInteract;
+            dialog.PaySelectedButton.IsEnabled = canInteract && hasSelected;
+            dialog.CloseButton.IsEnabled = !isPaying;
         }
 
         void RefreshSummary()
@@ -1443,7 +1285,7 @@ public partial class MainWindow : Window
             var selectedAmount = orderRows.Where(x => x.IsSelected).Sum(x => x.LineTotal);
             var selectedCount = orderRows.Count(x => x.IsSelected);
 
-            summaryTextBlock.Text =
+            dialog.SummaryTextBlock.Text =
                 $"Chưa thanh toán: {orderRows.Count} món ({totalAmount:N0} VND) | " +
                 $"Đã chọn: {selectedCount} món ({selectedAmount:N0} VND)";
             SyncActionButtons();
@@ -1504,8 +1346,8 @@ public partial class MainWindow : Window
             try
             {
                 isPaying = true;
-                statusTextBlock.Text = "Đang thanh toán dịch vụ...";
-                statusTextBlock.Foreground = Brushes.SteelBlue;
+                dialog.StatusTextBlock.Text = "Đang thanh toán dịch vụ...";
+                dialog.StatusTextBlock.Foreground = Brushes.SteelBlue;
                 SyncActionButtons();
 
                 var orderIds = payAll ? null : targetRows.Select(x => x.OrderId).ToList();
@@ -1523,27 +1365,27 @@ public partial class MainWindow : Window
 
                 if (result.PaidOrderCount <= 0)
                 {
-                    statusTextBlock.Text = "Không có món hợp lệ để thanh toán (có thể đã được thanh toán trước đó).";
-                    statusTextBlock.Foreground = Brushes.DarkGoldenrod;
+                    dialog.StatusTextBlock.Text = "Không có món hợp lệ để thanh toán (có thể đã được thanh toán trước đó).";
+                    dialog.StatusTextBlock.Foreground = Brushes.DarkGoldenrod;
                     return;
                 }
 
                 if (orderRows.Count == 0)
                 {
-                    statusTextBlock.Text = "Đã thanh toán hết các món trong phiên hiện tại.";
-                    statusTextBlock.Foreground = Brushes.DarkGreen;
+                    dialog.StatusTextBlock.Text = "Đã thanh toán hết các món trong phiên hiện tại.";
+                    dialog.StatusTextBlock.Foreground = Brushes.DarkGreen;
                     MessageBox.Show("Đã thanh toán hết dịch vụ cho máy này.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
                     dialog.Close();
                     return;
                 }
 
-                statusTextBlock.Text = $"Đã thanh toán {result.PaidOrderCount} món ({result.PaidAmount:N0} VND).";
-                statusTextBlock.Foreground = Brushes.DarkGreen;
+                dialog.StatusTextBlock.Text = $"Đã thanh toán {result.PaidOrderCount} món ({result.PaidAmount:N0} VND).";
+                dialog.StatusTextBlock.Foreground = Brushes.DarkGreen;
             }
             catch (Exception ex)
             {
-                statusTextBlock.Text = $"Thanh toán lỗi: {ex.Message}";
-                statusTextBlock.Foreground = Brushes.Firebrick;
+                dialog.StatusTextBlock.Text = $"Thanh toán lỗi: {ex.Message}";
+                dialog.StatusTextBlock.Foreground = Brushes.Firebrick;
             }
             finally
             {
@@ -1552,7 +1394,7 @@ public partial class MainWindow : Window
             }
         }
 
-        selectAllButton.Click += (_, _) =>
+        dialog.SelectAllButton.Click += (_, _) =>
         {
             foreach (var row in orderRows)
             {
@@ -1561,7 +1403,7 @@ public partial class MainWindow : Window
             RefreshSummary();
         };
 
-        clearSelectionButton.Click += (_, _) =>
+        dialog.ClearSelectionButton.Click += (_, _) =>
         {
             foreach (var row in orderRows)
             {
@@ -1570,13 +1412,12 @@ public partial class MainWindow : Window
             RefreshSummary();
         };
 
-        paySelectedButton.Click += async (_, _) => await PayOrdersAsync(payAll: false);
-        payAllButton.Click += async (_, _) => await PayOrdersAsync(payAll: true);
-        closeButton.Click += (_, _) => dialog.Close();
+        dialog.PaySelectedButton.Click += async (_, _) => await PayOrdersAsync(payAll: false);
+        dialog.PayAllButton.Click += async (_, _) => await PayOrdersAsync(payAll: true);
+        dialog.CloseButton.Click += (_, _) => dialog.Close();
 
         ReplaceOrders(unpaidOrders);
 
-        dialog.Content = root;
         _ = dialog.ShowDialog();
 
         if (hasSuccessfulPayment)

@@ -34,6 +34,7 @@ import { SetMemberPresenceDto } from './dto/set-member-presence.dto';
 import { SetAdminPresenceDto } from './dto/set-admin-presence.dto';
 import { UpdateLoyaltyRankDto } from './dto/update-loyalty-rank.dto';
 import { UpdateSpinPrizeSettingsDto } from './dto/update-spin-prize-settings.dto';
+import { UpdateHorseRaceSettingsDto } from './dto/update-horse-race-settings.dto';
 import { PetLoyaltyPointsDto } from './dto/pet-loyalty-points.dto';
 import { LoyaltyDailyCheckinDto } from './dto/loyalty-daily-checkin.dto';
 import { HorseRaceDto } from './dto/horse-race.dto';
@@ -53,6 +54,7 @@ const LOYALTY_REDEEM_NOTE_PREFIX = 'LOYALTY_REDEEM';
 const LOYALTY_PET_REWARD_NOTE_PREFIX = 'PET_REWARD';
 const LOYALTY_PET_SPEND_NOTE_PREFIX = `${LOYALTY_REDEEM_NOTE_PREFIX}_PET`;
 const LOYALTY_SPIN_CONFIG_KEY = '__LOYALTY_SPIN_CONFIG__';
+const HORSE_RACE_CONFIG_KEY = '__HORSE_RACE_CONFIG__';
 const LOYALTY_DAILY_CHECKIN_TIME_ZONE = 'Asia/Ho_Chi_Minh';
 const LOYALTY_DAILY_CHECKIN_POINTS = 1;
 const LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS = 7;
@@ -138,6 +140,18 @@ const DEFAULT_SPIN_PRIZE_TABLE: ReadonlyArray<SpinPrizeItem> = [
   { minutes: 20, chance: 1.5, label: '20p' },
   { minutes: 30, chance: 0.5, label: '30p' },
 ];
+
+type HorseRaceSettings = {
+  top1Multiplier: number;
+  top2Multiplier: number;
+  top3Multiplier: number;
+};
+
+const DEFAULT_HORSE_RACE_SETTINGS: HorseRaceSettings = {
+  top1Multiplier: 3.0,
+  top2Multiplier: 2.25,
+  top3Multiplier: 1.5,
+};
 
 @Injectable()
 export class MembersService {
@@ -358,9 +372,9 @@ export class MembersService {
     const currentBalance = Number(member.balance);
     const isVip = member.memberType === 'VIP';
     const isCombo = member.memberType === 'COMBO';
-    
+
     let hasSufficientBalance = currentBalance > 0;
-    
+
     if (isCombo && member.comboExpiresAt && new Date() <= member.comboExpiresAt) {
       if (member.isLimitedCombo) {
         hasSufficientBalance = member.playSeconds > 0 || currentBalance > 0;
@@ -454,9 +468,9 @@ export class MembersService {
       const currentBalance = Number(member.balance);
       const isVip = member.memberType === 'VIP';
       const isCombo = member.memberType === 'COMBO';
-      
+
       let hasSufficientBalance = currentBalance > 0;
-      
+
       if (isCombo && member.comboExpiresAt && new Date() <= member.comboExpiresAt) {
         if (member.isLimitedCombo) {
           hasSufficientBalance = member.playSeconds > 0 || currentBalance > 0;
@@ -709,6 +723,55 @@ export class MembersService {
 
   async getLoyaltySettings() {
     return this.getLoyaltySettingsItem();
+  }
+
+  async getHorseRaceSettings(): Promise<HorseRaceSettings> {
+    const setting = await this.prisma.appSetting.findUnique({
+      where: { key: HORSE_RACE_CONFIG_KEY },
+    });
+
+    if (!setting?.value) {
+      return { ...DEFAULT_HORSE_RACE_SETTINGS };
+    }
+
+    try {
+      const parsed = JSON.parse(setting.value);
+      return {
+        top1Multiplier: Number(parsed?.top1Multiplier) || DEFAULT_HORSE_RACE_SETTINGS.top1Multiplier,
+        top2Multiplier: Number(parsed?.top2Multiplier) || DEFAULT_HORSE_RACE_SETTINGS.top2Multiplier,
+        top3Multiplier: Number(parsed?.top3Multiplier) || DEFAULT_HORSE_RACE_SETTINGS.top3Multiplier,
+      };
+    } catch {
+      return { ...DEFAULT_HORSE_RACE_SETTINGS };
+    }
+  }
+
+  async updateHorseRaceSettings(payload: UpdateHorseRaceSettingsDto): Promise<HorseRaceSettings> {
+    const dataToSave = {
+      top1Multiplier: payload.top1Multiplier,
+      top2Multiplier: payload.top2Multiplier,
+      top3Multiplier: payload.top3Multiplier,
+    };
+
+    const setting = await this.prisma.appSetting.findUnique({
+      where: { key: HORSE_RACE_CONFIG_KEY },
+    });
+
+    if (setting) {
+      await this.prisma.appSetting.update({
+        where: { key: HORSE_RACE_CONFIG_KEY },
+        data: { value: JSON.stringify(dataToSave) },
+      });
+    } else {
+      await this.prisma.appSetting.create({
+        data: {
+          key: HORSE_RACE_CONFIG_KEY,
+          value: JSON.stringify(dataToSave),
+        },
+      });
+    }
+
+    return this.getHorseRaceSettings();
   }
 
   async getEffectiveHourlyRate(baseRate: number): Promise<number> {
@@ -1836,6 +1899,7 @@ export class MembersService {
       select: {
         id: true,
         username: true,
+        playSeconds: true,
       },
     });
 
@@ -1843,15 +1907,40 @@ export class MembersService {
       throw new NotFoundException('Khong tim thay hoi vien');
     }
 
+    const latestPresenceResult = await this.prisma.$queryRaw<
+      { created_at: Date; pc_name: string | null; agent_id: string | null }[]
+    >`
+      SELECT e.created_at, p.name as pc_name, p.agent_id
+      FROM events_log e
+      LEFT JOIN pcs p ON p.id = e.pc_id
+      WHERE e.event_type = 'member.pc.presence'
+        AND e.payload->>'memberId' = ${memberId}
+        AND e.payload->>'isActive' = 'true'
+      ORDER BY e.created_at DESC
+      LIMIT 1
+    `;
+    const latestPresence = latestPresenceResult[0];
+
+    const sessionCountResult = await this.prisma.$queryRaw<
+      { count: number }[]
+    >`
+      SELECT CAST(COUNT(*) AS INTEGER) as count
+      FROM events_log e
+      WHERE e.event_type = 'member.pc.presence'
+        AND e.payload->>'memberId' = ${memberId}
+        AND e.payload->>'isActive' = 'true'
+    `;
+    const sessionCount = sessionCountResult[0]?.count || 0;
+
     return {
       memberId: member.id,
       username: member.username,
-      lastLoginAt: null,
-      lastLoginPcName: null,
-      lastLoginAgentId: null,
-      totalUsageSeconds: 0,
-      totalUsageHours: 0,
-      sessionUsageCount: 0,
+      lastLoginAt: latestPresence?.created_at ? new Date(latestPresence.created_at).toISOString() : null,
+      lastLoginPcName: latestPresence?.pc_name || null,
+      lastLoginAgentId: latestPresence?.agent_id || null,
+      totalUsageSeconds: member.playSeconds || 0,
+      totalUsageHours: Math.floor((member.playSeconds || 0) / 3600),
+      sessionUsageCount: sessionCount,
       serverTime: new Date().toISOString(),
     };
   }
