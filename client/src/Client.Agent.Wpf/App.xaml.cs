@@ -66,6 +66,9 @@ public partial class App : Application
     private string _vietQrBankId = "MB";
     private string _vietQrAccountNo = "0123456789";
     private string _vietQrAccountName = "NGUYEN VAN A";
+    private bool _topupPromoEnabled;
+    private string _topupPromoTiers = "[]";
+    private bool _adminOnline = true;
     private string? _manualLockPassword;
     private bool _skipSessionClearOnExit;
     private int _lastSyncedMemberUsedSeconds;
@@ -186,6 +189,7 @@ public partial class App : Application
         _lockScreenWindow = new LockScreenWindow();
         _lockScreenWindow.ApplyBackgroundConfiguration(_lockScreenBackgroundMode, _lockScreenBackgroundUrl, _lockScreenIntervalSeconds);
         _lockScreenWindow.SetCurrentServerUrl(_settings.ServerUrl);
+        _lockScreenWindow.SetAgentId(_settings.AgentId);
         _lockScreenWindow.PrepareForLock();
 
         StartSocketService();
@@ -1734,94 +1738,159 @@ public async void OpenLoyaltyPanelFromClientUi()
 
     private void ShowChangePasswordDialog(ActiveMemberSession activeSession)
     {
+        var mainPurple = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8B5CF6"));
+        var lightPurple = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F5F3FF"));
+        var borderPurple = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DDD6FE"));
+        var textDark = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E293B"));
+        var textGray = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748B"));
+        var borderGray = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E2E8F0"));
+
         var dialog = new Window
         {
             Title = "Đổi mật khẩu hội viên",
-            Width = 400,
-            Height = 350,
-            ResizeMode = ResizeMode.NoResize,
+            Width = 600,
+            Height = 620,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Owner = _mainWindow,
             ShowInTaskbar = false,
-            WindowStyle = WindowStyle.SingleBorderWindow,
+            WindowStyle = WindowStyle.None,
+            AllowsTransparency = true,
+            Background = Brushes.Transparent
         };
 
-        var root = new Grid { Margin = new Thickness(24) };
-        for (int i = 0; i < 7; i++) root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var rootBorder = new Border { Background = Brushes.White, CornerRadius = new CornerRadius(12), BorderBrush = borderGray, BorderThickness = new Thickness(1) };
+        var rootGrid = new Grid();
+        rootGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        rootGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        rootGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        var title = new TextBlock
+        // --- Header ---
+        var headerBorder = new Border { Background = lightPurple, CornerRadius = new CornerRadius(12, 12, 0, 0), BorderBrush = borderGray, BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(20, 12, 20, 12) };
+        var headerGrid = new Grid();
+        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var headerTitlePanel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        var headerIconBorder = new Border { Background = borderPurple, CornerRadius = new CornerRadius(6), Width = 32, Height = 32, Margin = new Thickness(0, 0, 12, 0) };
+        headerIconBorder.Child = new TextBlock { Text = "🖥️", Foreground = mainPurple, FontSize = 16, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        headerTitlePanel.Children.Add(headerIconBorder);
+        headerTitlePanel.Children.Add(new TextBlock { Text = "Đổi mật khẩu hội viên", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = textDark, VerticalAlignment = VerticalAlignment.Center });
+        Grid.SetColumn(headerTitlePanel, 0); headerGrid.Children.Add(headerTitlePanel);
+
+        var closeBtn = new Button { Content = "✕", FontSize = 16, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = textGray, Cursor = Cursors.Hand };
+        closeBtn.Click += (_, _) => dialog.Close();
+        Grid.SetColumn(closeBtn, 1); headerGrid.Children.Add(closeBtn);
+        headerBorder.Child = headerGrid;
+        Grid.SetRow(headerBorder, 0); rootGrid.Children.Add(headerBorder);
+
+        headerBorder.MouseLeftButtonDown += (s, e) => { dialog.DragMove(); };
+
+        // --- Content ---
+        var contentPanel = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(32, 24, 32, 24) };
+        Grid.SetRow(contentPanel, 1); rootGrid.Children.Add(contentPanel);
+
+        // Top centered lock icon & text
+        var topCenteredPanel = new StackPanel { Orientation = Orientation.Vertical, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 24) };
+        var largeLockBorder = new Border { Background = lightPurple, CornerRadius = new CornerRadius(30), Width = 60, Height = 60, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 12) };
+        largeLockBorder.Child = new TextBlock { Text = "🔒", Foreground = mainPurple, FontSize = 28, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        topCenteredPanel.Children.Add(largeLockBorder);
+        topCenteredPanel.Children.Add(new TextBlock { Text = "ĐỔI MẬT KHẨU", FontSize = 20, FontWeight = FontWeights.Bold, Foreground = textDark, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 4) });
+        topCenteredPanel.Children.Add(new TextBlock { Text = "Vui lòng nhập đầy đủ thông tin để đổi mật khẩu", FontSize = 14, Foreground = textGray, HorizontalAlignment = HorizontalAlignment.Center });
+        contentPanel.Children.Add(topCenteredPanel);
+
+        // Helper to create input fields
+        StackPanel CreateInputField(string labelText, string iconStr, out PasswordBox pwdBox, out TextBox visibleBox)
         {
-            Text = "ĐỔI MẬT KHẨU",
-            FontSize = 20,
-            FontWeight = FontWeights.Bold,
-            Foreground = new SolidColorBrush(Color.FromRgb(30, 90, 168)),
-            Margin = new Thickness(0, 0, 0, 20),
-            HorizontalAlignment = HorizontalAlignment.Center
-        };
-        Grid.SetRow(title, 0);
-        root.Children.Add(title);
+            var fieldPanel = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, 16) };
+            fieldPanel.Children.Add(new TextBlock { Text = labelText, FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = textDark, Margin = new Thickness(0, 0, 0, 8) });
 
-        // Current Password
-        var curLabel = new TextBlock { Text = "Mật khẩu hiện tại:", Margin = new Thickness(0, 0, 0, 4), VerticalAlignment = VerticalAlignment.Bottom };
-        Grid.SetRow(curLabel, 1);
-        root.Children.Add(curLabel);
+            var inputBorder = new Border { CornerRadius = new CornerRadius(8), BorderBrush = borderGray, BorderThickness = new Thickness(1), Background = Brushes.White, Height = 45 };
+            var inputGrid = new Grid();
+            inputGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            inputGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            inputGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        var currentPwdBox = new PasswordBox { Height = 32, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 12) };
-        Grid.SetRow(currentPwdBox, 2);
-        root.Children.Add(currentPwdBox);
+            var iconBorder = new Border { Background = lightPurple, CornerRadius = new CornerRadius(6), Width = 32, Height = 32, Margin = new Thickness(6, 0, 8, 0) };
+            iconBorder.Child = new TextBlock { Text = iconStr, Foreground = mainPurple, FontSize = 14, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(iconBorder, 0); inputGrid.Children.Add(iconBorder);
 
-        // New Password
-        var newLabel = new TextBlock { Text = "Mật khẩu mới:", Margin = new Thickness(0, 0, 0, 4) };
-        Grid.SetRow(newLabel, 3);
-        root.Children.Add(newLabel);
+            var pBox = new PasswordBox { BorderThickness = new Thickness(0), Background = Brushes.Transparent, VerticalContentAlignment = VerticalAlignment.Center, FontSize = 15, Foreground = textDark };
+            Grid.SetColumn(pBox, 1); inputGrid.Children.Add(pBox);
+            
+            var vBox = new TextBox { BorderThickness = new Thickness(0), Background = Brushes.Transparent, VerticalContentAlignment = VerticalAlignment.Center, FontSize = 15, Foreground = textDark, Visibility = Visibility.Collapsed };
+            Grid.SetColumn(vBox, 1); inputGrid.Children.Add(vBox);
 
-        var newPwdBox = new PasswordBox { Height = 32, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 12) };
-        Grid.SetRow(newPwdBox, 4);
-        root.Children.Add(newPwdBox);
+            var eyeIcon = new TextBlock { Text = "🙈", Foreground = textGray, Margin = new Thickness(8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand };
+            Grid.SetColumn(eyeIcon, 2); inputGrid.Children.Add(eyeIcon);
 
-        // Confirm New Password
-        var confirmLabel = new TextBlock { Text = "Xác nhận mật khẩu mới:", Margin = new Thickness(0, 0, 0, 4) };
-        Grid.SetRow(confirmLabel, 5);
-        root.Children.Add(confirmLabel);
+            eyeIcon.MouseLeftButtonDown += (_, _) => {
+                if (pBox.Visibility == Visibility.Visible) {
+                    vBox.Text = pBox.Password;
+                    pBox.Visibility = Visibility.Collapsed;
+                    vBox.Visibility = Visibility.Visible;
+                    eyeIcon.Text = "👁️";
+                } else {
+                    pBox.Password = vBox.Text;
+                    vBox.Visibility = Visibility.Collapsed;
+                    pBox.Visibility = Visibility.Visible;
+                    eyeIcon.Text = "🙈";
+                }
+            };
 
-        var confirmPwdBox = new PasswordBox { Height = 32, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 12) };
-        Grid.SetRow(confirmPwdBox, 6);
-        root.Children.Add(confirmPwdBox);
+            inputBorder.Child = inputGrid;
+            fieldPanel.Children.Add(inputBorder);
+            
+            pwdBox = pBox;
+            visibleBox = vBox;
+            return fieldPanel;
+        }
 
-        var errorText = new TextBlock { Text = "", Foreground = Brushes.Red, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) };
-        Grid.SetRow(errorText, 7);
-        root.Children.Add(errorText);
+        PasswordBox curPwdBox, newPwdBox, confirmPwdBox;
+        TextBox curVisibleBox, newVisibleBox, confirmVisibleBox;
 
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-        var cancelBtn = new Button { Content = "Hủy", Width = 80, Margin = new Thickness(0, 0, 10, 0) };
-        var saveBtn = new Button { Content = "Cập nhật", Width = 100, IsDefault = true, Background = new SolidColorBrush(Color.FromRgb(30, 90, 168)), Foreground = Brushes.White };
-        buttons.Children.Add(cancelBtn);
-        buttons.Children.Add(saveBtn);
-        Grid.SetRow(buttons, 8);
-        root.Children.Add(buttons);
+        contentPanel.Children.Add(CreateInputField("Mật khẩu hiện tại", "🔒", out curPwdBox, out curVisibleBox));
+        contentPanel.Children.Add(CreateInputField("Mật khẩu mới", "🔒", out newPwdBox, out newVisibleBox));
+        contentPanel.Children.Add(CreateInputField("Xác nhận mật khẩu mới", "🛡️", out confirmPwdBox, out confirmVisibleBox));
 
+        var errorLabel = new TextBlock { Text = "", Foreground = Brushes.Firebrick, FontSize = 13, Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap };
+        contentPanel.Children.Add(errorLabel);
+
+        // --- Footer ---
+        var footerBorder = new Border { BorderBrush = borderGray, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(20, 16, 20, 16) };
+        var footerGrid = new Grid();
+        var actionPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        
+        var cancelBtn = new Button { Content = "✕ Hủy", Width = 90, Height = 40, Background = Brushes.White, BorderBrush = borderGray, BorderThickness = new Thickness(1), Foreground = textDark, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 12, 0) };
         cancelBtn.Click += (_, _) => dialog.Close();
-        saveBtn.Click += async (_, _) =>
+        cancelBtn.Template = CreateRoundedButtonTemplate(8);
+        actionPanel.Children.Add(cancelBtn);
+
+        var okBtn = new Button { Content = "✓ Cập nhật", Width = 120, Height = 40, Background = mainPurple, Foreground = Brushes.White, FontWeight = FontWeights.Bold, Cursor = Cursors.Hand, BorderThickness = new Thickness(0), IsDefault = true };
+        okBtn.Template = CreateRoundedButtonTemplate(8);
+        actionPanel.Children.Add(okBtn);
+
+        footerGrid.Children.Add(actionPanel);
+        footerBorder.Child = footerGrid;
+        Grid.SetRow(footerBorder, 2); rootGrid.Children.Add(footerBorder);
+
+        okBtn.Click += async (_, _) =>
         {
-            errorText.Text = "";
-            var currentPwd = currentPwdBox.Password;
-            var newPwd = newPwdBox.Password;
-            var confirmPwd = confirmPwdBox.Password;
+            var currentPwd = curPwdBox.Visibility == Visibility.Visible ? curPwdBox.Password : curVisibleBox.Text;
+            var newPwd = newPwdBox.Visibility == Visibility.Visible ? newPwdBox.Password : newVisibleBox.Text;
+            var confirmPwd = confirmPwdBox.Visibility == Visibility.Visible ? confirmPwdBox.Password : confirmVisibleBox.Text;
 
-            if (string.IsNullOrEmpty(currentPwd)) { errorText.Text = "Vui lòng nhập mật khẩu hiện tại."; return; }
-            if (string.IsNullOrEmpty(newPwd)) { errorText.Text = "Vui lòng nhập mật khẩu mới."; return; }
-            if (newPwd.Length < 4) { errorText.Text = "Mật khẩu mới phải từ 4 ký tự trở lên."; return; }
-            if (newPwd != confirmPwd) { errorText.Text = "Mật khẩu xác nhận không khớp."; return; }
+            errorLabel.Text = "";
 
-            saveBtn.IsEnabled = false;
-            errorText.Text = "Đang kiểm tra mật khẩu hiện tại...";
-            errorText.Foreground = Brushes.DimGray;
+            if (string.IsNullOrEmpty(currentPwd)) { errorLabel.Text = "Vui lòng nhập mật khẩu hiện tại."; return; }
+            if (string.IsNullOrEmpty(newPwd)) { errorLabel.Text = "Vui lòng nhập mật khẩu mới."; return; }
+            if (newPwd != confirmPwd) { errorLabel.Text = "Mật khẩu xác nhận không khớp."; return; }
+
+            okBtn.IsEnabled = false;
+            errorLabel.Text = "Đang kiểm tra...";
+            errorLabel.Foreground = textGray;
 
             try
             {
-                // 1. Verify current password via login
                 using var loginResp = await _httpClient.PostAsJsonAsync(
                     BuildApiUrl("/members/login"),
                     new
@@ -1830,16 +1899,16 @@ public async void OpenLoyaltyPanelFromClientUi()
                         password = currentPwd,
                         agentId = _settings.AgentId,
                     });
+                
                 if (!loginResp.IsSuccessStatusCode)
                 {
-                    errorText.Text = "Mật khẩu hiện tại không chính xác.";
-                    errorText.Foreground = Brushes.Red;
-                    saveBtn.IsEnabled = true;
+                    errorLabel.Text = "Mật khẩu hiện tại không chính xác.";
+                    errorLabel.Foreground = Brushes.Firebrick;
+                    okBtn.IsEnabled = true;
                     return;
                 }
 
-                // 2. Update to new password
-                errorText.Text = "Đang cập nhật mật khẩu mới...";
+                errorLabel.Text = "Đang cập nhật...";
                 using var updateResp = await _httpClient.PatchAsJsonAsync(BuildApiUrl($"/members/{activeSession.MemberId}"), new { password = newPwd, updatedBy = "client.password.change" });
                 
                 if (updateResp.IsSuccessStatusCode)
@@ -1851,86 +1920,152 @@ public async void OpenLoyaltyPanelFromClientUi()
                 else
                 {
                     var msg = await ReadErrorMessageAsync(updateResp);
-                    errorText.Text = string.IsNullOrWhiteSpace(msg) ? "Lỗi khi cập nhật mật khẩu." : msg;
-                    errorText.Foreground = Brushes.Red;
-                    saveBtn.IsEnabled = true;
+                    errorLabel.Text = string.IsNullOrWhiteSpace(msg) ? "Lỗi khi cập nhật mật khẩu." : msg;
+                    errorLabel.Foreground = Brushes.Firebrick;
+                    okBtn.IsEnabled = true;
                 }
             }
             catch (Exception ex)
             {
-                errorText.Text = "Lỗi kết nối: " + ex.Message;
-                errorText.Foreground = Brushes.Red;
-                saveBtn.IsEnabled = true;
+                errorLabel.Text = "Lỗi kết nối: " + ex.Message;
+                errorLabel.Foreground = Brushes.Firebrick;
+                okBtn.IsEnabled = true;
             }
         };
 
-        dialog.Content = root;
-        dialog.Loaded += (_, _) => currentPwdBox.Focus();
+        rootBorder.Child = rootGrid;
+        dialog.Content = rootBorder;
+        dialog.Loaded += (_, _) => curPwdBox.Focus();
         dialog.ShowDialog();
     }
 
     private Task<bool> PromptForPasswordAsync(string username)
     {
         var tcs = new TaskCompletionSource<bool>();
+        var mainPurple = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8B5CF6"));
+        var lightPurple = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F5F3FF"));
+        var borderPurple = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DDD6FE"));
+        var textDark = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E293B"));
+        var textGray = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748B"));
+        var borderGray = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E2E8F0"));
 
         var dialog = new Window
         {
             Title = "Xác nhận mật khẩu",
-            Width = 350,
-            Height = 180,
-            ResizeMode = ResizeMode.NoResize,
+            Width = 520,
+            Height = 310,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Owner = _mainWindow,
             ShowInTaskbar = false,
-            WindowStyle = WindowStyle.SingleBorderWindow,
+            WindowStyle = WindowStyle.None,
+            AllowsTransparency = true,
+            Background = Brushes.Transparent
         };
 
-        var root = new Grid { Margin = new Thickness(20) };
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        var rootBorder = new Border { Background = Brushes.White, CornerRadius = new CornerRadius(12), BorderBrush = borderGray, BorderThickness = new Thickness(1) };
+        var rootGrid = new Grid();
+        rootGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        rootGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        rootGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        var label = new TextBlock
-        {
-            Text = $"Nhập mật khẩu tài khoản '{username}' để tiếp tục:",
-            Margin = new Thickness(0, 0, 0, 10),
-            TextWrapping = TextWrapping.Wrap
-        };
-        Grid.SetRow(label, 0);
-        root.Children.Add(label);
+        // --- Header ---
+        var headerBorder = new Border { Background = lightPurple, CornerRadius = new CornerRadius(12, 12, 0, 0), BorderBrush = borderGray, BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(20, 12, 20, 12) };
+        var headerGrid = new Grid();
+        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        var passwordBox = new PasswordBox
-        {
-            Height = 32,
-            VerticalContentAlignment = VerticalAlignment.Center
-        };
-        Grid.SetRow(passwordBox, 1);
-        root.Children.Add(passwordBox);
+        var headerTitlePanel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        var headerIconBorder = new Border { Background = borderPurple, CornerRadius = new CornerRadius(6), Width = 32, Height = 32, Margin = new Thickness(0, 0, 12, 0) };
+        headerIconBorder.Child = new TextBlock { Text = "🔐", Foreground = mainPurple, FontSize = 16, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        headerTitlePanel.Children.Add(headerIconBorder);
+        headerTitlePanel.Children.Add(new TextBlock { Text = "Xác nhận mật khẩu", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = textDark, VerticalAlignment = VerticalAlignment.Center });
+        Grid.SetColumn(headerTitlePanel, 0); headerGrid.Children.Add(headerTitlePanel);
 
-        var errorLabel = new TextBlock
-        {
-            Text = "",
-            Foreground = Brushes.Red,
-            FontSize = 11,
-            Margin = new Thickness(0, 5, 0, 0)
-        };
-        Grid.SetRow(errorLabel, 2);
-        root.Children.Add(errorLabel);
+        var closeBtn = new Button { Content = "✕", FontSize = 16, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = textGray, Cursor = Cursors.Hand };
+        closeBtn.Click += (_, _) => dialog.Close();
+        Grid.SetColumn(closeBtn, 1); headerGrid.Children.Add(closeBtn);
+        headerBorder.Child = headerGrid;
+        Grid.SetRow(headerBorder, 0); rootGrid.Children.Add(headerBorder);
 
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-        var cancelBtn = new Button { Content = "Hủy", Width = 70, Margin = new Thickness(0, 0, 10, 0) };
-        var okBtn = new Button { Content = "Xác nhận", Width = 80, IsDefault = true, Background = new SolidColorBrush(Color.FromRgb(121, 201, 89)), Foreground = Brushes.White };
+        headerBorder.MouseLeftButtonDown += (s, e) => { dialog.DragMove(); };
+
+        // --- Content ---
+        var contentPanel = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(24) };
+        Grid.SetRow(contentPanel, 1); rootGrid.Children.Add(contentPanel);
+
+        var infoStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 20) };
+        var lockIconBorder = new Border { Background = lightPurple, CornerRadius = new CornerRadius(16), Width = 32, Height = 32, Margin = new Thickness(0, 0, 12, 0) };
+        lockIconBorder.Child = new TextBlock { Text = "🔒", Foreground = mainPurple, FontSize = 14, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        infoStack.Children.Add(lockIconBorder);
+
+        var textStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        textStack.Children.Add(new TextBlock { Text = "Nhập mật khẩu tài khoản '", FontSize = 15, Foreground = textDark });
+        textStack.Children.Add(new TextBlock { Text = username, FontSize = 15, FontWeight = FontWeights.Bold, Foreground = mainPurple });
+        textStack.Children.Add(new TextBlock { Text = "' để tiếp tục:", FontSize = 15, Foreground = textDark });
+        infoStack.Children.Add(textStack);
+        contentPanel.Children.Add(infoStack);
+
+        var inputBorder = new Border { CornerRadius = new CornerRadius(8), BorderBrush = mainPurple, BorderThickness = new Thickness(1), Background = Brushes.White, Height = 45 };
+        var inputGrid = new Grid();
+        inputGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        inputGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        inputGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        inputGrid.Children.Add(new TextBlock { Text = "🔒", Foreground = mainPurple, Margin = new Thickness(12, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+        var pwdBox = new PasswordBox { BorderThickness = new Thickness(0), Background = Brushes.Transparent, VerticalContentAlignment = VerticalAlignment.Center, FontSize = 16, Foreground = textDark };
+        Grid.SetColumn(pwdBox, 1); inputGrid.Children.Add(pwdBox);
+        var eyeIcon = new TextBlock { Text = "🙈", Foreground = textGray, Margin = new Thickness(8, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand };
+        Grid.SetColumn(eyeIcon, 2); inputGrid.Children.Add(eyeIcon);
         
-        buttons.Children.Add(cancelBtn);
-        buttons.Children.Add(okBtn);
-        Grid.SetRow(buttons, 3);
-        root.Children.Add(buttons);
+        var visiblePwdBox = new TextBox { BorderThickness = new Thickness(0), Background = Brushes.Transparent, VerticalContentAlignment = VerticalAlignment.Center, FontSize = 16, Foreground = textDark, Visibility = Visibility.Collapsed };
+        Grid.SetColumn(visiblePwdBox, 1); inputGrid.Children.Add(visiblePwdBox);
+        
+        eyeIcon.MouseLeftButtonDown += (_, _) => {
+            if (pwdBox.Visibility == Visibility.Visible) {
+                visiblePwdBox.Text = pwdBox.Password;
+                pwdBox.Visibility = Visibility.Collapsed;
+                visiblePwdBox.Visibility = Visibility.Visible;
+                eyeIcon.Text = "👁️";
+            } else {
+                pwdBox.Password = visiblePwdBox.Text;
+                visiblePwdBox.Visibility = Visibility.Collapsed;
+                pwdBox.Visibility = Visibility.Visible;
+                eyeIcon.Text = "🙈";
+            }
+        };
 
-        cancelBtn.Click += (s, e) => { dialog.Close(); };
-        okBtn.Click += async (s, e) =>
+        inputBorder.Child = inputGrid;
+        contentPanel.Children.Add(inputBorder);
+
+        var errorLabel = new TextBlock { Text = "", Foreground = Brushes.Firebrick, FontSize = 13, Margin = new Thickness(0, 8, 0, 0) };
+        contentPanel.Children.Add(errorLabel);
+
+        var hintStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
+        hintStack.Children.Add(new TextBlock { Text = "🛡️", Foreground = mainPurple, Margin = new Thickness(0, 0, 8, 0), FontSize = 12 });
+        hintStack.Children.Add(new TextBlock { Text = "Vì lý do bảo mật, vui lòng xác nhận mật khẩu của bạn.", Foreground = textGray, FontSize = 13 });
+        contentPanel.Children.Add(hintStack);
+
+        // --- Footer ---
+        var footerBorder = new Border { BorderBrush = borderGray, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(20, 16, 20, 16) };
+        var footerGrid = new Grid();
+        var actionPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        
+        var cancelBtn = new Button { Content = "✕ Hủy", Width = 90, Height = 40, Background = Brushes.White, BorderBrush = borderGray, BorderThickness = new Thickness(1), Foreground = textDark, FontWeight = FontWeights.SemiBold, Cursor = Cursors.Hand, Margin = new Thickness(0, 0, 12, 0) };
+        cancelBtn.Click += (_, _) => dialog.Close();
+        cancelBtn.Template = CreateRoundedButtonTemplate(8);
+        actionPanel.Children.Add(cancelBtn);
+
+        var okBtn = new Button { Content = "✓ Xác nhận", Width = 110, Height = 40, Background = mainPurple, Foreground = Brushes.White, FontWeight = FontWeights.Bold, Cursor = Cursors.Hand, BorderThickness = new Thickness(0), IsDefault = true };
+        okBtn.Template = CreateRoundedButtonTemplate(8);
+        actionPanel.Children.Add(okBtn);
+
+        footerGrid.Children.Add(actionPanel);
+        footerBorder.Child = footerGrid;
+        Grid.SetRow(footerBorder, 2); rootGrid.Children.Add(footerBorder);
+
+        okBtn.Click += async (_, _) =>
         {
-            var pwd = passwordBox.Password;
+            var pwd = pwdBox.Visibility == Visibility.Visible ? pwdBox.Password : visiblePwdBox.Text;
             if (string.IsNullOrEmpty(pwd))
             {
                 errorLabel.Text = "Vui lòng nhập mật khẩu.";
@@ -1939,7 +2074,7 @@ public async void OpenLoyaltyPanelFromClientUi()
 
             okBtn.IsEnabled = false;
             errorLabel.Text = "Đang xác thực...";
-            errorLabel.Foreground = Brushes.Gray;
+            errorLabel.Foreground = textGray;
 
             try
             {
@@ -1960,23 +2095,24 @@ public async void OpenLoyaltyPanelFromClientUi()
                 else
                 {
                     errorLabel.Text = "Mật khẩu không chính xác.";
-                    errorLabel.Foreground = Brushes.Red;
+                    errorLabel.Foreground = Brushes.Firebrick;
                     okBtn.IsEnabled = true;
                 }
             }
             catch (Exception ex)
             {
                 errorLabel.Text = "Lỗi kết nối: " + ex.Message;
-                errorLabel.Foreground = Brushes.Red;
+                errorLabel.Foreground = Brushes.Firebrick;
                 okBtn.IsEnabled = true;
             }
         };
 
-        dialog.Content = root;
+        rootBorder.Child = rootGrid;
+        dialog.Content = rootBorder;
         dialog.Closed += (s, e) => { if (!tcs.Task.IsCompleted) tcs.SetResult(false); };
         
         dialog.Show();
-        passwordBox.Focus();
+        pwdBox.Focus();
 
         return tcs.Task;
     }
@@ -2194,6 +2330,9 @@ public async void OpenLoyaltyPanelFromClientUi()
             _vietQrBankId = payload.VietQrBankId ?? "MB";
             _vietQrAccountNo = payload.VietQrAccountNo ?? "0123456789";
             _vietQrAccountName = payload.VietQrAccountName ?? "NGUYEN VAN A";
+            _topupPromoEnabled = payload.TopupPromoEnabled;
+            _topupPromoTiers = payload.TopupPromoTiers ?? "[]";
+            _adminOnline = payload.AdminOnline;
             Dispatcher.Invoke(() =>
             {
                 _lockScreenWindow?.ApplyBackgroundConfiguration(

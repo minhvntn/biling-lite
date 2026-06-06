@@ -371,6 +371,9 @@ public partial class MainWindow : Window
             SetLockScreenBackgroundModeUi(_lockScreenBackgroundMode);
             LockScreenBackgroundUrlTextBox.Text = _lockScreenBackgroundUrl;
             GameLauncherPathTextBox.Text = _gameLauncherPath;
+            VietQrBankIdTextBox.Text = (response.VietQrBankId ?? string.Empty).Trim();
+            VietQrAccountNoTextBox.Text = (response.VietQrAccountNo ?? string.Empty).Trim();
+            VietQrAccountNameTextBox.Text = (response.VietQrAccountName ?? string.Empty).Trim();
             RebuildMediaContainerFromTextBox();
             LockScreenIntervalTextBox.Text = Math.Max(1, response.LockScreenIntervalSeconds).ToString(CultureInfo.InvariantCulture);
 
@@ -474,6 +477,9 @@ public partial class MainWindow : Window
                     allowMemberTopupRequest = MemberTopupRequestEnabledCheckBox.IsChecked == true,
                     autoCollapseIntervalSeconds = collapseSeconds,
                     gameLauncherPath = GameLauncherPathTextBox.Text.Trim(),
+                    vietQrBankId = VietQrBankIdTextBox.Text.Trim(),
+                    vietQrAccountNo = VietQrAccountNoTextBox.Text.Trim(),
+                    vietQrAccountName = VietQrAccountNameTextBox.Text.Trim(),
                 });
 
             if (!response.IsSuccessStatusCode)
@@ -505,6 +511,9 @@ public partial class MainWindow : Window
             SetLockScreenBackgroundModeUi(_lockScreenBackgroundMode);
             LockScreenBackgroundUrlTextBox.Text = _lockScreenBackgroundUrl;
             GameLauncherPathTextBox.Text = _gameLauncherPath;
+            VietQrBankIdTextBox.Text = (payload?.VietQrBankId ?? string.Empty).Trim();
+            VietQrAccountNoTextBox.Text = (payload?.VietQrAccountNo ?? string.Empty).Trim();
+            VietQrAccountNameTextBox.Text = (payload?.VietQrAccountName ?? string.Empty).Trim();
             RebuildMediaContainerFromTextBox();
             LockScreenIntervalTextBox.Text = Math.Max(1, payload?.LockScreenIntervalSeconds ?? intervalSeconds).ToString(CultureInfo.InvariantCulture);
 
@@ -527,6 +536,13 @@ public partial class MainWindow : Window
             
             GameLauncherPathStatusTextBlock.Text = "Đã lưu đường dẫn Menu Game.";
             GameLauncherPathStatusTextBlock.Foreground = Brushes.DarkGreen;
+            
+            if (VietQrStatusTextBlock != null)
+            {
+                VietQrStatusTextBlock.Text = "Đã lưu cài đặt ngân hàng VietQR.";
+                VietQrStatusTextBlock.Foreground = Brushes.DarkGreen;
+            }
+
             AppendServiceLog(
                 $"[{DateTime.Now:HH:mm:ss}] Da luu runtime client: auto-shutdown={_readyAutoShutdownMinutes}m, auto-collapse={_autoCollapseIntervalSeconds}s, lockscreen={_lockScreenBackgroundMode}, member-withdraw={(MemberWithdrawEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}, member-topup-request={(MemberTopupRequestEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}");
         }
@@ -603,6 +619,25 @@ public partial class MainWindow : Window
 
         minutes = 0;
         return false;
+    }
+
+    private async void SaveVietQrSettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        await SaveClientRuntimeSettingsAsync();
+    }
+
+    private void VietQrConfigTextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_readyShutdownSettingsInitialized || _isLoadingReadyShutdownSettings)
+        {
+            return;
+        }
+
+        if (VietQrStatusTextBlock is not null)
+        {
+            VietQrStatusTextBlock.Text = "Đã thay đổi. Bấm \"Lưu cài đặt ngân hàng\" để áp dụng.";
+            VietQrStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+        }
     }
 
     private void ReadyAutoShutdownMinutesTextBox_TextChanged(object sender, TextChangedEventArgs e)

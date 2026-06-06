@@ -99,6 +99,9 @@ public sealed class ClientRuntimeSettingsResponse
     public string? VietQrBankId { get; set; }
     public string? VietQrAccountNo { get; set; }
     public string? VietQrAccountName { get; set; }
+    public bool TopupPromoEnabled { get; set; } = false;
+    public string TopupPromoTiers { get; set; } = "[]";
+    public bool AdminOnline { get; set; } = true;
 
     public string ServerTime { get; set; } = string.Empty;
 }

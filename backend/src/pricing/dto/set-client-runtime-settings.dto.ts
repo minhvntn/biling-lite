@@ -55,4 +55,19 @@ export class SetClientRuntimeSettingsDto {
   @IsString()
   @MaxLength(2048)
   gameLauncherPath?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  vietQrBankId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  vietQrAccountNo?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  vietQrAccountName?: string;
 }

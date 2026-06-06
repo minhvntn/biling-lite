@@ -249,6 +249,9 @@ public sealed class ClientRuntimeSettingsResponse
     public bool AllowMemberTopupRequest { get; set; } = true;
     public int AutoCollapseIntervalSeconds { get; set; } = 0;
     public string GameLauncherPath { get; set; } = string.Empty;
+    public string? VietQrBankId { get; set; }
+    public string? VietQrAccountNo { get; set; }
+    public string? VietQrAccountName { get; set; }
     public string ServerTime { get; set; } = string.Empty;
 }
 

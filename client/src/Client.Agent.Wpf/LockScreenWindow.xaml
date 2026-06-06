@@ -157,6 +157,21 @@
             <Border Background="#AA0F172A" />
         </Grid>
 
+        <!-- Machine Name (Top Right) -->
+        <TextBlock x:Name="AgentIdTextBlock"
+                   Text="PC-001"
+                   HorizontalAlignment="Right"
+                   VerticalAlignment="Top"
+                   Margin="0,40,60,0"
+                   Foreground="White"
+                   FontWeight="Black"
+                   FontSize="120"
+                   Opacity="0.8">
+            <TextBlock.Effect>
+                <DropShadowEffect BlurRadius="20" ShadowDepth="0" Color="Black" Opacity="0.5" />
+            </TextBlock.Effect>
+        </TextBlock>
+
         <!-- Centered Content Card -->
         <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
 

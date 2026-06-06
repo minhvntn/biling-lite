@@ -32,6 +32,9 @@ const DEFAULT_MEMBER_TOPUP_REQUEST_ENABLED = true;
 const CLIENT_AUTO_COLLAPSE_INTERVAL_SECONDS_KEY = '__CLIENT_AUTO_COLLAPSE_INTERVAL_SECONDS__';
 const DEFAULT_AUTO_COLLAPSE_INTERVAL_SECONDS = 0;
 const CLIENT_GAME_LAUNCHER_PATH_KEY = '__CLIENT_GAME_LAUNCHER_PATH__';
+const VIETQR_BANK_ID_KEY = '__VIETQR_BANK_ID__';
+const VIETQR_ACCOUNT_NO_KEY = '__VIETQR_ACCOUNT_NO__';
+const VIETQR_ACCOUNT_NAME_KEY = '__VIETQR_ACCOUNT_NAME__';
 const LOCK_SCREEN_MEDIA_DIR = path.join(
   process.cwd(),
   'storage',
@@ -39,9 +42,14 @@ const LOCK_SCREEN_MEDIA_DIR = path.join(
 );
 const MAX_LOCK_SCREEN_MEDIA_SIZE_BYTES = 100 * 1024 * 1024;
 
+import { RealtimeService } from '../realtime/realtime.service';
+
 @Injectable()
 export class PricingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeService,
+  ) {}
 
   async getPricingSettings() {
     const defaultGroup = await this.ensureDefaultGroup();
@@ -82,6 +90,11 @@ export class PricingService {
       intervalSetting,
       collapseSetting,
       gameLauncherPathSetting,
+      vietQrBankIdSetting,
+      vietQrAccountNoSetting,
+      vietQrAccountNameSetting,
+      topupPromoEnabledSetting,
+      topupPromoTiersSetting,
     ] = await Promise.all([
       this.ensureClientRuntimeSettings(),
       this.prisma.appSetting.findUnique({
@@ -106,6 +119,21 @@ export class PricingService {
       }),
       this.prisma.appSetting.findUnique({
         where: { key: CLIENT_GAME_LAUNCHER_PATH_KEY },
+      }),
+      this.prisma.appSetting.findUnique({
+        where: { key: VIETQR_BANK_ID_KEY },
+      }),
+      this.prisma.appSetting.findUnique({
+        where: { key: VIETQR_ACCOUNT_NO_KEY },
+      }),
+      this.prisma.appSetting.findUnique({
+        where: { key: VIETQR_ACCOUNT_NAME_KEY },
+      }),
+      this.prisma.appSetting.findUnique({
+        where: { key: 'TOPUP_PROMO_ENABLED' },
+      }),
+      this.prisma.appSetting.findUnique({
+        where: { key: 'TOPUP_PROMO_TIERS' },
       }),
     ]);
 
@@ -137,9 +165,12 @@ export class PricingService {
         ? Math.max(0, isNaN(Number(collapseSetting.value)) ? DEFAULT_AUTO_COLLAPSE_INTERVAL_SECONDS : Number(collapseSetting.value))
         : DEFAULT_AUTO_COLLAPSE_INTERVAL_SECONDS,
       gameLauncherPath: (gameLauncherPathSetting?.value ?? '').trim(),
-      vietQrBankId: 'VCB',
-      vietQrAccountNo: '0071001072225',
-      vietQrAccountName: 'VO NGOC MINH',
+      vietQrBankId: (vietQrBankIdSetting?.value ?? 'VCB').trim(),
+      vietQrAccountNo: (vietQrAccountNoSetting?.value ?? '0071001072225').trim(),
+      vietQrAccountName: vietQrAccountNameSetting?.value || null,
+      topupPromoEnabled: topupPromoEnabledSetting?.value === 'true',
+      topupPromoTiers: topupPromoTiersSetting?.value || '[]',
+      adminOnline: this.realtime.hasAdminSocket(),
       serverTime: new Date().toISOString(),
     };
   }
@@ -153,6 +184,9 @@ export class PricingService {
     const hasLockScreenInterval = payload.lockScreenIntervalSeconds !== undefined;
     const hasAutoCollapseInterval = payload.autoCollapseIntervalSeconds !== undefined;
     const hasGameLauncherPath = payload.gameLauncherPath !== undefined;
+    const hasVietQrBankId = payload.vietQrBankId !== undefined;
+    const hasVietQrAccountNo = payload.vietQrAccountNo !== undefined;
+    const hasVietQrAccountName = payload.vietQrAccountName !== undefined;
 
     if (
       !hasReadyMinutes &&
@@ -162,7 +196,10 @@ export class PricingService {
       !hasAllowMemberTopupRequest &&
       !hasLockScreenInterval &&
       !hasAutoCollapseInterval &&
-      !hasGameLauncherPath
+      !hasGameLauncherPath &&
+      !hasVietQrBankId &&
+      !hasVietQrAccountNo &&
+      !hasVietQrAccountName
     ) {
       throw new BadRequestException('Khong co du lieu cai dat de cap nhat');
     }
@@ -254,6 +291,33 @@ export class PricingService {
         where: { key: CLIENT_GAME_LAUNCHER_PATH_KEY },
         update: { value: pathValue },
         create: { key: CLIENT_GAME_LAUNCHER_PATH_KEY, value: pathValue },
+      });
+    }
+
+    if (hasVietQrBankId) {
+      const val = (payload.vietQrBankId ?? '').trim().slice(0, 50);
+      await this.prisma.appSetting.upsert({
+        where: { key: VIETQR_BANK_ID_KEY },
+        update: { value: val },
+        create: { key: VIETQR_BANK_ID_KEY, value: val },
+      });
+    }
+
+    if (hasVietQrAccountNo) {
+      const val = (payload.vietQrAccountNo ?? '').trim().slice(0, 100);
+      await this.prisma.appSetting.upsert({
+        where: { key: VIETQR_ACCOUNT_NO_KEY },
+        update: { value: val },
+        create: { key: VIETQR_ACCOUNT_NO_KEY, value: val },
+      });
+    }
+
+    if (hasVietQrAccountName) {
+      const val = (payload.vietQrAccountName ?? '').trim().slice(0, 150);
+      await this.prisma.appSetting.upsert({
+        where: { key: VIETQR_ACCOUNT_NAME_KEY },
+        update: { value: val },
+        create: { key: VIETQR_ACCOUNT_NAME_KEY, value: val },
       });
     }
 
@@ -788,3 +852,4 @@ export class PricingService {
     return { success: true };
   }
 }
+

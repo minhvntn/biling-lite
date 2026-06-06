@@ -1690,6 +1690,32 @@ export class MembersService {
     });
   }
 
+  private async calculateTopupBonus(amount: number, tx: any): Promise<number> {
+    if (amount <= 0) return 0;
+    try {
+      const enabledSetting = await tx.appSetting.findUnique({ where: { key: 'TOPUP_PROMO_ENABLED' } });
+      if (enabledSetting?.value !== 'true') return 0;
+
+      const tiersSetting = await tx.appSetting.findUnique({ where: { key: 'TOPUP_PROMO_TIERS' } });
+      if (!tiersSetting?.value) return 0;
+
+      const tiers = JSON.parse(tiersSetting.value);
+      if (!Array.isArray(tiers) || tiers.length === 0) return 0;
+
+      const validTiers = tiers
+        .map((t: any) => ({ minAmount: Number(t.minAmount || t.MinAmount || 0), bonusRate: Number(t.bonusRate || t.BonusRate || 0) }))
+        .filter((t: any) => t.minAmount > 0 && t.bonusRate > 0 && amount >= t.minAmount)
+        .sort((a: any, b: any) => b.minAmount - a.minAmount);
+
+      if (validTiers.length > 0) {
+        return this.roundMoney(amount * (validTiers[0].bonusRate / 100));
+      }
+    } catch (e) {
+      // Ignore
+    }
+    return 0;
+  }
+
   async topupMember(memberId: string, payload: TopupMemberDto) {
     const amount = this.roundMoney(payload.amount);
     const createdBy = payload.createdBy?.trim() || 'admin.web';
@@ -1700,14 +1726,24 @@ export class MembersService {
         throw new NotFoundException('Khong tim thay hoi vien');
       }
 
+      let finalAmount = amount;
+      let finalNote = payload.note ?? 'Nap tien';
+      if (amount > 0) {
+        const bonus = await this.calculateTopupBonus(amount, tx);
+        if (bonus > 0) {
+          finalAmount += bonus;
+          finalNote += ' (+' + bonus.toLocaleString('en-US') + ' KM)';
+        }
+      }
+
       const updatedMember = await tx.member.update({
         where: { id: member.id },
         data: {
           balance: {
-            increment: amount,
+            increment: finalAmount,
           },
           totalTopup: {
-            increment: amount,
+            increment: finalAmount,
           },
         },
       });
@@ -1716,8 +1752,8 @@ export class MembersService {
         data: {
           memberId: member.id,
           type: MemberTransactionType.TOPUP,
-          amountDelta: amount,
-          note: payload.note ?? 'Nap tien',
+          amountDelta: finalAmount,
+          note: finalNote,
           createdBy,
         },
       });
@@ -1730,8 +1766,8 @@ export class MembersService {
           payload: {
             memberId: member.id,
             username: member.username,
-            amount: amount,
-            note: payload.note ?? 'Nap tien',
+            amount: finalAmount,
+            note: finalNote,
             createdBy,
             at: new Date().toISOString(),
           },
@@ -2145,6 +2181,10 @@ export class MembersService {
       throw new BadRequestException('Tinh nang nap tien nhanh hoi vien dang tam tat');
     }
 
+    if (!this.realtime.hasAdminSocket()) {
+      throw new BadRequestException('Hiện tại không có thu ngân (admin) online để xử lý yêu cầu nạp tiền. Vui lòng thử lại sau.');
+    }
+
     const amount = this.roundMoney(payload.amount);
     const createdBy = payload.createdBy?.trim() || 'client.member.topup.request';
     const note = payload.note?.trim() || null;
@@ -2272,14 +2312,24 @@ export class MembersService {
         throw new BadRequestException('Tài khoản hội viên không hoạt động');
       }
 
+      let finalAmount = requestPayload.amount;
+      let finalNote = requestPayload.note || 'Hội viên yêu cầu nạp tiền (được duyệt)';
+      if (requestPayload.amount > 0) {
+        const bonus = await this.calculateTopupBonus(requestPayload.amount, tx);
+        if (bonus > 0) {
+          finalAmount += bonus;
+          finalNote += ' (+' + bonus.toLocaleString('en-US') + ' KM)';
+        }
+      }
+
       const updatedMember = await tx.member.update({
         where: { id: member.id },
         data: {
           balance: {
-            increment: requestPayload.amount,
+            increment: finalAmount,
           },
           totalTopup: {
-            increment: requestPayload.amount,
+            increment: finalAmount,
           },
         },
       });
@@ -2288,8 +2338,8 @@ export class MembersService {
         data: {
           memberId: member.id,
           type: MemberTransactionType.TOPUP,
-          amountDelta: requestPayload.amount,
-          note: requestPayload.note || 'Hội viên yêu cầu nạp tiền (được duyệt)',
+          amountDelta: finalAmount,
+          note: finalNote,
           createdBy: approvedBy,
         },
       });
@@ -2299,7 +2349,7 @@ export class MembersService {
         status: 'APPROVED',
         approvedAt: new Date().toISOString(),
         approvedBy,
-        processedAmount: requestPayload.amount,
+        processedAmount: finalAmount,
         balanceAfterTopup: Number(updatedMember.balance),
         transactionId: transaction.id,
       };

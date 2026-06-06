@@ -30,4 +30,22 @@ export class RealtimeService {
     const room = adapter?.rooms?.get(`agent:${agentId}`);
     return room?.size ?? 0;
   }
+
+  hasAdminSocket(): boolean {
+    if (!this.server) {
+      return false;
+    }
+
+    const sockets = this.server.sockets?.sockets;
+    if (!sockets) {
+      return false;
+    }
+
+    for (const socket of sockets.values()) {
+      if (!socket.data?.agentId) {
+        return true;
+      }
+    }
+    return false;
+  }
 }

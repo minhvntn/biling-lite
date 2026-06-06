@@ -740,10 +740,6 @@ public partial class MainWindow : Window
         }
 
         var signedAmount = _topupModalIsDeduct ? -_topupModalAmount : _topupModalAmount;
-        if (!_topupModalIsDeduct)
-        {
-            signedAmount += CalculatePromotionBonus(_topupModalAmount);
-        }
         CloseTopupModal(signedAmount);
     }
 

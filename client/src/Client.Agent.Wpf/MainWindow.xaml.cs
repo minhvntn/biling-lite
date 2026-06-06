@@ -473,7 +473,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         {
             MessagesActionButton.Visibility = Visibility.Visible;
             ServicesActionButton.Visibility = Visibility.Visible;
-            PromotionsContainer.Visibility = Visibility.Visible;
+            PromotionsContainer.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
             MemberRankContainer.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
         }
         if (string.IsNullOrWhiteSpace(username))

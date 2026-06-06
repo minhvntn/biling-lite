@@ -23,6 +23,11 @@ public partial class LockScreenWindow : Window
         InitializeComponent();
     }
 
+    public void SetAgentId(string agentId)
+    {
+        AgentIdTextBlock.Text = string.IsNullOrWhiteSpace(agentId) ? System.Environment.MachineName : agentId;
+    }
+
     public void SetGuestLoginEnabled(bool isEnabled)
     {
         GuestTabItem.Visibility = isEnabled ? Visibility.Visible : Visibility.Collapsed;
