@@ -1545,121 +1545,310 @@
                 <TabItem x:Name="GroupsTab" Style="{StaticResource MainTabItemStyle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x1F9E9;" Margin="0,0,6,0" FontSize="18" />
+                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x2699;" Margin="0,0,6,0" FontSize="18" />
                             <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="Nhóm máy" FontSize="12.5" />
                         </StackPanel>
                     </TabItem.Header>
-                    <Grid Margin="0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="220" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+                    
+                    <Grid Margin="16" Background="#F8FAFC" TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="280" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        
+                        <Grid.Resources>
+                            <Style x:Key="DashboardCardStyle" TargetType="Border">
+                                <Setter Property="Background" Value="White"/>
+                                <Setter Property="CornerRadius" Value="12"/>
+                                <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                <Setter Property="BorderThickness" Value="1"/>
+                                <Setter Property="Padding" Value="16"/>
+                                <Setter Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#0F172A" Opacity="0.03" BlurRadius="10" ShadowDepth="2" Direction="270" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                            <Style x:Key="BadgeBorderStyle" TargetType="Border">
+                                <Setter Property="CornerRadius" Value="4"/>
+                                <Setter Property="Padding" Value="8,4"/>
+                            </Style>
+                        </Grid.Resources>
 
-                        <Grid Grid.Row="0" Margin="0,0,0,8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Margin="0,0,16,0" Background="Transparent">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                
+                                <Grid Grid.Row="0" Margin="0,0,0,12">
+                                    <TextBlock Text="NHÓM MÁY" FontWeight="Bold" FontSize="12" Foreground="#334155" VerticalAlignment="Center"/>
+                                    <Button HorizontalAlignment="Right" Width="32" Height="32" Content="+" FontSize="20" FontWeight="Light" 
+                                            Background="White" BorderBrush="#E2E8F0" Foreground="#3B82F6" Cursor="Hand"
+                                            Click="CreatePricingGroupButton_Click" ToolTip="Thêm nhóm máy">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="8">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Grid>
+                                
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                    <ListBox x:Name="GroupSummaryDataGrid" 
+                                             Background="Transparent" BorderThickness="0" 
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                             SelectionChanged="GroupSummaryDataGrid_SelectionChanged"
+                                             ContextMenuOpening="GroupSummaryDataGrid_ContextMenuOpening"
+                                             AllowDrop="True"
+                                             DragOver="GroupSummaryDataGrid_DragOver"
+                                             Drop="GroupSummaryDataGrid_Drop">
+                                        <ListBox.ContextMenu>
+                                            <ContextMenu FontSize="{DynamicResource MachineContextMenuFontSize}">
+                                                <ContextMenu.Resources>
+                                                    <Style TargetType="MenuItem">
+                                                        <Setter Property="Padding" Value="{DynamicResource MachineContextMenuItemPadding}" />
+                                                    </Style>
+                                                </ContextMenu.Resources>
+                                                <MenuItem x:Name="GroupSummaryEditGuestRateMenuItem" Header="Sửa giá khách..." Click="GroupSummaryEditGuestRateMenuItem_Click" />
+                                                <MenuItem x:Name="GroupSummaryEditMemberRateMenuItem" Header="Sửa giá hội viên..." Click="GroupSummaryEditMemberRateMenuItem_Click" />
+                                                <Separator />
+                                                <MenuItem x:Name="GroupSummaryDeleteGroupMenuItem" Header="Xóa nhóm giá..." Click="GroupSummaryDeleteGroupMenuItem_Click" />
+                                            </ContextMenu>
+                                        </ListBox.ContextMenu>
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem">
+                                                <Setter Property="Padding" Value="0"/>
+                                                <Setter Property="Margin" Value="0,0,0,12"/>
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                                <Setter Property="Cursor" Value="Hand"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="ListBoxItem">
+                                                            <Border Background="Transparent">
+                                                                <ContentPresenter/>
+                                                            </Border>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Style="{StaticResource DashboardCardStyle}" Padding="12" Margin="0">
+                                                    <Grid>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
+                                                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <Border Grid.Column="0" Width="36" Height="36" CornerRadius="8" Background="#EEF2FF" Margin="0,0,12,0">
+                                                                <TextBlock Text="&#x1F4BB;" Foreground="#4F46E5" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding GroupName}" FontWeight="Bold" FontSize="13" Foreground="#0F172A"/>
+                                                                <TextBlock Text="{Binding Total, StringFormat={}{0} máy}" FontSize="11" Foreground="#475569" Margin="0,2,0,0"/>
+                                                            </StackPanel>
+                                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                                                <TextBlock Text="{Binding HourlyRate, StringFormat={}{0:N0}}" FontWeight="Bold" FontSize="12" Foreground="#0F172A" HorizontalAlignment="Right"/>
+                                                                <TextBlock Text="VND/giờ" FontSize="10" Foreground="#475569" HorizontalAlignment="Right"/>
+                                                            </StackPanel>
+                                                            <Button Grid.Column="3" Content="⋮" Background="Transparent" BorderThickness="0" Foreground="#94A3B8" FontSize="16" FontWeight="Bold" Margin="8,-8,-8,0" VerticalAlignment="Top" Cursor="Hand" Click="GroupCardOptionsButton_Click" ToolTip="Tùy chọn nhóm"/>
+                                                        </Grid>
+                                                        <Grid Grid.Row="1">
+                                                            <ProgressBar Height="6" Value="{Binding Total}" Maximum="100" BorderThickness="0" Background="#E2E8F0" Foreground="#4F46E5">
+                                                                <ProgressBar.Template>
+                                                                    <ControlTemplate TargetType="ProgressBar">
+                                                                        <Grid>
+                                                                            <Border Background="{TemplateBinding Background}" CornerRadius="3" />
+                                                                            <Border x:Name="PART_Track" />
+                                                                            <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}" CornerRadius="3" HorizontalAlignment="Left" />
+                                                                        </Grid>
+                                                                    </ControlTemplate>
+                                                                </ProgressBar.Template>
+                                                            </ProgressBar>
+                                                        </Grid>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </ScrollViewer>
+                                
+                                <Border Grid.Row="2" Style="{StaticResource DashboardCardStyle}" Margin="0,16,0,0" Background="#EEF2FF" BorderBrush="#E0E7FF">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                            <TextBlock Text="&#x2753;" Foreground="#4F46E5" Margin="0,0,8,0"/>
+                                            <TextBlock Text="Hướng dẫn" FontWeight="SemiBold" Foreground="#4F46E5"/>
+                                        </StackPanel>
+                                        <TextBlock Text="• Check chọn máy ở bảng giữa và dùng công cụ Chuyển Nhóm Nhanh bên phải để đổi nhóm." TextWrapping="Wrap" FontSize="12" Foreground="#4338CA" Margin="0,0,0,6"/>
+                                        <TextBlock Text="• Có thể chuyển nhiều máy cùng lúc bằng cách tick chọn." TextWrapping="Wrap" FontSize="12" Foreground="#4338CA"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Border>
 
-                            <Button Grid.Column="0" Padding="10,5" Click="RefreshGroupsButton_Click" Content="Làm mới" Margin="0,0,8,0" />
-                            <Button Grid.Column="1" Padding="10,5" Click="CreatePricingGroupButton_Click" Content="Thêm nhóm giá..." Margin="0,0,8,0" />
-                            <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="Kéo máy từ bảng dưới thả vào nhóm bên trên để chuyển nhóm." Foreground="#555" />
+                        <Grid Grid.Column="1" Margin="0,0,16,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            
+                            <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                                <Grid Margin="0,0,0,12">
+                                    <TextBlock Text="TỔNG QUAN" FontWeight="Bold" FontSize="12" Foreground="#334155" VerticalAlignment="Center"/>
+                                    <Button HorizontalAlignment="Right" Content="&#x21BB; Làm mới" Foreground="#2563EB" Background="White" BorderBrush="#CBD5E1" Cursor="Hand" Click="RefreshGroupsButton_Click">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12,6">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Grid>
+                                <UniformGrid Columns="5" Margin="-6,0">
+                                    <Border Style="{StaticResource DashboardCardStyle}" Margin="6,0" Padding="12">
+                                        <StackPanel>
+                                            <TextBlock Text="Tổng số máy" FontSize="11" Foreground="#475569"/>
+                                            <TextBlock x:Name="DashStatTotalMachines" Text="0" FontSize="20" FontWeight="Bold" Foreground="#0F172A" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource DashboardCardStyle}" Margin="6,0" Padding="12">
+                                        <StackPanel>
+                                            <TextBlock Text="Nhóm lớn nhất" FontSize="11" Foreground="#475569"/>
+                                            <TextBlock x:Name="DashStatTopGroup" Text="-" FontSize="20" FontWeight="Bold" Foreground="#0F172A" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource DashboardCardStyle}" Margin="6,0" Padding="12">
+                                        <StackPanel>
+                                            <TextBlock Text="Nhóm lớn thứ 2" FontSize="11" Foreground="#475569"/>
+                                            <TextBlock x:Name="DashStatSecondGroup" Text="-" FontSize="20" FontWeight="Bold" Foreground="#0F172A" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource DashboardCardStyle}" Margin="6,0" Padding="12">
+                                        <StackPanel>
+                                            <TextBlock Text="Đang hoạt động" FontSize="11" Foreground="#475569"/>
+                                            <TextBlock x:Name="DashStatOnline" Text="0" FontSize="20" FontWeight="Bold" Foreground="#059669" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Style="{StaticResource DashboardCardStyle}" Margin="6,0" Padding="12">
+                                        <StackPanel>
+                                            <TextBlock Text="Đang bảo trì/tắt" FontSize="11" Foreground="#475569"/>
+                                            <TextBlock x:Name="DashStatOffline" Text="0" FontSize="20" FontWeight="Bold" Foreground="#D97706" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </UniformGrid>
+                            </StackPanel>
+                            
+                            <Border Grid.Row="1" Style="{StaticResource DashboardCardStyle}" Padding="0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    
+                                    <Grid Grid.Row="0" Margin="16">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="DANH SÁCH MÁY" FontWeight="Bold" FontSize="12" Foreground="#334155" VerticalAlignment="Center"/>
+                                        
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Border BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Background="White" Padding="8,4">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="&#x1F50D;" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                    <TextBox x:Name="GroupMachinesSearchTextBox" Width="150" BorderThickness="0" VerticalAlignment="Center" Background="Transparent" TextChanged="GroupMachinesSearchTextBox_TextChanged"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+                                    
+                                    <DataGrid x:Name="GroupMachinesDataGrid"
+                                              Grid.Row="1"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              CanUserAddRows="False"
+                                              HeadersVisibility="Column"
+                                              GridLinesVisibility="Horizontal"
+                                              RowHeaderWidth="0"
+                                              SelectionMode="Extended"
+                                              BorderThickness="0,1,0,0"
+                                              BorderBrush="#E2E8F0"
+                                              FontSize="14"
+                                              SelectionChanged="GroupMachinesDataGrid_SelectionChanged"
+                                              ContextMenuOpening="GroupMachinesDataGrid_ContextMenuOpening"
+                                              AlternationCount="2"
+                                              PreviewMouseLeftButtonDown="GroupMachinesDataGrid_PreviewMouseLeftButtonDown"
+                                              MouseMove="GroupMachinesDataGrid_MouseMove">
+                                        <DataGrid.Resources>
+                                            <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="{Binding Source={x:Static SystemColors.HighlightColor}}"/>
+                                            <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="{Binding Source={x:Static SystemColors.HighlightTextColor}}"/>
+                                        </DataGrid.Resources>
+                                        <DataGrid.RowStyle>
+                                            <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                                <EventSetter Event="PreviewMouseRightButtonDown" Handler="GroupMachinesDataGridRow_PreviewMouseRightButtonDown" />
+                                            </Style>
+                                        </DataGrid.RowStyle>
+                                        <DataGrid.ContextMenu>
+                                            <ContextMenu FontSize="{DynamicResource MachineContextMenuFontSize}">
+                                                <ContextMenu.Resources>
+                                                    <Style TargetType="MenuItem">
+                                                        <Setter Property="Padding" Value="{DynamicResource MachineContextMenuItemPadding}" />
+                                                    </Style>
+                                                </ContextMenu.Resources>
+                                                <MenuItem x:Name="GroupMachinesAssignGroupMenuItem" Header="Chuyển nhóm máy">
+                                                    <MenuItem Header="Đang tải nhóm máy..." IsEnabled="False" />
+                                                </MenuItem>
+                                            </ContextMenu>
+                                        </DataGrid.ContextMenu>
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Tên máy" Binding="{Binding MachineName}" Width="130" />
+                                            
+                                            <DataGridTemplateColumn Header="Nhóm hiện tại" Width="140">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Border Style="{StaticResource BadgeBorderStyle}" Background="#EEF2FF" BorderBrush="#E0E7FF" BorderThickness="1" HorizontalAlignment="Left">
+                                                            <TextBlock Text="{Binding GroupName}" Foreground="#4F46E5" FontSize="12" FontWeight="SemiBold"/>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            
+                                            <DataGridTextColumn Header="IP" Binding="{Binding IpAddress}" Width="120" />
+                                            
+                                            <DataGridTemplateColumn Header="Trạng thái" Width="120">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Ellipse Width="8" Height="8" Fill="{Binding StatusBrush}" Margin="0,0,6,0"/>
+                                                            <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Foreground="{Binding StatusIconBrush}" FontWeight="SemiBold"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+
+                                            <DataGridTextColumn Header="Lần cuối online" Binding="{Binding LastSeenAtText}" Width="150" />
+                                            <DataGridTextColumn Header="Giá khách" Binding="{Binding HourlyRate, StringFormat={}{0:N0}}" Width="100" />
+                                            <DataGridTextColumn Header="Giá hội viên" Binding="{Binding MemberHourlyRate, StringFormat={}{0:N0}}" Width="100" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Grid>
+                            </Border>
                         </Grid>
 
-                        <DataGrid x:Name="GroupSummaryDataGrid"
-                                  Grid.Row="1"
-                                  AutoGenerateColumns="False"
-                                  IsReadOnly="True"
-                                  CanUserAddRows="False"
-                                  HeadersVisibility="Column"
-                                  GridLinesVisibility="Horizontal"
-                                  RowHeaderWidth="0"
-                                  SelectionChanged="GroupSummaryDataGrid_SelectionChanged"
-                                  ContextMenuOpening="GroupSummaryDataGrid_ContextMenuOpening"
-                                  AllowDrop="True"
-                                  DragOver="GroupSummaryDataGrid_DragOver"
-                                  Drop="GroupSummaryDataGrid_Drop"
-                                  AlternationCount="2">
-                            <DataGrid.RowStyle>
-                                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-                                    <EventSetter Event="PreviewMouseRightButtonDown" Handler="GroupSummaryDataGridRow_PreviewMouseRightButtonDown" />
-                                </Style>
-                            </DataGrid.RowStyle>
-                            <DataGrid.ContextMenu>
-                                <ContextMenu FontSize="{DynamicResource MachineContextMenuFontSize}">
-                                    <ContextMenu.Resources>
-                                        <Style TargetType="MenuItem">
-                                            <Setter Property="Padding" Value="{DynamicResource MachineContextMenuItemPadding}" />
-                                        </Style>
-                                    </ContextMenu.Resources>
-                                    <MenuItem x:Name="GroupSummaryEditGuestRateMenuItem" Header="Sửa giá khách..." Click="GroupSummaryEditGuestRateMenuItem_Click" />
-                                    <MenuItem x:Name="GroupSummaryEditMemberRateMenuItem" Header="Sửa giá hội viên..." Click="GroupSummaryEditMemberRateMenuItem_Click" />
-                                    <Separator />
-                                    <MenuItem x:Name="GroupSummaryDeleteGroupMenuItem" Header="Xóa nhóm giá..." Click="GroupSummaryDeleteGroupMenuItem_Click" />
-                                </ContextMenu>
-                            </DataGrid.ContextMenu>
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Nhóm" Binding="{Binding GroupName}" Width="160" />
-                                <DataGridTextColumn Header="Giá khách (VND/giờ)" Binding="{Binding HourlyRate, StringFormat={}{0:N0}}" Width="145" />
-                                <DataGridTextColumn Header="Giá hội viên (VND/giờ)" Binding="{Binding MemberHourlyRate, StringFormat={}{0:N0}}" Width="160" />
-                                <DataGridTextColumn Header="Mặc định" Binding="{Binding IsDefaultText}" Width="90" />
-                                <DataGridTextColumn Header="Tổng" Binding="{Binding Total}" Width="80" />
-                                <DataGridTextColumn Header="Đang dùng" Binding="{Binding InUse}" Width="90" />
-                                <DataGridTextColumn Header="Đang tắt" Binding="{Binding Locked}" Width="90" />
-                                <DataGridTextColumn Header="Sẵn sàng" Binding="{Binding Online}" Width="90" />
-                                <DataGridTextColumn Header="Ngoại tuyến" Binding="{Binding Offline}" Width="90" />
-                            </DataGrid.Columns>
-                        </DataGrid>
 
-                        <DataGrid x:Name="GroupMachinesDataGrid"
-                                  Grid.Row="2"
-                                  Margin="0,8,0,0"
-                                  AutoGenerateColumns="False"
-                                  IsReadOnly="True"
-                                  CanUserAddRows="False"
-                                  HeadersVisibility="Column"
-                                  GridLinesVisibility="Horizontal"
-                                  RowHeaderWidth="0"
-                                  SelectionChanged="GroupMachinesDataGrid_SelectionChanged"
-                                  PreviewMouseLeftButtonDown="GroupMachinesDataGrid_PreviewMouseLeftButtonDown"
-                                  ContextMenuOpening="GroupMachinesDataGrid_ContextMenuOpening"
-                                  MouseMove="GroupMachinesDataGrid_MouseMove"
-                                  AlternationCount="2">
-                            <DataGrid.RowStyle>
-                                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-                                    <EventSetter Event="PreviewMouseRightButtonDown" Handler="GroupMachinesDataGridRow_PreviewMouseRightButtonDown" />
-                                </Style>
-                            </DataGrid.RowStyle>
-                            <DataGrid.ContextMenu>
-                                <ContextMenu FontSize="{DynamicResource MachineContextMenuFontSize}">
-                                    <ContextMenu.Resources>
-                                        <Style TargetType="MenuItem">
-                                            <Setter Property="Padding" Value="{DynamicResource MachineContextMenuItemPadding}" />
-                                        </Style>
-                                    </ContextMenu.Resources>
-                                    <MenuItem x:Name="GroupMachinesAssignGroupMenuItem" Header="Chuyển nhóm máy">
-                                        <MenuItem Header="Đang tải nhóm máy..." IsEnabled="False" />
-                                    </MenuItem>
-                                </ContextMenu>
-                            </DataGrid.ContextMenu>
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Nhóm" Binding="{Binding GroupName}" Width="140" />
-                                <DataGridTextColumn Header="Tên máy" Binding="{Binding MachineName}" Width="150" />
-                                <DataGridTextColumn Header="Giá khách (VND/giờ)" Binding="{Binding HourlyRate, StringFormat={}{0:N0}}" Width="145" />
-                                <DataGridTextColumn Header="Giá hội viên (VND/giờ)" Binding="{Binding MemberHourlyRate, StringFormat={}{0:N0}}" Width="160" />
-                                <DataGridTextColumn Header="Agent" Binding="{Binding AgentId}" Width="130" />
-                                <DataGridTextColumn Header="Trạng thái" Binding="{Binding StatusText}" Width="120" />
-                                <DataGridTextColumn Header="IP" Binding="{Binding IpAddress}" Width="120" />
-                                <DataGridTextColumn Header="Lần cuối" Binding="{Binding LastSeenAtText}" Width="170" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-
-                        <TextBlock Grid.Row="3" Margin="0,8,0,0" x:Name="GroupInfoTextBlock" Text="Nhóm mặc định đã được khởi tạo" />
                     </Grid>
                 </TabItem>
 

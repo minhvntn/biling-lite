@@ -546,6 +546,7 @@ public sealed class GroupSummaryRow
     public bool IsDefault { get; set; }
     public string IsDefaultText => IsDefault ? "Có" : "-";
     public int Total { get; set; }
+    public double Percentage { get; set; }
     public int InUse { get; set; }
     public int Locked { get; set; }
     public int Online { get; set; }

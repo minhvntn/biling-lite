@@ -1,4 +1,4 @@
-﻿using System.Net.Http;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -72,6 +72,7 @@ public partial class MainWindow : Window
                     MemberHourlyRate = group.MemberHourlyRate > 0 ? group.MemberHourlyRate : group.HourlyRate,
                     IsDefault = group.IsDefault,
                     Total = machines.Count,
+                    Percentage = _allMachineRows.Count > 0 ? (double)machines.Count / _allMachineRows.Count * 100 : 0,
                     InUse = machines.Count(x => x.StatusCode == "IN_USE"),
                     Locked = machines.Count(x => x.StatusCode == "LOCKED"),
                     Online = machines.Count(x => x.StatusCode == "ONLINE"),
@@ -130,12 +131,17 @@ public partial class MainWindow : Window
             }
         }
 
-        var defaultMemberHourlyRate = defaultGroup.MemberHourlyRate > 0
-            ? defaultGroup.MemberHourlyRate
-            : defaultGroup.HourlyRate;
-        GroupInfoTextBlock.Text =
-            $"{I18n.GroupCountPrefix}: {groupSummaries.Count} - {I18n.TotalMachinePrefix}: {_allMachineRows.Count} - " +
-            $"Giá mặc định: {defaultGroup.HourlyRate:N0} VND/giờ | Giá hội viên: {defaultMemberHourlyRate:N0} VND/giờ";
+        var totalMachines = _allMachineRows.Count;
+        var totalOnline = _allMachineRows.Count(x => x.StatusCode == "ONLINE" || x.StatusCode == "IN_USE");
+        var totalOffline = _allMachineRows.Count(x => x.StatusCode != "ONLINE" && x.StatusCode != "IN_USE");
+
+        DashStatTotalMachines.Text = totalMachines.ToString();
+        DashStatOnline.Text = totalOnline.ToString();
+        DashStatOffline.Text = totalOffline.ToString();
+
+        var topGroups = groupSummaries.OrderByDescending(x => x.Total).ToList();
+        DashStatTopGroup.Text = topGroups.Count > 0 ? $"{topGroups[0].Total} ({topGroups[0].GroupName})" : "-";
+        DashStatSecondGroup.Text = topGroups.Count > 1 ? $"{topGroups[1].Total} ({topGroups[1].GroupName})" : "-";
     }
 
     private static PricingGroupItem ResolveGroup(
@@ -351,7 +357,10 @@ public partial class MainWindow : Window
 
         if (_draggingGroupMachine is not null)
         {
-            GroupMachinesDataGrid.SelectedItem = _draggingGroupMachine;
+            if (!GroupMachinesDataGrid.SelectedItems.Contains(_draggingGroupMachine))
+            {
+                GroupMachinesDataGrid.SelectedItem = _draggingGroupMachine;
+            }
             _selectedGroupMachinePcId = _draggingGroupMachine.PcId;
         }
     }
@@ -693,6 +702,26 @@ public partial class MainWindow : Window
         }
     }
 
+    private void GroupMachinesSearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        var text = GroupMachinesSearchTextBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            GroupMachinesDataGrid.ItemsSource = _groupMachineRows;
+        }
+        else
+        {
+            var lower = text.ToLowerInvariant();
+            GroupMachinesDataGrid.ItemsSource = _groupMachineRows.Where(x => 
+                (x.MachineName?.ToLowerInvariant().Contains(lower) == true) ||
+                (x.GroupName?.ToLowerInvariant().Contains(lower) == true) ||
+                (x.IpAddress?.ToLowerInvariant().Contains(lower) == true)
+            ).ToList();
+        }
+    }
+
+
+
     private void GroupMachinesDataGrid_MouseMove(object sender, MouseEventArgs e)
     {
         if (e.LeftButton != MouseButtonState.Pressed || _draggingGroupMachine is null)
@@ -707,14 +736,20 @@ public partial class MainWindow : Window
             return;
         }
 
-        var payload = new DataObject(typeof(GroupMachineRow), _draggingGroupMachine);
+        var selectedMachines = GroupMachinesDataGrid.SelectedItems.Cast<GroupMachineRow>().ToList();
+        if (selectedMachines.Count == 0 || !selectedMachines.Contains(_draggingGroupMachine))
+        {
+            selectedMachines = new System.Collections.Generic.List<GroupMachineRow> { _draggingGroupMachine };
+        }
+
+        var payload = new DataObject(typeof(System.Collections.Generic.List<GroupMachineRow>), selectedMachines);
         DragDrop.DoDragDrop(GroupMachinesDataGrid, payload, DragDropEffects.Move);
         _draggingGroupMachine = null;
     }
 
     private void GroupSummaryDataGrid_DragOver(object sender, DragEventArgs e)
     {
-        if (!e.Data.GetDataPresent(typeof(GroupMachineRow)))
+        if (!e.Data.GetDataPresent(typeof(System.Collections.Generic.List<GroupMachineRow>)))
         {
             e.Effects = DragDropEffects.None;
             e.Handled = true;
@@ -728,20 +763,20 @@ public partial class MainWindow : Window
 
     private async void GroupSummaryDataGrid_Drop(object sender, DragEventArgs e)
     {
-        if (!e.Data.GetDataPresent(typeof(GroupMachineRow)))
+        if (!e.Data.GetDataPresent(typeof(System.Collections.Generic.List<GroupMachineRow>)))
         {
             return;
         }
 
-        var sourceMachine = e.Data.GetData(typeof(GroupMachineRow)) as GroupMachineRow;
+        var sourceMachines = e.Data.GetData(typeof(System.Collections.Generic.List<GroupMachineRow>)) as System.Collections.Generic.List<GroupMachineRow>;
         var targetGroup = GetGroupSummaryFromPoint(e.GetPosition(GroupSummaryDataGrid));
-        if (sourceMachine is null || targetGroup is null)
+        if (sourceMachines is null || sourceMachines.Count == 0 || targetGroup is null)
         {
             return;
         }
 
         GroupSummaryDataGrid.SelectedItem = targetGroup;
-        await AssignMachineToGroupAsync(sourceMachine, targetGroup);
+        await AssignMachinesToGroupAsync(sourceMachines, targetGroup);
     }
 
     private async Task AssignMachineToGroupAsync(GroupMachineRow machine, GroupSummaryRow targetGroup)
@@ -757,11 +792,48 @@ public partial class MainWindow : Window
 
         if (!response.IsSuccessStatusCode)
         {
-            MessageBox.Show($"Chuy\u1ec3n nh\u00f3m m\u00e1y th\u1ea5t b\u1ea1i ({(int)response.StatusCode})", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show($"Chuyển nhóm máy thất bại ({(int)response.StatusCode})", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
-        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Chuy\u1ec3n {machine.MachineName} sang nh\u00f3m \"{targetGroup.GroupName}\"");
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Chuyển {machine.MachineName} sang nhóm \"{targetGroup.GroupName}\"");
+        _pricingSettings = null;
+        await RefreshMachinesAsync();
+    }
+
+    private async Task AssignMachinesToGroupAsync(System.Collections.Generic.List<GroupMachineRow> machines, GroupSummaryRow targetGroup)
+    {
+        bool anyFailed = false;
+        int successCount = 0;
+        foreach (var machine in machines)
+        {
+            if (string.Equals(machine.GroupId, targetGroup.GroupId, StringComparison.OrdinalIgnoreCase)) continue;
+
+            using var response = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl($"/pricing/pcs/{machine.PcId}/group"),
+                new { groupId = targetGroup.GroupId });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Lỗi khi chuyển máy {machine.MachineName}: {(int)response.StatusCode}");
+                anyFailed = true;
+            }
+            else
+            {
+                successCount++;
+            }
+        }
+
+        if (successCount > 0)
+        {
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã chuyển {successCount} máy sang nhóm \"{targetGroup.GroupName}\"");
+        }
+        
+        if (anyFailed)
+        {
+            MessageBox.Show($"Chuyển nhóm máy hoàn tất nhưng có một số máy bị lỗi.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
         _pricingSettings = null;
         await RefreshMachinesAsync();
     }
@@ -769,13 +841,34 @@ public partial class MainWindow : Window
     private GroupSummaryRow? GetGroupSummaryFromPoint(Point point)
     {
         var source = GroupSummaryDataGrid.InputHitTest(point) as DependencyObject;
-        return TryGetDataGridRowItem<GroupSummaryRow>(source);
+        
+        var dataGridRow = FindAncestor<DataGridRow>(source);
+        if (dataGridRow != null) return dataGridRow.Item as GroupSummaryRow;
+
+        var listBoxItem = FindAncestor<ListBoxItem>(source);
+        if (listBoxItem != null) return listBoxItem.Content as GroupSummaryRow;
+
+        return null;
     }
 
     private static T? TryGetDataGridRowItem<T>(DependencyObject? source) where T : class
     {
         var row = FindAncestor<DataGridRow>(source);
         return row?.Item as T;
+    }
+
+    private void GroupCardOptionsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.DataContext is GroupSummaryRow groupRow)
+        {
+            GroupSummaryDataGrid.SelectedItem = groupRow;
+            if (GroupSummaryDataGrid.ContextMenu != null)
+            {
+                GroupSummaryDeleteGroupMenuItem.IsEnabled = !groupRow.IsDefault;
+                GroupSummaryDataGrid.ContextMenu.PlacementTarget = button;
+                GroupSummaryDataGrid.ContextMenu.IsOpen = true;
+            }
+        }
     }
 }
 
