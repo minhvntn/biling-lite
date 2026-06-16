@@ -379,6 +379,24 @@ public sealed class MemberRow
     public string MemberType { get; set; } = "REGULAR";
     public string MemberTypeText { get; set; } = "Thường";
     public string CreatedAtText { get; set; } = "-";
+
+    // MOCK DATA FIELDS FOR UI BINDING
+    public string Email { get; set; } = "-";
+    public string Address { get; set; } = "-";
+    public string BirthdayText { get; set; } = "-";
+    public string LastLoginText { get; set; } = "-";
+
+    // BADGE COLORS
+    public string RankBackground => Rank.ToLower().Contains("thách đấu") ? "#9333EA" :
+                                     Rank.ToLower().Contains("đại cao thủ") ? "#EA580C" :
+                                     Rank.ToLower().Contains("kim cương") ? "#2563EB" :
+                                     Rank.ToLower().Contains("vàng") ? "#F59E0B" : "#F1F5F9";
+    public string RankForeground => Rank.ToLower().Contains("sắt") ? "#475569" : "White";
+
+    public string TypeBackground => MemberType.ToUpper() == "VIP" ? "#E0E7FF" : "#F0FDF4";
+    public string TypeForeground => MemberType.ToUpper() == "VIP" ? "#4F46E5" : "#16A34A";
+
+    public string StatusDotColor => IsActive ? "#10B981" : "#EF4444";
 }
 
 public sealed class MemberTransactionRow
@@ -790,3 +808,56 @@ public sealed class TopupPromoTierRow
     public string MinAmountText { get; set; } = "0";
     public string BonusRateText { get; set; } = "0";
 }
+
+public sealed class ServiceCategoryViewModel : System.ComponentModel.INotifyPropertyChanged
+{
+    private bool _isSelected;
+    public string Name { get; set; } = string.Empty;
+    public string Icon { get; set; } = string.Empty;
+    public int Count { get; set; }
+
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected != value)
+            {
+                _isSelected = value;
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(IsSelected)));
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(BackgroundBrush)));
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(ForegroundBrush)));
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(IconBrush)));
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(CountBackgroundBrush)));
+            }
+        }
+    }
+
+    public Brush BackgroundBrush => IsSelected ? new SolidColorBrush(Color.FromRgb(254, 226, 226)) : Brushes.Transparent;
+    public Brush ForegroundBrush => IsSelected ? new SolidColorBrush(Color.FromRgb(220, 38, 38)) : new SolidColorBrush(Color.FromRgb(71, 85, 105));
+    public Brush IconBrush => IsSelected ? new SolidColorBrush(Color.FromRgb(239, 68, 68)) : new SolidColorBrush(Color.FromRgb(100, 116, 139));
+    public Brush CountBackgroundBrush => IsSelected ? Brushes.Transparent : new SolidColorBrush(Color.FromRgb(241, 245, 249));
+
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+}
+
+public sealed class ServiceTopItemViewModel
+{
+    public string RankNumber { get; set; } = string.Empty;
+    public string RankBackground { get; set; } = "#F3F4F6";
+    public string RankForeground { get; set; } = "#374151";
+    public string ServiceName { get; set; } = string.Empty;
+    public string MetaText { get; set; } = string.Empty;
+    public string RevenueText { get; set; } = string.Empty;
+}
+
+public sealed class ServiceCategoryRevenueViewModel
+{
+    public string CategoryName { get; set; } = string.Empty;
+    public string RevenueText { get; set; } = string.Empty;
+    public string PercentageText { get; set; } = string.Empty;
+    public double ProgressValue { get; set; }
+    public string BarColor { get; set; } = string.Empty;
+    public string DotColor { get; set; } = string.Empty;
+}
+

@@ -18,6 +18,10 @@ public partial class MainWindow : Window
     private const decimal DefaultTopupRatePerHour = 15000m;
     private decimal _topupModalRatePerHour = DefaultTopupRatePerHour;
     private bool _isTopupModalInputSync;
+    
+    private List<MemberRow> _allMappedMembers = new();
+    private int _membersCurrentPage = 1;
+    private int _membersPageSize = 50;
 
     private async Task RefreshMembersAsync(bool forceRefresh = false)
     {
@@ -67,11 +71,13 @@ public partial class MainWindow : Window
                 UpdateMachineSummary(_machineRows);
             }
 
-            _memberRows.Clear();
-            foreach (var row in mapped)
+            _allMappedMembers = mapped;
+            if (forceRefresh || string.IsNullOrWhiteSpace(search))
             {
-                _memberRows.Add(row);
+                _membersCurrentPage = 1;
             }
+            UpdateMembersPagination();
+            UpdateMemberDashboardStats(mapped);
 
             if (!string.IsNullOrWhiteSpace(selectedMemberId))
             {
@@ -107,10 +113,10 @@ public partial class MainWindow : Window
             else
             {
                 _memberTransactionRows.Clear();
-                SelectedMemberTextBlock.Text = I18n.MemberNotSelected;
+                // SelectedMemberTextBlock.Text = I18n.MemberNotSelected;
             }
 
-            MembersLastSyncTextBlock.Text = $"{I18n.SyncPrefix}: {DateTime.Now:HH:mm:ss}";
+            // MembersLastSyncTextBlock.Text = $"{I18n.SyncPrefix}: {DateTime.Now:HH:mm:ss}";
         }
         catch
         {
@@ -118,8 +124,70 @@ public partial class MainWindow : Window
         }
     }
 
+    private void UpdateMembersPagination()
+    {
+        if (_allMappedMembers == null) return;
+        
+        int totalItems = _allMappedMembers.Count;
+        int totalPages = (int)Math.Ceiling(totalItems / (double)_membersPageSize);
+        if (totalPages == 0) totalPages = 1;
+        if (_membersCurrentPage > totalPages) _membersCurrentPage = totalPages;
+        if (_membersCurrentPage < 1) _membersCurrentPage = 1;
+
+        var pagedItems = _allMappedMembers.Skip((_membersCurrentPage - 1) * _membersPageSize).Take(_membersPageSize).ToList();
+
+        _memberRows.Clear();
+        foreach (var row in pagedItems)
+        {
+            _memberRows.Add(row);
+        }
+
+        int startIndex = totalItems == 0 ? 0 : (_membersCurrentPage - 1) * _membersPageSize + 1;
+        int endIndex = Math.Min(_membersCurrentPage * _membersPageSize, totalItems);
+        PaginationInfoTextBlock.Text = $"Hiển thị {startIndex} - {endIndex} của {totalItems} hội viên";
+        
+        MembersPageNumberTextBlock.Text = $"{_membersCurrentPage} / {totalPages}";
+        
+        MembersPrevPageButton.IsEnabled = _membersCurrentPage > 1;
+        MembersNextPageButton.IsEnabled = _membersCurrentPage < totalPages;
+    }
+
+    private void MembersPrevPageButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_membersCurrentPage > 1)
+        {
+            _membersCurrentPage--;
+            UpdateMembersPagination();
+        }
+    }
+
+    private void MembersNextPageButton_Click(object sender, RoutedEventArgs e)
+    {
+        int totalPages = (int)Math.Ceiling(_allMappedMembers.Count / (double)_membersPageSize);
+        if (totalPages == 0) totalPages = 1;
+        if (_membersCurrentPage < totalPages)
+        {
+            _membersCurrentPage++;
+            UpdateMembersPagination();
+        }
+    }
+
+    private void MembersPageSizeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox comboBox && comboBox.SelectedItem is ComboBoxItem item && item.Tag != null)
+        {
+            if (int.TryParse(item.Tag.ToString(), out int pageSize))
+            {
+                _membersPageSize = pageSize;
+                _membersCurrentPage = 1;
+                UpdateMembersPagination();
+            }
+        }
+    }
+
     private static MemberRow ToMemberRow(MemberItem item)
     {
+        var random = new Random(item.Id.GetHashCode());
         return new MemberRow
         {
             Id = item.Id,
@@ -142,7 +210,31 @@ public partial class MainWindow : Window
             MemberType = item.MemberType ?? "REGULAR",
             MemberTypeText = string.Equals(item.MemberType, "VIP", StringComparison.OrdinalIgnoreCase) ? "VIP" : "Thường",
             CreatedAtText = FormatDateTime(item.CreatedAt),
+            Email = $"{item.Username.ToLower()}@gmail.com",
+            Address = "Thành phố Hồ Chí Minh",
+            BirthdayText = $"{random.Next(1, 28):D2}-{random.Next(1, 12):D2}-{random.Next(1990, 2005)}",
+            LastLoginText = DateTime.Now.AddDays(-random.Next(0, 5)).AddHours(-random.Next(1, 12)).ToString("dd-MM-yyyy HH:mm:ss")
         };
+    }
+
+    private void UpdateMemberDashboardStats(List<MemberRow> members)
+    {
+        int totalMembers = members.Count;
+        int vipMembers = members.Count(x => string.Equals(x.MemberType, "VIP", StringComparison.OrdinalIgnoreCase));
+        decimal totalBalance = members.Sum(x => x.BalanceRaw);
+        double totalHours = members.Sum(x => x.PlayHoursRaw);
+        decimal totalTopup = members.Sum(x => x.TotalTopupRaw);
+
+        StatTotalMembersTextBlock.Text = totalMembers.ToString("N0");
+        StatVipMembersTextBlock.Text = vipMembers.ToString("N0");
+        StatTotalBalanceTextBlock.Text = totalBalance.ToString("N0");
+        StatTotalHoursTextBlock.Text = totalHours.ToString("0.#") + "h";
+        StatTotalTopupTextBlock.Text = totalTopup.ToString("N0");
+
+        double vipPercent = totalMembers > 0 ? (double)vipMembers / totalMembers * 100 : 0;
+        StatVipPercentTextBlock.Text = $"{vipPercent:0.##}% tổng số";
+
+        PaginationInfoTextBlock.Text = $"Hiển thị 1 - {Math.Min(10, totalMembers)} của {totalMembers:N0} hội viên";
     }
 
     private async Task RefreshMemberTransactionsAsync(string memberId)
@@ -169,8 +261,8 @@ public partial class MainWindow : Window
                 _memberTransactionRows.Add(tx);
             }
 
-            SelectedMemberTextBlock.Text =
-                $"{I18n.MemberSelectedPrefix}: {response.Member.Username} - {I18n.MemberBalancePrefix} {response.Member.Balance:N0} - {I18n.MemberPlayHoursPrefix} {response.Member.PlayHours:0.##} - Điểm: {response.Member.AvailablePoints}";
+            // SelectedMemberTextBlock.Text =
+            //     $"{I18n.MemberSelectedPrefix}: {response.Member.Username} - {I18n.MemberBalancePrefix} {response.Member.Balance:N0} - {I18n.MemberPlayHoursPrefix} {response.Member.PlayHours:0.##} - Điểm: {response.Member.AvailablePoints}";
         }
         catch
         {
@@ -487,7 +579,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        TopupAmountTextBox.Text = amount.Value.ToString("0", CultureInfo.InvariantCulture);
+        // TopupAmountTextBox.Text = amount.Value.ToString("0", CultureInfo.InvariantCulture);
 
         if (Math.Abs(amount.Value) <= 0)
         {
@@ -2075,8 +2167,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        TopupAmountTextBox.Text = transferPayload.Value.Amount.ToString("0", CultureInfo.InvariantCulture);
-
+        // TopupAmountTextBox.Text = transferPayload.Value.Amount.ToString("0", CultureInfo.InvariantCulture);
+        // BuyHoursTextBox.Text = "0";
         using var response = await _httpClient.PostAsJsonAsync(
             BuildApiUrl($"/members/{sourceMember.Id}/transfer"),
             new

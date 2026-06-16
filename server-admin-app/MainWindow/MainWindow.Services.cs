@@ -24,27 +24,52 @@ public partial class MainWindow : Window
                 BuildApiUrl("/services/items?includeInactive=true"),
                 JsonOptions());
 
-            if (response is null)
-            {
-                return;
-            }
+            if (response is null) return;
 
-            var mapped = response.Items
+            var allMapped = response.Items
                 .Select(ToServiceItemRow)
                 .OrderByDescending(x => x.IsActive)
                 .ThenBy(x => x.Category)
                 .ThenBy(x => x.Name)
                 .ToList();
 
+            _serviceCategoryRows.Clear();
+            var allCount = allMapped.Count;
+            _serviceCategoryRows.Add(new ServiceCategoryViewModel { Name = "Tất cả dịch vụ", Icon = "📁", Count = allCount, IsSelected = _currentSelectedServiceCategory == "Tất cả dịch vụ" });
+            
+            var groups = allMapped.GroupBy(x => x.Category).OrderBy(x => x.Key).ToList();
+            foreach (var g in groups)
+            {
+                var catName = g.Key;
+                var icon = "📌";
+                if (catName.Contains("Đồ ăn", StringComparison.OrdinalIgnoreCase) || catName.Contains("Food", StringComparison.OrdinalIgnoreCase)) icon = "🍔";
+                else if (catName.Contains("Nước", StringComparison.OrdinalIgnoreCase) || catName.Contains("Drink", StringComparison.OrdinalIgnoreCase)) icon = "🥤";
+                else if (catName.Contains("Thẻ", StringComparison.OrdinalIgnoreCase) || catName.Contains("Card", StringComparison.OrdinalIgnoreCase)) icon = "💳";
+
+                _serviceCategoryRows.Add(new ServiceCategoryViewModel { Name = catName, Icon = icon, Count = g.Count(), IsSelected = _currentSelectedServiceCategory == catName });
+            }
+
+            if (_serviceCategoryRows.All(x => !x.IsSelected))
+            {
+                _currentSelectedServiceCategory = "Tất cả dịch vụ";
+                _serviceCategoryRows[0].IsSelected = true;
+            }
+
+            IEnumerable<ServiceItemRow> filtered = allMapped;
+            if (_currentSelectedServiceCategory != "Tất cả dịch vụ")
+            {
+                filtered = allMapped.Where(x => x.Category == _currentSelectedServiceCategory);
+            }
+
             _serviceItemRows.Clear();
-            foreach (var row in mapped)
+            foreach (var row in filtered)
             {
                 _serviceItemRows.Add(row);
             }
 
             if (!string.IsNullOrWhiteSpace(selectedId))
             {
-                var selected = mapped.FirstOrDefault(x => x.Id == selectedId);
+                var selected = _serviceItemRows.FirstOrDefault(x => x.Id == selectedId);
                 if (selected is not null)
                 {
                     ServiceItemsDataGrid.SelectedItem = selected;
@@ -53,14 +78,87 @@ public partial class MainWindow : Window
                 }
             }
 
-            var activeCount = mapped.Count(x => x.IsActive);
-            ServiceInfoTextBlock.Text =
-                $"Tổng dịch vụ: {mapped.Count} - Đang bán: {activeCount} - Cập nhật: {DateTime.Now:HH:mm:ss}";
+            var activeCount = allMapped.Count(x => x.IsActive);
+            var inactiveCount = allMapped.Count(x => !x.IsActive);
+            var lastUpdated = allMapped.Count > 0 ? allMapped.Max(x => x.UpdatedAtText) : "-";
+
+            StatsTotalCountTextBlock.Text = allMapped.Count.ToString();
+            StatsActiveCountTextBlock.Text = activeCount.ToString();
+            StatsInactiveCountTextBlock.Text = inactiveCount.ToString();
+            StatsLastUpdatedTextBlock.Text = lastUpdated;
+
+            ServiceInfoTextBlock.Text = $"Đã tải {allMapped.Count} dịch vụ.";
+
+            await FetchServiceStatsAsync();
         }
         catch
         {
             // Keep UI responsive when backend is temporarily unavailable.
         }
+    }
+
+    private async Task FetchServiceStatsAsync()
+    {
+        try
+        {
+            var dashResponse = await _httpClient.GetFromJsonAsync<DashboardStatsResponse>(
+                BuildApiUrl("/reports/dashboard?period=day"),
+                JsonOptions());
+
+            if (dashResponse is null) return;
+
+            StatsRevenueTextBlock.Text = dashResponse.ServiceRevenue.ToString("N0", CultureInfo.InvariantCulture);
+
+            _servicesTabTopServiceRows.Clear();
+            var topItems = dashResponse.TopServiceItems.Take(5).ToList();
+            for (int i = 0; i < topItems.Count; i++)
+            {
+                var item = topItems[i];
+                var color = i switch
+                {
+                    0 => ("#FEF2F2", "#DC2626"),
+                    1 => ("#FFFBEB", "#D97706"),
+                    2 => ("#F0FDF4", "#16A34A"),
+                    _ => ("#F3F4F6", "#475569")
+                };
+
+                _servicesTabTopServiceRows.Add(new ServiceTopItemViewModel
+                {
+                    RankNumber = (i + 1).ToString(),
+                    RankBackground = color.Item1,
+                    RankForeground = color.Item2,
+                    ServiceName = item.Name,
+                    MetaText = $"{item.Quantity} ly/phần",
+                    RevenueText = item.Revenue.ToString("N0", CultureInfo.InvariantCulture)
+                });
+            }
+
+            _servicesTabCategoryRevenueRows.Clear();
+            if (dashResponse.ServiceRevenue > 0)
+            {
+                var catGroups = dashResponse.TopServiceItems.GroupBy(x => string.IsNullOrWhiteSpace(x.Category) ? "Khác" : x.Category)
+                                  .Select(g => new { Category = g.Key, Revenue = g.Sum(i => i.Revenue) })
+                                  .OrderByDescending(g => g.Revenue)
+                                  .ToList();
+
+                var colors = new[] { "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6" };
+                for (int i = 0; i < catGroups.Count; i++)
+                {
+                    var catGroup = catGroups[i];
+                    var pct = (double)catGroup.Revenue / (double)dashResponse.ServiceRevenue * 100;
+                    _servicesTabCategoryRevenueRows.Add(new ServiceCategoryRevenueViewModel
+                    {
+                        CategoryName = catGroup.Category,
+                        RevenueText = catGroup.Revenue.ToString("N0", CultureInfo.InvariantCulture),
+                        PercentageText = $"{pct:F1}%",
+                        ProgressValue = pct,
+                        BarColor = colors[i % colors.Length],
+                        DotColor = colors[i % colors.Length]
+                    });
+                }
+            }
+        }
+        catch { }
     }
 
     private static ServiceItemRow ToServiceItemRow(ServiceItemDto item)
@@ -2292,6 +2390,47 @@ public partial class MainWindow : Window
     private async void ToggleServiceItemButton_Click(object sender, RoutedEventArgs e) => await ToggleSelectedServiceItemAsync();
     private async void ContextSelectServiceMenuItem_Click(object sender, RoutedEventArgs e) => await OpenServiceOrderDialogForSelectedMachineAsync();
     private async void ContextPayServiceMenuItem_Click(object sender, RoutedEventArgs e) => await PayServiceForSelectedMachineAsync();
+
+    private void FilterServiceItemsTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        // Not used anymore in the new layout, but keeping to avoid missing references
+    }
+
+    private void ServiceCategoryListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ServiceCategoryListBox.SelectedItem is ServiceCategoryViewModel selected)
+        {
+            if (selected.Name == _currentSelectedServiceCategory) return;
+            _currentSelectedServiceCategory = selected.Name;
+            
+            foreach (var item in _serviceCategoryRows)
+            {
+                item.IsSelected = item.Name == _currentSelectedServiceCategory;
+            }
+
+            _ = RefreshServiceItemsAsync();
+        }
+    }
+
+    private void ServiceRowOptionsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is ServiceItemRow row)
+        {
+            ServiceItemsDataGrid.SelectedItem = row;
+            var cm = ServiceItemsDataGrid.ContextMenu;
+            if (cm != null)
+            {
+                cm.PlacementTarget = btn;
+                cm.IsOpen = true;
+            }
+        }
+    }
+
+    private void ViewServicesStatsDetailButton_Click(object sender, RoutedEventArgs e)
+    {
+        MainTabControl.SelectedItem = StatisticsTabItem;
+        StatsTabControl.SelectedItem = RevenueStatsTabItem;
+    }
 
     private void ServiceItemsDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {

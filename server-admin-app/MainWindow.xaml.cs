@@ -48,6 +48,10 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<GroupSummaryRow> _groupSummaryRows = new();
     private readonly ObservableCollection<GroupMachineRow> _groupMachineRows = new();
     private readonly ObservableCollection<ServiceItemRow> _serviceItemRows = new();
+    private readonly ObservableCollection<ServiceCategoryViewModel> _serviceCategoryRows = new();
+    private readonly ObservableCollection<ServiceTopItemViewModel> _servicesTabTopServiceRows = new();
+    private readonly ObservableCollection<ServiceCategoryRevenueViewModel> _servicesTabCategoryRevenueRows = new();
+    private string _currentSelectedServiceCategory = "Tất cả dịch vụ";
     private readonly ObservableCollection<string> _webFilterDomainRows = new();
     private readonly ObservableCollection<LoyaltySpinSettingRow> _loyaltySpinSettingRows = new();
 
@@ -162,7 +166,7 @@ public partial class MainWindow : Window
 
             MachinesDataGrid.ItemsSource = _machineRows;
             MembersDataGrid.ItemsSource = _memberRows;
-            MemberTransactionsDataGrid.ItemsSource = _memberTransactionRows;
+            // MemberTransactionsDataGrid.ItemsSource = _memberTransactionRows;
             SystemLogsDataGrid.ItemsSource = _systemLogRows;
             MachineTimelineListBox.ItemsSource = _machineTimelineRows;
             SessionLogsDataGrid.ItemsSource = _sessionLogRows;
@@ -170,6 +174,9 @@ public partial class MainWindow : Window
             GroupSummaryDataGrid.ItemsSource = _groupSummaryRows;
             GroupMachinesDataGrid.ItemsSource = _groupMachineRows;
             ServiceItemsDataGrid.ItemsSource = _serviceItemRows;
+            ServiceCategoryListBox.ItemsSource = _serviceCategoryRows;
+            TopServiceSellingItemsControl.ItemsSource = _servicesTabTopServiceRows;
+            ServiceCategoryRevenueItemsControl.ItemsSource = _servicesTabCategoryRevenueRows;
             WebFilterDomainsListBox.ItemsSource = _webFilterDomainRows;
             MiniGameSpinSettingsDataGrid.ItemsSource = _loyaltySpinSettingRows;
             TopupPromoTiersDataGrid.ItemsSource = _topupPromoTierRows;
