@@ -97,7 +97,7 @@ namespace Server.Admin.App.Windows.Controls
         {
             var addWindow = new AddComboWindow();
             addWindow.Owner = Window.GetWindow(this);
-            if (addWindow.ShowDialog() == true)
+            if (addWindow.ShowModal() == true)
             {
                 await LoadCombosAsync();
             }
@@ -138,7 +138,7 @@ namespace Server.Admin.App.Windows.Controls
             {
                 var editWindow = new AddComboWindow(selectedCombo);
                 editWindow.Owner = Window.GetWindow(this);
-                if (editWindow.ShowDialog() == true)
+                if (editWindow.ShowModal() == true)
                 {
                     await LoadCombosAsync();
                 }
@@ -421,7 +421,7 @@ namespace Server.Admin.App.Windows.Controls
             {
                 var popup = new ComboCardInfoPopup(selected.comboName, selected.username, selected.password, selected.expiresAt);
                 popup.Owner = Window.GetWindow(this);
-                popup.ShowDialog();
+                popup.ShowModal();
             }
         }
     }

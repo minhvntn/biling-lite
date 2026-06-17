@@ -279,7 +279,7 @@ public partial class MainWindow : Window
 
         var dialog = new ColorSettingsWindow(settingsCopy);
         dialog.Owner = this;
-        if (dialog.ShowDialog() == true)
+        if (dialog.ShowModal(this) == true)
         {
             _settings.ColorOnlineBg = settingsCopy.ColorOnlineBg;
             _settings.ColorOnlineFg = settingsCopy.ColorOnlineFg;
@@ -2413,7 +2413,7 @@ public partial class MainWindow : Window
         };
 
         dialog.Content = root;
-        dialog.ShowDialog();
+        dialog.ShowModal(this);
     }
 
     private void ShowServerInfoMenuItem_Click(object sender, RoutedEventArgs e)

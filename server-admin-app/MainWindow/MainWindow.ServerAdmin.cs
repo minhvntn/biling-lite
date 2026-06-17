@@ -192,7 +192,7 @@ public partial class MainWindow
         {
             Owner = this
         };
-        if (win.ShowDialog() == true)
+        if (win.ShowModal(this) == true)
         {
             _ = LoadServerUsersAsync();
         }

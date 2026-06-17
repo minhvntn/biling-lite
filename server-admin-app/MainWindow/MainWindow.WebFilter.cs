@@ -297,14 +297,18 @@ public partial class MainWindow : Window
 
     private void RemoveSelectedWebFilterDomainButton_Click(object sender, RoutedEventArgs e)
     {
-        if (WebFilterDomainsListBox.SelectedItem is not string selected)
+        var selectedItems = WebFilterDomainsDataGrid.SelectedItems.Cast<string>().ToList();
+        if (selectedItems.Count == 0)
         {
             WebFilterStatusTextBlock.Text = "Vui lòng chọn domain cần xóa.";
             WebFilterStatusTextBlock.Foreground = Brushes.DimGray;
             return;
         }
 
-        _webFilterDomainRows.Remove(selected);
+        foreach (var item in selectedItems)
+        {
+            _webFilterDomainRows.Remove(item);
+        }
         MarkWebFilterPendingChange();
     }
 
@@ -343,6 +347,23 @@ public partial class MainWindow : Window
         AddWebFilterDomainButton_Click(sender, e);
         e.Handled = true;
     }
+
+    private void EditWebFilterDomainButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is string domain)
+        {
+            WebFilterDomainTextBox.Text = domain;
+            _webFilterDomainRows.Remove(domain);
+            MarkWebFilterPendingChange();
+        }
+    }
+
+    private void DeleteWebFilterDomainButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is string domain)
+        {
+            _webFilterDomainRows.Remove(domain);
+            MarkWebFilterPendingChange();
+        }
+    }
 }
-
-

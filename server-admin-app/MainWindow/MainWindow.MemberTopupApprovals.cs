@@ -297,7 +297,7 @@ public partial class MainWindow : Window
             };
 
             dialog.Content = root;
-            _ = dialog.ShowDialog();
+            _ = dialog.ShowModal(this);
         });
     }
 }

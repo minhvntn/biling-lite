@@ -177,7 +177,7 @@ public partial class MainWindow : Window
             ServiceCategoryListBox.ItemsSource = _serviceCategoryRows;
             TopServiceSellingItemsControl.ItemsSource = _servicesTabTopServiceRows;
             ServiceCategoryRevenueItemsControl.ItemsSource = _servicesTabCategoryRevenueRows;
-            WebFilterDomainsListBox.ItemsSource = _webFilterDomainRows;
+            WebFilterDomainsDataGrid.ItemsSource = _webFilterDomainRows;
             MiniGameSpinSettingsDataGrid.ItemsSource = _loyaltySpinSettingRows;
             TopupPromoTiersDataGrid.ItemsSource = _topupPromoTierRows;
             FontSizeSlider.Value = _settings.UiFontSize;

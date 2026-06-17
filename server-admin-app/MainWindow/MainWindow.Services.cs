@@ -535,7 +535,7 @@ public partial class MainWindow : Window
 
         dialog.Content = root;
         dialog.Loaded += (s, e) => nameTextBox.Focus();
-        _ = dialog.ShowDialog();
+        _ = dialog.ShowModal(this);
 
         return result;
     }
@@ -880,7 +880,7 @@ public partial class MainWindow : Window
 
         dialog.Content = root;
         dialog.Loaded += (_, _) => nameTextBox.Focus();
-        _ = dialog.ShowDialog();
+        _ = dialog.ShowModal(this);
 
         return result;
     }
@@ -1516,7 +1516,7 @@ public partial class MainWindow : Window
 
         ReplaceOrders(unpaidOrders);
 
-        _ = dialog.ShowDialog();
+        _ = dialog.ShowModal(this);
 
         if (hasSuccessfulPayment)
         {
@@ -2159,7 +2159,7 @@ public partial class MainWindow : Window
             serviceGrid.Focus();
         };
 
-        _ = dialog.ShowDialog();
+        _ = dialog.ShowModal(this);
 
         foreach (var row in selectionRows)
         {

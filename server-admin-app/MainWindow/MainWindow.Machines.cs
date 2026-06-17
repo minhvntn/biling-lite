@@ -2209,7 +2209,7 @@ public partial class MainWindow : Window
             autoRefreshTimer.Start();
         };
 
-        _ = dialog.ShowDialog();
+        _ = dialog.ShowModal();
     }
 
     private async Task<PcLiveFrameItem?> CaptureLiveFrameForMachineAsync(
@@ -2549,7 +2549,7 @@ public partial class MainWindow : Window
         root.Children.Add(closeButton);
 
         dialog.Content = root;
-        _ = dialog.ShowDialog();
+        _ = dialog.ShowModal();
     }
 
     private async void ContextViewMachineBillingMenuItem_Click(object sender, RoutedEventArgs e)
@@ -2751,7 +2751,7 @@ public partial class MainWindow : Window
         root.Children.Add(closeButton);
 
         dialog.Content = root;
-        _ = dialog.ShowDialog();
+        _ = dialog.ShowModal();
     }
 
     private async Task<List<MachineBillingSummaryRow>> BuildMultiMachineBillingRowsAsync(
@@ -2828,7 +2828,7 @@ public partial class MainWindow : Window
             });
 
         dialog.Owner = this;
-        dialog.ShowDialog();
+        dialog.ShowModal();
     }
 
     // Helper methods for machines have been removed or moved as needed.
@@ -3591,7 +3591,7 @@ public partial class MainWindow : Window
         };
 
         dialog.Content = root;
-        _ = dialog.ShowDialog();
+        _ = dialog.ShowModal();
         return selectedMachine;
     }
 
@@ -3737,7 +3737,7 @@ public partial class MainWindow : Window
             textBox.Focus();
             textBox.SelectAll();
         };
-        _ = dialog.ShowDialog();
+        _ = dialog.ShowModal();
         return result;
     }
 
@@ -4136,7 +4136,7 @@ public partial class MainWindow : Window
         root.Children.Add(buttonPanel);
 
         dialog.Content = root;
-        dialog.ShowDialog();
+        dialog.ShowModal();
     }
 
     private void OpenWakeUpMachinesDialog_Click(object sender, RoutedEventArgs e)
@@ -4332,7 +4332,7 @@ public partial class MainWindow : Window
         mainGrid.Children.Add(bottomGrid);
 
         dialog.Content = mainGrid;
-        dialog.ShowDialog();
+        dialog.ShowModal();
     }
 
     private sealed class WakeTargetRow : INotifyPropertyChanged

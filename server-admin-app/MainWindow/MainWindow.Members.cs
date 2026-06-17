@@ -1691,7 +1691,7 @@ public partial class MainWindow : Window
 
         dialog.Content = root;
         dialog.Loaded += async (_, _) => await LoadDataAsync();
-        _ = dialog.ShowDialog();
+        _ = dialog.ShowModal(this);
     }
 
     private async Task OpenMemberUsageLogsDialogAsync(MemberRow member)
@@ -1931,7 +1931,7 @@ public partial class MainWindow : Window
         root.Children.Add(closeButton);
 
         dialog.Content = root;
-        _ = dialog.ShowDialog();
+        _ = dialog.ShowModal(this);
     }
 
     private static MemberUsageEvent? TryMapMemberUsageEvent(SystemEventItem item, MemberRow member)
@@ -2131,7 +2131,7 @@ public partial class MainWindow : Window
             Owner = this
         };
 
-        var submitted = dialog.ShowDialog() == true;
+        var submitted = dialog.ShowModal(this) == true;
         if (!submitted)
         {
             return;
@@ -2566,7 +2566,7 @@ public partial class MainWindow : Window
 
         UpdateUi();
         dialog.Content = root;
-        var submitted = dialog.ShowDialog() == true;
+        var submitted = dialog.ShowModal(this) == true;
         return submitted ? result : null;
     }
 
