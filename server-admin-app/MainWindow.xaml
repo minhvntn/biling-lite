@@ -14,7 +14,11 @@
         MinHeight="720"
         MinWidth="1240"
         PreviewMouseDown="Window_PreviewMouseDown"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
     <Window.Resources>
         <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#1E5AA8" />
         <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="White" />
@@ -1275,12 +1279,24 @@
                                               BorderThickness="0"
                                               Background="Transparent"
                                               RowBackground="White"
-                                              AlternatingRowBackground="#F8FAFC"
+                                              AlternatingRowBackground="#EBEDEE"
                                               RowHeight="50"
                                               RowHeaderWidth="0"
                                               ContextMenuOpening="MembersDataGrid_ContextMenuOpening"
                                               MouseDoubleClick="MembersDataGrid_MouseDoubleClick"
                                               SelectionChanged="MembersDataGrid_SelectionChanged">
+                                        <DataGrid.Resources>
+                                            <Style x:Key="BoldBlackDataGridText" TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="Bold"/>
+                                                <Setter Property="Foreground" Value="#0F172A"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+                                                        <Setter Property="Foreground" Value="White"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGrid.Resources>
                                         <DataGrid.ColumnHeaderStyle>
                                             <Style TargetType="DataGridColumnHeader">
                                                 <Setter Property="Background" Value="#F8FAFC"/>
@@ -1368,9 +1384,9 @@
                                                     </DataTemplate>
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
-                                            <DataGridTextColumn Header="Số dư (VND)" Binding="{Binding BalanceText}" Width="1*" MinWidth="130" />
-                                            <DataGridTextColumn Header="Tổng nạp (VND)" Binding="{Binding TotalTopupText}" Width="1.2*" MinWidth="140" />
-                                            <DataGridTextColumn Header="Giờ chơi" Binding="{Binding PlayHoursText}" Width="0.8*" MinWidth="100" />
+                                            <DataGridTextColumn Header="Số dư (VND)" Binding="{Binding BalanceText}" Width="1*" MinWidth="130" ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                            <DataGridTextColumn Header="Tổng nạp (VND)" Binding="{Binding TotalTopupText}" Width="1.2*" MinWidth="140" ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                            <DataGridTextColumn Header="Giờ chơi" Binding="{Binding PlayHoursText}" Width="0.8*" MinWidth="100" ElementStyle="{StaticResource BoldBlackDataGridText}" />
                                             <DataGridTemplateColumn Header="Trạng thái" Width="1*" MinWidth="120">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
@@ -1379,7 +1395,8 @@
                                                             <TextBlock Text="{Binding ActiveText}" FontSize="12">
                                                                 <TextBlock.Style>
                                                                     <Style TargetType="TextBlock">
-                                                                        <Setter Property="Foreground" Value="#374151"/>
+                                                                        <Setter Property="Foreground" Value="#0F172A"/>
+                                                                        <Setter Property="FontWeight" Value="Bold"/>
                                                                         <Style.Triggers>
                                                                             <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
                                                                                 <Setter Property="Foreground" Value="White"/>
@@ -2885,7 +2902,7 @@
                                               BorderThickness="1"
                                               Background="White"
                                               RowBackground="White"
-                                              AlternatingRowBackground="#F8FAFC"
+                                              AlternatingRowBackground="#EBEDEE"
                                               RowHeight="40"
                                               SelectionMode="Extended">
                                         <DataGrid.Resources>
