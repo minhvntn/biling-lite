@@ -47,8 +47,7 @@ public partial class MainWindow : Window
             await PopulateMachineServiceAmountsAsync(allRows);
             TrackGuestSessionNotifications(allRows);
             TrackVipSessionNotifications(allRows);
-            _allMachineRows.Clear();
-            _allMachineRows.AddRange(allRows);
+            UpdateMachineRowsInPlace(_allMachineRows, allRows);
             await RefreshMachineSummaryMemberCountAsync();
             RefreshWebsiteLogMachineFilterOptions();
             ApplyMachineFiltersToGrid(selectedPcIds);
@@ -85,11 +84,7 @@ public partial class MainWindow : Window
             filteredRows = filteredRows.Where(r => r.StatusCode != "OFFLINE").ToList();
         }
 
-        _machineRows.Clear();
-        foreach (var row in filteredRows)
-        {
-            _machineRows.Add(row);
-        }
+        UpdateMachineRowsInPlace(_machineRows, filteredRows);
 
         RestoreMachineSelections(selectedPcIds ?? GetSelectedMachineIdsSnapshot());
         UpdateMachineSummary(summaryRows);
@@ -4498,6 +4493,93 @@ public partial class MainWindow
 
             // Open the billing popup
             await ShowMachineBillingDetailsAsync(selectedMachine);
+        }
+    }
+    private static void UpdateMachineRow(MachineRow target, MachineRow source)
+    {
+        target.AgentId = source.AgentId;
+        target.Name = source.Name;
+        target.GroupId = source.GroupId;
+        target.HourlyRate = source.HourlyRate;
+        target.IpAddress = source.IpAddress;
+        target.MacAddress = source.MacAddress;
+        target.LastSeenAtText = source.LastSeenAtText;
+        target.StatusCode = source.StatusCode;
+        target.StatusText = source.StatusText;
+        target.StatusSubText = source.StatusSubText;
+        target.IsOfflineUnpaidGuest = source.IsOfflineUnpaidGuest;
+        target.StatusBrush = source.StatusBrush;
+        target.StatusIconBrush = source.StatusIconBrush;
+        target.StatusIconPath = source.StatusIconPath;
+        target.StatusIconToolTip = source.StatusIconToolTip;
+        target.UserName = source.UserName;
+        target.StartedAtText = source.StartedAtText;
+        target.UsedText = source.UsedText;
+        target.RemainingText = source.RemainingText;
+        target.MoneyText = source.MoneyText;
+        target.ServiceAmountRaw = source.ServiceAmountRaw;
+        target.ServiceAmountText = source.ServiceAmountText;
+        target.HasPendingClientServiceOrderHighlight = source.HasPendingClientServiceOrderHighlight;
+        target.HasServiceDebtHighlight = source.HasServiceDebtHighlight;
+        target.DateText = source.DateText;
+        target.VersionText = source.VersionText;
+        target.GroupName = source.GroupName;
+        target.ActiveSessionId = source.ActiveSessionId;
+        target.ActiveSessionStartedAt = source.ActiveSessionStartedAt;
+        target.ActiveSessionElapsedSeconds = source.ActiveSessionElapsedSeconds;
+        target.ActiveSessionPricePerMinute = source.ActiveSessionPricePerMinute;
+        target.ActiveSessionEstimatedAmount = source.ActiveSessionEstimatedAmount;
+        target.ActiveMemberId = source.ActiveMemberId;
+        target.ActiveMemberUsername = source.ActiveMemberUsername;
+        target.ActiveMemberFullName = source.ActiveMemberFullName;
+        target.ActiveMemberBalance = source.ActiveMemberBalance;
+        target.IsAdminSession = source.IsAdminSession;
+        target.IsGuestSession = source.IsGuestSession;
+        target.ActiveGuestDisplayName = source.ActiveGuestDisplayName;
+        target.ActiveGuestPrepaidAmount = source.ActiveGuestPrepaidAmount;
+        target.IsVipSession = source.IsVipSession;
+    }
+
+    private static void UpdateMachineRowsInPlace(IList<MachineRow> targetList, IList<MachineRow> sourceList)
+    {
+        var sourceIds = new HashSet<string>(sourceList.Select(x => x.Id));
+        for (int i = targetList.Count - 1; i >= 0; i--)
+        {
+            if (!sourceIds.Contains(targetList[i].Id))
+            {
+                targetList.RemoveAt(i);
+            }
+        }
+
+        var targetDict = targetList.ToDictionary(x => x.Id);
+        int targetIndex = 0;
+
+        foreach (var sourceRow in sourceList)
+        {
+            if (targetDict.TryGetValue(sourceRow.Id, out var existingRow))
+            {
+                UpdateMachineRow(existingRow, sourceRow);
+                
+                var currentIndex = targetList.IndexOf(existingRow);
+                if (currentIndex != targetIndex)
+                {
+                    if (targetList is ObservableCollection<MachineRow> obs)
+                    {
+                        obs.Move(currentIndex, targetIndex);
+                    }
+                    else
+                    {
+                        targetList.RemoveAt(currentIndex);
+                        targetList.Insert(targetIndex, existingRow);
+                    }
+                }
+            }
+            else
+            {
+                targetList.Insert(targetIndex, sourceRow);
+                targetDict[sourceRow.Id] = sourceRow;
+            }
+            targetIndex++;
         }
     }
 }

@@ -34,6 +34,7 @@ public sealed class AgentSocketService : IAsyncDisposable
     public Action<GuestPrepaidConfigurePayload>? GuestPrepaidConfigureHandler { get; set; }
     public Action<string, string, string, string?, string, int, decimal>? ResumeMemberSessionHandler { get; set; }
     public Action<List<(string Name, decimal Discount)>>? PromotionChangedHandler { get; set; }
+    public Action<string, string, string>? SupportReplyHandler { get; set; }
 
     public AgentSocketService(
         AgentSettings settings,
@@ -393,6 +394,22 @@ public sealed class AgentSocketService : IAsyncDisposable
             }
         });
 
+        _socket.On("admin.reply_support", async response =>
+        {
+            try
+            {
+                var element = response.GetValue<System.Text.Json.JsonElement>();
+                var message = element.GetProperty("message").GetString() ?? "";
+                var repliedBy = element.GetProperty("repliedBy").GetString() ?? "";
+                var sentAt = element.GetProperty("sentAt").GetString() ?? "";
+                SupportReplyHandler?.Invoke(message, repliedBy, sentAt);
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync("Failed to parse admin.reply_support", ex);
+            }
+        });
+
         await _socket.ConnectAsync();
     }
 
@@ -582,6 +599,42 @@ public sealed class AgentSocketService : IAsyncDisposable
         catch
         {
             return string.Empty;
+        }
+    }
+
+    public async Task EmitSupportRequestAsync(string message, string category)
+    {
+        if (_socket is null || !_socket.Connected) return;
+        try
+        {
+            await _socket.EmitAsync("agent.support_request", new
+            {
+                agentId = _settings.AgentId,
+                message = message,
+                category = category
+            });
+        }
+        catch (Exception ex)
+        {
+            await _logger.ErrorAsync("Failed to emit agent.support_request", ex);
+        }
+    }
+
+    public async Task EmitAppUsageAsync(List<AppUsageTracker.AppInfo> apps)
+    {
+        if (_socket is null || !_socket.Connected) return;
+        try
+        {
+            var payload = apps.Select(a => new { name = a.Name, title = a.Title }).ToList();
+            await _socket.EmitAsync("agent.app_usage", new
+            {
+                agentId = _settings.AgentId,
+                apps = payload
+            });
+        }
+        catch (Exception ex)
+        {
+            await _logger.ErrorAsync("Failed to emit agent.app_usage", ex);
         }
     }
 

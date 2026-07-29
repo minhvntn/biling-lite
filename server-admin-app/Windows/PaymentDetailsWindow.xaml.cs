@@ -259,14 +259,15 @@ public partial class PaymentDetailsWindow : Window, INotifyPropertyChanged
         {
             // Simple fetch for service amount snapshot
             var serviceRes = await _httpClient.GetFromJsonAsync<PcServiceOrdersResponse>(
-                _buildApiUrl($"/pcs/{_machineSnapshot.Id}/service-orders/pending"),
+                _buildApiUrl($"/services/pcs/{_machineSnapshot.Id}/orders"),
                 JsonOptions());
             
             if (serviceRes != null)
             {
-                serviceAmount = serviceRes.Items.Sum(x => x.LineTotal);
-                clientServiceAmount = serviceRes.Items.Sum(x => x.LineTotal); // Assuming all from client for now, or need full split logic
-                serverServiceAmount = Math.Max(0m, serviceAmount - clientServiceAmount);
+                var unpaidItems = serviceRes.Items.Where(x => !x.IsPaid).ToList();
+                serviceAmount = unpaidItems.Sum(x => x.LineTotal);
+                serverServiceAmount = unpaidItems.Where(x => x.CreatedBy == "admin.desktop").Sum(x => x.LineTotal);
+                clientServiceAmount = Math.Max(0m, serviceAmount - serverServiceAmount);
             }
         }
         catch { }

@@ -130,4 +130,20 @@ export class AuthAdminService implements OnModuleInit {
 
     return { success: true };
   }
+
+  async resetUserPassword(id: string, newPassword: string) {
+    if (!newPassword || newPassword.trim().length === 0) {
+      throw new BadRequestException('Mật khẩu không được để trống.');
+    }
+    const user = await this.prisma.adminUser.findUnique({ where: { id } });
+    if (!user) {
+      throw new BadRequestException('Không tìm thấy tài khoản.');
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.adminUser.update({
+      where: { id },
+      data: { passwordHash },
+    });
+    return { success: true };
+  }
 }

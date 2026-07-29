@@ -122,50 +122,133 @@ public sealed class CommandDispatchResponse
     public string? ErrorMessage { get; set; }
 }
 
-public sealed class MachineRow
+public sealed class MachineRow : ObservableObject
 {
-    public string Id { get; set; } = string.Empty;
-    public string AgentId { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string? GroupId { get; set; }
-    public decimal HourlyRate { get; set; }
-    public string IpAddress { get; set; } = "-";
-    public string MacAddress { get; set; } = string.Empty;
-    public string LastSeenAtText { get; set; } = "-";
-    public string StatusCode { get; set; } = string.Empty;
-    public string StatusText { get; set; } = string.Empty;
-    public string StatusSubText { get; set; } = string.Empty;
-    public bool IsOfflineUnpaidGuest { get; set; }
-    public Brush StatusBrush { get; set; } = Brushes.Gray;
-    public Brush StatusIconBrush { get; set; } = Brushes.Gray;
-    public string StatusIconPath { get; set; } = "/Assets/pc-default.svg";
-    public string StatusIconToolTip { get; set; } = string.Empty;
-    public string UserName { get; set; } = "-";
-    public string StartedAtText { get; set; } = "-";
-    public string UsedText { get; set; } = "-";
-    public string RemainingText { get; set; } = "-";
-    public string MoneyText { get; set; } = "-";
-    public decimal ServiceAmountRaw { get; set; }
-    public string ServiceAmountText { get; set; } = "-";
-    public bool HasPendingClientServiceOrderHighlight { get; set; }
-    public bool HasServiceDebtHighlight { get; set; }
-    public string DateText { get; set; } = "-";
-    public string VersionText { get; set; } = "0.1.0";
-    public string GroupName { get; set; } = "M\u1eb7c \u0111\u1ecbnh";
-    public string? ActiveSessionId { get; set; }
-    public string? ActiveSessionStartedAt { get; set; }
-    public int ActiveSessionElapsedSeconds { get; set; }
-    public decimal ActiveSessionPricePerMinute { get; set; }
-    public decimal ActiveSessionEstimatedAmount { get; set; }
-    public string? ActiveMemberId { get; set; }
-    public string? ActiveMemberUsername { get; set; }
-    public string? ActiveMemberFullName { get; set; }
-    public decimal ActiveMemberBalance { get; set; }
-    public bool IsAdminSession { get; set; }
-    public bool IsGuestSession { get; set; }
-    public string? ActiveGuestDisplayName { get; set; }
-    public decimal ActiveGuestPrepaidAmount { get; set; }
-    public bool IsVipSession { get; set; }
+    private string _id = string.Empty;
+    public string Id { get => _id; set => SetProperty(ref _id, value); }
+
+    private string _agentId = string.Empty;
+    public string AgentId { get => _agentId; set => SetProperty(ref _agentId, value); }
+
+    private string _name = string.Empty;
+    public string Name { get => _name; set => SetProperty(ref _name, value); }
+
+    private string? _groupId;
+    public string? GroupId { get => _groupId; set => SetProperty(ref _groupId, value); }
+
+    private decimal _hourlyRate;
+    public decimal HourlyRate { get => _hourlyRate; set => SetProperty(ref _hourlyRate, value); }
+
+    private string _ipAddress = "-";
+    public string IpAddress { get => _ipAddress; set => SetProperty(ref _ipAddress, value); }
+
+    private string _macAddress = string.Empty;
+    public string MacAddress { get => _macAddress; set => SetProperty(ref _macAddress, value); }
+
+    private string _lastSeenAtText = "-";
+    public string LastSeenAtText { get => _lastSeenAtText; set => SetProperty(ref _lastSeenAtText, value); }
+
+    private string _statusCode = string.Empty;
+    public string StatusCode { get => _statusCode; set => SetProperty(ref _statusCode, value); }
+
+    private string _statusText = string.Empty;
+    public string StatusText { get => _statusText; set => SetProperty(ref _statusText, value); }
+
+    private string _statusSubText = string.Empty;
+    public string StatusSubText { get => _statusSubText; set => SetProperty(ref _statusSubText, value); }
+
+    private bool _isOfflineUnpaidGuest;
+    public bool IsOfflineUnpaidGuest { get => _isOfflineUnpaidGuest; set => SetProperty(ref _isOfflineUnpaidGuest, value); }
+
+    private Brush _statusBrush = Brushes.Gray;
+    public Brush StatusBrush { get => _statusBrush; set => SetProperty(ref _statusBrush, value); }
+
+    private Brush _statusIconBrush = Brushes.Gray;
+    public Brush StatusIconBrush { get => _statusIconBrush; set => SetProperty(ref _statusIconBrush, value); }
+
+    private string _statusIconPath = "/Assets/pc-default.svg";
+    public string StatusIconPath { get => _statusIconPath; set => SetProperty(ref _statusIconPath, value); }
+
+    private string _statusIconToolTip = string.Empty;
+    public string StatusIconToolTip { get => _statusIconToolTip; set => SetProperty(ref _statusIconToolTip, value); }
+
+    private string _userName = "-";
+    public string UserName { get => _userName; set => SetProperty(ref _userName, value); }
+
+    private string _startedAtText = "-";
+    public string StartedAtText { get => _startedAtText; set => SetProperty(ref _startedAtText, value); }
+
+    private string _usedText = "-";
+    public string UsedText { get => _usedText; set => SetProperty(ref _usedText, value); }
+
+    private string _remainingText = "-";
+    public string RemainingText { get => _remainingText; set => SetProperty(ref _remainingText, value); }
+
+    private string _moneyText = "-";
+    public string MoneyText { get => _moneyText; set => SetProperty(ref _moneyText, value); }
+
+    private decimal _serviceAmountRaw;
+    public decimal ServiceAmountRaw { get => _serviceAmountRaw; set => SetProperty(ref _serviceAmountRaw, value); }
+
+    private string _serviceAmountText = "-";
+    public string ServiceAmountText { get => _serviceAmountText; set => SetProperty(ref _serviceAmountText, value); }
+
+    private bool _hasPendingClientServiceOrderHighlight;
+    public bool HasPendingClientServiceOrderHighlight { get => _hasPendingClientServiceOrderHighlight; set => SetProperty(ref _hasPendingClientServiceOrderHighlight, value); }
+
+    private bool _hasServiceDebtHighlight;
+    public bool HasServiceDebtHighlight { get => _hasServiceDebtHighlight; set => SetProperty(ref _hasServiceDebtHighlight, value); }
+
+    private string _dateText = "-";
+    public string DateText { get => _dateText; set => SetProperty(ref _dateText, value); }
+
+    private string _versionText = "0.1.0";
+    public string VersionText { get => _versionText; set => SetProperty(ref _versionText, value); }
+
+    private string _groupName = "Mặc định";
+    public string GroupName { get => _groupName; set => SetProperty(ref _groupName, value); }
+
+    private string? _activeSessionId;
+    public string? ActiveSessionId { get => _activeSessionId; set => SetProperty(ref _activeSessionId, value); }
+
+    private string? _activeSessionStartedAt;
+    public string? ActiveSessionStartedAt { get => _activeSessionStartedAt; set => SetProperty(ref _activeSessionStartedAt, value); }
+
+    private int _activeSessionElapsedSeconds;
+    public int ActiveSessionElapsedSeconds { get => _activeSessionElapsedSeconds; set => SetProperty(ref _activeSessionElapsedSeconds, value); }
+
+    private decimal _activeSessionPricePerMinute;
+    public decimal ActiveSessionPricePerMinute { get => _activeSessionPricePerMinute; set => SetProperty(ref _activeSessionPricePerMinute, value); }
+
+    private decimal _activeSessionEstimatedAmount;
+    public decimal ActiveSessionEstimatedAmount { get => _activeSessionEstimatedAmount; set => SetProperty(ref _activeSessionEstimatedAmount, value); }
+
+    private string? _activeMemberId;
+    public string? ActiveMemberId { get => _activeMemberId; set => SetProperty(ref _activeMemberId, value); }
+
+    private string? _activeMemberUsername;
+    public string? ActiveMemberUsername { get => _activeMemberUsername; set => SetProperty(ref _activeMemberUsername, value); }
+
+    private string? _activeMemberFullName;
+    public string? ActiveMemberFullName { get => _activeMemberFullName; set => SetProperty(ref _activeMemberFullName, value); }
+
+    private decimal _activeMemberBalance;
+    public decimal ActiveMemberBalance { get => _activeMemberBalance; set => SetProperty(ref _activeMemberBalance, value); }
+
+    private bool _isAdminSession;
+    public bool IsAdminSession { get => _isAdminSession; set => SetProperty(ref _isAdminSession, value); }
+
+    private bool _isGuestSession;
+    public bool IsGuestSession { get => _isGuestSession; set => SetProperty(ref _isGuestSession, value); }
+
+    private string? _activeGuestDisplayName;
+    public string? ActiveGuestDisplayName { get => _activeGuestDisplayName; set => SetProperty(ref _activeGuestDisplayName, value); }
+
+    private decimal _activeGuestPrepaidAmount;
+    public decimal ActiveGuestPrepaidAmount { get => _activeGuestPrepaidAmount; set => SetProperty(ref _activeGuestPrepaidAmount, value); }
+
+    private bool _isVipSession;
+    public bool IsVipSession { get => _isVipSession; set => SetProperty(ref _isVipSession, value); }
 }
 
 public sealed class MemberListResponse
@@ -190,6 +273,7 @@ public sealed class MemberItem
     public int AvailablePoints { get; set; }
     public string MemberType { get; set; } = "REGULAR";
     public string CreatedAt { get; set; } = string.Empty;
+    public string? AvatarId { get; set; }
 }
 
 public sealed class MemberTransactionsResponse
@@ -395,6 +479,39 @@ public sealed class MemberRow
 
     public string TypeBackground => MemberType.ToUpper() == "VIP" ? "#E0E7FF" : "#F0FDF4";
     public string TypeForeground => MemberType.ToUpper() == "VIP" ? "#4F46E5" : "#16A34A";
+
+    public string? AvatarId { get; set; }
+    public string AvatarInitial => !string.IsNullOrWhiteSpace(Username) ? Username.Substring(0, 1).ToUpper() : "?";
+    public System.Windows.Media.Brush? AvatarBrush
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(AvatarId) && AvatarId.StartsWith("data:image/"))
+            {
+                try
+                {
+                    var commaIndex = AvatarId.IndexOf(',');
+                    if (commaIndex > 0)
+                    {
+                        var bytes = Convert.FromBase64String(AvatarId.Substring(commaIndex + 1));
+                        using var stream = new System.IO.MemoryStream(bytes);
+                        var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                        bitmap.BeginInit();
+                        bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                        bitmap.DecodePixelWidth = 128;
+                        bitmap.StreamSource = stream;
+                        bitmap.EndInit();
+                        bitmap.Freeze();
+                        return new System.Windows.Media.ImageBrush(bitmap) { Stretch = System.Windows.Media.Stretch.UniformToFill };
+                    }
+                }
+                catch { }
+            }
+            return null;
+        }
+    }
+    public System.Windows.Visibility AvatarFallbackVisibility => AvatarBrush == null ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+    public System.Windows.Visibility AvatarImageVisibility => AvatarBrush != null ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
 
     public string StatusDotColor => IsActive ? "#10B981" : "#EF4444";
 }
@@ -665,6 +782,16 @@ public sealed class PayPcServiceOrdersResponse
     public string? SessionId { get; set; }
     public int PaidOrderCount { get; set; }
     public decimal PaidAmount { get; set; }
+    public decimal UnpaidAmount { get; set; }
+}
+
+public sealed class CancelPcServiceOrdersResponse
+{
+    public string PcId { get; set; } = string.Empty;
+    public string? SessionId { get; set; }
+    public int CanceledOrderCount { get; set; }
+    public int CanceledQuantity { get; set; }
+    public decimal CanceledAmount { get; set; }
     public decimal UnpaidAmount { get; set; }
 }
 

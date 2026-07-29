@@ -296,6 +296,11 @@ public partial class MainWindow : Window
             SettingsTab.Visibility = Visibility.Collapsed;
             AdminTab.Visibility = Visibility.Collapsed;
             
+            // Hide sensitive financial info
+            StatTotalTopupCardBorder.Visibility = Visibility.Collapsed;
+            MemberTotalTopupColumn.Visibility = Visibility.Collapsed;
+            MemberDetailsTotalTopupBorder.Visibility = Visibility.Collapsed;
+
             // Optionally select the first allowed tab if a hidden one was selected by default
             if (MainTabControl.SelectedItem is TabItem selectedTab && selectedTab.Visibility == Visibility.Collapsed)
             {
@@ -398,6 +403,14 @@ public partial class MainWindow : Window
             else if (StatsTabControl.SelectedItem == PcMachineStatsTabItem)
             {
                 await RefreshPcRevenueStatsAsync();
+            }
+            else if (StatsTabControl.SelectedItem == HardwareTabItem)
+            {
+                await RefreshAllHardwareAsync();
+            }
+            else if (StatsTabControl.SelectedItem == PcAnalyticsTabItem)
+            {
+                await RefreshPcAnalyticsAsync();
             }
         }
     }
@@ -570,6 +583,60 @@ public partial class MainWindow : Window
             current = VisualTreeHelper.GetParent(current);
         }
         return false;
+    }
+
+
+
+    private void ContextViewAppUsageMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var selectedItem = MachinesDataGrid.SelectedItem;
+        if (selectedItem != null)
+        {
+            // The item is a dynamic type or PcDto, let's use dynamic
+            dynamic pc = selectedItem;
+            string pcId = pc.Id;
+            string pcName = pc.Name;
+
+            var window = new AppUsageWindow(this, pcId, pcName)
+            {
+                Owner = this
+            };
+            window.ShowDialog();
+        }
+    }
+
+    private void ContextChatMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var selectedItem = MachinesDataGrid.SelectedItem;
+        if (selectedItem != null)
+        {
+            dynamic pc = selectedItem;
+            string pcId = pc.Id;
+            string pcName = pc.Name;
+
+            var window = new AdminChatWindow(this, pcId, pcName)
+            {
+                Owner = this
+            };
+            window.Show(); // Non-blocking
+        }
+    }
+
+    internal string? _lastChatNotificationPcId;
+    internal string? _lastChatNotificationPcName;
+
+    private void ChatNotificationPopupBorder_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        ChatNotificationPopupBorder.Visibility = Visibility.Collapsed;
+        
+        if (!string.IsNullOrEmpty(_lastChatNotificationPcId))
+        {
+            var window = new AdminChatWindow(this, _lastChatNotificationPcId, _lastChatNotificationPcName ?? "PC")
+            {
+                Owner = this
+            };
+            window.Show();
+        }
     }
 }
 

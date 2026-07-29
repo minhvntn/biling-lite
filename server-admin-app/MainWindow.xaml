@@ -598,6 +598,8 @@
                                     <MenuItem x:Name="ContextOpenGuestMachineMenuItem" Header="Đăng nhập trả tiền trước..." Click="ContextOpenGuestMachineMenuItem_Click" />
                                     <MenuItem x:Name="ContextAdminLoginMachineMenuItem" Header="Đăng nhập admin máy trạm" Click="ContextAdminLoginMachineMenuItem_Click" />
                                     <MenuItem x:Name="ContextLockMachineMenuItem" Header="Khóa máy" Click="ContextLockMachineMenuItem_Click" />
+                                    <MenuItem x:Name="ContextChatMenuItem" Header="Nhắn tin" Click="ContextChatMenuItem_Click" />
+                                    <!-- <MenuItem x:Name="ContextViewAppUsageMenuItem" Header="Xem ứng dụng đang chạy" Click="ContextViewAppUsageMenuItem_Click" /> -->
                                     <MenuItem x:Name="ContextTopupMachineMemberMenuItem" Header="Nạp tiền hội viên đang dùng máy..." Click="ContextTopupMachineMemberMenuItem_Click" />
                                     <Separator />
                                     <MenuItem x:Name="ContextRestartMachineMenuItem" Header="Khởi động lại máy trạm" Click="ContextRestartMachineMenuItem_Click" />
@@ -1243,7 +1245,7 @@
                                 </Border>
 
                                 <!-- Total Topup -->
-                                <Border Grid.Column="4" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,8">
+                                <Border x:Name="StatTotalTopupCardBorder" Grid.Column="4" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,8">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
@@ -1384,7 +1386,7 @@
                                                 </DataGridTemplateColumn.CellTemplate>
                                             </DataGridTemplateColumn>
                                             <DataGridTextColumn Header="Số dư (VND)" Binding="{Binding BalanceText}" Width="1*" MinWidth="130" ElementStyle="{StaticResource BoldBlackDataGridText}" />
-                                            <DataGridTextColumn Header="Tổng nạp (VND)" Binding="{Binding TotalTopupText}" Width="1.2*" MinWidth="140" ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                            <DataGridTextColumn x:Name="MemberTotalTopupColumn" Header="Tổng nạp (VND)" Binding="{Binding TotalTopupText}" Width="1.2*" MinWidth="140" ElementStyle="{StaticResource BoldBlackDataGridText}" />
                                             <DataGridTextColumn Header="Giờ chơi" Binding="{Binding PlayHoursText}" Width="0.8*" MinWidth="100" ElementStyle="{StaticResource BoldBlackDataGridText}" />
                                             <DataGridTemplateColumn Header="Trạng thái" Width="1*" MinWidth="120">
                                                 <DataGridTemplateColumn.CellTemplate>
@@ -1411,7 +1413,7 @@
                                             <DataGridTemplateColumn Header="Thao tác" Width="0.6*" MinWidth="100">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
-                                                        <Button Width="32" Height="32" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" Foreground="#64748B" HorizontalAlignment="Center">
+                                                        <Button Width="32" Height="32" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" Foreground="#64748B" HorizontalAlignment="Center" Click="MemberRowOptionsButton_Click">
                                                             <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
                                                             <TextBlock Text="⋮" FontSize="16"/>
                                                         </Button>
@@ -1484,7 +1486,19 @@
 
                                     <!-- Profile Info -->
                                     <Grid Grid.Row="1" Margin="0,0,0,24">
-                                        <StackPanel VerticalAlignment="Center">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        
+                                        <Grid Grid.Column="0" Width="56" Height="56" Margin="0,0,12,0" VerticalAlignment="Top">
+                                            <Border CornerRadius="28" Background="#E2E8F0" Visibility="{Binding AvatarFallbackVisibility}">
+                                                <TextBlock Text="{Binding AvatarInitial}" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="#64748B" />
+                                            </Border>
+                                            <Border CornerRadius="28" Background="{Binding AvatarBrush}" Visibility="{Binding AvatarImageVisibility}" />
+                                        </Grid>
+
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                                 <TextBlock Text="{Binding Username}" FontWeight="Bold" FontSize="18" Foreground="#0F172A" Margin="0,0,8,0"/>
                                                 <TextBlock Text="&#x2714;" Foreground="#3B82F6" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
@@ -1514,7 +1528,7 @@
                                                 <TextBlock Text="VND" FontSize="10" Foreground="#94A3B8" HorizontalAlignment="Center"/>
                                             </StackPanel>
                                         </Border>
-                                        <Border Grid.Column="1" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="8" Margin="4,0,4,0">
+                                        <Border x:Name="MemberDetailsTotalTopupBorder" Grid.Column="1" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="8" Margin="4,0,4,0">
                                             <StackPanel HorizontalAlignment="Center">
                                                 <TextBlock Text="Tổng nạp" FontSize="11" Foreground="#64748B" HorizontalAlignment="Center" Margin="0,0,0,4"/>
                                                 <TextBlock Text="{Binding TotalTopupText}" FontWeight="Bold" FontSize="12" Foreground="#0F172A" HorizontalAlignment="Center"/>
@@ -1628,6 +1642,7 @@
                     </Grid>
                 </TabItem>
 
+
                 <TabItem x:Name="LogsTabItem" Style="{StaticResource MainTabItemStyle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -1645,7 +1660,6 @@
                             </TabItem.Header>
                             <Grid Margin="0">
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
                                     <RowDefinition Height="Auto" />
@@ -1670,66 +1684,119 @@
                                               SelectionChanged="SystemLogMachineFilterComboBox_SelectionChanged" />
                                 </WrapPanel>
 
-                                <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="10" Margin="0,0,0,8">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="6" />
-                                            <RowDefinition Height="140" />
-                                        </Grid.RowDefinitions>
+                                <Grid Grid.Row="1">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="350" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
 
-                                        <DockPanel Grid.Row="0">
-                                            <TextBlock Text="Timeline hoạt động theo máy" FontSize="13" FontWeight="SemiBold" Foreground="#0F172A" />
-                                            <TextBlock x:Name="MachineTimelineInfoTextBlock"
-                                                       DockPanel.Dock="Right"
-                                                       Foreground="#64748B"
-                                                       FontSize="12"
-                                                       Text="{x:Static local:I18n.TimelineEmpty}" />
-                                        </DockPanel>
+                                    <!-- Left Panel: Timeline -->
+                                    <Border Grid.Column="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,8,0">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="12" />
+                                                <RowDefinition Height="*" />
+                                            </Grid.RowDefinitions>
 
-                                        <ListBox x:Name="MachineTimelineListBox"
-                                                 Grid.Row="2"
-                                                 BorderThickness="0"
-                                                 Background="Transparent">
-                                            <ListBox.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8" Padding="8" Margin="0,0,0,6">
-                                                        <Grid>
+                                            <DockPanel Grid.Row="0">
+                                                <TextBlock Text="TIMELINE (Trực tiếp)" FontSize="13" FontWeight="Bold" Foreground="#0F172A" />
+                                                <TextBlock x:Name="MachineTimelineInfoTextBlock"
+                                                           DockPanel.Dock="Right"
+                                                           Foreground="#10B981"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="12"
+                                                           Text="{x:Static local:I18n.TimelineEmpty}" />
+                                            </DockPanel>
+
+                                            <ListBox x:Name="MachineTimelineListBox"
+                                                     Grid.Row="2"
+                                                     BorderThickness="0"
+                                                     Background="Transparent"
+                                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,0,0,16">
                                                             <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="140" />
-                                                                <ColumnDefinition Width="180" />
+                                                                <ColumnDefinition Width="65" />
+                                                                <ColumnDefinition Width="Auto" />
                                                                 <ColumnDefinition Width="*" />
                                                             </Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{Binding TimeText}" Foreground="#334155" FontSize="12" />
-                                                            <TextBlock Grid.Column="1" Text="{Binding EventText}" Foreground="#0F172A" FontWeight="SemiBold" FontSize="12" Margin="8,0,8,0" />
-                                                            <TextBlock Grid.Column="2" Text="{Binding DetailsText}" Foreground="#475569" FontSize="12" TextTrimming="CharacterEllipsis" />
-                                                        </Grid>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ListBox.ItemTemplate>
-                                        </ListBox>
-                                    </Grid>
-                                </Border>
 
-                                <DataGrid x:Name="SystemLogsDataGrid"
-                                          Grid.Row="2"
+                                                            <!-- Time -->
+                                                            <StackPanel Grid.Column="0">
+                                                                <TextBlock Text="{Binding TimeText}" Foreground="#64748B" FontSize="11" />
+                                                            </StackPanel>
+
+                                                            <!-- Timeline Dot & Line -->
+                                                            <Grid Grid.Column="1" Margin="8,0">
+                                                                <Line X1="6" Y1="16" X2="6" Y2="100" Stroke="#E2E8F0" StrokeThickness="2" />
+                                                                <Ellipse Width="12" Height="12" Fill="#3B82F6" VerticalAlignment="Top" Margin="0,2,0,0" />
+                                                            </Grid>
+
+                                                            <!-- Event Content -->
+                                                            <StackPanel Grid.Column="2" Margin="0,0,0,0">
+                                                                <TextBlock Text="{Binding EventText}" Foreground="#0F172A" FontWeight="Bold" FontSize="13" TextWrapping="Wrap" />
+                                                                <TextBlock Text="{Binding DetailsText}" Foreground="#475569" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0" />
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Right Panel: DataGrid -->
+                                    <DataGrid x:Name="SystemLogsDataGrid"
+                                          Grid.Column="1"
                                           AutoGenerateColumns="False"
                                           IsReadOnly="True"
                                           CanUserAddRows="False"
                                           HeadersVisibility="Column"
                                           GridLinesVisibility="Horizontal"
                                           RowHeaderWidth="0"
-                                          AlternationCount="2">
+                                          SelectionMode="Single"
+                                          HorizontalGridLinesBrush="#F1F5F9"
+                                          VerticalGridLinesBrush="Transparent"
+                                          BorderThickness="0"
+                                          Background="Transparent"
+                                          RowBackground="White"
+                                          AlternatingRowBackground="#EBEDEE"
+                                          RowHeight="40">
+                                    <DataGrid.ColumnHeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#F8FAFC"/>
+                                            <Setter Property="Foreground" Value="#64748B"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="Padding" Value="16,12"/>
+                                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                        </Style>
+                                    </DataGrid.ColumnHeaderStyle>
+                                    <DataGrid.RowStyle>
+                                        <Style TargetType="DataGridRow">
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="#EEF2FF"/>
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGrid.RowStyle>
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Thời gian" Binding="{Binding CreatedAtText}" Width="170" />
-                                        <DataGridTextColumn Header="Nguồn" Binding="{Binding Source}" Width="90" />
-                                        <DataGridTextColumn Header="Sự kiện" Binding="{Binding EventType}" Width="230" />
-                                        <DataGridTextColumn Header="Máy" Binding="{Binding PcText}" Width="180" />
-                                        <DataGridTextColumn Header="Chi tiết" Binding="{Binding PayloadText}" Width="*" />
+                                        <DataGridTextColumn Header="Thời gian" Binding="{Binding CreatedAtText}" Width="170"  ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="Nguồn" Binding="{Binding Source}" Width="90"  ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="Sự kiện" Binding="{Binding EventType}" Width="230"  ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="Máy" Binding="{Binding PcText}" Width="180"  ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="Chi tiết" Binding="{Binding PayloadText}" Width="*"  ElementStyle="{StaticResource BoldBlackDataGridText}" />
                                     </DataGrid.Columns>
                                 </DataGrid>
-
-                                <TextBlock Grid.Row="3" Margin="0,8,0,0" x:Name="SystemLogInfoTextBlock" Text="Chưa tải log" />
+                                </Grid>
+                                
+<TextBlock Grid.Row="2" Margin="0,8,0,0" x:Name="SystemLogInfoTextBlock" Text="Chưa tải log" />
                             </Grid>
                         </TabItem>
 
@@ -1774,22 +1841,52 @@
                                           HeadersVisibility="Column"
                                           GridLinesVisibility="Horizontal"
                                           RowHeaderWidth="0"
-                                          AlternationCount="2">
+                                          SelectionMode="Single"
+                                          HorizontalGridLinesBrush="#F1F5F9"
+                                          VerticalGridLinesBrush="Transparent"
+                                          BorderThickness="0"
+                                          Background="Transparent"
+                                          RowBackground="White"
+                                          AlternatingRowBackground="#EBEDEE"
+                                          RowHeight="40">
                                     <DataGrid.Resources>
                                         <Style TargetType="TextBlock" x:Key="CellTextStyle">
                                             <Setter Property="Padding" Value="0,8" />
                                             <Setter Property="VerticalAlignment" Value="Center" />
                                         </Style>
                                     </DataGrid.Resources>
+                                    <DataGrid.ColumnHeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#F8FAFC"/>
+                                            <Setter Property="Foreground" Value="#64748B"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="Padding" Value="16,12"/>
+                                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                        </Style>
+                                    </DataGrid.ColumnHeaderStyle>
+                                    <DataGrid.RowStyle>
+                                        <Style TargetType="DataGridRow">
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="#EEF2FF"/>
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGrid.RowStyle>
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Máy" Binding="{Binding PcName}" Width="120" ElementStyle="{StaticResource CellTextStyle}" />
-                                        <DataGridTextColumn Header="Agent" Binding="{Binding AgentId}" Width="130" ElementStyle="{StaticResource CellTextStyle}" />
-                                        <DataGridTextColumn Header="Bắt đầu" Binding="{Binding StartedAtText}" Width="160" ElementStyle="{StaticResource CellTextStyle}" />
-                                        <DataGridTextColumn Header="Kết thúc" Binding="{Binding EndedAtText}" Width="160" ElementStyle="{StaticResource CellTextStyle}" />
-                                        <DataGridTextColumn Header="Số phút" Binding="{Binding BillableMinutesText}" Width="90" ElementStyle="{StaticResource CellTextStyle}" />
-                                        <DataGridTextColumn Header="Tiền" Binding="{Binding AmountText}" Width="110" ElementStyle="{StaticResource CellTextStyle}" />
-                                        <DataGridTextColumn Header="Trạng thái" Binding="{Binding Status}" Width="90" ElementStyle="{StaticResource CellTextStyle}" />
-                                        <DataGridTextColumn Header="Lý do" Binding="{Binding ClosedReason}" Width="120" ElementStyle="{StaticResource CellTextStyle}" />
+                                        <DataGridTextColumn Header="Máy" Binding="{Binding PcName}" Width="120" ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="Agent" Binding="{Binding AgentId}" Width="130" ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="Bắt đầu" Binding="{Binding StartedAtText}" Width="160" ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="Kết thúc" Binding="{Binding EndedAtText}" Width="160" ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="Số phút" Binding="{Binding BillableMinutesText}" Width="90" ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="Tiền" Binding="{Binding AmountText}" Width="110" ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="Trạng thái" Binding="{Binding Status}" Width="90" ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="Lý do" Binding="{Binding ClosedReason}" Width="120" ElementStyle="{StaticResource BoldBlackDataGridText}" />
                                     </DataGrid.Columns>
                                 </DataGrid>
 
@@ -1916,15 +2013,45 @@
                                           HeadersVisibility="Column"
                                           GridLinesVisibility="Horizontal"
                                           RowHeaderWidth="0"
-                                          AlternationCount="2">
+                                          SelectionMode="Single"
+                                          HorizontalGridLinesBrush="#F1F5F9"
+                                          VerticalGridLinesBrush="Transparent"
+                                          BorderThickness="0"
+                                          Background="Transparent"
+                                          RowBackground="White"
+                                          AlternatingRowBackground="#EBEDEE"
+                                          RowHeight="40">
+                                    <DataGrid.ColumnHeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#F8FAFC"/>
+                                            <Setter Property="Foreground" Value="#64748B"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="Padding" Value="16,12"/>
+                                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                        </Style>
+                                    </DataGrid.ColumnHeaderStyle>
+                                    <DataGrid.RowStyle>
+                                        <Style TargetType="DataGridRow">
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="#EEF2FF"/>
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGrid.RowStyle>
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Thời gian" Binding="{Binding VisitedAtText}" Width="170" />
-                                        <DataGridTextColumn Header="Máy" Binding="{Binding PcName}" Width="130" />
-                                        <DataGridTextColumn Header="Agent" Binding="{Binding AgentId}" Width="130" />
-                                        <DataGridTextColumn Header="Domain" Binding="{Binding Domain}" Width="170" />
-                                        <DataGridTextColumn Header="URL" Binding="{Binding Url}" Width="*" MinWidth="220" />
-                                        <DataGridTextColumn Header="Nguồn" Binding="{Binding Browser}" Width="100" />
-                                        <DataGridTextColumn Header="Tiêu đề" Binding="{Binding Title}" Width="220" />
+                                        <DataGridTextColumn Header="Thời gian" Binding="{Binding VisitedAtText}" Width="170"  ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="Máy" Binding="{Binding PcName}" Width="130"  ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="Agent" Binding="{Binding AgentId}" Width="130"  ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="Domain" Binding="{Binding Domain}" Width="170"  ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="URL" Binding="{Binding Url}" Width="*" MinWidth="220"  ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="Nguồn" Binding="{Binding Browser}" Width="100"  ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                        <DataGridTextColumn Header="Tiêu đề" Binding="{Binding Title}" Width="220"  ElementStyle="{StaticResource BoldBlackDataGridText}" />
                                     </DataGrid.Columns>
                                 </DataGrid>
 
@@ -2475,8 +2602,8 @@
                                             <Setter Property="BorderThickness" Value="0"/>
                                             <Style.Triggers>
                                                 <Trigger Property="IsSelected" Value="True">
-                                                    <Setter Property="Background" Value="#EFF6FF"/>
-                                                    <Setter Property="Foreground" Value="#0F172A"/>
+                                                    <Setter Property="Background" Value="#3B82F6"/>
+                                                    <Setter Property="Foreground" Value="White"/>
                                                 </Trigger>
                                             </Style.Triggers>
                                         </Style>
@@ -3958,6 +4085,85 @@
                     </ScrollViewer>
                 </TabItem>
 
+                <TabItem x:Name="HardwareTabItem">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock VerticalAlignment="Center" Text="💻" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="Phần cứng" />
+                        </StackPanel>
+                    </TabItem.Header>
+                    <Grid Margin="16">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="250" />
+                        </Grid.RowDefinitions>
+                        
+                        <!-- Controls (Save button) -->
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+                            <TextBlock Text="Danh sách phần cứng Máy Trạm" FontWeight="SemiBold" FontSize="16" VerticalAlignment="Center" Margin="0,0,16,0" />
+                            <Button x:Name="SaveAllHardwareButton" Content="Lưu thay đổi" Padding="16,6" Background="#3B82F6" Foreground="White" Click="SaveAllHardwareButton_Click" />
+                            <TextBlock x:Name="HardwareStatusTextBlock" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#10B981" />
+                        </StackPanel>
+                    
+                        <!-- Hardware Table -->
+                        <DataGrid x:Name="HardwareDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" SelectionMode="Single">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Máy trạm" Binding="{Binding PcName}" IsReadOnly="True" Width="120" FontWeight="SemiBold" />
+                                <DataGridTextColumn Header="CPU" Binding="{Binding Cpu, Mode=OneWay}" Width="150" IsReadOnly="True" />
+                                <DataGridTextColumn Header="RAM" Binding="{Binding Ram, Mode=OneWay}" Width="120" IsReadOnly="True" />
+                                <DataGridTextColumn Header="GPU" Binding="{Binding Gpu, Mode=OneWay}" Width="150" IsReadOnly="True" />
+                                <DataGridTextColumn Header="Mainboard" Binding="{Binding Motherboard, Mode=OneWay}" Width="150" IsReadOnly="True" />
+                                <DataGridTextColumn Header="Mạng LAN" Binding="{Binding Lan, Mode=OneWay}" Width="150" IsReadOnly="True" />
+                                <DataGridTextColumn Header="Nhiệt độ" Binding="{Binding Temperature, Mode=OneWay}" Width="100" IsReadOnly="True" />
+                                <DataGridTextColumn Header="Màn hình" Binding="{Binding Monitor, Mode=OneWay}" Width="150" IsReadOnly="True" />
+                                <DataGridTextColumn Header="Ghi chú" Binding="{Binding Note, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
+                
+                <TabItem x:Name="PcAnalyticsTabItem">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock VerticalAlignment="Center" Text="🔥" Margin="0,0,6,0" FontSize="20" />
+                            <TextBlock VerticalAlignment="Center" Text="PC Analytics" />
+                        </StackPanel>
+                    </TabItem.Header>
+                    <Grid Margin="16">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+                            <TextBlock Text="Heatmap Hiệu Suất:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="14" Margin="0,0,12,0" />
+                            <Button x:Name="PcAnalyticsWeekButton" Content="Tuần này" Margin="0,0,8,0" Style="{StaticResource ModernFilterButtonStyle}" Click="PcAnalyticsFilterButton_Click" Tag="week" />
+                            <Button x:Name="PcAnalyticsMonthButton" Content="Tháng này" Margin="0,0,8,0" Style="{StaticResource ModernFilterButtonStyle}" Click="PcAnalyticsFilterButton_Click" Tag="month" />
+                            <Button x:Name="PcAnalyticsYearButton" Content="Năm nay" Style="{StaticResource ModernFilterButtonStyle}" Click="PcAnalyticsFilterButton_Click" Tag="year" />
+                        </StackPanel>
+                        
+                        <DataGrid x:Name="PcAnalyticsDataGrid" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" SelectionMode="Single">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Máy trạm" Binding="{Binding PcName}" Width="200" />
+                                <DataGridTextColumn Header="Số phiên" Binding="{Binding SessionCount}" Width="120" />
+                                <DataGridTextColumn Header="Giờ chơi" Binding="{Binding PlayHours}" Width="120" />
+                                
+                                <DataGridTemplateColumn Header="Tỉ lệ sử dụng (Utilization %)" Width="250">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <ProgressBar Width="150" Height="8" Margin="0,0,8,0" Minimum="0" Maximum="100" Value="{Binding UtilizationPercentage}" Foreground="#3B82F6" Background="#E5E7EB" BorderThickness="0" />
+                                                <TextBlock Text="{Binding UtilizationPercentage, StringFormat={}{0:0.##}%}" FontSize="12" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </TabItem>
             </TabControl>
         </TabItem>
 
@@ -5085,10 +5291,25 @@
                                         <DataGridTextColumn Header="Tên đăng nhập" Binding="{Binding Username}" Width="200" />
                                         <DataGridTextColumn Header="Quyền" Binding="{Binding Role}" Width="120" />
                                         <DataGridTextColumn Header="Ngày tạo" Binding="{Binding CreatedAt, StringFormat=dd/MM/yyyy HH:mm}" Width="180" />
-                                        <DataGridTemplateColumn Header="Hành động" Width="100">
+                                        <DataGridTemplateColumn Header="Hành động" Width="190">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <Button Content="Xóa" Click="DeleteStaffButton_Click" Tag="{Binding Id}" Margin="4,2"/>
+                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                        <Button Content="Đổi mật khẩu" Click="ResetStaffPasswordButton_Click" Tag="{Binding}" Margin="4,2" Padding="10,4" Background="#3B82F6" Foreground="White" BorderThickness="0" Cursor="Hand">
+                                                            <Button.Resources>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="CornerRadius" Value="4"/>
+                                                                </Style>
+                                                            </Button.Resources>
+                                                        </Button>
+                                                        <Button Content="Xóa" Click="DeleteStaffButton_Click" Tag="{Binding Id}" Margin="4,2" Padding="10,4" Background="#EF4444" Foreground="White" BorderThickness="0" Cursor="Hand">
+                                                            <Button.Resources>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="CornerRadius" Value="4"/>
+                                                                </Style>
+                                                            </Button.Resources>
+                                                        </Button>
+                                                    </StackPanel>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
@@ -5586,6 +5807,56 @@
                 </StackPanel>
             </Border>
         </Popup>
+
+        <!-- Chat notification popup button -->
+        <Border x:Name="ChatNotificationPopupBorder"
+                Panel.ZIndex="3000"
+                Visibility="Collapsed"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Bottom"
+                Margin="0,0,0,25"
+                Background="#EF4444"
+                BorderBrush="#EF4444"
+                BorderThickness="1"
+                Padding="0"
+                Cursor="Hand"
+                MouseLeftButtonDown="ChatNotificationPopupBorder_MouseLeftButtonDown">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Style.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                    <ColorAnimation Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                    From="#EF4444" To="#F8FAFC" Duration="0:0:0.5" />
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <TextBlock x:Name="ChatNotificationTextBlock"
+                       Text="Tin nhắn - máy 01"
+                       Foreground="White"
+                       FontSize="13"
+                       FontWeight="SemiBold"
+                       Padding="16,8">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Style.Triggers>
+                            <EventTrigger RoutedEvent="Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                        <ColorAnimation Storyboard.TargetProperty="(TextBlock.Foreground).(SolidColorBrush.Color)"
+                                                        From="White" To="#EF4444" Duration="0:0:0.5" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </Border>
 
         <Border x:Name="GuestLoginToastBorder"
                 Panel.ZIndex="4000"

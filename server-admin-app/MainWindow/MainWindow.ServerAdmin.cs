@@ -186,6 +186,23 @@ public partial class MainWindow
         }
     }
 
+    private void ResetStaffPasswordButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is ServerUserRow user)
+        {
+            var win = new ResetStaffPasswordWindow(user, _httpClient, BuildApiUrl, JsonOptions)
+            {
+                Owner = this
+            };
+            if (win.ShowModal(this) == true)
+            {
+                StaffActionStatusTextBlock.Text = $"Đã đổi mật khẩu cho tài khoản '{user.Username}'.";
+                StaffActionStatusTextBlock.Foreground = Brushes.DarkGreen;
+                _ = LoadServerUsersAsync();
+            }
+        }
+    }
+
     private void ChangeAdminCredentialsButton_Click(object sender, RoutedEventArgs e)
     {
         var win = new ChangeAdminCredentialsWindow(_httpClient, BuildApiUrl, JsonOptions)

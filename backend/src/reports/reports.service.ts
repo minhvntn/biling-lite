@@ -1294,5 +1294,57 @@ export class ReportsService {
 
     return Math.min(500, Math.max(20, Math.floor(parsed)));
   }
+
+  async getPcAnalytics(periodRaw?: string) {
+    const period = this.parsePcRevenuePeriod(periodRaw);
+    const now = new Date();
+    const range = this.getPcRevenueRange(period, now);
+    
+    // Total seconds in this period
+    const totalPeriodSeconds = Math.max(1, (range.endExclusive.getTime() - range.start.getTime()) / 1000);
+
+    const pcs = await this.prisma.pc.findMany({
+      select: {
+        id: true,
+        name: true,
+        sessions: {
+          where: {
+            status: 'CLOSED',
+            endedAt: { gte: range.start, lt: range.endExclusive },
+          },
+          select: {
+            durationSeconds: true,
+          },
+        },
+      },
+    });
+
+    const items = pcs.map((pc) => {
+      const sessionCount = pc.sessions.length;
+      const totalDurationSeconds = pc.sessions.reduce(
+        (sum, session) => sum + Math.max(0, session.durationSeconds ?? 0),
+        0
+      );
+      
+      const utilizationPercentage = Math.min(100, (totalDurationSeconds / totalPeriodSeconds) * 100);
+
+      return {
+        pcId: pc.id,
+        pcName: pc.name,
+        totalDurationSeconds,
+        playHours: Math.round(totalDurationSeconds / 3600 * 10) / 10,
+        utilizationPercentage: Math.round(utilizationPercentage * 100) / 100, // round to 2 decimals
+        sessionCount,
+      };
+    });
+
+    return {
+      period,
+      rangeStart: range.start.toISOString(),
+      rangeEndExclusive: range.endExclusive.toISOString(),
+      items: items.sort((a, b) => b.utilizationPercentage - a.utilizationPercentage),
+      serverTime: new Date().toISOString(),
+    };
+  }
 }
 

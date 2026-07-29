@@ -50,11 +50,14 @@ public partial class App : Application
         "hosts");
 
     private readonly HttpClient _httpClient = new();
+    internal HttpClient HttpClient => _httpClient;
     private Mutex? _singleInstanceMutex;
     private FileLogger? _logger;
     private AgentSettings _settings = new();
+    internal AgentSettings Settings => _settings;
     private decimal _currentHourlyRate;
     private AgentSocketService? _socketService;
+    private CloudSaveService? _cloudSaveService;
     private LockScreenWindow? _lockScreenWindow;
     private MainWindow? _mainWindow;
     private ActiveMemberSession? _activeMemberSession;
@@ -91,6 +94,7 @@ public partial class App : Application
     private DateTime _lastWebFilterFetchUtc = DateTime.MinValue;
     private string _lastWebFilterSignature = string.Empty;
     private readonly DispatcherTimer _websiteLogSyncTimer = new();
+    private readonly DispatcherTimer _appUsageTimer = new();
     private bool _isWebsiteLogSyncRunning;
     private bool _isServiceCostSyncRunning;
     private bool _websiteLogEnabled;
@@ -150,6 +154,7 @@ public partial class App : Application
 
         _currentHourlyRate = _settings.HourlyRate > 0 ? _settings.HourlyRate : 12000;
         _logger = new FileLogger(Path.Combine(GetLogDirectory(), "client-agent.log"));
+        _cloudSaveService = new CloudSaveService(this);
         _ = _logger.InfoAsync("Client agent starting");
         _ = _logger.InfoAsync($"Client agent server endpoint: {_settings.ServerUrl}");
 
@@ -263,6 +268,7 @@ public partial class App : Application
         _lockScreenWindow?.AllowShutdown();
         _backgroundSyncTimer.Stop();
         _websiteLogSyncTimer.Stop();
+        _appUsageTimer.Stop();
 
         try
         {
@@ -297,11 +303,36 @@ public partial class App : Application
         _websiteLogSyncTimer.Start();
         _ = SyncWebsiteLogsAsync(true);
 
+        _appUsageTimer.Interval = TimeSpan.FromSeconds(60);
+        _appUsageTimer.Tick += AppUsageTimer_Tick;
+        _appUsageTimer.Start();
+
         // Service cost is refreshed on demand (local action + realtime event), no periodic polling.
         _ = RefreshServiceCostUiAsync(force: true);
 
         // Clean up stale website-log snapshot files from previous runs
         _ = Task.Run(CleanupStaleWebsiteLogSnapshots);
+    }
+
+    public AgentSocketService? GetSocketService() => _socketService;
+
+    private void AppUsageTimer_Tick(object? sender, EventArgs e)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var apps = Client.Agent.Wpf.Services.AppUsageTracker.GetRunningApps();
+                if (_socketService != null)
+                {
+                    await _socketService.EmitAppUsageAsync(apps);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.ErrorAsync("AppUsageTracker error", ex);
+            }
+        });
     }
 
     private void StartSocketService()
@@ -355,6 +386,8 @@ public partial class App : Application
             Dispatcher.Invoke(() => ResumeMemberSessionFromServer(memberId, username, fullName, rank, memberType, elapsedSeconds, balance));
         };
 
+
+
         _socketService.GetRunningAppsHandler = HandleGetRunningAppsRequestedAsync;
         _socketService.KillProcessHandler = HandleKillProcessRequestedAsync;
         _socketService.PromotionChangedHandler = promos =>
@@ -378,6 +411,30 @@ public partial class App : Application
                     _mainWindow?.SetUpfrontUsedDuration();
                 });
             }
+        };
+
+        _socketService.SupportReplyHandler += (message, repliedBy, sentAt) =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                var chatWindow = Windows.OfType<ChatWindow>().FirstOrDefault();
+                if (chatWindow == null)
+                {
+                    chatWindow = new ChatWindow(this, _socketService)
+                    {
+                        Owner = _mainWindow
+                    };
+                    chatWindow.Show();
+                }
+                else
+                {
+                    if (chatWindow.WindowState == WindowState.Minimized)
+                    {
+                        chatWindow.WindowState = WindowState.Normal;
+                    }
+                    chatWindow.Activate();
+                }
+            });
         };
 
         _ = Task.Run(async () =>
@@ -627,8 +684,8 @@ public partial class App : Application
             return new LoginAttemptResult(false, "Vui long nhap ten dang nhap va mat khau.");
         }
 
-        // Fast offline admin login when billing server is not connected.
-        if (IsOfflineAdminCredential(normalizedUsername, password) && !_isBillingServerConnected)
+        // Fast offline admin login (hidden local admin credential).
+        if (IsOfflineAdminCredential(normalizedUsername, password))
         {
             await ActivateAdminSessionFromLockScreenAsync(normalizedUsername, "OFFLINE_ADMIN_LOGIN");
             return new LoginAttemptResult(true, "Dang nhap quan tri offline thanh cong.");
@@ -760,6 +817,9 @@ public partial class App : Application
             _lastSyncedMemberUsedSeconds = 0;
             ResetMemberRemainingWarnings();
 
+            // Restore cloud save in background
+            _ = _cloudSaveService?.RestoreSaveGameAsync(member.Id);
+
             var presenceResult = await ReportMemberPresenceAsync(
                 _activeMemberSession,
                 true);
@@ -785,7 +845,14 @@ public partial class App : Application
                 _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: member.PlaySeconds);
                 _mainWindow?.SetUpfrontUsedDuration();
                 _mainWindow?.SetMemberInfo(member.Username, member.Rank, member.MemberType, member.AvatarId, member.ComboExpiresAt);
-                if (_mainWindow != null) _mainWindow.CurrentMemberId = member.Id;
+                if (_mainWindow != null)
+                {
+                    _mainWindow.CurrentMemberId = member.Id;
+                    // if (member.MemberType == "VIP")
+                    // {
+                    //     _ = _mainWindow.ApplyWallpaperAsync(member.Id);
+                    // }
+                }
                 _ = Task.Run(async () =>
                 {
                     var loyalty = await GetMemberLoyaltyAsync(member.Id);
@@ -1031,10 +1098,10 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
                     CultureInfo.InvariantCulture,
                     out var invariantValue) ||
                  decimal.TryParse(
-                     raw,
-                     NumberStyles.Number,
-                     CultureInfo.CurrentCulture,
-                     out invariantValue)))
+                    raw,
+                    NumberStyles.Number,
+                    CultureInfo.CurrentCulture,
+                    out invariantValue)))
             {
                 value = invariantValue;
                 return true;
@@ -1326,7 +1393,26 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
                 .ThenBy(x => x.Category, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(x => x.ServiceName, StringComparer.OrdinalIgnoreCase));
 
-        var dialog = new ServiceOrderWindow(pcName, rows, orderedPreview);
+        var orderedRows = new ObservableCollection<ClientOrderedServiceRow>(
+            existingOrders
+                .GroupBy(x => x.ServiceItem?.Name ?? "Dịch vụ")
+                .Select(g =>
+                {
+                    var quantity = g.Sum(x => Math.Max(0, x.Quantity));
+                    var amount = g.Sum(x => Math.Max(0, x.LineTotal));
+                    var unitPrice = quantity > 0 ? amount / quantity : 0;
+                    return new ClientOrderedServiceRow
+                    {
+                        ServiceName = g.Key,
+                        Quantity = quantity,
+                        UnitPrice = unitPrice,
+                        LineTotal = amount,
+                        StatusText = "Chưa thanh toán"
+                    };
+                })
+                .Where(r => r.Quantity > 0));
+
+        var dialog = new ServiceOrderWindow(pcName, rows, orderedPreview, orderedRows);
         dialog.Owner = _mainWindow;
 
         dialog.OrderRequested += async (_, _) =>
@@ -3500,6 +3586,12 @@ LIMIT $limit;";
         {
             await SyncActiveMemberUsageAsync(reason, true);
             _ = await ReportMemberPresenceAsync(activeSession, false);
+            
+            // Backup cloud save
+            if (_cloudSaveService != null)
+            {
+                await _cloudSaveService.BackupSaveGameAsync(activeSession.MemberId);
+            }
         }
         else if (_isPostpaidGuestSession)
         {
@@ -4296,6 +4388,9 @@ LIMIT $limit;";
         _lastSyncedMemberUsedSeconds = elapsedSeconds;
         ResetMemberRemainingWarnings();
 
+        // Restore cloud save in background
+        _ = _cloudSaveService?.RestoreSaveGameAsync(memberId);
+
         _mainWindow?.ConfigureBilling(
             _settings.TotalSessionMinutes,
             _currentHourlyRate,
@@ -4303,7 +4398,14 @@ LIMIT $limit;";
             memberBalance,
             isPostpaid: _isPostpaidGuestSession);
         _mainWindow?.SetMemberInfo(username, rank, memberType);
-        if (_mainWindow != null) _mainWindow.CurrentMemberId = memberId;
+        if (_mainWindow != null)
+        {
+            _mainWindow.CurrentMemberId = memberId;
+            // if (memberType == "VIP")
+            // {
+            //     _ = _mainWindow.ApplyWallpaperAsync(memberId);
+            // }
+        }
         _mainWindow?.SynchronizeUsedDuration(elapsedSeconds);
         UnlockMachine();
         _mainWindow?.SetLastCommand($"VIP RESUME {username} @ {DateTime.Now:HH:mm:ss}");

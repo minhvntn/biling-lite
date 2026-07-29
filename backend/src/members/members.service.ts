@@ -5,6 +5,9 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
+import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import {
   EventSource,
@@ -2805,6 +2808,7 @@ export class MembersService {
       availablePoints: availablePoints ?? 0,
       memberType: member.memberType ?? 'REGULAR',
       avatarId: member.avatarId,
+      wallpaperId: (member as any).wallpaperId,
       isActive: member.isActive,
       comboExpiresAt: member.comboExpiresAt ? member.comboExpiresAt.toISOString() : null,
       createdAt: member.createdAt.toISOString(),
@@ -4084,4 +4088,67 @@ export class MembersService {
     return { success: true, avatarId };
   }
 
+  async getMemberWallpapers(memberId: string) {
+    const member = await this.prisma.member.findUnique({ where: { id: memberId } });
+    if (!member) throw new NotFoundException("Member not found");
+
+    const availableWallpapers = [
+      'wp_cyberpunk.png',
+      'wp_anime.png',
+    ];
+
+    return {
+      currentWallpaperId: (member as any).wallpaperId || 'wp_cyberpunk.png',
+      availableWallpapers,
+    };
+  }
+
+  async updateMemberWallpaper(memberId: string, wallpaperId: string) {
+    const member = await this.prisma.member.findUnique({ where: { id: memberId } });
+    if (!member) throw new NotFoundException("Member not found");
+
+    await this.prisma.member.update({
+      where: { id: memberId },
+      data: { wallpaperId } as any,
+    });
+
+    const rankConfigs = await this.prisma.loyaltyRankConfig.findMany({
+      orderBy: { minTopup: 'desc' },
+    });
+    const updatedMember = await this.prisma.member.findUnique({ where: { id: memberId } });
+    const memberItem = this.toMemberItem(updatedMember!, this.calculateRankName(Number(updatedMember!.totalTopup), rankConfigs));
+    await this.emitMemberAccountChanged(memberItem, 'UPDATE_WALLPAPER', 'client');
+
+    return { success: true };
+  }
+
+  async saveCloudSyncFile(memberId: string, file: Express.Multer.File) {
+    const member = await this.prisma.member.findUnique({ where: { id: memberId } });
+    if (!member) throw new NotFoundException("Member not found");
+    if (!file) throw new BadRequestException("No file provided");
+
+    const uploadDir = path.join(process.cwd(), 'uploads', 'cloud-saves');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const filePath = path.join(uploadDir, `${memberId}.zip`);
+    fs.writeFileSync(filePath, file.buffer);
+
+    return { success: true };
+  }
+
+  async serveCloudSyncFile(memberId: string, res: Response) {
+    const member = await this.prisma.member.findUnique({ where: { id: memberId } });
+    if (!member) throw new NotFoundException("Member not found");
+
+    const uploadDir = path.join(process.cwd(), 'uploads', 'cloud-saves');
+    const filePath = path.join(uploadDir, `${memberId}.zip`);
+
+    if (!fs.existsSync(filePath)) {
+      throw new NotFoundException("Cloud save not found");
+    }
+
+    res.download(filePath, `CloudSave_${member.username}.zip`);
+  }
 }

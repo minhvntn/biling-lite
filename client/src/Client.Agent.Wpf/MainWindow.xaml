@@ -497,6 +497,8 @@
                                 </StackPanel>
                             </Button>
 
+
+
                             <Button x:Name="PasswordActionButton" Style="{StaticResource ActionButtonStyle}" Click="PasswordButton_Click">
                                 <StackPanel>
                                     <Viewbox Width="26" Height="26" Margin="0,0,0,8">
@@ -508,6 +510,18 @@
                                     <!-- Keep hidden textblock to preserve x:Name binding -->
                                     <TextBlock x:Name="PasswordIconTextBlock" Visibility="Collapsed" />
                                     <TextBlock x:Name="PasswordLabelTextBlock" Text="Mật mã" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#1E293B" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="ChangeWallpaperButton" Style="{StaticResource ActionButtonStyle}" Click="ChangeWallpaperButton_Click" Visibility="Collapsed">
+                                <StackPanel>
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                        <Path Style="{StaticResource NeonIconStyle}" Data="M4,4 L20,4 C21,4 22,5 22,6 L22,18 C22,19 21,20 20,20 L4,20 C3,20 2,19 2,18 L2,6 C2,5 3,4 4,4 M4,18 L20,18 L20,6 L4,6 M8,12 L11,15 L16,10">
+                                            <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#8B5CF6" Offset="0"/><GradientStop Color="#C4B5FD" Offset="1"/></LinearGradientBrush></Path.Stroke>
+                                            <Path.Effect><DropShadowEffect Color="#8B5CF6" BlurRadius="8" ShadowDepth="0" Opacity="0"/></Path.Effect>
+                                        </Path>
+                                    </Viewbox>
+                                    <TextBlock Text="Đổi Hình Nền" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#1E293B" />
                                 </StackPanel>
                             </Button>
 

@@ -13,6 +13,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Windows.Interop;
 
 namespace Client.Agent.Wpf;
 
@@ -37,6 +39,21 @@ public static decimal PricingStep { get; set; } = 1000m;
     private int _serviceOrderCount;
     private int _phaseStartedElapsedSeconds;
     private const string DefaultGameLauncherExecutableName = "GameLauncher.Client.exe";
+
+    private InGameOverlayWindow? _overlayWindow;
+    private const int HOTKEY_ID = 9000;
+
+    [DllImport("user32.dll")]
+    private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+    [DllImport("user32.dll")]
+    private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
+    private const int SPI_SETDESKWALLPAPER = 20;
+    private const int SPIF_UPDATEINIFILE = 0x01;
+    private const int SPIF_SENDWININICHANGE = 0x02;
+
     private int _lastSyncElapsedSeconds;
     private decimal _lastSyncMemberBalance;
     private bool _isMemberSession;
@@ -362,6 +379,14 @@ public static decimal PricingStep { get; set; } = 1000m;
         var code = (state ?? string.Empty).Trim().ToUpperInvariant();
         var now = DateTime.Now.ToString("HH:mm:ss");
 
+        if (code == "LOCKED")
+        {
+            if (_overlayWindow != null && _overlayWindow.IsVisible)
+            {
+                _overlayWindow.Hide();
+            }
+        }
+
         switch (code)
         {
             case "IN_USE":
@@ -453,6 +478,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         SetTopupRequestActionVisible(_topupActionEnabledSetting);
         LoyaltyActionButton.Visibility = (_isMemberSession && !_isCollapsed) ? Visibility.Visible : Visibility.Collapsed;
         PasswordActionButton.Visibility = (_isMemberSession && !_isCollapsed) ? Visibility.Visible : Visibility.Collapsed;
+        ChangeWallpaperButton.Visibility = Visibility.Collapsed; // (_isVipSession && !_isCollapsed) ? Visibility.Visible : Visibility.Collapsed;
         FooterContainer.Visibility = (_isMemberSession && !_isCollapsed) ? Visibility.Visible : Visibility.Collapsed;
         UpdateActionButtonsLayout();
         
@@ -497,7 +523,9 @@ public static decimal PricingStep { get; set; } = 1000m;
         MemberUsernameTextBlock.Text = username;
         
         var avatarToLoad = string.IsNullOrWhiteSpace(avatarId) ? "avatar_1.png" : avatarId;
-        var avatarSource = ResolveRankIconSource("Avatars/" + avatarToLoad);
+        var avatarSource = avatarToLoad.StartsWith("data:image/") 
+            ? AvatarSelectionWindow.ResolveIconSource(avatarToLoad) 
+            : ResolveRankIconSource("Avatars/" + avatarToLoad);
         if (avatarSource != null)
         {
             AvatarButton.Background = new ImageBrush(avatarSource) { Stretch = Stretch.UniformToFill };
@@ -1192,9 +1220,10 @@ public static decimal PricingStep { get; set; } = 1000m;
         var rawCost = billableMins * (_hourlyRate / 60m);
         var step = PricingStep > 0 ? PricingStep : 1000m;
         var roundedCost = Math.Ceiling(rawCost / step) * step;
-        var gameCost = billableMins <= 0
-            ? 0m
-            : (_isMemberSession ? roundedCost : Math.Max(MinimumCharge > 0 ? MinimumCharge : 1000m, roundedCost));
+        var isPostpaidUser = !_isMemberSession || _isPostpaidSession || _isVipSession;
+        var gameCost = isPostpaidUser 
+            ? Math.Max(MinimumCharge > 0 ? MinimumCharge : 1000m, roundedCost) 
+            : (billableMins <= 0 ? 0m : roundedCost);
 
         TotalTimeValueTextBlock.Text = FormatSeconds(totalSecs);
 
@@ -1262,7 +1291,7 @@ public static decimal PricingStep { get; set; } = 1000m;
 
         if (_isMemberSession)
         {
-            if (_isVipSession)
+            if (_isVipSession || _isPostpaidSession)
             {
                 GameCostValueTextBlock.Text = gameCost.ToString("N0", CultureInfo.InvariantCulture);
             }
@@ -1271,11 +1300,21 @@ public static decimal PricingStep { get; set; } = 1000m;
                 GameCostValueTextBlock.Text = "-";
             }
             ServiceCostValueTextBlock.Text = _serviceCost > 0 ? _serviceCost.ToString("N0", CultureInfo.InvariantCulture) : "-";
+            
+            if (_overlayWindow != null && _overlayWindow.IsVisible)
+            {
+                _overlayWindow.UpdateData(MemberUsernameTextBlock.Text, GameCostValueTextBlock.Text, RemainingTimeValueTextBlock.Text, isPostpaidUser);
+            }
             return;
         }
 
         GameCostValueTextBlock.Text = gameCost.ToString("N0", CultureInfo.InvariantCulture);
         ServiceCostValueTextBlock.Text = _serviceCost.ToString("N0", CultureInfo.InvariantCulture);
+        
+        if (_overlayWindow != null && _overlayWindow.IsVisible)
+        {
+            _overlayWindow.UpdateData(MemberUsernameTextBlock.Text, GameCostValueTextBlock.Text, RemainingTimeValueTextBlock.Text, isPostpaidUser);
+        }
     }
 
     private void UpdateProgressArc(double percentage)
@@ -1583,11 +1622,19 @@ public static decimal PricingStep { get; set; } = 1000m;
 
     private void MessagesButton_Click(object sender, RoutedEventArgs e)
     {
-        MessageBox.Show(
-            "Hi\u1ec7n ch\u01b0a c\u00f3 tin nh\u1eafn m\u1edbi t\u1eeb qu\u1ea3n tr\u1ecb.",
-            "Tin nh\u1eafn",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        var app = (App)Application.Current;
+        var socketService = app.GetSocketService();
+        if (socketService == null)
+        {
+            MessageBox.Show("Không thể kết nối với máy chủ.", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        var dialog = new ChatWindow(app, socketService)
+        {
+            Owner = this
+        };
+        dialog.ShowDialog();
     }
 
     private void ServicesButton_Click(object sender, RoutedEventArgs e)
@@ -1719,6 +1766,51 @@ public static decimal PricingStep { get; set; } = 1000m;
         window.ShowDialog();
     }
 
+    private void ChangeWallpaperButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_isVipSession || string.IsNullOrWhiteSpace(CurrentMemberId)) return;
+
+        var window = new WallpaperSelectionWindow(CurrentMemberId);
+        window.Owner = this;
+        window.ShowDialog();
+        
+        // Apply wallpaper after dialog closes just in case it changed
+        _ = ApplyWallpaperAsync(CurrentMemberId);
+    }
+
+    public async System.Threading.Tasks.Task ApplyWallpaperAsync(string memberId)
+    {
+        try
+        {
+            if (Application.Current is not App app) return;
+            using var client = new System.Net.Http.HttpClient();
+            var apiUrl = app.BuildApiUrl($"/members/{memberId}/wallpapers");
+            var response = await client.GetAsync(apiUrl);
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                var data = System.Text.Json.JsonSerializer.Deserialize<WallpaperResponseDto>(json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (data != null && !string.IsNullOrWhiteSpace(data.CurrentWallpaperId))
+                {
+                    var wallpaperPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "Wallpapers", data.CurrentWallpaperId);
+                    if (System.IO.File.Exists(wallpaperPath))
+                    {
+                        SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, wallpaperPath, SPIF_UPDATEINIFILE | SPIF_SENDWININICHANGE);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to apply wallpaper: {ex.Message}");
+        }
+    }
+    
+    private class WallpaperResponseDto
+    {
+        public string? CurrentWallpaperId { get; set; }
+    }
+
     private string _gameLauncherPath = string.Empty;
 
     public void SetGameLauncherPath(string? path)
@@ -1735,6 +1827,55 @@ public static decimal PricingStep { get; set; } = 1000m;
     private void GameLauncherButton_Click(object sender, RoutedEventArgs e)
     {
         _ = TryLaunchConfiguredGameLauncher(showDialogs: true, out _);
+    }
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        var helper = new WindowInteropHelper(this);
+        HwndSource.FromHwnd(helper.Handle)?.AddHook(HwndHook);
+        
+        // Register Shift (0x0004) + F1 (0x70)
+        RegisterHotKey(helper.Handle, HOTKEY_ID, 0x0004, 0x70);
+    }
+    
+    private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        const int WM_HOTKEY = 0x0312;
+        if (msg == WM_HOTKEY && wParam.ToInt32() == HOTKEY_ID)
+        {
+            ToggleInGameOverlay();
+            handled = true;
+        }
+        return IntPtr.Zero;
+    }
+    
+    private void ToggleInGameOverlay()
+    {
+        if (MachineStateTextBlock.Text == "LOCKED" || (!_isMemberSession && !_isPostpaidSession))
+            return;
+            
+        if (_overlayWindow == null)
+        {
+            _overlayWindow = new InGameOverlayWindow(this);
+        }
+        
+        if (_overlayWindow.IsVisible)
+        {
+            _overlayWindow.Hide();
+        }
+        else
+        {
+            _overlayWindow.Show();
+            UpdateUsageUi();
+        }
+    }
+    
+    protected override void OnClosed(EventArgs e)
+    {
+        var helper = new WindowInteropHelper(this);
+        UnregisterHotKey(helper.Handle, HOTKEY_ID);
+        base.OnClosed(e);
     }
 
     public bool TryLaunchConfiguredGameLauncher(bool showDialogs, out string? errorMessage)
@@ -1845,5 +1986,6 @@ public static decimal PricingStep { get; set; } = 1000m;
             return false;
         }
     }
+
 
 }

@@ -23,6 +23,10 @@ model Pc {
   serviceOrders PcServiceOrder[]
   group         PcGroup?         @relation(fields: [groupId], references: [id])
   sessions      Session[]
+  hardware      PcHardware?
+  maintenanceLogs PcMaintenanceLog[]
+  supportMessages SupportMessage[]
+  appUsages       PcAppUsage[]
 
   @@index([status], map: "idx_pcs_status")
   @@index([groupId], map: "idx_pcs_group_id")
@@ -123,7 +127,8 @@ model Member {
   memberType     String              @default("REGULAR") @map("member_type") @db.VarChar(20)
   comboExpiresAt DateTime?           @map("combo_expires_at") @db.Timestamptz(6)
   isLimitedCombo Boolean             @default(false) @map("is_limited_combo")
-  avatarId       String?             @map("avatar_id") @db.VarChar(50)
+  avatarId       String?             @map("avatar_id") @db.Text
+  wallpaperId    String?             @map("wallpaper_id") @db.Text
   transactions   MemberTransaction[]
   dailyCheckins  MemberDailyCheckin[]
 
@@ -316,4 +321,70 @@ model AdminUser {
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("admin_users")
+}
+
+model PcHardware {
+  id          String   @id @default(uuid()) @db.Uuid
+  pcId        String   @unique @map("pc_id") @db.Uuid
+  cpu         String?  @db.VarChar(100)
+  ram         String?  @db.VarChar(100)
+  gpu         String?  @db.VarChar(100)
+  motherboard String?  @db.VarChar(100)
+  storage     String?  @db.VarChar(100)
+  monitor     String?  @db.VarChar(100)
+  lan         String?  @db.VarChar(100)
+  temperature String?  @db.VarChar(50)
+  note        String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  pc          Pc       @relation(fields: [pcId], references: [id], onDelete: Cascade)
+
+  @@map("pc_hardware")
+}
+
+model PcMaintenanceLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  pcId        String   @map("pc_id") @db.Uuid
+  date        DateTime @db.Date
+  description String   @db.Text
+  cost        Decimal  @default(0) @db.Decimal(12, 2)
+  performedBy String?  @map("performed_by") @db.VarChar(100)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  pc          Pc       @relation(fields: [pcId], references: [id], onDelete: Cascade)
+
+  @@index([pcId], map: "idx_pc_maintenance_logs_pc_id")
+  @@index([date], map: "idx_pc_maintenance_logs_date")
+  @@map("pc_maintenance_logs")
+}
+
+model SupportMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  pcId      String   @map("pc_id") @db.Uuid
+  direction String   @db.VarChar(10) // "CLIENT" or "ADMIN"
+  message   String   @db.Text
+  category  String?  @db.VarChar(50)
+  sentBy    String?  @map("sent_by") @db.VarChar(100)
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  pc        Pc       @relation(fields: [pcId], references: [id], onDelete: Cascade)
+
+  @@index([pcId], map: "idx_support_messages_pc_id")
+  @@index([createdAt], map: "idx_support_messages_created_at")
+  @@map("support_messages")
+}
+
+model PcAppUsage {
+  id              String    @id @default(uuid()) @db.Uuid
+  pcId            String    @map("pc_id") @db.Uuid
+  sessionId       String?   @map("session_id") @db.Uuid
+  appName         String    @map("app_name") @db.VarChar(200)
+  windowTitle     String?   @map("window_title") @db.VarChar(500)
+  startedAt       DateTime  @map("started_at") @db.Timestamptz(6)
+  endedAt         DateTime? @map("ended_at") @db.Timestamptz(6)
+  durationSeconds Int       @default(0) @map("duration_seconds")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  pc              Pc        @relation(fields: [pcId], references: [id], onDelete: Cascade)
+
+  @@index([pcId, startedAt], map: "idx_pc_app_usage_pc_started")
+  @@map("pc_app_usage")
 }

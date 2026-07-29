@@ -339,106 +339,189 @@
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         
-                        <!-- Header -->
-                        <Border Grid.Row="0" Background="#F8FAFC" CornerRadius="16,16,0,0" Padding="20,16">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="🛒" FontSize="18" Margin="0,0,8,0" Foreground="#8B5CF6"/>
-                                <TextBlock Text="Giỏ hàng của bạn" FontSize="16" FontWeight="Bold" Foreground="#1E293B" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Empty State -->
-                        <StackPanel Grid.Row="1" x:Name="EmptyCartPanel" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
-                            <TextBlock Text="🛍️" FontSize="64" HorizontalAlignment="Center" Margin="0,0,0,16" Opacity="0.5"/>
-                            <TextBlock Text="Chưa có món nào được chọn" FontSize="16" FontWeight="Bold" Foreground="#1E293B" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                            <TextBlock Text="Hãy chọn món bạn muốn gọi từ danh sách" FontSize="13" Foreground="#94A3B8" HorizontalAlignment="Center"/>
-                        </StackPanel>
-
-                        <!-- Cart Items -->
-                        <ScrollViewer Grid.Row="1" x:Name="CartItemsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,8">
-                            <ItemsControl x:Name="CartItemsControl">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Margin="16,8" Background="White" CornerRadius="12" Padding="12" BorderBrush="#F1F5F9" BorderThickness="1">
-                                            <Border.Style>
-                                                <Style TargetType="Border">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Quantity}" Value="0">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Border.Style>
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Grid.Column="0">
-                                                    <TextBlock Text="{Binding ServiceName}" FontSize="14" FontWeight="Bold" Foreground="#1E293B" TextWrapping="Wrap"/>
-                                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                                        <TextBlock Text="{Binding UnitPriceText}" FontSize="13" Foreground="#64748B"/>
-                                                        <TextBlock Text=" x " FontSize="13" Foreground="#64748B"/>
-                                                        <TextBlock Text="{Binding Quantity}" FontSize="13" FontWeight="Bold" Foreground="#8B5CF6"/>
-                                                    </StackPanel>
-                                                </StackPanel>
-                                                <TextBlock Grid.Column="1" Text="{Binding LineTotalText}" FontSize="15" FontWeight="Bold" Foreground="#1E293B" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                                
-                                                <!-- Delete Button -->
-                                                <Button Grid.Column="2" Content="✕" Width="28" Height="28" Background="#FEE2E2" Foreground="#EF4444" BorderThickness="0" FontSize="14" FontWeight="Bold" Click="RemoveFromCart_Click" Tag="{Binding}" ToolTip="Xóa món">
-                                                    <Button.Resources>
-                                                        <Style TargetType="Border">
-                                                            <Setter Property="CornerRadius" Value="8"/>
-                                                        </Style>
-                                                    </Button.Resources>
-                                                </Button>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-
-                        <!-- Summary -->
-                        <Border Grid.Row="2" Padding="20" Background="#FAFAFA" CornerRadius="0,0,16,16" BorderBrush="#F1F5F9" BorderThickness="0,1,0,0">
-                            <StackPanel>
-                                <Grid Margin="0,0,0,12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock x:Name="SummaryItemCountTextBlock" Grid.Column="0" Text="Đã chọn 0 món" FontSize="13" Foreground="#64748B"/>
-                                    <TextBlock x:Name="SummaryNetTextBlock" Grid.Column="1" Text="Tạm tính: 0 đ" FontSize="13" FontWeight="SemiBold" Foreground="#1E293B"/>
-                                </Grid>
+                        <!-- Header Tabs -->
+                        <Border Grid.Row="0" Background="#F8FAFC" CornerRadius="16,16,0,0" Padding="12,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
                                 
-                                <WrapPanel Margin="0,0,0,16">
-                                    <TextBlock FontSize="12" Foreground="#64748B" Margin="0,0,12,4">
-                                        <Run Text="➕ " Foreground="#10B981"/>
-                                        <Run Text="Thêm: "/>
-                                        <Run x:Name="SummaryAddedTextBlock" Text="0 đ" FontWeight="Medium"/>
-                                    </TextBlock>
-                                    <TextBlock FontSize="12" Foreground="#64748B" Margin="0,0,12,4">
-                                        <Run Text="➖ " Foreground="#EF4444"/>
-                                        <Run Text="Hủy: "/>
-                                        <Run x:Name="SummaryCanceledTextBlock" Text="0 đ" FontWeight="Medium"/>
-                                    </TextBlock>
-                                    <TextBlock FontSize="12" Foreground="#64748B" Margin="0,0,0,4">
-                                        <Run Text="⚖ " Foreground="#3B82F6"/>
-                                        <Run Text="Lệch: "/>
-                                        <Run x:Name="SummaryDiffTextBlock" Text="0 đ" FontWeight="Medium"/>
-                                    </TextBlock>
-                                </WrapPanel>
-                                
-                                <Border Background="#EDE9FE" CornerRadius="12" Padding="12,14">
-                                    <Grid>
-                                        <TextBlock Text="Tổng cộng" FontSize="14" FontWeight="Bold" Foreground="#6D28D9" VerticalAlignment="Center"/>
-                                        <TextBlock x:Name="SummaryTotalTextBlock" Text="0 đ" FontSize="18" FontWeight="Bold" Foreground="#7C3AED" HorizontalAlignment="Right"/>
-                                    </Grid>
+                                <Border x:Name="CartTabBorder" Grid.Column="0" Background="White" CornerRadius="10" Padding="10,8" BorderBrush="#E2E8F0" BorderThickness="1" Cursor="Hand" MouseLeftButtonDown="CartTabButton_Click">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="🛒" FontSize="15" Margin="0,0,6,0" Foreground="#8B5CF6"/>
+                                        <TextBlock x:Name="CartTabTextBlock" Text="Giỏ hàng" FontSize="14" FontWeight="Bold" Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                                    </StackPanel>
                                 </Border>
-                            </StackPanel>
+
+                                <Border x:Name="OrderedTabBorder" Grid.Column="1" Background="Transparent" CornerRadius="10" Padding="10,8" BorderBrush="Transparent" BorderThickness="1" Cursor="Hand" Margin="6,0,0,0" MouseLeftButtonDown="OrderedTabButton_Click">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <TextBlock Text="📋" FontSize="15" Margin="0,0,6,0" Foreground="#64748B"/>
+                                        <TextBlock x:Name="OrderedTabButtonText" Text="Đã gọi" FontSize="14" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
                         </Border>
+
+                        <!-- CART TAB PANEL -->
+                        <Grid x:Name="CartPanelGrid" Grid.Row="1" Grid.RowSpan="2" Visibility="Visible">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Empty State -->
+                            <StackPanel Grid.Row="0" x:Name="EmptyCartPanel" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
+                                <TextBlock Text="🛍️" FontSize="64" HorizontalAlignment="Center" Margin="0,0,0,16" Opacity="0.5"/>
+                                <TextBlock Text="Chưa có món nào được chọn" FontSize="16" FontWeight="Bold" Foreground="#1E293B" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                <TextBlock Text="Hãy chọn món bạn muốn gọi từ danh sách" FontSize="13" Foreground="#94A3B8" HorizontalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Cart Items -->
+                            <ScrollViewer Grid.Row="0" x:Name="CartItemsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,8">
+                                <ItemsControl x:Name="CartItemsControl">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="16,8" Background="White" CornerRadius="12" Padding="12" BorderBrush="#F1F5F9" BorderThickness="1">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Quantity}" Value="0">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock Text="{Binding ServiceName}" FontSize="14" FontWeight="Bold" Foreground="#1E293B" TextWrapping="Wrap"/>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                            <TextBlock Text="{Binding UnitPriceText}" FontSize="13" Foreground="#64748B"/>
+                                                            <TextBlock Text=" x " FontSize="13" Foreground="#64748B"/>
+                                                            <TextBlock Text="{Binding Quantity}" FontSize="13" FontWeight="Bold" Foreground="#8B5CF6"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="1" Text="{Binding LineTotalText}" FontSize="15" FontWeight="Bold" Foreground="#1E293B" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                    
+                                                    <!-- Delete Button -->
+                                                    <Button Grid.Column="2" Content="✕" Width="28" Height="28" Background="#FEE2E2" Foreground="#EF4444" BorderThickness="0" FontSize="14" FontWeight="Bold" Click="RemoveFromCart_Click" Tag="{Binding}" ToolTip="Xóa món">
+                                                        <Button.Resources>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="CornerRadius" Value="8"/>
+                                                            </Style>
+                                                        </Button.Resources>
+                                                    </Button>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+
+                            <!-- Summary -->
+                            <Border Grid.Row="1" Padding="20" Background="#FAFAFA" CornerRadius="0,0,16,16" BorderBrush="#F1F5F9" BorderThickness="0,1,0,0">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="SummaryItemCountTextBlock" Grid.Column="0" Text="Đã chọn 0 món" FontSize="13" Foreground="#64748B"/>
+                                        <TextBlock x:Name="SummaryNetTextBlock" Grid.Column="1" Text="Tạm tính: 0 đ" FontSize="13" FontWeight="SemiBold" Foreground="#1E293B"/>
+                                    </Grid>
+                                    
+                                    <WrapPanel Margin="0,0,0,16">
+                                        <TextBlock FontSize="12" Foreground="#64748B" Margin="0,0,12,4">
+                                            <Run Text="➕ " Foreground="#10B981"/>
+                                            <Run Text="Thêm: "/>
+                                            <Run x:Name="SummaryAddedTextBlock" Text="0 đ" FontWeight="Medium"/>
+                                        </TextBlock>
+                                        <TextBlock FontSize="12" Foreground="#64748B" Margin="0,0,12,4">
+                                            <Run Text="➖ " Foreground="#EF4444"/>
+                                            <Run Text="Hủy: "/>
+                                            <Run x:Name="SummaryCanceledTextBlock" Text="0 đ" FontWeight="Medium"/>
+                                        </TextBlock>
+                                        <TextBlock FontSize="12" Foreground="#64748B" Margin="0,0,0,4">
+                                            <Run Text="⚖ " Foreground="#3B82F6"/>
+                                            <Run Text="Lệch: "/>
+                                            <Run x:Name="SummaryDiffTextBlock" Text="0 đ" FontWeight="Medium"/>
+                                        </TextBlock>
+                                    </WrapPanel>
+                                    
+                                    <Border Background="#EDE9FE" CornerRadius="12" Padding="12,14">
+                                        <Grid>
+                                            <TextBlock Text="Tổng cộng" FontSize="14" FontWeight="Bold" Foreground="#6D28D9" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="SummaryTotalTextBlock" Text="0 đ" FontSize="18" FontWeight="Bold" Foreground="#7C3AED" HorizontalAlignment="Right"/>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <!-- ORDERED ITEMS TAB PANEL -->
+                        <Grid x:Name="OrderedPanelGrid" Grid.Row="1" Grid.RowSpan="2" Visibility="Collapsed">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Empty State for Ordered Items -->
+                            <StackPanel Grid.Row="0" x:Name="EmptyOrderedPanel" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
+                                <TextBlock Text="📋" FontSize="64" HorizontalAlignment="Center" Margin="0,0,0,16" Opacity="0.5"/>
+                                <TextBlock Text="Chưa có món nào được gọi" FontSize="16" FontWeight="Bold" Foreground="#1E293B" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                <TextBlock Text="Các món bạn đã gọi sẽ hiển thị ở đây" FontSize="13" Foreground="#94A3B8" HorizontalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Ordered Items List -->
+                            <ScrollViewer Grid.Row="0" x:Name="OrderedItemsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,8">
+                                <ItemsControl x:Name="OrderedItemsControl">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Margin="16,8" Background="White" CornerRadius="12" Padding="14" BorderBrush="#F1F5F9" BorderThickness="1">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock Text="{Binding ServiceName}" FontSize="15" FontWeight="Bold" Foreground="#1E293B" TextWrapping="Wrap"/>
+                                                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                            <TextBlock Text="{Binding UnitPriceText}" FontSize="13" Foreground="#64748B"/>
+                                                            <TextBlock Text="  " FontSize="13" Foreground="#64748B"/>
+                                                            <TextBlock Text="{Binding QuantityText}" FontSize="13" FontWeight="Bold" Foreground="#8B5CF6"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    
+                                                    <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding LineTotalText}" FontSize="15" FontWeight="Bold" Foreground="#1E293B" HorizontalAlignment="Right"/>
+                                                        <Border Background="#DCFCE7" CornerRadius="6" Padding="8,3" Margin="0,6,0,0" HorizontalAlignment="Right">
+                                                            <TextBlock Text="{Binding StatusText}" FontSize="11" FontWeight="Bold" Foreground="#166534"/>
+                                                        </Border>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+
+                            <!-- Ordered Summary Footer -->
+                            <Border Grid.Row="1" Padding="20" Background="#FAFAFA" CornerRadius="0,0,16,16" BorderBrush="#F1F5F9" BorderThickness="0,1,0,0">
+                                <StackPanel>
+                                    <Border Background="#EDE9FE" CornerRadius="12" Padding="14,16" Margin="0,0,0,10">
+                                        <TextBlock x:Name="OrderedTotalTextBlock" Text="0 đ" FontSize="20" FontWeight="Bold" Foreground="#7C3AED" HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="💡 Vui lòng thanh toán tại quầy thu ngân khi ra về." FontSize="12" Foreground="#64748B" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
                     </Grid>
                 </Border>
             </Grid>

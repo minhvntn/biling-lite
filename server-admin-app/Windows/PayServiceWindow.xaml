@@ -73,11 +73,12 @@
                    Text="Chọn món cần thu rồi bấm &quot;Thanh toán món đã chọn&quot;. Có thể lặp lại nhiều lần cho đến khi hết món." />
                    
         <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button x:Name="SelectAllButton" x:FieldModifier="public" Content="Chọn tất cả" Width="140" />
-            <Button x:Name="ClearSelectionButton" x:FieldModifier="public" Content="Bỏ chọn" Width="120" Margin="0,0,24,0" />
-            <Button x:Name="PaySelectedButton" x:FieldModifier="public" Content="Thanh toán món đã chọn" Width="260" Background="#22C55E" Foreground="White" FontWeight="Bold" BorderThickness="0" />
-            <Button x:Name="PayAllButton" x:FieldModifier="public" Content="Thanh toán tất cả" Width="220" Background="#3B82F6" Foreground="White" FontWeight="Bold" BorderThickness="0" />
-            <Button x:Name="CloseButton" x:FieldModifier="public" Content="Đóng" Width="120" IsCancel="True" Margin="24,0,0,0" />
+            <Button x:Name="SelectAllButton" x:FieldModifier="public" Content="Chọn tất cả" Width="120" />
+            <Button x:Name="ClearSelectionButton" x:FieldModifier="public" Content="Bỏ chọn" Width="110" Margin="0,0,16,0" />
+            <Button x:Name="CancelSelectedButton" x:FieldModifier="public" Content="Xóa món đã chọn" Width="180" Background="#EF4444" Foreground="White" FontWeight="Bold" BorderThickness="0" Margin="0,0,8,0" />
+            <Button x:Name="PaySelectedButton" x:FieldModifier="public" Content="Thanh toán món đã chọn" Width="240" Background="#22C55E" Foreground="White" FontWeight="Bold" BorderThickness="0" Margin="0,0,8,0" />
+            <Button x:Name="PayAllButton" x:FieldModifier="public" Content="Thanh toán tất cả" Width="200" Background="#3B82F6" Foreground="White" FontWeight="Bold" BorderThickness="0" />
+            <Button x:Name="CloseButton" x:FieldModifier="public" Content="Đóng" Width="100" IsCancel="True" Margin="16,0,0,0" />
         </StackPanel>
     </Grid>
 </Window>

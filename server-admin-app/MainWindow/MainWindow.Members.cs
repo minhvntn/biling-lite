@@ -124,6 +124,20 @@ public partial class MainWindow : Window
         }
     }
 
+    private void MemberRowOptionsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is MemberRow row)
+        {
+            MembersDataGrid.SelectedItem = row;
+            var cm = MembersDataGrid.ContextMenu;
+            if (cm != null)
+            {
+                cm.PlacementTarget = btn;
+                cm.IsOpen = true;
+            }
+        }
+    }
+
     private void UpdateMembersPagination()
     {
         if (_allMappedMembers == null) return;
@@ -192,6 +206,7 @@ public partial class MainWindow : Window
         {
             Id = item.Id,
             Username = item.Username,
+            AvatarId = item.AvatarId,
             FullName = item.FullName,
             Phone = string.IsNullOrWhiteSpace(item.Phone) ? "-" : item.Phone,
             IdentityNumber = string.IsNullOrWhiteSpace(item.IdentityNumber) ? "-" : item.IdentityNumber,

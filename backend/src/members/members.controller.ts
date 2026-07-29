@@ -1,4 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UploadedFile, UseInterceptors, Res } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import { BuyPlaytimeDto } from './dto/buy-playtime.dto';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { TopupMemberDto } from './dto/topup-member.dto';
@@ -164,6 +166,36 @@ export class MembersController {
     @Body() payload: { avatarId: string },
   ) {
     return this.membersService.updateMemberAvatar(memberId, payload.avatarId);
+  }
+
+  @Get(':memberId/wallpapers')
+  async getMemberWallpapers(@Param('memberId') memberId: string) {
+    return this.membersService.getMemberWallpapers(memberId);
+  }
+
+  @Patch(':memberId/wallpaper')
+  async updateMemberWallpaper(
+    @Param('memberId') memberId: string,
+    @Body() payload: { wallpaperId: string },
+  ) {
+    return this.membersService.updateMemberWallpaper(memberId, payload.wallpaperId);
+  }
+
+  @Post(':memberId/cloud-save')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadCloudSave(
+    @Param('memberId') memberId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.membersService.saveCloudSyncFile(memberId, file);
+  }
+
+  @Get(':memberId/cloud-save')
+  async getCloudSave(
+    @Param('memberId') memberId: string,
+    @Res() res: Response,
+  ) {
+    return this.membersService.serveCloudSyncFile(memberId, res);
   }
 
   @Post(':memberId/usage')

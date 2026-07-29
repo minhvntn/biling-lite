@@ -272,3 +272,7 @@ Mỗi máy chỉ cần cấu hình 1 lần.
 
 Cách chạy tailsalce
 npm run dev -- --host 0.0.0.0 --port 5400
+
+
+
+I:\servermanagergame\src\GameLauncher.Client\bin\Release\net8.0-windows

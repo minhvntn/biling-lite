@@ -16,6 +16,7 @@ import { CommandsService } from '../../commands/commands.service';
 import { CommandAckPayload } from '../../commands/types/command-ack.type';
 import { RealtimeService } from '../../realtime/realtime.service';
 import { SessionsService } from '../../sessions/sessions.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { PcsService, PresenceTransition } from '../pcs.service';
 import {
   AgentHeartbeatPayload,
@@ -42,6 +43,7 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
     private readonly sessionsService: SessionsService,
     private readonly configService: ConfigService,
     private readonly realtime: RealtimeService,
+    private readonly prisma: PrismaService,
   ) {}
 
   afterInit(): void {
@@ -200,6 +202,117 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
       elapsedSeconds,
       activePromotions: activePromos,
       serverTime: new Date().toISOString(),
+    });
+  }
+
+  @SubscribeMessage('agent.hardware_info')
+  async handleAgentHardwareInfo(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: any,
+  ) {
+    if (!payload?.agentId || !payload?.hardware) {
+      return;
+    }
+
+    const pc = await this.pcsService.getPcByAgentId(payload.agentId);
+    if (!pc) {
+      return;
+    }
+
+    await this.pcsService.updateAutoFetchedHardware(pc.id, payload.hardware);
+  }
+
+  @SubscribeMessage('agent.support_request')
+  async handleSupportRequest(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { agentId: string; message: string; category?: string },
+  ) {
+    if (!payload?.agentId || !payload?.message?.trim()) {
+      return;
+    }
+
+    const pc = await this.pcsService.getPcByAgentId(payload.agentId);
+    if (!pc) {
+      return;
+    }
+
+    const saved = await this.pcsService.saveSupportMessage(
+      pc.id,
+      'CLIENT',
+      payload.message.trim(),
+      payload.category,
+      pc.name,
+    );
+
+    // Emit to all admin sockets
+    this.realtime.emitToAll('client.support_request', {
+      id: saved.id,
+      pcId: pc.id,
+      pcName: pc.name,
+      agentId: pc.agentId,
+      message: payload.message.trim(),
+      category: payload.category,
+      createdAt: saved.createdAt.toISOString(),
+    });
+
+    client.emit('agent.support_request.ack', { ok: true });
+  }
+
+  @SubscribeMessage('admin.reply_support')
+  async handleAdminReplySupport(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { pcId: string; message: string; repliedBy?: string },
+  ) {
+    if (!payload?.pcId || !payload?.message?.trim()) {
+      return;
+    }
+
+    const pc = await this.prisma.pc.findUnique({ where: { id: payload.pcId } });
+    if (!pc) {
+      return;
+    }
+
+    await this.pcsService.saveSupportMessage(
+      pc.id,
+      'ADMIN',
+      payload.message.trim(),
+      undefined,
+      payload.repliedBy ?? 'Admin',
+    );
+
+    // Send reply to the client agent
+    this.realtime.emitToAgent(pc.agentId, 'admin.support_reply', {
+      message: payload.message.trim(),
+      repliedBy: payload.repliedBy ?? 'Admin',
+      sentAt: new Date().toISOString(),
+    });
+
+    // Mark client messages as read
+    await this.pcsService.markSupportMessagesRead(pc.id);
+  }
+
+  @SubscribeMessage('agent.app_usage')
+  async handleAgentAppUsage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { agentId: string; apps: { name: string; title?: string }[] },
+  ) {
+    if (!payload?.agentId || !Array.isArray(payload?.apps)) {
+      return;
+    }
+
+    const pc = await this.pcsService.getPcByAgentId(payload.agentId);
+    if (!pc) {
+      return;
+    }
+
+    await this.pcsService.upsertAppUsage(pc.id, payload.apps);
+
+    // Emit to admin for realtime view
+    this.realtime.emitToAll('pc.app_usage_updated', {
+      pcId: pc.id,
+      pcName: pc.name,
+      apps: payload.apps,
+      at: new Date().toISOString(),
     });
   }
 

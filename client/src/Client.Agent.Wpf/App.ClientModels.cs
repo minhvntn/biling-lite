@@ -495,3 +495,15 @@ public sealed class ClientServiceOrderSelectionRow : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanDecrease)));
     }
 }
+
+public sealed class ClientOrderedServiceRow
+{
+    public string ServiceName { get; init; } = string.Empty;
+    public int Quantity { get; init; }
+    public decimal UnitPrice { get; init; }
+    public decimal LineTotal { get; init; }
+    public string StatusText { get; init; } = "Chưa thanh toán";
+    public string QuantityText => $"x{Quantity}";
+    public string UnitPriceText => $"{UnitPrice:N0} đ";
+    public string LineTotalText => $"{LineTotal:N0} đ";
+}

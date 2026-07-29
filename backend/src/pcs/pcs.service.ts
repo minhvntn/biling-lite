@@ -619,6 +619,17 @@ export class PcsService {
     };
   }
 
+  async getPcByAgentId(agentId: string) {
+    return this.prisma.pc.findFirst({
+      where: {
+        agentId: {
+          equals: agentId,
+          mode: 'insensitive',
+        },
+      },
+    });
+  }
+
   async getActivePresenceKindForPc(
     pcId: string,
   ): Promise<'MEMBER' | 'GUEST' | 'ADMIN' | null> {
@@ -969,5 +980,228 @@ export class PcsService {
     } catch {
       // Ignore audit log failures.
     }
+  }
+
+  async getAllPcHardware() {
+    return this.prisma.pcHardware.findMany();
+  }
+
+  async getPcHardware(pcId: string) {
+    let hardware = await this.prisma.pcHardware.findUnique({
+      where: { pcId },
+    });
+    if (!hardware) {
+      hardware = await this.prisma.pcHardware.create({
+        data: { pcId },
+      });
+    }
+    return hardware;
+  }
+
+  async updatePcHardware(pcId: string, dto: any) {
+    return this.prisma.pcHardware.upsert({
+      where: { pcId },
+      create: {
+        pcId,
+        cpu: dto.cpu,
+        ram: dto.ram,
+        gpu: dto.gpu,
+        motherboard: dto.motherboard,
+        storage: dto.storage,
+        monitor: dto.monitor,
+        note: dto.note,
+      },
+      update: {
+        cpu: dto.cpu,
+        ram: dto.ram,
+        gpu: dto.gpu,
+        motherboard: dto.motherboard,
+        storage: dto.storage,
+        monitor: dto.monitor,
+        note: dto.note,
+      },
+    });
+  }
+
+  async updateAutoFetchedHardware(pcId: string, dto: any) {
+    const updateData: any = {
+      cpu: dto.cpu,
+      ram: dto.ram,
+      gpu: dto.gpu,
+      motherboard: dto.motherboard,
+      lan: dto.lan,
+      temperature: dto.temperature,
+    };
+    
+    // Only auto-update monitor if it's successfully detected
+    if (dto.monitor && dto.monitor !== "Unknown Monitor") {
+      updateData.monitor = dto.monitor;
+    }
+
+    return this.prisma.pcHardware.upsert({
+      where: { pcId },
+      create: {
+        pcId,
+        ...updateData
+      },
+      update: {
+        ...updateData
+      },
+    });
+  }
+
+  async getPcMaintenanceLogs(pcId: string) {
+    return this.prisma.pcMaintenanceLog.findMany({
+      where: { pcId },
+      orderBy: { date: 'desc' },
+    });
+  }
+
+  async addPcMaintenanceLog(pcId: string, dto: any) {
+    return this.prisma.pcMaintenanceLog.create({
+      data: {
+        pcId,
+        date: new Date(dto.date),
+        description: dto.description,
+        cost: dto.cost,
+        performedBy: dto.performedBy,
+      },
+    });
+  }
+
+  // ── Support Messages ──
+
+  async saveSupportMessage(pcId: string, direction: string, message: string, category?: string, sentBy?: string) {
+    return this.prisma.supportMessage.create({
+      data: { pcId, direction, message, category, sentBy },
+    });
+  }
+
+  async getSupportMessages(pcId: string, limit = 50) {
+    return this.prisma.supportMessage.findMany({
+      where: { pcId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+  }
+
+  async clearSupportMessages(pcId: string) {
+    return this.prisma.supportMessage.deleteMany({
+      where: { pcId },
+    });
+  }
+
+  async getRecentSupportMessages(limit = 100) {
+    return this.prisma.supportMessage.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { pc: { select: { name: true } } },
+      take: limit,
+    });
+  }
+
+  async replySupportMessage(pcId: string, message: string, repliedBy: string) {
+    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    if (!pc) throw new Error('PC not found');
+
+    const msg = await this.prisma.supportMessage.create({
+      data: { pcId, direction: 'ADMIN', message, sentBy: repliedBy },
+    });
+
+    this.realtime.emitToAgent(pc.agentId, 'admin.reply_support', {
+      message,
+      repliedBy,
+      sentAt: msg.createdAt.toISOString(),
+    });
+
+    return msg;
+  }
+
+  async markSupportMessagesRead(pcId: string) {
+    return this.prisma.supportMessage.updateMany({
+      where: { pcId, direction: 'CLIENT', isRead: false },
+      data: { isRead: true },
+    });
+  }
+
+  async getUnreadSupportCount() {
+    return this.prisma.supportMessage.count({
+      where: { direction: 'CLIENT', isRead: false },
+    });
+  }
+
+  // ── App Usage Tracking ──
+
+  async upsertAppUsage(pcId: string, apps: { name: string; title?: string }[]) {
+    const now = new Date();
+    const activeSession = await this.prisma.session.findFirst({
+      where: { pcId, status: 'ACTIVE' },
+      orderBy: { startedAt: 'desc' },
+    });
+    const sessionId = activeSession?.id ?? null;
+
+    // Find currently open (not ended) app entries for this PC
+    const openEntries = await this.prisma.pcAppUsage.findMany({
+      where: { pcId, endedAt: null },
+    });
+
+    const currentAppNames = new Set(apps.map(a => a.name.toLowerCase()));
+    const openByName = new Map(openEntries.map(e => [e.appName.toLowerCase(), e]));
+
+    // Close apps that are no longer running
+    const toClose = openEntries.filter(e => !currentAppNames.has(e.appName.toLowerCase()));
+    for (const entry of toClose) {
+      const duration = Math.max(0, Math.floor((now.getTime() - entry.startedAt.getTime()) / 1000));
+      await this.prisma.pcAppUsage.update({
+        where: { id: entry.id },
+        data: { endedAt: now, durationSeconds: duration },
+      });
+    }
+
+    // Create new entries for newly detected apps
+    for (const app of apps) {
+      if (!openByName.has(app.name.toLowerCase())) {
+        await this.prisma.pcAppUsage.create({
+          data: {
+            pcId,
+            sessionId,
+            appName: app.name,
+            windowTitle: app.title ?? null,
+            startedAt: now,
+          },
+        });
+      } else {
+        // Update window title if changed
+        const existing = openByName.get(app.name.toLowerCase())!;
+        if (app.title && app.title !== existing.windowTitle) {
+          await this.prisma.pcAppUsage.update({
+            where: { id: existing.id },
+            data: { windowTitle: app.title },
+          });
+        }
+      }
+    }
+  }
+
+  async getAppUsage(pcId: string, from?: Date, to?: Date) {
+    const where: any = { pcId };
+    if (from || to) {
+      where.startedAt = {};
+      if (from) where.startedAt.gte = from;
+      if (to) where.startedAt.lte = to;
+    }
+    return this.prisma.pcAppUsage.findMany({
+      where,
+      orderBy: { startedAt: 'desc' },
+      take: 200,
+    });
+  }
+
+  async getCurrentRunningApps() {
+    const results = await this.prisma.pcAppUsage.findMany({
+      where: { endedAt: null },
+      include: { pc: { select: { id: true, name: true, agentId: true } } },
+      orderBy: { startedAt: 'desc' },
+    });
+    return results;
   }
 }

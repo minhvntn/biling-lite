@@ -11,13 +11,15 @@ namespace Client.Agent.Wpf;
 public partial class ServiceOrderWindow : Window
 {
     public ObservableCollection<ClientServiceOrderSelectionRow> Rows { get; }
+    public ObservableCollection<ClientOrderedServiceRow> OrderedRows { get; }
     public string OrderNote => NoteTextBox.Text;
     private ICollectionView _servicesView;
 
-    public ServiceOrderWindow(string pcName, ObservableCollection<ClientServiceOrderSelectionRow> rows, string orderedPreview)
+    public ServiceOrderWindow(string pcName, ObservableCollection<ClientServiceOrderSelectionRow> rows, string orderedPreview, ObservableCollection<ClientOrderedServiceRow>? orderedRows = null)
     {
         InitializeComponent();
         Rows = rows;
+        OrderedRows = orderedRows ?? new ObservableCollection<ClientOrderedServiceRow>();
 
         TitleTextBlock.Text = $"Máy trạm: {pcName}";
         OrderedPreviewTextBlock.Text = $"Đã gọi: {orderedPreview}";
@@ -27,6 +29,8 @@ public partial class ServiceOrderWindow : Window
         ServicesItemsControl.ItemsSource = _servicesView;
         
         CartItemsControl.ItemsSource = Rows;
+        OrderedItemsControl.ItemsSource = OrderedRows;
+        RefreshOrderedSummary();
 
         var defaultCategories = new System.Collections.Generic.List<string> { "Tất cả", "Nước", "Đồ ăn", "Ăn vặt", "Thuốc" };
         var otherCategories = Rows.Select(x => string.IsNullOrWhiteSpace(x.Category) ? "Khác" : x.Category)
@@ -202,5 +206,53 @@ public partial class ServiceOrderWindow : Window
         {
             DragMove();
         }
+    }
+
+    private void RefreshOrderedSummary()
+    {
+        var count = OrderedRows.Sum(x => x.Quantity);
+        var total = OrderedRows.Sum(x => x.LineTotal);
+        OrderedTabButtonText.Text = count > 0 ? $"Đã gọi ({count})" : "Đã gọi";
+
+        if (OrderedRows.Count == 0)
+        {
+            EmptyOrderedPanel.Visibility = Visibility.Visible;
+            OrderedItemsScrollViewer.Visibility = Visibility.Collapsed;
+            OrderedTotalTextBlock.Text = "0 đ";
+        }
+        else
+        {
+            EmptyOrderedPanel.Visibility = Visibility.Collapsed;
+            OrderedItemsScrollViewer.Visibility = Visibility.Visible;
+            OrderedTotalTextBlock.Text = $"{total:N0} đ";
+        }
+    }
+
+    private void CartTabButton_Click(object sender, RoutedEventArgs e)
+    {
+        CartTabBorder.Background = System.Windows.Media.Brushes.White;
+        CartTabBorder.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(226, 232, 240));
+        CartTabTextBlock.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(139, 92, 246));
+
+        OrderedTabBorder.Background = System.Windows.Media.Brushes.Transparent;
+        OrderedTabBorder.BorderBrush = System.Windows.Media.Brushes.Transparent;
+        OrderedTabButtonText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(100, 116, 139));
+
+        CartPanelGrid.Visibility = Visibility.Visible;
+        OrderedPanelGrid.Visibility = Visibility.Collapsed;
+    }
+
+    private void OrderedTabButton_Click(object sender, RoutedEventArgs e)
+    {
+        OrderedTabBorder.Background = System.Windows.Media.Brushes.White;
+        OrderedTabBorder.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(226, 232, 240));
+        OrderedTabButtonText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(139, 92, 246));
+
+        CartTabBorder.Background = System.Windows.Media.Brushes.Transparent;
+        CartTabBorder.BorderBrush = System.Windows.Media.Brushes.Transparent;
+        CartTabTextBlock.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(100, 116, 139));
+
+        CartPanelGrid.Visibility = Visibility.Collapsed;
+        OrderedPanelGrid.Visibility = Visibility.Visible;
     }
 }

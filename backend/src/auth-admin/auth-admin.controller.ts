@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Put, Body, Param } from '@nestjs/common';
 import { AuthAdminService } from './auth-admin.service';
 import { AdminLoginDto, CreateAdminUserDto } from './dto/auth-admin.dto';
 
@@ -29,5 +29,15 @@ export class AuthAdminController {
   @Post('update-admin')
   updateAdmin(@Body() dto: CreateAdminUserDto) {
     return this.authAdminService.updateAdminAccount(dto);
+  }
+
+  @Put('users/:id/password')
+  resetUserPasswordPut(@Param('id') id: string, @Body() body: { password: string }) {
+    return this.authAdminService.resetUserPassword(id, body.password);
+  }
+
+  @Post('users/:id/password')
+  resetUserPasswordPost(@Param('id') id: string, @Body() body: { password: string }) {
+    return this.authAdminService.resetUserPassword(id, body.password);
   }
 }

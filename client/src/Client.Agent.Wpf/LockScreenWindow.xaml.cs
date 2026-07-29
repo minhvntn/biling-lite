@@ -29,6 +29,27 @@ public partial class LockScreenWindow : Window
         
         this.PreviewMouseDown += (s, e) => ResetIdleTimer();
         this.PreviewKeyDown += (s, e) => ResetIdleTimer();
+
+        System.Windows.Input.InputManager.Current.PreProcessInput += (s, e) =>
+        {
+            if (e.StagingItem.Input is System.Windows.Input.KeyEventArgs keyArgs &&
+                keyArgs.RoutedEvent == System.Windows.Input.Keyboard.KeyDownEvent)
+            {
+                if (this.IsVisible && MainContentCard.Visibility != Visibility.Visible)
+                {
+                    ResetIdleTimer();
+                }
+            }
+            else if (e.StagingItem.Input is System.Windows.Input.MouseButtonEventArgs mouseArgs &&
+                     mouseArgs.RoutedEvent == System.Windows.Input.Mouse.MouseDownEvent)
+            {
+                if (this.IsVisible && MainContentCard.Visibility != Visibility.Visible)
+                {
+                    ResetIdleTimer();
+                }
+            }
+        };
+
     }
 
     private void IdleTimer_Tick(object? sender, System.EventArgs e)

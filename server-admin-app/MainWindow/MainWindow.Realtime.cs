@@ -156,6 +156,8 @@ public partial class MainWindow : Window
                         return;
                     }
 
+
+
                     ClearClientServiceOrderAcknowledgement(payload.Order.Id);
                     InvalidateServiceAmountCacheForPcId(payload.PcId);
                     QueueRealtimeMachineRefresh();
@@ -168,6 +170,32 @@ public partial class MainWindow : Window
                         AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Lỗi parse service.order.created: {ex.Message}"));
                 }
             });
+
+            socket.On("client.support_request", response =>
+            {
+                try
+                {
+                    var json = response.GetValue<System.Text.Json.JsonElement>();
+                    var pcId = json.GetProperty("pcId").GetString();
+                    var pcName = json.GetProperty("pcName").GetString();
+
+                    QueueRealtimeUi(() => 
+                    {
+                        if (pcId != null && pcName != null)
+                        {
+                            _lastChatNotificationPcId = pcId;
+                            _lastChatNotificationPcName = pcName;
+                            ChatNotificationTextBlock.Text = $"Tin nhắn - {pcName}";
+                            ChatNotificationPopupBorder.Visibility = Visibility.Visible;
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    QueueRealtimeUi(() => AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Lỗi client.support_request: {ex.Message}"));
+                }
+            });
+
             _billingSocket = socket;
             await _billingSocket.ConnectAsync();
         }

@@ -10,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Microsoft.Win32;
 
 namespace Client.Agent.Wpf
 {
@@ -228,8 +229,115 @@ namespace Client.Agent.Wpf
             }
         }
 
-        private static ImageSource? ResolveIconSource(string iconAssetName)
+        private async void UploadAvatarButton_Click(object sender, RoutedEventArgs e)
         {
+            var openFileDialog = new OpenFileDialog
+            {
+                Title = "Chọn ảnh đại diện",
+                Filter = "Image Files|*.jpg;*.jpeg;*.png;*.bmp|All Files|*.*",
+                Multiselect = false
+            };
+
+            if (openFileDialog.ShowDialog() != true) return;
+
+            try
+            {
+                LoadingText.Visibility = Visibility.Visible;
+                AvatarsContainer.Visibility = Visibility.Collapsed;
+
+                var bytes = File.ReadAllBytes(openFileDialog.FileName);
+                if (!TryOptimizeImageForAvatar(bytes, out var optimizedBytes))
+                {
+                    MessageBox.Show("Không thể tối ưu ảnh. Vui lòng chọn ảnh khác nhỏ hơn.", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var base64 = $"data:image/jpeg;base64,{Convert.ToBase64String(optimizedBytes)}";
+                await SelectAvatarAsync(base64);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Lỗi khi đọc file ảnh: " + ex.Message, "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                LoadingText.Visibility = Visibility.Collapsed;
+                AvatarsContainer.Visibility = Visibility.Visible;
+            }
+        }
+
+        private static bool TryOptimizeImageForAvatar(byte[] sourceBytes, out byte[] optimizedBytes)
+        {
+            optimizedBytes = Array.Empty<byte>();
+            try
+            {
+                using var sourceStream = new MemoryStream(sourceBytes);
+                var sourceImage = new BitmapImage();
+                sourceImage.BeginInit();
+                sourceImage.CacheOption = BitmapCacheOption.OnLoad;
+                sourceImage.StreamSource = sourceStream;
+                sourceImage.EndInit();
+                sourceImage.Freeze();
+
+                if (sourceImage.PixelWidth <= 0 || sourceImage.PixelHeight <= 0) return false;
+
+                const int maxDimension = 80;
+                const int targetBytes = 150 * 1024;
+                var qualityLevels = new[] { 90, 80, 70, 60 };
+
+                var scale = Math.Min(1d, maxDimension / (double)Math.Max(sourceImage.PixelWidth, sourceImage.PixelHeight));
+                
+                BitmapSource frameSource = sourceImage;
+                if (scale < 0.999d)
+                {
+                    var transformed = new TransformedBitmap(sourceImage, new ScaleTransform(scale, scale));
+                    transformed.Freeze();
+                    frameSource = transformed;
+                }
+
+                foreach (var quality in qualityLevels)
+                {
+                    var encoder = new JpegBitmapEncoder { QualityLevel = quality };
+                    encoder.Frames.Add(BitmapFrame.Create(frameSource));
+                    using var output = new MemoryStream();
+                    encoder.Save(output);
+                    var encoded = output.ToArray();
+                    if (encoded.Length <= targetBytes)
+                    {
+                        optimizedBytes = encoded;
+                        return true;
+                    }
+                    if (optimizedBytes.Length == 0 || encoded.Length < optimizedBytes.Length) optimizedBytes = encoded;
+                }
+                return optimizedBytes.Length > 0;
+            }
+            catch { return false; }
+        }
+
+        public static ImageSource? ResolveIconSource(string iconAssetName)
+        {
+            if (iconAssetName.StartsWith("data:image/"))
+            {
+                try
+                {
+                    var commaIndex = iconAssetName.IndexOf(',');
+                    if (commaIndex > 0)
+                    {
+                        var bytes = Convert.FromBase64String(iconAssetName.Substring(commaIndex + 1));
+                        using var stream = new MemoryStream(bytes);
+                        var bitmap = new BitmapImage();
+                        bitmap.BeginInit();
+                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                        bitmap.DecodePixelHeight = 72;
+                        bitmap.StreamSource = stream;
+                        bitmap.EndInit();
+                        bitmap.Freeze();
+                        return bitmap;
+                    }
+                }
+                catch { return null; }
+            }
+
             try
             {
                 var packUri = new Uri($"pack://application:,,,/Assets/Avatars/{iconAssetName}", UriKind.Absolute);

@@ -1346,6 +1346,41 @@ public partial class MainWindow : Window
         return result;
     }
 
+    private async Task<CancelPcServiceOrdersResponse> CancelServiceOrdersForMachineAsync(
+        MachineRow machine,
+        IReadOnlyList<string>? orderIds,
+        string? note = null)
+    {
+        var payload = new
+        {
+            requestedBy = "admin.desktop",
+            note = note ?? "Xóa dịch vụ do cộng nhầm",
+            orderIds = orderIds is { Count: > 0 } ? orderIds : null,
+        };
+
+        using var response = await _httpClient.PostAsJsonAsync(
+            BuildApiUrl($"/services/pcs/{machine.Id}/orders/cancel"),
+            payload,
+            JsonOptions());
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync();
+            var errorText = string.IsNullOrWhiteSpace(errorBody)
+                ? $"Xóa dịch vụ thất bại ({(int)response.StatusCode})"
+                : errorBody;
+            throw new InvalidOperationException(errorText);
+        }
+
+        var result = await response.Content.ReadFromJsonAsync<CancelPcServiceOrdersResponse>(JsonOptions());
+        if (result is null)
+        {
+            throw new InvalidOperationException("Backend không trả dữ liệu xóa dịch vụ.");
+        }
+
+        return result;
+    }
+
     private async Task OpenServicePaymentDialogForMachineAsync(
         MachineRow machine,
         IReadOnlyList<PcServiceOrderDto> unpaidOrders)
@@ -1372,6 +1407,7 @@ public partial class MainWindow : Window
 
             dialog.SelectAllButton.IsEnabled = canInteract;
             dialog.ClearSelectionButton.IsEnabled = canInteract;
+            dialog.CancelSelectedButton.IsEnabled = canInteract && hasSelected;
             dialog.PayAllButton.IsEnabled = canInteract;
             dialog.PaySelectedButton.IsEnabled = canInteract && hasSelected;
             dialog.CloseButton.IsEnabled = !isPaying;
@@ -1511,6 +1547,73 @@ public partial class MainWindow : Window
         };
 
         dialog.PaySelectedButton.Click += async (_, _) => await PayOrdersAsync(payAll: false);
+        async Task CancelSelectedOrdersAsync()
+        {
+            if (isPaying)
+            {
+                return;
+            }
+
+            var targetRows = orderRows.Where(x => x.IsSelected).ToList();
+            if (targetRows.Count == 0)
+            {
+                MessageBox.Show("Vui lòng chọn ít nhất 1 món để xóa.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var targetAmount = targetRows.Sum(x => x.LineTotal);
+            var confirmText = $"Bạn có chắc chắn muốn XÓA BỎ {targetRows.Count} món dịch vụ đã chọn ({targetAmount:N0} VND) cho {machine.Name} do cộng nhầm?";
+            var confirm = MessageBox.Show(confirmText, "Xác nhận xóa dịch vụ", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (confirm != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            try
+            {
+                isPaying = true;
+                dialog.StatusTextBlock.Text = "Đang xóa bỏ dịch vụ...";
+                dialog.StatusTextBlock.Foreground = Brushes.SteelBlue;
+                SyncActionButtons();
+
+                var orderIds = targetRows.Select(x => x.OrderId).ToList();
+                var result = await CancelServiceOrdersForMachineAsync(
+                    machine,
+                    orderIds,
+                    note: "Xóa dịch vụ do cộng nhầm");
+
+                hasSuccessfulPayment = true;
+                AppendServiceLog(
+                    $"[{DateTime.Now:HH:mm:ss}] {machine.Name}: xóa bỏ {result.CanceledOrderCount} món = {result.CanceledAmount:N0} VND");
+
+                var latestUnpaidOrders = await GetUnpaidServiceOrdersForMachineAsync(machine);
+                ReplaceOrders(latestUnpaidOrders);
+
+                if (orderRows.Count == 0)
+                {
+                    dialog.StatusTextBlock.Text = "Đã xóa hết các món trong phiên hiện tại.";
+                    dialog.StatusTextBlock.Foreground = Brushes.DarkGreen;
+                    MessageBox.Show("Đã xóa hết các món dịch vụ cho máy này.", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+                    dialog.Close();
+                    return;
+                }
+
+                dialog.StatusTextBlock.Text = $"Đã xóa bỏ {result.CanceledOrderCount} món ({result.CanceledAmount:N0} VND).";
+                dialog.StatusTextBlock.Foreground = Brushes.DarkGreen;
+            }
+            catch (Exception ex)
+            {
+                dialog.StatusTextBlock.Text = $"Lỗi xóa dịch vụ: {ex.Message}";
+                dialog.StatusTextBlock.Foreground = Brushes.Firebrick;
+            }
+            finally
+            {
+                isPaying = false;
+                SyncActionButtons();
+            }
+        }
+
+        dialog.CancelSelectedButton.Click += async (_, _) => await CancelSelectedOrdersAsync();
         dialog.PayAllButton.Click += async (_, _) => await PayOrdersAsync(payAll: true);
         dialog.CloseButton.Click += (_, _) => dialog.Close();
 
@@ -2202,7 +2305,7 @@ public partial class MainWindow : Window
                 var bitmap = new BitmapImage();
                 bitmap.BeginInit();
                 bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                bitmap.DecodePixelHeight = 72;
+                bitmap.DecodePixelHeight = 144;
                 bitmap.StreamSource = stream;
                 bitmap.EndInit();
                 bitmap.Freeze();
@@ -2224,7 +2327,7 @@ public partial class MainWindow : Window
             var bitmap = new BitmapImage();
             bitmap.BeginInit();
             bitmap.CacheOption = BitmapCacheOption.OnLoad;
-            bitmap.DecodePixelHeight = 72;
+            bitmap.DecodePixelHeight = 144;
             bitmap.UriSource = imageUri;
             bitmap.EndInit();
             bitmap.Freeze();

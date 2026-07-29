@@ -45,4 +45,9 @@ export class ReportsController {
   async clearSystemEvents() {
     return this.reportsService.clearSystemEvents();
   }
+
+  @Get('pc-analytics')
+  async getPcAnalytics(@Query('period') period?: string) {
+    return this.reportsService.getPcAnalytics(period);
+  }
 }
