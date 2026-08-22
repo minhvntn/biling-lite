@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UploadedFile, UseInterceptors, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, UploadedFile, UseInterceptors, Res } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { BuyPlaytimeDto } from './dto/buy-playtime.dto';
@@ -26,6 +26,8 @@ import { UpdateHorseRaceSettingsDto } from './dto/update-horse-race-settings.dto
 import { PetLoyaltyPointsDto } from './dto/pet-loyalty-points.dto';
 import { LoyaltyDailyCheckinDto } from './dto/loyalty-daily-checkin.dto';
 import { HorseRaceDto } from './dto/horse-race.dto';
+import { UpdateLuckyEnvelopeSettingsDto } from './dto/lucky-envelope-settings.dto';
+import { OpenLuckyEnvelopeDto } from './dto/open-lucky-envelope.dto';
 import { MembersService } from './members.service';
 
 @Controller('members')
@@ -141,6 +143,27 @@ export class MembersController {
     @Body() payload: UpdateHorseRaceSettingsDto,
   ) {
     return this.membersService.updateHorseRaceSettings(payload);
+  }
+
+  @Get('loyalty/lucky-envelope/settings')
+  async getLuckyEnvelopeSettings(
+    @Query('memberId') memberId?: string,
+  ) {
+    return this.membersService.getLuckyEnvelopeSettings(memberId);
+  }
+
+  @Put('loyalty/lucky-envelope/settings')
+  async updateLuckyEnvelopeSettings(
+    @Body() payload: UpdateLuckyEnvelopeSettingsDto,
+  ) {
+    return this.membersService.updateLuckyEnvelopeSettings(payload);
+  }
+
+  @Patch('loyalty/lucky-envelope/settings')
+  async patchLuckyEnvelopeSettings(
+    @Body() payload: UpdateLuckyEnvelopeSettingsDto,
+  ) {
+    return this.membersService.updateLuckyEnvelopeSettings(payload);
   }
 
   @Patch('loyalty/ranks/:rankId')
@@ -282,6 +305,14 @@ export class MembersController {
     @Body() payload: LoyaltyDailyCheckinDto,
   ) {
     return this.membersService.claimDailyLoyaltyCheckin(memberId, payload);
+  }
+
+  @Post(':memberId/loyalty/lucky-envelope/open')
+  async openLuckyEnvelope(
+    @Param('memberId') memberId: string,
+    @Body() payload: OpenLuckyEnvelopeDto,
+  ) {
+    return this.membersService.openLuckyEnvelope(memberId, payload);
   }
 
   @Get(':memberId/transactions')

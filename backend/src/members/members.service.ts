@@ -42,6 +42,8 @@ import { UpdateHorseRaceSettingsDto } from './dto/update-horse-race-settings.dto
 import { PetLoyaltyPointsDto } from './dto/pet-loyalty-points.dto';
 import { LoyaltyDailyCheckinDto } from './dto/loyalty-daily-checkin.dto';
 import { HorseRaceDto } from './dto/horse-race.dto';
+import { UpdateLuckyEnvelopeSettingsDto } from './dto/lucky-envelope-settings.dto';
+import { OpenLuckyEnvelopeDto } from './dto/open-lucky-envelope.dto';
 
 const LOYALTY_CONFIG_KEY = '__LOYALTY_MEMBER_POINTS__';
 const LOYALTY_MINUTES_PER_POINT = 15;
@@ -60,6 +62,26 @@ const LOYALTY_PET_REWARD_NOTE_PREFIX = 'PET_REWARD';
 const LOYALTY_PET_SPEND_NOTE_PREFIX = `${LOYALTY_REDEEM_NOTE_PREFIX}_PET`;
 const LOYALTY_SPIN_CONFIG_KEY = '__LOYALTY_SPIN_CONFIG__';
 const HORSE_RACE_CONFIG_KEY = '__HORSE_RACE_CONFIG__';
+const LUCKY_ENVELOPE_CONFIG_KEY = '__LUCKY_ENVELOPE_CONFIG__';
+const LUCKY_ENVELOPE_NOTE_PREFIX = `${LOYALTY_REDEEM_NOTE_PREFIX}_LUCKY_ENVELOPE`;
+const DEFAULT_LUCKY_ENVELOPE_SETTINGS = {
+  enabled: false,
+  startDate: undefined as string | undefined,
+  endDate: undefined as string | undefined,
+  pointCost: 10,
+  minMinutes: 60,
+  maxMinutes: 360,
+  maxClaims: 0,
+};
+const TET_BLESSING_MESSAGES = [
+  'Chúc mừng năm mới! Vạn sự như ý - Tỉ sự như mơ!',
+  'Khai xuân đắc lộc! Mã đáo thành công!',
+  'Tấn tài tấn lộc - Công danh rạng rỡ!',
+  'Xuân an khang - Đắc lộc toàn niên!',
+  'Năm mới phát tài - Chơi game bất bại!',
+  'Cung chúc tân xuân - An khang thịnh vượng!',
+  'Năm mới bình an - Đón ngàn tài lộc!',
+];
 const LOYALTY_DAILY_CHECKIN_TIME_ZONE = 'Asia/Ho_Chi_Minh';
 const LOYALTY_DAILY_CHECKIN_POINTS = 1;
 const LOYALTY_DAILY_CHECKIN_BONUS_EVERY_DAYS = 7;
@@ -850,6 +872,268 @@ export class MembersService {
     }
 
     return this.getHorseRaceSettings();
+  }
+
+  async getLuckyEnvelopeSettings(memberId?: string) {
+    const setting = await this.prisma.appSetting.findUnique({
+      where: { key: LUCKY_ENVELOPE_CONFIG_KEY },
+    });
+
+    let config = { ...DEFAULT_LUCKY_ENVELOPE_SETTINGS };
+    let updatedAt = new Date().toISOString();
+
+    if (setting?.value) {
+      try {
+        const parsed = JSON.parse(setting.value);
+        config = {
+          enabled: Boolean(parsed.enabled),
+          startDate: parsed.startDate || undefined,
+          endDate: parsed.endDate || undefined,
+          pointCost: Math.max(1, Number(parsed.pointCost) || 10),
+          minMinutes: Math.max(1, Number(parsed.minMinutes) || 60),
+          maxMinutes: Math.max(
+            Math.max(1, Number(parsed.minMinutes) || 60),
+            Number(parsed.maxMinutes) || 360,
+          ),
+          maxClaims: Math.max(0, Number(parsed.maxClaims) || 0),
+        };
+        updatedAt = setting.updatedAt.toISOString();
+      } catch {
+        config = { ...DEFAULT_LUCKY_ENVELOPE_SETTINGS };
+      }
+    }
+
+    const now = new Date();
+    let isWithinTime = true;
+    let reason: string | null = null;
+
+    if (config.startDate) {
+      const start = new Date(config.startDate);
+      if (now < start) {
+        isWithinTime = false;
+        reason = 'Sự kiện Lì Xì Tết chưa bắt đầu';
+      }
+    }
+    if (isWithinTime && config.endDate) {
+      const end = new Date(config.endDate);
+      if (now > end) {
+        isWithinTime = false;
+        reason = 'Sự kiện Lì Xì Tết đã kết thúc';
+      }
+    }
+
+    const isActive = config.enabled && isWithinTime;
+    if (!config.enabled && !reason) {
+      reason = 'Sự kiện Lì Xì Tết đang tạm đóng';
+    }
+
+    let claimedCount = 0;
+    let canClaim = isActive;
+
+    if (memberId) {
+      claimedCount = await this.prisma.memberTransaction.count({
+        where: {
+          memberId,
+          note: {
+            startsWith: LUCKY_ENVELOPE_NOTE_PREFIX,
+          },
+        },
+      });
+
+      if (config.maxClaims > 0 && claimedCount >= config.maxClaims) {
+        canClaim = false;
+        if (!reason) {
+          reason = `Bạn đã nhận đủ ${config.maxClaims} lần lì xì`;
+        }
+      }
+    }
+
+    return {
+      ...config,
+      isActive,
+      claimedCount,
+      canClaim,
+      reason,
+      updatedAt,
+    };
+  }
+
+  async updateLuckyEnvelopeSettings(payload: UpdateLuckyEnvelopeSettingsDto) {
+    if (payload.minMinutes > payload.maxMinutes) {
+      throw new BadRequestException('Phút tối thiểu không được lớn hơn phút tối đa');
+    }
+    if (payload.startDate && payload.endDate) {
+      if (new Date(payload.startDate) > new Date(payload.endDate)) {
+        throw new BadRequestException('Ngày bắt đầu không được lớn hơn ngày kết thúc');
+      }
+    }
+
+    const dataToSave = {
+      enabled: Boolean(payload.enabled),
+      startDate: payload.startDate || null,
+      endDate: payload.endDate || null,
+      pointCost: Math.max(1, Math.floor(payload.pointCost)),
+      minMinutes: Math.max(1, Math.floor(payload.minMinutes)),
+      maxMinutes: Math.max(Math.floor(payload.minMinutes), Math.floor(payload.maxMinutes)),
+      maxClaims: Math.max(0, Math.floor(payload.maxClaims)),
+    };
+
+    await this.prisma.appSetting.upsert({
+      where: { key: LUCKY_ENVELOPE_CONFIG_KEY },
+      create: {
+        key: LUCKY_ENVELOPE_CONFIG_KEY,
+        value: JSON.stringify(dataToSave),
+      },
+      update: {
+        value: JSON.stringify(dataToSave),
+      },
+    });
+
+    return this.getLuckyEnvelopeSettings();
+  }
+
+  async openLuckyEnvelope(memberId: string, payload: OpenLuckyEnvelopeDto) {
+    const createdBy = payload.createdBy?.trim() || 'client.loyalty.lucky_envelope';
+
+    const enabled = await this.getLoyaltyFeatureEnabled();
+    if (!enabled) {
+      throw new BadRequestException('Tính năng điểm tích lũy đang tắt');
+    }
+
+    const settings = await this.getLuckyEnvelopeSettings(memberId);
+    if (!settings.isActive) {
+      throw new BadRequestException(settings.reason || 'Sự kiện Lì Xì Tết hiện không khả dụng');
+    }
+
+    if (settings.maxClaims > 0 && settings.claimedCount >= settings.maxClaims) {
+      throw new BadRequestException(`Bạn đã nhận đủ ${settings.maxClaims} lượt lì xì`);
+    }
+
+    const pointCost = settings.pointCost;
+
+    return this.prisma.$transaction(async (tx) => {
+      const member = await tx.member.findUnique({ where: { id: memberId } });
+      if (!member) {
+        throw new NotFoundException('Không tìm thấy hội viên');
+      }
+
+      const before = await this.buildLoyaltySnapshot(memberId, tx);
+      if (before.availablePoints < pointCost) {
+        throw new BadRequestException(
+          `Không đủ điểm tích lũy. Cần ${pointCost} điểm, hiện bạn có ${before.availablePoints} điểm`,
+        );
+      }
+
+      // Check claim count again inside transaction for concurrency safety
+      if (settings.maxClaims > 0) {
+        const currentClaimed = await tx.memberTransaction.count({
+          where: {
+            memberId,
+            note: {
+              startsWith: LUCKY_ENVELOPE_NOTE_PREFIX,
+            },
+          },
+        });
+        if (currentClaimed >= settings.maxClaims) {
+          throw new BadRequestException(`Bạn đã nhận đủ ${settings.maxClaims} lượt lì xì`);
+        }
+      }
+
+      const loyaltySettings = await this.getLoyaltySettingsItem(tx);
+      const pointsToMinutes = loyaltySettings.pointsToMinutes || 1;
+      const costSeconds = pointCost * pointsToMinutes * 60;
+
+      // 1. Calculate random won minutes using weighted fortune curve
+      const min = settings.minMinutes;
+      const max = settings.maxMinutes;
+      const range = max - min;
+      let wonMinutes = min;
+
+      if (range > 0) {
+        const rand = Math.random();
+        if (rand < 0.60) {
+          // Tier 1: 60% chance -> [min, min + 0.3 * range]
+          wonMinutes = min + Math.random() * (0.30 * range);
+        } else if (rand < 0.90) {
+          // Tier 2: 30% chance -> [min + 0.3 * range, min + 0.7 * range]
+          wonMinutes = min + 0.30 * range + Math.random() * (0.40 * range);
+        } else {
+          // Tier 3: 10% chance (Jackpot) -> [min + 0.7 * range, max]
+          wonMinutes = min + 0.70 * range + Math.random() * (0.30 * range);
+        }
+      }
+      const roundedMinutes = Math.min(max, Math.max(min, Math.round(wonMinutes / 5) * 5));
+      const wonSeconds = roundedMinutes * 60;
+
+      // 2. Pick a random blessing message
+      const blessing = TET_BLESSING_MESSAGES[Math.floor(Math.random() * TET_BLESSING_MESSAGES.length)];
+
+      // 3. Deduct loyalty points via transaction note starting with LOYALTY_REDEEM
+      await tx.memberTransaction.create({
+        data: {
+          memberId,
+          type: MemberTransactionType.ADJUSTMENT,
+          amountDelta: 0,
+          playSecondsDelta: costSeconds,
+          note: `${LUCKY_ENVELOPE_NOTE_PREFIX}: -${pointCost} diem doi li xi`,
+          createdBy,
+        },
+      });
+
+      // 4. Grant won promo minutes directly to member.playSeconds
+      const updatedMember = await tx.member.update({
+        where: { id: memberId },
+        data: {
+          playSeconds: {
+            increment: wonSeconds,
+          },
+        },
+      });
+
+      await tx.memberTransaction.create({
+        data: {
+          memberId,
+          type: MemberTransactionType.ADJUSTMENT,
+          amountDelta: 0,
+          playSecondsDelta: wonSeconds,
+          note: `TET_LUCKY_ENVELOPE_REWARD: +${roundedMinutes} phut - ${blessing}`,
+          createdBy,
+        },
+      });
+
+      // 5. Emit event log
+      await tx.eventLog.create({
+        data: {
+          source: createdBy.startsWith('client.') ? EventSource.CLIENT : EventSource.ADMIN,
+          eventType: 'member.loyalty.lucky_envelope',
+          payload: {
+            memberId,
+            username: member.username,
+            spentPoints: pointCost,
+            wonMinutes: roundedMinutes,
+            wonSeconds,
+            blessing,
+            at: new Date().toISOString(),
+          },
+        },
+      });
+
+      const loyalty = await this.buildLoyaltySnapshot(memberId, tx);
+      const rankConfigs = await tx.loyaltyRankConfig.findMany({ orderBy: { minTopup: 'desc' } });
+
+      return {
+        wonMinutes: roundedMinutes,
+        wonSeconds,
+        spentPoints: pointCost,
+        blessingMessage: blessing,
+        loyalty,
+        member: this.toMemberItem(
+          updatedMember,
+          this.calculateRankName(Number(updatedMember.totalTopup), rankConfigs),
+          loyalty.availablePoints,
+        ),
+      };
+    });
   }
 
   async getEffectiveHourlyRate(baseRate: number): Promise<number> {
