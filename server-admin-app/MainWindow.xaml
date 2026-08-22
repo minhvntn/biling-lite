@@ -4257,6 +4257,92 @@
                                     <TextBlock x:Name="HorseRaceStatusTextBlock" Grid.Row="3" Margin="0,8,0,0" Foreground="#555" Text="Đang tải cấu hình đua ngựa..." />
                                 </Grid>
                             </TabItem>
+
+                            <TabItem Header="🧧 Lì Xì Tết">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <Grid Margin="12">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+
+                                        <StackPanel Grid.Row="0">
+                                            <TextBlock FontSize="18" FontWeight="SemiBold" Text="🧧 Cấu hình Sự kiện Lì Xì Tết" Foreground="#DC2626" />
+                                            <TextBlock Margin="0,6,0,0" Foreground="#666" Text="Hội viên dùng Điểm tích lũy để mở bao Lì xì nhận ngẫu nhiên phút chơi khuyến mãi trong dịp Tết." />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,12,0,12">
+                                            <Button x:Name="RefreshLuckyEnvelopeSettingsButton" Padding="12,6" Margin="0,0,8,0" Content="Làm mới" Click="RefreshLuckyEnvelopeSettingsButton_Click" />
+                                            <Button x:Name="SaveLuckyEnvelopeSettingsButton" Padding="12,6" Content="Lưu cấu hình Lì Xì" Click="SaveLuckyEnvelopeSettingsButton_Click" Background="#DC2626" Foreground="White" FontWeight="SemiBold" />
+                                        </StackPanel>
+
+                                        <Border Grid.Row="2" Background="#FFF5F5" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="8" Padding="16">
+                                            <StackPanel>
+                                                <CheckBox x:Name="LuckyEnvelopeEnabledCheckBox" Content="Kích hoạt sự kiện Lì Xì Tết" FontSize="14" FontWeight="Bold" Foreground="#DC2626" Margin="0,0,0,16" />
+
+                                                <Grid Margin="0,0,0,12">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="220" />
+                                                        <ColumnDefinition Width="240" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock VerticalAlignment="Center" Text="Bắt đầu từ ngày:" FontWeight="SemiBold" />
+                                                    <DatePicker x:Name="LuckyEnvelopeStartDatePicker" Grid.Column="1" Padding="4" />
+                                                </Grid>
+
+                                                <Grid Margin="0,0,0,12">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="220" />
+                                                        <ColumnDefinition Width="240" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock VerticalAlignment="Center" Text="Kết thúc vào ngày:" FontWeight="SemiBold" />
+                                                    <DatePicker x:Name="LuckyEnvelopeEndDatePicker" Grid.Column="1" Padding="4" />
+                                                </Grid>
+
+                                                <Grid Margin="0,0,0,12">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="220" />
+                                                        <ColumnDefinition Width="240" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock VerticalAlignment="Center" Text="Số điểm đổi 1 lượt mở:" FontWeight="SemiBold" />
+                                                    <TextBox x:Name="LuckyEnvelopePointCostTextBox" Grid.Column="1" Padding="6,4" Text="10" />
+                                                </Grid>
+
+                                                <Grid Margin="0,0,0,12">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="220" />
+                                                        <ColumnDefinition Width="240" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock VerticalAlignment="Center" Text="Phút thưởng tối thiểu (Min):" FontWeight="SemiBold" />
+                                                    <TextBox x:Name="LuckyEnvelopeMinMinutesTextBox" Grid.Column="1" Padding="6,4" Text="60" />
+                                                </Grid>
+
+                                                <Grid Margin="0,0,0,12">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="220" />
+                                                        <ColumnDefinition Width="240" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock VerticalAlignment="Center" Text="Phút thưởng tối đa (Max):" FontWeight="SemiBold" />
+                                                    <TextBox x:Name="LuckyEnvelopeMaxMinutesTextBox" Grid.Column="1" Padding="6,4" Text="360" />
+                                                </Grid>
+
+                                                <Grid Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="220" />
+                                                        <ColumnDefinition Width="240" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock VerticalAlignment="Center" Text="Giới hạn số lần/hội viên:" FontWeight="SemiBold" />
+                                                    <TextBox x:Name="LuckyEnvelopeMaxClaimsTextBox" Grid.Column="1" Padding="6,4" Text="0" ToolTip="0 = Không giới hạn" />
+                                                </Grid>
+                                                <TextBlock Margin="220,2,0,0" Foreground="#888" FontSize="11" Text="* Nhập 0 nếu không giới hạn số lượt mở cho mỗi hội viên." />
+                                            </StackPanel>
+                                        </Border>
+
+                                        <TextBlock x:Name="LuckyEnvelopeStatusTextBlock" Grid.Row="3" Margin="0,12,0,0" Foreground="#555" Text="Đang tải cấu hình Lì Xì Tết..." />
+                                    </Grid>
+                                </ScrollViewer>
+                            </TabItem>
                         </TabControl>
                     </Grid>
                 </TabItem>

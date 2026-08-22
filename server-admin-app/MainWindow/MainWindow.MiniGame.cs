@@ -27,8 +27,9 @@ public partial class MainWindow
     private void InitializeMiniGameTab()
     {
         MiniGameSpinSettingsDataGrid.ItemsSource = _loyaltySpinSettingRows;
-        // Trigger fetch of horse race settings without blocking initialization
+        // Trigger fetch of horse race settings and lucky envelope settings without blocking initialization
         _ = RefreshHorseRaceSettingsAsync();
+        _ = RefreshLuckyEnvelopeSettingsAsync();
     }
 
     private async void RefreshMiniGameSpinSettingsButton_Click(object sender, RoutedEventArgs e)
@@ -324,4 +325,149 @@ public partial class MainWindow
             HorseRaceStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
         }
     }
+
+    private async void RefreshLuckyEnvelopeSettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshLuckyEnvelopeSettingsAsync();
+    }
+
+    private async Task RefreshLuckyEnvelopeSettingsAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<LuckyEnvelopeSettingsResponse>(
+                BuildApiUrl("/members/loyalty/lucky-envelope/settings"),
+                JsonOptions());
+
+            if (response != null)
+            {
+                LuckyEnvelopeEnabledCheckBox.IsChecked = response.Enabled;
+
+                if (!string.IsNullOrWhiteSpace(response.StartDate) && DateTime.TryParse(response.StartDate, out var startDate))
+                {
+                    LuckyEnvelopeStartDatePicker.SelectedDate = startDate.ToLocalTime();
+                }
+                else
+                {
+                    LuckyEnvelopeStartDatePicker.SelectedDate = null;
+                }
+
+                if (!string.IsNullOrWhiteSpace(response.EndDate) && DateTime.TryParse(response.EndDate, out var endDate))
+                {
+                    LuckyEnvelopeEndDatePicker.SelectedDate = endDate.ToLocalTime();
+                }
+                else
+                {
+                    LuckyEnvelopeEndDatePicker.SelectedDate = null;
+                }
+
+                LuckyEnvelopePointCostTextBox.Text = response.PointCost.ToString(CultureInfo.InvariantCulture);
+                LuckyEnvelopeMinMinutesTextBox.Text = response.MinMinutes.ToString(CultureInfo.InvariantCulture);
+                LuckyEnvelopeMaxMinutesTextBox.Text = response.MaxMinutes.ToString(CultureInfo.InvariantCulture);
+                LuckyEnvelopeMaxClaimsTextBox.Text = response.MaxClaims.ToString(CultureInfo.InvariantCulture);
+
+                var activeStatus = response.IsActive ? "Đang diễn ra" : (response.Reason ?? "Đang đóng");
+                LuckyEnvelopeStatusTextBlock.Text = $"Đã tải cấu hình Lì Xì Tết. Trạng thái: {activeStatus}.";
+                LuckyEnvelopeStatusTextBlock.Foreground = response.IsActive ? Brushes.DarkGreen : Brushes.DarkGoldenrod;
+            }
+        }
+        catch
+        {
+            LuckyEnvelopeStatusTextBlock.Text = "Không kết nối được backend để tải cấu hình Lì Xì Tết.";
+            LuckyEnvelopeStatusTextBlock.Foreground = Brushes.Firebrick;
+        }
+    }
+
+    private async void SaveLuckyEnvelopeSettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!int.TryParse(LuckyEnvelopePointCostTextBox.Text.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var pointCost) || pointCost < 1)
+        {
+            LuckyEnvelopeStatusTextBlock.Text = "Số điểm đổi phải là số nguyên >= 1.";
+            LuckyEnvelopeStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        if (!int.TryParse(LuckyEnvelopeMinMinutesTextBox.Text.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var minMinutes) || minMinutes < 1)
+        {
+            LuckyEnvelopeStatusTextBlock.Text = "Phút tối thiểu phải là số nguyên >= 1.";
+            LuckyEnvelopeStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        if (!int.TryParse(LuckyEnvelopeMaxMinutesTextBox.Text.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var maxMinutes) || maxMinutes < minMinutes)
+        {
+            LuckyEnvelopeStatusTextBlock.Text = "Phút tối đa phải lớn hơn hoặc bằng phút tối thiểu.";
+            LuckyEnvelopeStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        if (!int.TryParse(LuckyEnvelopeMaxClaimsTextBox.Text.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var maxClaims) || maxClaims < 0)
+        {
+            LuckyEnvelopeStatusTextBlock.Text = "Giới hạn số lần nhận phải là số nguyên >= 0 (0 = không giới hạn).";
+            LuckyEnvelopeStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        var startDate = LuckyEnvelopeStartDatePicker.SelectedDate?.ToUniversalTime().ToString("o");
+        var endDate = LuckyEnvelopeEndDatePicker.SelectedDate?.Date.AddDays(1).AddTicks(-1).ToUniversalTime().ToString("o");
+
+        if (LuckyEnvelopeStartDatePicker.SelectedDate != null &&
+            LuckyEnvelopeEndDatePicker.SelectedDate != null &&
+            LuckyEnvelopeStartDatePicker.SelectedDate > LuckyEnvelopeEndDatePicker.SelectedDate)
+        {
+            LuckyEnvelopeStatusTextBlock.Text = "Ngày bắt đầu không được lớn hơn ngày kết thúc.";
+            LuckyEnvelopeStatusTextBlock.Foreground = Brushes.Firebrick;
+            return;
+        }
+
+        try
+        {
+            var payload = new
+            {
+                enabled = LuckyEnvelopeEnabledCheckBox.IsChecked == true,
+                startDate,
+                endDate,
+                pointCost,
+                minMinutes,
+                maxMinutes,
+                maxClaims,
+            };
+
+            using var response = await _httpClient.PutAsJsonAsync(
+                BuildApiUrl("/members/loyalty/lucky-envelope/settings"),
+                payload);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                LuckyEnvelopeStatusTextBlock.Text = $"Lưu thất bại: {error}";
+                LuckyEnvelopeStatusTextBlock.Foreground = Brushes.Firebrick;
+                return;
+            }
+
+            LuckyEnvelopeStatusTextBlock.Text = "Đã lưu cấu hình Lì Xì Tết thành công.";
+            LuckyEnvelopeStatusTextBlock.Foreground = Brushes.DarkGreen;
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã lưu cấu hình Sự kiện Lì Xì Tết.");
+            await RefreshLuckyEnvelopeSettingsAsync();
+        }
+        catch
+        {
+            LuckyEnvelopeStatusTextBlock.Text = "Không kết nối được backend khi lưu cấu hình.";
+            LuckyEnvelopeStatusTextBlock.Foreground = Brushes.Firebrick;
+        }
+    }
+}
+
+public class LuckyEnvelopeSettingsResponse
+{
+    public bool Enabled { get; set; }
+    public bool IsActive { get; set; }
+    public string? StartDate { get; set; }
+    public string? EndDate { get; set; }
+    public int PointCost { get; set; }
+    public int MinMinutes { get; set; }
+    public int MaxMinutes { get; set; }
+    public int MaxClaims { get; set; }
+    public string? Reason { get; set; }
+    public string? UpdatedAt { get; set; }
 }
