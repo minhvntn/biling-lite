@@ -228,7 +228,16 @@
                                              VerticalContentAlignment="Center"
                                              Padding="10,0"
                                              FontSize="16"
-                                             KeyDown="ManualUnlockPasswordBox_KeyDown" />
+                                             KeyDown="ManualUnlockPasswordBox_KeyDown"
+                                             PasswordChanged="ManualUnlockPasswordBox_PasswordChanged" />
+                                <TextBlock x:Name="ManualUnlockPasswordHint"
+                                           Grid.Column="1"
+                                           Text="Mật mã khóa máy" 
+                                           Foreground="#94A3B8" 
+                                           IsHitTestVisible="False" 
+                                           VerticalAlignment="Center" 
+                                           Margin="10,0" 
+                                           FontSize="16" />
                             </Grid>
                         </Border>
 
@@ -301,8 +310,15 @@
                                                          VerticalContentAlignment="Center" 
                                                          Padding="10,0" 
                                                          FontSize="16" 
-                                                         KeyDown="Input_KeyDown" />
-                                            <!-- Hint text for PasswordBox is harder to do purely in XAML without more complex template, leaving as is for simplicity -->
+                                                         KeyDown="Input_KeyDown"
+                                                         PasswordChanged="PasswordBox_PasswordChanged" />
+                                            <TextBlock x:Name="PasswordHint"
+                                                       Text="Mật khẩu" 
+                                                       Foreground="#94A3B8" 
+                                                       IsHitTestVisible="False" 
+                                                       VerticalAlignment="Center" 
+                                                       Margin="10,0" 
+                                                       FontSize="16" />
                                         </Grid>
                                     </Grid>
                                 </Border>

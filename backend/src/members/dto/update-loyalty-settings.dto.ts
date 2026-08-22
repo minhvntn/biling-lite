@@ -1,4 +1,4 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 export class UpdateLoyaltySettingsDto {
@@ -51,12 +51,16 @@ export class UpdateLoyaltySettingsDto {
   weekendMultiplier?: number;
 
   @IsOptional()
-  @Transform(({ value }: { value?: unknown }) =>
-    value === undefined || value === null || value === '' ? undefined : Number(value),
-  )
   @IsNumber()
   @Min(0)
+  @Type(() => Number)
   horseRaceMinTopup?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  referralRewardPoints?: number;
 
   @IsOptional()
   @IsString()

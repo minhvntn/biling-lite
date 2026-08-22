@@ -36,6 +36,11 @@ export class CreateMemberDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(10)
+  referredByCode?: string;
+
+  @IsOptional()
+  @IsString()
   @IsIn(['REGULAR', 'VIP'])
   @Transform(({ value }: { value?: string }) => value?.trim().toUpperCase() || 'REGULAR')
   memberType?: string;

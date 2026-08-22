@@ -280,6 +280,13 @@ public partial class LuckySpinWindow : Window
                 _loyaltyResponse.Loyalty = payload.Loyalty;
                 RefreshUi();
 
+                // Cập nhật điểm & thông tin hội viên ngay lập tức lúc nhận kết quả từ server
+                _app.SynchronizeLoyaltyFromServerProxy(payload.Loyalty);
+                if (payload.Member is not null)
+                {
+                    _app.SynchronizeMemberBillingFromServerProxy(payload.Member);
+                }
+
                 // Compute exact angle for the result
                 var wheelItems = new[] { 0, 1, 2, 4, 6, 8, 10, 15, 20, 30 };
                 double angleStep = 360.0 / wheelItems.Length;
@@ -318,13 +325,7 @@ public partial class LuckySpinWindow : Window
 
                 if (payload.Member is not null)
                 {
-                    _app.SynchronizeMemberBillingFromServerProxy(payload.Member);
                     _app.UpdateLastCommandProxy($"QUAY THƯỞNG: +{payload.WonMinutes}m @ {DateTime.Now:HH:mm:ss}");
-                }
-
-                if (payload.Loyalty != null)
-                {
-                    _app.SynchronizeLoyaltyFromServerProxy(payload.Loyalty);
                 }
             }
         }

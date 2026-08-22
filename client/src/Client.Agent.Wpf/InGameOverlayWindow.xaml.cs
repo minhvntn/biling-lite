@@ -49,10 +49,22 @@ public partial class InGameOverlayWindow : Window
             var socketService = app.GetSocketService();
             if (socketService != null)
             {
+                var existingChat = Application.Current.Windows.OfType<ChatWindow>().FirstOrDefault();
+                if (existingChat != null)
+                {
+                    if (existingChat.WindowState == WindowState.Minimized)
+                    {
+                        existingChat.WindowState = WindowState.Normal;
+                    }
+                    existingChat.Activate();
+                    existingChat.Topmost = true;
+                    return;
+                }
+
                 var dialog = new ChatWindow(app, socketService);
                 dialog.Owner = _mainWindow;
                 dialog.Topmost = true;
-                dialog.ShowDialog();
+                dialog.Show();
             }
         }
     }

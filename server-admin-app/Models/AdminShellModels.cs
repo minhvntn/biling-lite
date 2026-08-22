@@ -310,6 +310,7 @@ public sealed class LoyaltySettingsResponse
     public double WeekendMultiplier { get; set; }
     public decimal HorseRaceMinTopup { get; set; }
     public string HorseRaceMinRankName { get; set; } = string.Empty;
+    public int ReferralRewardPoints { get; set; }
     public string UpdatedAt { get; set; } = string.Empty;
 }
 

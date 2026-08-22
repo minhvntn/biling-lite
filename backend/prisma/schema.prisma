@@ -131,8 +131,12 @@ model Member {
   wallpaperId      String?             @map("wallpaper_id") @db.Text
   usePromoPlayTime Boolean             @default(true) @map("use_promo_play_time")
   totalUsageSeconds Int                @default(0) @map("total_usage_seconds")
+  referralCode     String?             @unique @map("referral_code") @db.VarChar(10)
+  referredById     String?             @map("referred_by_id") @db.Uuid
   transactions     MemberTransaction[]
   dailyCheckins  MemberDailyCheckin[]
+  referredBy       Member?             @relation("MemberReferrals", fields: [referredById], references: [id])
+  referrals        Member[]            @relation("MemberReferrals")
 
   @@index([fullName], map: "idx_members_full_name")
   @@map("members")

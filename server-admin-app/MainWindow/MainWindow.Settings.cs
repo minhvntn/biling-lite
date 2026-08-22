@@ -1153,6 +1153,7 @@ public partial class MainWindow : Window
             LoyaltyPointsToMinutesTextBox.Text = Math.Max(1, response.PointsToMinutes).ToString(CultureInfo.InvariantCulture);
             LoyaltyWeekdayMultiplierTextBox.Text = response.WeekdayMultiplier.ToString(CultureInfo.InvariantCulture);
             LoyaltyWeekendMultiplierTextBox.Text = response.WeekendMultiplier.ToString(CultureInfo.InvariantCulture);
+            LoyaltyReferralRewardPointsTextBox.Text = response.ReferralRewardPoints.ToString(CultureInfo.InvariantCulture);
             
             if (response.HorseRaceMinTopup > 0)
             {
@@ -1205,6 +1206,18 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!TryParsePositiveInt(LoyaltyReferralRewardPointsTextBox.Text.Trim(), out var referralRewardPoints))
+        {
+            // Allow 0 points for disabling referral reward
+            if (LoyaltyReferralRewardPointsTextBox.Text.Trim() != "0")
+            {
+                LoyaltySettingsStatusTextBlock.Text = "Điểm thưởng giới thiệu không hợp lệ (phải là số nguyên >= 0).";
+                LoyaltySettingsStatusTextBlock.Foreground = Brushes.Firebrick;
+                return;
+            }
+            referralRewardPoints = 0;
+        }
+
         if (!double.TryParse(LoyaltyWeekdayMultiplierTextBox.Text.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var weekdayMultiplier) || weekdayMultiplier <= 0)
         {
             if (!double.TryParse(LoyaltyWeekdayMultiplierTextBox.Text.Trim(), NumberStyles.Any, CultureInfo.CurrentCulture, out weekdayMultiplier) || weekdayMultiplier <= 0)
@@ -1244,6 +1257,7 @@ public partial class MainWindow : Window
                     weekdayMultiplier,
                     weekendMultiplier,
                     horseRaceMinTopup,
+                    referralRewardPoints,
                     updatedBy = "admin.desktop",
                 });
 
@@ -1261,12 +1275,14 @@ public partial class MainWindow : Window
             var effectivePointsToMinutes = payload?.PointsToMinutes ?? pointsToMinutes;
             var effectiveWeekdayMultiplier = payload?.WeekdayMultiplier ?? weekdayMultiplier;
             var effectiveWeekendMultiplier = payload?.WeekendMultiplier ?? weekendMultiplier;
+            var effectiveReferralRewardPoints = payload?.ReferralRewardPoints ?? referralRewardPoints;
 
             LoyaltyMinutesPerPointTextBox.Text = effectiveMinutesPerPoint.ToString(CultureInfo.InvariantCulture);
             LoyaltyLowestRankMinutesPerPointTextBox.Text = effectiveLowestRankMinutesPerPoint.ToString(CultureInfo.InvariantCulture);
             LoyaltyPointsToMinutesTextBox.Text = effectivePointsToMinutes.ToString(CultureInfo.InvariantCulture);
             LoyaltyWeekdayMultiplierTextBox.Text = effectiveWeekdayMultiplier.ToString(CultureInfo.InvariantCulture);
             LoyaltyWeekendMultiplierTextBox.Text = effectiveWeekendMultiplier.ToString(CultureInfo.InvariantCulture);
+            LoyaltyReferralRewardPointsTextBox.Text = effectiveReferralRewardPoints.ToString(CultureInfo.InvariantCulture);
 
             LoyaltySettingsStatusTextBlock.Text = enabled
                 ? $"Đã bật tích lũy: {effectiveMinutesPerPoint} phút = 1 điểm, 1 điểm = {effectivePointsToMinutes} phút chơi. (Ngày thường x{effectiveWeekdayMultiplier}, Cuối tuần x{effectiveWeekendMultiplier})"

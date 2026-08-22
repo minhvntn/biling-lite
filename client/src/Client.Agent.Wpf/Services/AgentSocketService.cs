@@ -32,7 +32,7 @@ public sealed class AgentSocketService : IAsyncDisposable
     public Func<AdminGetRunningAppsPayload, Task>? GetRunningAppsHandler { get; set; }
     public Func<AdminKillProcessPayload, Task>? KillProcessHandler { get; set; }
     public Action<GuestPrepaidConfigurePayload>? GuestPrepaidConfigureHandler { get; set; }
-    public Action<string, string, string, string?, string, int, decimal>? ResumeMemberSessionHandler { get; set; }
+    public Action<string, string, string, string?, string, int, decimal, string>? ResumeMemberSessionHandler { get; set; }
     public Action<List<(string Name, decimal Discount)>>? PromotionChangedHandler { get; set; }
     public Action<string, string, string>? SupportReplyHandler { get; set; }
 
@@ -246,8 +246,13 @@ public sealed class AgentSocketService : IAsyncDisposable
                             balance = parsedBalance;
                         }
                     }
+                    var referralCode = string.Empty;
+                    if (memberInfo.TryGetProperty("referralCode", out var referralCodeProp) && referralCodeProp.ValueKind == JsonValueKind.String)
+                    {
+                        referralCode = referralCodeProp.GetString() ?? string.Empty;
+                    }
 
-                    ResumeMemberSessionHandler?.Invoke(id, username, fullName, rank, memberType, elapsedSeconds, balance);
+                    ResumeMemberSessionHandler?.Invoke(id, username, fullName, rank, memberType, elapsedSeconds, balance, referralCode);
                 }
             }
 

@@ -51,15 +51,50 @@ public partial class AdminChatWindow : Window
             {
                 Dispatcher.Invoke(() =>
                 {
-                    _messages.Clear();
                     msgs.Reverse(); // backend is desc, we want asc
+
+                    // Remove optimistic messages that don't have an ID yet
+                    var toRemove = new System.Collections.Generic.List<Models.SupportMessageDto>();
+                    foreach (var m in _messages)
+                    {
+                        if (string.IsNullOrEmpty(m.Id))
+                        {
+                            toRemove.Add(m);
+                        }
+                    }
+                    foreach (var r in toRemove)
+                    {
+                        _messages.Remove(r);
+                    }
+
+                    bool added = false;
                     foreach (var m in msgs)
                     {
                         m.SentBy = m.SentBy ?? "Admin"; // Fallback for display
-                        _messages.Add(m);
+                        
+                        // Only add if not already in the list
+                        bool exists = false;
+                        foreach (var existing in _messages)
+                        {
+                            if (existing.Id == m.Id)
+                            {
+                                exists = true;
+                                break;
+                            }
+                        }
+
+                        if (!exists)
+                        {
+                            _messages.Add(m);
+                            added = true;
+                        }
                     }
-                    // Auto scroll down if not actively scrolling up
-                    MessagesScrollViewer.ScrollToEnd();
+
+                    if (added)
+                    {
+                        // Auto scroll down only when new messages are added
+                        MessagesScrollViewer.ScrollToEnd();
+                    }
                 });
             }
         }

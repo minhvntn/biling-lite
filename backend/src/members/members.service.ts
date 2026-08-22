@@ -50,6 +50,7 @@ const LOYALTY_MINUTES_PER_POINT_SETTING_KEY = '__LOYALTY_MINUTES_PER_POINT__';
 const LOYALTY_LOWEST_RANK_MINUTES_PER_POINT_SETTING_KEY = '__LOYALTY_LOWEST_RANK_MINUTES_PER_POINT__';
 const LOYALTY_POINTS_TO_MINUTES_SETTING_KEY = '__LOYALTY_POINTS_TO_MINUTES__';
 const LOYALTY_HORSE_RACE_MIN_TOPUP_KEY = '__LOYALTY_HORSE_RACE_MIN_TOPUP__';
+const LOYALTY_REFERRAL_REWARD_POINTS_KEY = '__LOYALTY_REFERRAL_REWARD_POINTS__';
 const LOYALTY_WEEKDAY_MULTIPLIER_SETTING_KEY = '__LOYALTY_WEEKDAY_MULTIPLIER__';
 const LOYALTY_WEEKEND_MULTIPLIER_SETTING_KEY = '__LOYALTY_WEEKEND_MULTIPLIER__';
 const LOYALTY_USAGE_CREATED_BY = 'client.session.loyalty';
@@ -276,8 +277,28 @@ export class MembersService {
       const passwordHash = payload.password
         ? await this.hashPassword(payload.password)
         : null;
-      const [member, rankConfigs] = await Promise.all([
-        this.prisma.member.create({
+
+      let newReferralCode = '';
+      for (let i = 0; i < 5; i++) {
+        newReferralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const existingCode = await this.prisma.member.findUnique({ where: { referralCode: newReferralCode } });
+        if (!existingCode) break;
+      }
+
+      let referrerId: string | null = null;
+      if (payload.referredByCode) {
+        const referrer = await this.prisma.member.findUnique({
+          where: { referralCode: payload.referredByCode.toUpperCase() },
+        });
+        if (referrer) {
+          referrerId = referrer.id;
+        } else {
+          throw new BadRequestException('Mã giới thiệu không hợp lệ');
+        }
+      }
+
+      const [member, rankConfigs] = await this.prisma.$transaction(async (tx) => {
+        const newMember = await tx.member.create({
           data: {
             username: normalizedUsername,
             fullName: payload.fullName ?? normalizedUsername,
@@ -285,12 +306,37 @@ export class MembersService {
             phone: payload.phone,
             identityNumber: payload.identityNumber,
             memberType: payload.memberType ?? 'REGULAR',
+            referralCode: newReferralCode,
+            referredById: referrerId,
           },
-        }),
-        this.prisma.loyaltyRankConfig.findMany({
+        });
+
+        if (referrerId) {
+          const loyaltySettings = await this.getLoyaltySettingsItem(tx);
+          const rewardPoints = loyaltySettings.referralRewardPoints ?? 50;
+          console.log(`[DEBUG] referrerId: ${referrerId}, rewardPoints: ${rewardPoints}, settings:`, loyaltySettings);
+          if (rewardPoints > 0) {
+            const rewardSeconds = rewardPoints * loyaltySettings.minutesPerPoint * 60;
+            console.log(`[DEBUG] Creating transaction for ${referrerId} with rewardSeconds: ${rewardSeconds}`);
+            await tx.memberTransaction.create({
+              data: {
+                memberId: referrerId,
+                type: 'ADJUSTMENT',
+                amountDelta: 0,
+                playSecondsDelta: rewardSeconds,
+                note: `REFERRAL_REWARD:${normalizedUsername}`,
+                createdBy: LOYALTY_USAGE_CREATED_BY,
+              },
+            });
+          }
+        }
+
+        const configs = await tx.loyaltyRankConfig.findMany({
           orderBy: { minTopup: 'desc' },
-        }),
-      ]);
+        });
+
+        return [newMember, configs];
+      });
 
       return this.toMemberItem(
         member,
@@ -912,6 +958,14 @@ export class MembersService {
           create: { key: LOYALTY_HORSE_RACE_MIN_TOPUP_KEY, value: payload.horseRaceMinTopup.toString() },
         });
       }
+
+      if (payload.referralRewardPoints !== undefined) {
+        await tx.appSetting.upsert({
+          where: { key: LOYALTY_REFERRAL_REWARD_POINTS_KEY },
+          update: { value: payload.referralRewardPoints.toString() },
+          create: { key: LOYALTY_REFERRAL_REWARD_POINTS_KEY, value: payload.referralRewardPoints.toString() },
+        });
+      }
     });
 
     const settings = await this.getLoyaltySettingsItem();
@@ -1467,6 +1521,9 @@ export class MembersService {
 
   async runHorseRace(memberId: string, payload: HorseRaceDto) {
     const betPoints = Math.max(1, Math.floor(payload.betPoints));
+    if (betPoints > 100) {
+      throw new BadRequestException('Chỉ được cược tối đa 100 điểm mỗi lượt');
+    }
     const selectedHorse = payload.selectedHorse;
     const createdBy = payload.createdBy?.trim() || 'client.horse_race';
 
@@ -2810,6 +2867,7 @@ export class MembersService {
       usePromoPlayTime: member.usePromoPlayTime ?? true,
       avatarId: member.avatarId,
       wallpaperId: (member as any).wallpaperId,
+      referralCode: member.referralCode,
       isActive: member.isActive,
       comboExpiresAt: member.comboExpiresAt ? member.comboExpiresAt.toISOString() : null,
       createdAt: member.createdAt.toISOString(),
@@ -3011,10 +3069,11 @@ export class MembersService {
     currentMultiplier: number;
     horseRaceMinTopup: number;
     horseRaceMinRankName: string;
+    referralRewardPoints: number;
     updatedAt: string;
   }> {
     const prisma = tx ?? this.prisma;
-    const [config, minutesSetting, lowestRankSetting, redeemSetting, weekdaySetting, weekendSetting, horseRaceSetting, rankConfigs] = await Promise.all([
+    const [config, minutesSetting, lowestRankSetting, redeemSetting, weekdaySetting, weekendSetting, horseRaceSetting, referralSetting, rankConfigs] = await Promise.all([
       prisma.pricingConfig.findUnique({
         where: { name: LOYALTY_CONFIG_KEY },
       }),
@@ -3035,6 +3094,9 @@ export class MembersService {
       }),
       prisma.appSetting.findUnique({
         where: { key: LOYALTY_HORSE_RACE_MIN_TOPUP_KEY },
+      }),
+      prisma.appSetting.findUnique({
+        where: { key: LOYALTY_REFERRAL_REWARD_POINTS_KEY },
       }),
       prisma.loyaltyRankConfig.findMany({
         orderBy: { minTopup: 'asc' },
@@ -3067,6 +3129,8 @@ export class MembersService {
       const matched = [...rankConfigs].reverse().find(c => horseRaceMinTopup >= Number(c.minTopup));
       horseRaceMinRankName = matched?.rankName || rankConfigs[0].rankName;
     }
+    const referralRewardPoints = referralSetting?.value ? Number(referralSetting.value) : 50;
+
     const day = new Date().getDay();
     const isWeekend = day === 0 || day === 6;
     const currentMultiplier = isWeekend ? weekendMultiplier : weekdayMultiplier;
@@ -3097,6 +3161,7 @@ export class MembersService {
       currentMultiplier,
       horseRaceMinTopup,
       horseRaceMinRankName,
+      referralRewardPoints,
       updatedAt: updatedAt.toISOString(),
     };
   }
@@ -3301,6 +3366,7 @@ export class MembersService {
         OR: [
           { note: { startsWith: 'MISSION_REWARD' } },
           { note: { startsWith: 'LOYALTY_DAILY_CHECKIN' } },
+          { note: { startsWith: 'REFERRAL_REWARD' } },
         ],
         playSecondsDelta: {
           gt: 0,

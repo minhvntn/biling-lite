@@ -4845,6 +4845,23 @@
                                                           SelectedValuePath="MinTopup"
                                                           SelectionChanged="HorseRaceMinRankComboBox_SelectionChanged" />
                                             </Grid>
+                                            <Grid Margin="0,8,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="280" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="#334155"
+                                                           Text="Điểm thưởng giới thiệu bạn bè:" />
+                                                <TextBox x:Name="LoyaltyReferralRewardPointsTextBox"
+                                                         Grid.Column="1"
+                                                         Width="140"
+                                                         Height="30"
+                                                         HorizontalAlignment="Left"
+                                                         VerticalContentAlignment="Center"
+                                                         TextChanged="LoyaltyRateTextBox_TextChanged" />
+                                            </Grid>
                                             <TextBlock x:Name="LoyaltySettingsStatusTextBlock"
                                                        Margin="0,8,0,0"
                                                        Foreground="#64748B"
@@ -5486,6 +5503,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
@@ -5510,9 +5528,12 @@
                         <ComboBoxItem Content="VIP" Tag="VIP" />
                     </ComboBox>
 
-                    <TextBlock x:Name="MemberModalErrorTextBlock" Grid.Row="11" VerticalAlignment="Top" Foreground="#B42318" Margin="0,8,0,0" TextWrapping="Wrap" />
+                    <TextBlock Grid.Row="11" Text="Mã giới thiệu (không bắt buộc)" Margin="0,0,0,4" />
+                    <TextBox x:Name="MemberReferredByCodeTextBox" Grid.Row="12" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,10" MaxLength="10" />
 
-                    <StackPanel Grid.Row="12" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                    <TextBlock x:Name="MemberModalErrorTextBlock" Grid.Row="13" VerticalAlignment="Top" Foreground="#B42318" Margin="0,8,0,0" TextWrapping="Wrap" />
+
+                    <StackPanel Grid.Row="14" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
                         <Button Padding="10,5" Margin="0,0,8,0" Click="CreateMemberConfirmButton_Click" Content="Tạo" />
                         <Button Padding="10,5" Click="CancelMemberModalButton_Click" Content="Hủy" />
                     </StackPanel>

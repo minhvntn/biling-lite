@@ -489,6 +489,8 @@ public partial class MainWindow : Window
                 memberType = tag;
             }
 
+            var referredByCode = MemberReferredByCodeTextBox.Text.Trim();
+
             var body = new
             {
                 username,
@@ -497,6 +499,7 @@ public partial class MainWindow : Window
                 phone = string.IsNullOrWhiteSpace(phone) ? null : phone,
                 identityNumber = string.IsNullOrWhiteSpace(identityNumber) ? null : identityNumber,
                 memberType,
+                referredByCode = string.IsNullOrWhiteSpace(referredByCode) ? null : referredByCode,
             };
 
             using var response = await _httpClient.PostAsJsonAsync(BuildApiUrl("/members"), body);
@@ -1358,6 +1361,7 @@ public partial class MainWindow : Window
         MemberPasswordBox.Password = string.Empty;
         MemberPhoneTextBox.Text = string.Empty;
         MemberIdentityTextBox.Text = string.Empty;
+        MemberReferredByCodeTextBox.Text = string.Empty;
         MemberModalErrorTextBlock.Text = string.Empty;
         MemberTypeComboBox.SelectedIndex = 0;
         ResetMemberModalTimer();

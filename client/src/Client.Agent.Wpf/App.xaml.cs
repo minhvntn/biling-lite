@@ -382,9 +382,9 @@ public partial class App : Application
             OnServiceOrdersChangedFromServer,
             OnWebFilterSettingsChangedFromServer);
 
-        _socketService.ResumeMemberSessionHandler = (memberId, username, fullName, rank, memberType, elapsedSeconds, balance) =>
+        _socketService.ResumeMemberSessionHandler = (memberId, username, fullName, rank, memberType, elapsedSeconds, balance, referralCode) =>
         {
-            Dispatcher.Invoke(() => ResumeMemberSessionFromServer(memberId, username, fullName, rank, memberType, elapsedSeconds, balance));
+            Dispatcher.Invoke(() => ResumeMemberSessionFromServer(memberId, username, fullName, rank, memberType, elapsedSeconds, balance, referralCode));
         };
 
 
@@ -811,6 +811,7 @@ public partial class App : Application
                 MemberType = member.MemberType ?? "REGULAR",
                 AvatarId = member.AvatarId,
                 ComboExpiresAt = member.ComboExpiresAt,
+                ReferralCode = member.ReferralCode,
             };
             _isAdminSession = false;
             _isPostpaidGuestSession = false;
@@ -1054,6 +1055,9 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
         return Math.Max(0, remainingMins);
     }
 
+    public event Action<MemberLoginItem>? MemberBillingUpdated;
+    public event Action<MemberLoyaltyItem>? LoyaltyUpdated;
+
     private void SynchronizeMemberBillingFromServer(MemberLoginItem member, int usedSecondsNow)
     {
         var pricePerMinute = _currentHourlyRate > 0 ? (_currentHourlyRate / 60m) : 0m;
@@ -1065,6 +1069,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
         Dispatcher.Invoke(() =>
         {
             _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: member.PlaySeconds, usePromoPlayTime: member.UsePromoPlayTime);
+            MemberBillingUpdated?.Invoke(member);
         });
     }
 
@@ -1077,6 +1082,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
                 ? loyalty.MinutesPerPoint 
                 : 60;
             _mainWindow?.SetLoyaltyProgress(loyalty.AvailablePoints, loyalty.ProgressMinutes, effectiveMinsPerPoint);
+            LoyaltyUpdated?.Invoke(loyalty);
         });
     }
 
@@ -4372,14 +4378,14 @@ LIMIT $limit;";
         dialog.Content = root;
         dialog.ShowDialog();
     }
-    internal void ShowHorseRaceMiniDialog(ActiveMemberSession activeSession, int availablePoints)
+    internal MemberLoyaltyItem? ShowHorseRaceMiniDialog(ActiveMemberSession activeSession, int availablePoints)
     {
         var serverBase = _settings.ServerUrl.TrimEnd('/');
         var apiBase = serverBase.EndsWith("/api/v1", StringComparison.OrdinalIgnoreCase)
             ? serverBase
             : $"{serverBase}/api/v1";
 
-        var window = new HorseRaceWindow(_httpClient, activeSession, apiBase, availablePoints)
+        var window = new HorseRaceWindow(this, _httpClient, activeSession, apiBase, availablePoints)
         {
             Owner = _mainWindow
         };
@@ -4389,6 +4395,7 @@ LIMIT $limit;";
         {
             SynchronizeLoyaltyFromServer(window.LoyaltyAfterRace);
         }
+        return window.LoyaltyAfterRace;
     }
 
     private void LockMachine(bool force)
@@ -4438,7 +4445,7 @@ LIMIT $limit;";
         _mainWindow?.SetLastCommand($"GUEST RESUME @ {DateTime.Now:HH:mm:ss}");
     }
 
-    private void ResumeMemberSessionFromServer(string memberId, string username, string fullName, string? rank, string memberType, int elapsedSeconds, decimal memberBalance)
+    private void ResumeMemberSessionFromServer(string memberId, string username, string fullName, string? rank, string memberType, int elapsedSeconds, decimal memberBalance, string? referralCode = null)
     {
         if (_activeMemberSession is not null || _isAdminSession)
         {
@@ -4451,7 +4458,8 @@ LIMIT $limit;";
             Username = username,
             FullName = fullName,
             Rank = rank,
-            MemberType = memberType
+            MemberType = memberType,
+            ReferralCode = referralCode
         };
         _isAdminSession = false;
         _isPostpaidGuestSession = false;

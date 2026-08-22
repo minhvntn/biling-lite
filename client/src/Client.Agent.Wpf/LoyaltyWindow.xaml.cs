@@ -40,7 +40,34 @@ public partial class LoyaltyWindow : Window
                 DragMove();
         };
 
+        _app.LoyaltyUpdated += OnLoyaltyUpdated;
+        _app.MemberBillingUpdated += OnMemberBillingUpdated;
+
+        Closed += (s, e) =>
+        {
+            _app.LoyaltyUpdated -= OnLoyaltyUpdated;
+            _app.MemberBillingUpdated -= OnMemberBillingUpdated;
+        };
+
         RefreshUi();
+    }
+
+    private void OnLoyaltyUpdated(MemberLoyaltyItem loyalty)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            _loyaltyResponse.Loyalty = loyalty;
+            RefreshUi();
+        });
+    }
+
+    private void OnMemberBillingUpdated(MemberLoginItem member)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            _loyaltyResponse.Member = member;
+            RefreshUi();
+        });
     }
 
     private void RefreshUi()
@@ -57,6 +84,8 @@ public partial class LoyaltyWindow : Window
         BalanceText.Text = $"Số dư: {member.Balance:N0} VND";
         PointsText.Text = $"Điểm: {currentLoyalty.AvailablePoints:N0}";
         ProgressText.Text = $"Tích lũy: {pStr} / {tStr}";
+        ReferralCodeText.Text = string.IsNullOrWhiteSpace(_activeSession.ReferralCode) ? "Mã giới thiệu: ---" : $"Mã giới thiệu: {_activeSession.ReferralCode}";
+
 
         SpinPointsText.Text = currentLoyalty.AvailablePoints.ToString("N0");
         OpenSpinButton.IsEnabled = currentLoyalty.AvailablePoints >= 5;
@@ -101,6 +130,8 @@ public partial class LoyaltyWindow : Window
         }
 
         // Redeem UI
+        var pointsToMinutes = Math.Max(1, _settings?.PointsToMinutes ?? 5);
+        RedeemRateText.Text = $"Tỷ lệ: 1 điểm = {pointsToMinutes} phút chơi.";
         RedeemButton.IsEnabled = currentLoyalty.AvailablePoints > 0;
         RedeemAllButton.IsEnabled = currentLoyalty.AvailablePoints > 0;
 
@@ -108,7 +139,7 @@ public partial class LoyaltyWindow : Window
         OpenHorseRaceButton.IsEnabled = _loyaltyResponse.CanPlayHorseRace;
         if (!_loyaltyResponse.CanPlayHorseRace)
         {
-            var minRankName = string.IsNullOrWhiteSpace(_settings.HorseRaceMinRankName) ? "quy định" : _settings.HorseRaceMinRankName;
+            var minRankName = string.IsNullOrWhiteSpace(_settings?.HorseRaceMinRankName) ? "quy định" : _settings.HorseRaceMinRankName;
             HorseRaceErrorText.Text = $"* Yêu cầu đạt hạng {minRankName} trở lên để mở khóa.";
             HorseRaceErrorText.Visibility = Visibility.Visible;
         }
@@ -126,11 +157,17 @@ public partial class LoyaltyWindow : Window
     private void OpenSpinButton_Click(object sender, RoutedEventArgs e)
     {
         _app.ShowLuckySpinDialog(_activeSession, _settings, _loyaltyResponse);
+        RefreshUi();
     }
 
     private void OpenHorseRaceButton_Click(object sender, RoutedEventArgs e)
     {
-        _app.ShowHorseRaceMiniDialog(_activeSession, _loyaltyResponse.Loyalty.AvailablePoints);
+        var loyaltyAfter = _app.ShowHorseRaceMiniDialog(_activeSession, _loyaltyResponse.Loyalty.AvailablePoints);
+        if (loyaltyAfter != null)
+        {
+            _loyaltyResponse.Loyalty = loyaltyAfter;
+        }
+        RefreshUi();
     }
 
     private async void DailyCheckinButton_Click(object sender, RoutedEventArgs e)
@@ -208,8 +245,8 @@ public partial class LoyaltyWindow : Window
             return;
         }
 
-        const int minutesPerPoint = 1;
-        var totalMinutes = redeemPoints * minutesPerPoint;
+        var pointsToMinutes = Math.Max(1, _settings?.PointsToMinutes ?? 5);
+        var totalMinutes = redeemPoints * pointsToMinutes;
         var confirm = MessageBox.Show(
             $"Bạn có chắc chắn muốn đổi {redeemPoints} điểm tích lũy để nhận +{totalMinutes} phút chơi miễn phí?",
             "Xác nhận đổi điểm",
@@ -232,8 +269,8 @@ public partial class LoyaltyWindow : Window
             return;
         }
 
-        const int minutesPerPoint = 1;
-        var totalMinutes = redeemPoints * minutesPerPoint;
+        var pointsToMinutes = Math.Max(1, _settings?.PointsToMinutes ?? 5);
+        var totalMinutes = redeemPoints * pointsToMinutes;
         var confirm = MessageBox.Show(
             $"Bạn có chắc chắn muốn đổi toàn bộ {redeemPoints} điểm tích lũy để nhận +{totalMinutes} phút chơi miễn phí?",
             "Xác nhận đổi tất cả",
@@ -288,8 +325,8 @@ public partial class LoyaltyWindow : Window
             RedeemPointsBox.Text = string.Empty;
             RefreshUi();
 
-            const int minutesPerPoint = 1;
-            var totalMinutes = redeemPoints * minutesPerPoint;
+            var pointsToMinutes = Math.Max(1, _settings?.PointsToMinutes ?? 5);
+            var totalMinutes = payload?.GrantedMinutes > 0 ? payload.GrantedMinutes : (redeemPoints * pointsToMinutes);
             MessageBox.Show(
                 $"🎉 Đổi điểm thành công!\n\n- Đã trừ: {redeemPoints} điểm\n- Đã cộng: +{totalMinutes} phút chơi miễn phí vào tài khoản.",
                 "Điểm tích lũy",

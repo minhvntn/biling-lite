@@ -1662,11 +1662,22 @@ public static decimal PricingStep { get; set; } = 1000m;
             return;
         }
 
+        var existingChat = Application.Current.Windows.OfType<ChatWindow>().FirstOrDefault();
+        if (existingChat != null)
+        {
+            if (existingChat.WindowState == WindowState.Minimized)
+            {
+                existingChat.WindowState = WindowState.Normal;
+            }
+            existingChat.Activate();
+            return;
+        }
+
         var dialog = new ChatWindow(app, socketService)
         {
             Owner = this
         };
-        dialog.ShowDialog();
+        dialog.Show(); // Use Show() instead of ShowDialog() to be consistent with App.xaml.cs
     }
 
     private void ServicesButton_Click(object sender, RoutedEventArgs e)

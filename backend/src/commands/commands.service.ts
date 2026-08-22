@@ -771,43 +771,7 @@ export class CommandsService {
           }
 
           if (command.type === CommandType.LOCK) {
-            try {
-              const presences = await tx.eventLog.findMany({
-                where: { pcId: command.pcId, eventType: 'member.pc.presence' },
-                orderBy: { createdAt: 'desc' },
-                take: 10,
-              });
-
-              const activePresence = presences.find(p => {
-                if (!p.payload || typeof p.payload !== 'object' || Array.isArray(p.payload)) return false;
-                const payload = p.payload as Record<string, unknown>;
-                return typeof payload.memberId === 'string';
-              });
-
-              if (activePresence) {
-                const payload = activePresence.payload as Record<string, unknown>;
-                const memberId = payload.memberId as string;
-                const member = await tx.member.findUnique({ where: { id: memberId } });
-                if (member && member.memberType === 'VIP' && Number(member.balance) < 0) {
-                  await tx.member.update({
-                    where: { id: member.id },
-                    data: { balance: 0 },
-                  });
-
-                  await tx.memberTransaction.create({
-                    data: {
-                      memberId: member.id,
-                      type: 'ADJUSTMENT',
-                      amountDelta: Math.abs(Number(member.balance)),
-                      note: 'Thanh toán (Reset số dư âm)',
-                      createdBy: 'system.session_checkout',
-                    },
-                  });
-                }
-              }
-            } catch (err) {
-              console.error('Error resetting VIP balance on checkout:', err);
-            }
+            // VIP balance reset logic removed to preserve debt.
           }
         }
       }

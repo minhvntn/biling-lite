@@ -230,15 +230,11 @@ public partial class PaymentDetailsWindow : Window, INotifyPropertyChanged
         CurrentRate = $"{_machineSnapshot.HourlyRate:N0}";
 
         var playAmount = _machineSnapshot.ActiveSessionEstimatedAmount;
-        var playAmountToPay = playAmount;
+        var playAmountToPay = 0m;
 
         if (_machineSnapshot.ActiveMemberId != null)
         {
-            if (_machineSnapshot.IsVipSession)
-            {
-                playAmountToPay = playAmount;
-            }
-            else if (_machineSnapshot.ActiveMemberBalance < 0)
+            if (_machineSnapshot.ActiveMemberBalance < 0)
             {
                 var rawDebt = Math.Abs(_machineSnapshot.ActiveMemberBalance);
                 playAmountToPay = Math.Ceiling(rawDebt / 500m) * 500m;
@@ -251,6 +247,10 @@ public partial class PaymentDetailsWindow : Window, INotifyPropertyChanged
         else if (_machineSnapshot.IsGuestSession)
         {
             playAmountToPay = Math.Max(0m, playAmount - _machineSnapshot.ActiveGuestPrepaidAmount);
+        }
+        else
+        {
+            playAmountToPay = playAmount;
         }
 
         var currentRatePlayAmount = CalculatePrecisePlayAmount(displayedElapsedSeconds, _machineSnapshot.HourlyRate);
@@ -280,14 +280,25 @@ public partial class PaymentDetailsWindow : Window, INotifyPropertyChanged
         ClientServiceAmountText = $"{clientServiceAmount:N0} VND";
         ServerServiceAmountText = $"{serverServiceAmount:N0} VND";
 
-        PlayAmountText = $"{playAmount:N0} VND";
+        if (_machineSnapshot.ActiveMemberId != null)
+        {
+            if (_machineSnapshot.ActiveMemberBalance >= 0)
+            {
+                PlayAmountText = $"{playAmount:N0} VND (Đã trừ số dư)";
+            }
+            else
+            {
+                var rawDebt = Math.Abs(_machineSnapshot.ActiveMemberBalance);
+                PlayAmountText = $"{playAmount:N0} VND (Nợ: {rawDebt:N0} VND)";
+            }
+        }
+        else
+        {
+            PlayAmountText = $"{playAmount:N0} VND";
+        }
         CurrentRatePlayAmountText = $"{currentRatePlayAmount:N0} VND";
 
         var totalAmount = playAmountToPay + serviceAmount;
-        if (_machineSnapshot.ActiveMemberId != null && _machineSnapshot.ActiveMemberBalance >= 0)
-        {
-            totalAmount = playAmount + serviceAmount;
-        }
         TotalAmountValue = $"{totalAmount:N0}";
 
         var startedAtTime = DateTime.TryParse(_machineSnapshot.ActiveSessionStartedAt, out var dt) 

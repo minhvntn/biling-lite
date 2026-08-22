@@ -28,6 +28,7 @@ export function MembersPage() {
   const [newPassword, setNewPassword] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newIdentityNumber, setNewIdentityNumber] = useState('');
+  const [newReferredByCode, setNewReferredByCode] = useState('');
 
   const [topupAmount, setTopupAmount] = useState('50000');
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -103,6 +104,7 @@ export function MembersPage() {
         password: newPassword,
         phone: newPhone.trim() || undefined,
         identityNumber: newIdentityNumber.trim() || undefined,
+        referredByCode: newReferredByCode.trim() || undefined,
       });
 
       setMessage('Tạo hội viên thành công');
@@ -111,6 +113,7 @@ export function MembersPage() {
       setNewPassword('');
       setNewPhone('');
       setNewIdentityNumber('');
+      setNewReferredByCode('');
       setShowCreateModal(false);
       await loadMembers(search);
     } catch (createError) {
@@ -436,6 +439,17 @@ export function MembersPage() {
                     onChange={(event) => setNewIdentityNumber(event.target.value)}
                     placeholder="Nhập số CCCD/CMND (tùy chọn)..."
                     style={{ padding: '0.45rem 0.6rem', fontSize: '0.82rem' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="modal-referral" style={{ fontSize: '0.78rem', marginBottom: '0.2rem' }}>Mã giới thiệu (Nếu có)</label>
+                  <input
+                    id="modal-referral"
+                    value={newReferredByCode}
+                    onChange={(event) => setNewReferredByCode(event.target.value)}
+                    placeholder="Nhập mã giới thiệu (tùy chọn)..."
+                    style={{ padding: '0.45rem 0.6rem', fontSize: '0.82rem' }}
+                    maxLength={10}
                   />
                 </div>
               </div>

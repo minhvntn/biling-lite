@@ -242,31 +242,28 @@ public partial class MainWindow : Window
             }
             else if (activeMember is not null)
             {
-                if (isVipSession)
-                {
-                    var elapsedSeconds = item.ActiveSession?.ElapsedSeconds ?? 0;
-                    var remainingSeconds = (VipOrPostpaidStartingHours * 3600) - elapsedSeconds;
-                    var displayRemainingSeconds = (int)Math.Ceiling(remainingSeconds / 60.0) * 60;
-                    remainingText = FormatRemainingTime(Math.Max(0, displayRemainingSeconds));
-                }
-                else
-                {
-                    var pricePerMinute = (item.ActiveSession?.PricePerMinute > 0) ? item.ActiveSession.PricePerMinute : (item.HourlyRate / 60m);
-                    var balanceSeconds = pricePerMinute > 0 ? (activeMember.Balance / pricePerMinute) * 60m : 0m;
-                    var totalRemainingSeconds = Math.Max(0m, balanceSeconds) + Math.Max(0, activeMember.PlaySeconds);
-                    var remainingMinutes = totalRemainingSeconds <= 0m
-                        ? 0
-                        : Math.Max(1, (int)Math.Ceiling((double)(totalRemainingSeconds / 60m)));
-                    var displayRemainingSeconds = remainingMinutes * 60;
-                    remainingText = FormatRemainingTime(Math.Max(0, displayRemainingSeconds));
-                }
+                var pricePerMinute = (item.ActiveSession?.PricePerMinute > 0) ? item.ActiveSession.PricePerMinute : (item.HourlyRate / 60m);
+                var balanceSeconds = pricePerMinute > 0 ? (activeMember.Balance / pricePerMinute) * 60m : 0m;
+                var totalRemainingSeconds = Math.Max(0m, balanceSeconds) + Math.Max(0, activeMember.PlaySeconds);
+                var remainingMinutes = totalRemainingSeconds <= 0m
+                    ? 0
+                    : Math.Max(1, (int)Math.Ceiling((double)(totalRemainingSeconds / 60m)));
+                var displayRemainingSeconds = remainingMinutes * 60;
+                remainingText = FormatRemainingTime(Math.Max(0, displayRemainingSeconds));
             }
         }
         
         var moneyText = "-";
         if (item.ActiveSession is not null && !isOffline)
         {
-            moneyText = (activeMember is not null && !isVipSession) ? "-" : item.ActiveSession.EstimatedAmount.ToString("N0");
+            if (activeMember is not null)
+            {
+                moneyText = activeMember.Balance < 0 ? Math.Abs(activeMember.Balance).ToString("N0") : "-";
+            }
+            else
+            {
+                moneyText = item.ActiveSession.EstimatedAmount.ToString("N0");
+            }
         }
 
         var userName = isOffline
@@ -2770,8 +2767,21 @@ public partial class MainWindow : Window
             }
 
             var isVip = machine.IsVipSession;
+            var hasActiveMember = machine.ActiveMemberId != null;
             var playAmount = machine.ActiveSessionEstimatedAmount;
-            var totalAmount = playAmount + serviceAmount;
+            var playAmountToPay = playAmount;
+            if (hasActiveMember)
+            {
+                if (machine.ActiveMemberBalance < 0)
+                {
+                    playAmountToPay = Math.Abs(machine.ActiveMemberBalance);
+                }
+                else
+                {
+                    playAmountToPay = 0m;
+                }
+            }
+            var totalAmount = playAmountToPay + serviceAmount;
             var hasActiveSession = !string.IsNullOrWhiteSpace(machine.ActiveSessionId);
             var playDurationText = hasActiveSession
                 ? FormatUsed(machine.ActiveSessionElapsedSeconds)
@@ -2786,13 +2796,15 @@ public partial class MainWindow : Window
                 PlayAmount = playAmount,
                 ServiceAmount = serviceAmount,
                 TotalAmount = totalAmount,
-                PlayAmountText = isVip ? $"{machine.ActiveSessionEstimatedAmount:N0} (VIP)" : $"{playAmount:N0}",
+                PlayAmountText = hasActiveMember
+                    ? (machine.ActiveMemberBalance >= 0 ? $"{playAmount:N0} (Đã trừ TK)" : $"{playAmount:N0} (Nợ: {Math.Abs(machine.ActiveMemberBalance):N0})")
+                    : $"{playAmount:N0}",
                 ServiceAmountText = $"{serviceAmount:N0}",
                 TotalAmountText = $"{totalAmount:N0}",
                 HasServiceLoadError = hasServiceLoadError,
                 NoteText = hasServiceLoadError
                     ? "Lỗi tải tiền dịch vụ"
-                    : (isVip ? "Hội viên VIP (Giờ chơi được thanh toán sau)" : "-"),
+                    : (hasActiveMember ? "Hội viên (Tiền giờ trừ vào số dư tài khoản)" : "-"),
             };
         });
 

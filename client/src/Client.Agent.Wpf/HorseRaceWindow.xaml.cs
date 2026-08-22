@@ -17,6 +17,7 @@ namespace Client.Agent.Wpf;
 
 public partial class HorseRaceWindow : Window
 {
+    private readonly App _app;
     private readonly HttpClient _httpClient;
     private readonly ActiveMemberSession _session;
     private readonly string _apiBaseUrl;
@@ -26,9 +27,10 @@ public partial class HorseRaceWindow : Window
     public ObservableCollection<HorseViewModel> Horses { get; set; } = new();
     public MemberLoyaltyItem? LoyaltyAfterRace { get; private set; }
 
-    public HorseRaceWindow(HttpClient httpClient, ActiveMemberSession session, string apiBaseUrl, int availablePoints)
+    public HorseRaceWindow(App app, HttpClient httpClient, ActiveMemberSession session, string apiBaseUrl, int availablePoints)
     {
         InitializeComponent();
+        _app = app;
         _httpClient = httpClient;
         _session = session;
         _apiBaseUrl = apiBaseUrl;
@@ -177,13 +179,11 @@ public partial class HorseRaceWindow : Window
             // Update to final points from server
             _availablePoints = result.Loyalty.AvailablePoints;
             LoyaltyAfterRace = result.Loyalty;
+            _app.SynchronizeLoyaltyFromServerProxy(result.Loyalty);
 
             // Show Result
             ShowResultOverlay(result.IsWin, result.Rank, result.WonPoints, selectedHorse.Name, result.WinnerHorse);
             AvailablePointsText.Text = _availablePoints.ToString("N0");
-            
-            // Notify MainWindow or parent to update their loyalty state if needed
-            // Assuming App handles that or we don't care since we refresh on next open
         }
         catch (Exception ex)
         {

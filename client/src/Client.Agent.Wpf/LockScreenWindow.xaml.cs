@@ -352,6 +352,16 @@ public partial class LockScreenWindow : Window
         await SubmitLoginAsync();
     }
 
+    private void PasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
+    {
+        PasswordHint.Visibility = PasswordBox.SecurePassword.Length > 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void ManualUnlockPasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
+    {
+        ManualUnlockPasswordHint.Visibility = ManualUnlockPasswordBox.SecurePassword.Length > 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
     private void ManualUnlockPasswordBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key != Key.Enter)

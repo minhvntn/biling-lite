@@ -40,10 +40,11 @@ export type MemberTransactionsResponse = {
 
 export type CreateMemberPayload = {
   username: string;
-  fullName: string;
-  password: string;
+  fullName?: string;
+  password?: string;
   phone?: string;
   identityNumber?: string;
+  referredByCode?: string;
 };
 
 export type TopupPayload = {

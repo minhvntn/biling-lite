@@ -63,6 +63,7 @@ public sealed class MemberLoginItem
     public string MemberType { get; set; } = "REGULAR";
     public bool UsePromoPlayTime { get; set; } = true;
     public string? AvatarId { get; set; }
+    public string? ReferralCode { get; set; }
     public string? ComboExpiresAt { get; set; }
 }
 
@@ -329,6 +330,7 @@ public sealed class ActiveMemberSession
     public string MemberType { get; set; } = "REGULAR";
     public string? AvatarId { get; set; }
     public string? ComboExpiresAt { get; set; }
+    public string? ReferralCode { get; set; }
 }
 
 public sealed class ClientPcListResponse

@@ -161,6 +161,10 @@
                                     <TextBlock Text="⏱️" Foreground="#8B5CF6" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                     <TextBlock x:Name="ProgressText" Text="Tích lũy: 00:00 / 0 phút" Foreground="#475569" VerticalAlignment="Center"/>
                                 </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="24,0,0,0">
+                                    <TextBlock Text="🤝" Foreground="#8B5CF6" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="ReferralCodeText" Text="Mã giới thiệu: ---" Foreground="#475569" VerticalAlignment="Center"/>
+                                </StackPanel>
                             </WrapPanel>
                         </StackPanel>
                     </Grid>
@@ -272,7 +276,7 @@
                                             </Border>
                                             <StackPanel VerticalAlignment="Center">
                                                 <TextBlock Text="Đổi điểm sang phút chơi" FontSize="20" FontWeight="Bold" Foreground="#1E293B" Margin="0,0,0,8"/>
-                                                <TextBlock Text="Tỷ lệ: 1 điểm = 1 phút chơi." Foreground="#475569" FontSize="14"/>
+                                                <TextBlock x:Name="RedeemRateText" Text="Tỷ lệ: 1 điểm = 5 phút chơi." Foreground="#475569" FontSize="14"/>
                                             </StackPanel>
                                         </StackPanel>
 
