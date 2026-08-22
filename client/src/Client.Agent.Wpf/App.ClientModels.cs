@@ -182,6 +182,32 @@ public sealed class MemberLoyaltyDailyCheckinResponse
     public string? CheckedInAt { get; set; }
 }
 
+public sealed class LuckyEnvelopeSettingsResponse
+{
+    public bool Enabled { get; set; }
+    public bool IsActive { get; set; }
+    public string? StartDate { get; set; }
+    public string? EndDate { get; set; }
+    public int PointCost { get; set; } = 10;
+    public int MinMinutes { get; set; } = 60;
+    public int MaxMinutes { get; set; } = 360;
+    public int MaxClaims { get; set; }
+    public int ClaimedCount { get; set; }
+    public bool CanClaim { get; set; }
+    public string? Reason { get; set; }
+    public string? UpdatedAt { get; set; }
+}
+
+public sealed class OpenLuckyEnvelopeResponse
+{
+    public int WonMinutes { get; set; }
+    public int WonSeconds { get; set; }
+    public int SpentPoints { get; set; }
+    public string BlessingMessage { get; set; } = string.Empty;
+    public MemberLoyaltyItem Loyalty { get; set; } = new();
+    public MemberLoginItem Member { get; set; } = new();
+}
+
 public sealed class MemberLoyaltyHorseRaceRequest
 {
     public int BetPoints { get; set; }

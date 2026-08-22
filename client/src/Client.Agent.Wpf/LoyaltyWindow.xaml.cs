@@ -15,6 +15,7 @@ public partial class LoyaltyWindow : Window
     private readonly ActiveMemberSession _activeSession;
     private readonly LoyaltySettingsResponse _settings;
     private MemberLoyaltyResponse _loyaltyResponse;
+    private LuckyEnvelopeSettingsResponse? _luckyEnvelopeSettings;
 
     public LoyaltyWindow(
         App app,
@@ -50,6 +51,27 @@ public partial class LoyaltyWindow : Window
         };
 
         RefreshUi();
+        _ = LoadLuckyEnvelopeSettingsAsync();
+    }
+
+    private async System.Threading.Tasks.Task LoadLuckyEnvelopeSettingsAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<LuckyEnvelopeSettingsResponse>(
+                _app.BuildApiUrl($"/members/loyalty/lucky-envelope/settings?memberId={_activeSession.MemberId}"),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (response != null)
+            {
+                _luckyEnvelopeSettings = response;
+                Dispatcher.Invoke(RefreshUi);
+            }
+        }
+        catch
+        {
+            // Silently ignore
+        }
     }
 
     private void OnLoyaltyUpdated(MemberLoyaltyItem loyalty)
@@ -146,6 +168,53 @@ public partial class LoyaltyWindow : Window
         else
         {
             HorseRaceErrorText.Visibility = Visibility.Collapsed;
+        }
+
+        // Lucky Envelope UI
+        if (_luckyEnvelopeSettings == null || !_luckyEnvelopeSettings.Enabled)
+        {
+            LuckyEnvelopeTabItem.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            LuckyEnvelopeTabItem.Visibility = Visibility.Visible;
+            LuckyEnvelopeAvailablePointsText.Text = currentLoyalty.AvailablePoints.ToString("N0");
+            LuckyEnvelopeCostText.Text = $"{_luckyEnvelopeSettings.PointCost} điểm / bao";
+            LuckyEnvelopeRangeText.Text = $"Phần thưởng: từ {_luckyEnvelopeSettings.MinMinutes} đến {_luckyEnvelopeSettings.MaxMinutes} phút chơi.";
+
+            if (_luckyEnvelopeSettings.MaxClaims > 0)
+            {
+                LuckyEnvelopeStatusHintText.Text = $"Bạn đã mở {_luckyEnvelopeSettings.ClaimedCount}/{_luckyEnvelopeSettings.MaxClaims} lần.";
+            }
+            else
+            {
+                LuckyEnvelopeStatusHintText.Text = _luckyEnvelopeSettings.ClaimedCount > 0
+                    ? $"Bạn đã mở {_luckyEnvelopeSettings.ClaimedCount} lần."
+                    : "Không giới hạn số lần mở.";
+            }
+
+            var canOpen = _luckyEnvelopeSettings.IsActive && _luckyEnvelopeSettings.CanClaim && currentLoyalty.AvailablePoints >= _luckyEnvelopeSettings.PointCost;
+            OpenLuckyEnvelopeButton.IsEnabled = canOpen;
+
+            if (!_luckyEnvelopeSettings.IsActive)
+            {
+                LuckyEnvelopeErrorText.Text = _luckyEnvelopeSettings.Reason ?? "Sự kiện Lì Xì Tết đang tạm đóng.";
+                LuckyEnvelopeErrorText.Visibility = Visibility.Visible;
+            }
+            else if (!_luckyEnvelopeSettings.CanClaim)
+            {
+                LuckyEnvelopeErrorText.Text = _luckyEnvelopeSettings.Reason ?? "Bạn đã hết lượt mở lì xì.";
+                LuckyEnvelopeErrorText.Visibility = Visibility.Visible;
+            }
+            else if (currentLoyalty.AvailablePoints < _luckyEnvelopeSettings.PointCost)
+            {
+                LuckyEnvelopeErrorText.Text = $"* Bạn cần thêm {_luckyEnvelopeSettings.PointCost - currentLoyalty.AvailablePoints} điểm để mở bao lì xì.";
+                LuckyEnvelopeErrorText.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                LuckyEnvelopeErrorText.Visibility = Visibility.Collapsed;
+            }
         }
     }
 
@@ -336,6 +405,91 @@ public partial class LoyaltyWindow : Window
         catch (Exception ex)
         {
             RedeemErrorText.Text = $"Lỗi đổi điểm: {ex.Message}";
+        }
+        finally
+        {
+            RefreshUi();
+        }
+    }
+
+    private async void OpenLuckyEnvelopeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_luckyEnvelopeSettings == null)
+            return;
+
+        LuckyEnvelopeErrorText.Visibility = Visibility.Collapsed;
+        var pointCost = _luckyEnvelopeSettings.PointCost;
+
+        if (_loyaltyResponse.Loyalty.AvailablePoints < pointCost)
+        {
+            LuckyEnvelopeErrorText.Text = $"Không đủ điểm tích lũy (cần {pointCost} điểm).";
+            LuckyEnvelopeErrorText.Visibility = Visibility.Visible;
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            $"Bạn có chắc chắn muốn dùng {pointCost} điểm tích lũy để mở phong bao Lì Xì May Mắn?",
+            "Xác nhận Mở Lì Xì Tết",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes)
+            return;
+
+        OpenLuckyEnvelopeButton.IsEnabled = false;
+
+        try
+        {
+            using var response = await _httpClient.PostAsJsonAsync(
+                _app.BuildApiUrl($"/members/{_activeSession.MemberId}/loyalty/lucky-envelope/open"),
+                new { createdBy = "client.loyalty.lucky_envelope" });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = await _app.ReadErrorMessageAsync(response);
+                LuckyEnvelopeErrorText.Text = string.IsNullOrWhiteSpace(message)
+                    ? $"Mở lì xì thất bại ({(int)response.StatusCode})"
+                    : message;
+                LuckyEnvelopeErrorText.Visibility = Visibility.Visible;
+                return;
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<OpenLuckyEnvelopeResponse>(
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (payload != null)
+            {
+                if (payload.Member != null)
+                {
+                    _app.SynchronizeMemberBillingFromServerProxy(payload.Member);
+                    _app.UpdateLastCommandProxy($"Lì xì +{payload.WonMinutes}p @ {DateTime.Now:HH:mm:ss}");
+                }
+
+                if (payload.Loyalty != null)
+                {
+                    _loyaltyResponse.Loyalty = payload.Loyalty;
+                    _app.SynchronizeLoyaltyFromServerProxy(payload.Loyalty);
+                }
+
+                _luckyEnvelopeSettings.ClaimedCount++;
+                if (_luckyEnvelopeSettings.MaxClaims > 0 && _luckyEnvelopeSettings.ClaimedCount >= _luckyEnvelopeSettings.MaxClaims)
+                {
+                    _luckyEnvelopeSettings.CanClaim = false;
+                }
+
+                RefreshUi();
+
+                var resultWindow = new LuckyEnvelopeResultWindow(payload.WonMinutes, payload.BlessingMessage)
+                {
+                    Owner = this
+                };
+                resultWindow.ShowDialog();
+            }
+        }
+        catch (Exception ex)
+        {
+            LuckyEnvelopeErrorText.Text = $"Lỗi khi mở lì xì: {ex.Message}";
+            LuckyEnvelopeErrorText.Visibility = Visibility.Visible;
         }
         finally
         {
