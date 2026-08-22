@@ -22,6 +22,7 @@ namespace Client.Agent.Wpf
             InitializeComponent();
             _app = (App)Application.Current;
             _httpClient = new HttpClient();
+            _httpClient.DefaultRequestHeaders.Add("X-API-KEY", "SmbSecureLANKey2026");
             _memberId = memberId;
         }
 

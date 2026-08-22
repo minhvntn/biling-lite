@@ -285,8 +285,36 @@
                                     </Border>
 
                                 </StackPanel>
-                            </StackPanel>
-                        </StackPanel>
+                             </StackPanel>
+
+                             <!-- Promo Play Time Bar & Toggle -->
+                             <Border x:Name="PromoPlayTimeCard" Visibility="Collapsed" Background="#80FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="16" Padding="14,10" Margin="20,14,20,0" HorizontalAlignment="Center" MinWidth="280">
+                                 <Grid>
+                                     <Grid.RowDefinitions>
+                                         <RowDefinition Height="Auto"/>
+                                         <RowDefinition Height="Auto"/>
+                                     </Grid.RowDefinitions>
+                                     <Grid.ColumnDefinitions>
+                                         <ColumnDefinition Width="*"/>
+                                         <ColumnDefinition Width="Auto"/>
+                                     </Grid.ColumnDefinitions>
+
+                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                         <TextBlock Text="&#xE823;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#10B981" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                         <TextBlock Text="Giờ KM: " Foreground="#475569" FontSize="14" FontWeight="SemiBold"/>
+                                         <TextBlock x:Name="PromoPlayTimeText" Text="0 giờ" Foreground="#10B981" FontSize="14" FontWeight="Bold"/>
+                                     </StackPanel>
+
+                                     <Button x:Name="TogglePromoTimeButton" Grid.Column="1" Click="TogglePromoTimeButton_Click" Cursor="Hand" Background="Transparent" BorderThickness="0" Padding="0" Margin="14,0,0,0" ToolTip="Bấm để quy đổi giờ khuyến mãi cho tài khoản của bạn">
+                                         <Border x:Name="TogglePromoTimeBadge" Background="#10B981" CornerRadius="16" Padding="14,7" BorderBrush="#059669" BorderThickness="1.5">
+                                             <TextBlock x:Name="TogglePromoTimeText" Text="🎁 Đổi giờ KM" Foreground="White" FontSize="13" FontWeight="Bold"/>
+                                         </Border>
+                                     </Button>
+
+                                     <ProgressBar x:Name="PromoPlayTimeProgress" Grid.Row="1" Grid.ColumnSpan="2" Height="6" Minimum="0" Maximum="100" Value="100" Foreground="#10B981" Background="#E2E8F0" BorderThickness="0" Margin="0,8,0,0"/>
+                                 </Grid>
+                             </Border>
+                         </StackPanel>
 
                         <!-- Hidden elements to preserve bindings -->
                         <TextBlock x:Name="LastCommandTextBlock" Visibility="Collapsed" />
@@ -394,8 +422,8 @@
                             </Grid>
                         </StackPanel>
 
-                        <!-- Action Buttons Grid (3x3) using SVG Paths for perfect Neon Icons -->
-                        <UniformGrid x:Name="ActionButtonsGrid" Grid.Row="1" Columns="3" VerticalAlignment="Center">
+                        <!-- Action Buttons Grid (4x3) using SVG Paths for perfect Neon Icons -->
+                        <UniformGrid x:Name="ActionButtonsGrid" Grid.Row="1" Columns="4" VerticalAlignment="Center">
                             <Button x:Name="MessagesActionButton" Style="{StaticResource ActionButtonStyle}" Click="MessagesButton_Click">
                                 <StackPanel>
                                     <Viewbox Width="26" Height="26" Margin="0,0,0,8">
@@ -440,6 +468,30 @@
                                     <!-- Keep hidden textblock to preserve x:Name binding -->
                                     <TextBlock x:Name="LoyaltyIconTextBlock" Visibility="Collapsed" />
                                     <TextBlock x:Name="LoyaltyLabelTextBlock" Text="Đổi điểm" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#1E293B" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="LeaderboardActionButton" Style="{StaticResource ActionButtonStyle}" Click="LeaderboardButton_Click">
+                                <StackPanel>
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                        <Path Style="{StaticResource NeonIconStyle}" Data="M19,5 L18,5 C18,3 16,2 14,2 L10,2 C8,2 6,3 6,5 L5,5 C3,5 2,7 2,9 C2,11 3.5,12.5 5,13 C6,15 8,16 10,16.5 L10,19 L7,19 L7,21 L17,21 L17,19 L14,19 L14,16.5 C16,16 18,15 19,13 C20.5,12.5 22,11 22,9 C22,7 21,5 19,5 Z M5,11 C4,11 4,9 4,7 L6,7 L6,11 C5.5,11 5,11 5,11 Z M19,11 C19,11 18.5,11 18,11 L18,7 L20,7 C20,9 20,11 19,11 Z">
+                                            <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#F59E0B" Offset="0"/><GradientStop Color="#FBBF24" Offset="1"/></LinearGradientBrush></Path.Stroke>
+                                            <Path.Effect><DropShadowEffect Color="#F59E0B" BlurRadius="8" ShadowDepth="0" Opacity="0"/></Path.Effect>
+                                        </Path>
+                                    </Viewbox>
+                                    <TextBlock x:Name="LeaderboardLabelTextBlock" Text="Xếp hạng" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#1E293B" />
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="DailyMissionsActionButton" Style="{StaticResource ActionButtonStyle}" Click="DailyMissionsButton_Click">
+                                <StackPanel>
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                        <Path Style="{StaticResource NeonIconStyle}" Data="M12,2 A10,10 0 1,1 12,22 A10,10 0 1,1 12,2 Z M12,6 A6,6 0 1,1 12,18 A6,6 0 1,1 12,6 Z M12,10 A2,2 0 1,1 12,14 A2,2 0 1,1 12,10 Z">
+                                            <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#EF4444" Offset="0"/><GradientStop Color="#F97316" Offset="1"/></LinearGradientBrush></Path.Stroke>
+                                            <Path.Effect><DropShadowEffect Color="#EF4444" BlurRadius="8" ShadowDepth="0" Opacity="0"/></Path.Effect>
+                                        </Path>
+                                    </Viewbox>
+                                    <TextBlock x:Name="DailyMissionsLabelTextBlock" Text="Nhiệm vụ" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="#1E293B" />
                                 </StackPanel>
                             </Button>
 

@@ -20,6 +20,7 @@ namespace Server.Admin.App.Windows
             string apiUrlBase,
             MemberRow member,
             string lastLoginText,
+            string promoTimeText,
             string totalUsageText,
             decimal lifetimeTopup)
         {
@@ -49,6 +50,7 @@ namespace Server.Admin.App.Windows
             }
 
             LastLoginBox.Text = lastLoginText;
+            PromoTimeBox.Text = promoTimeText;
             TotalUsageBox.Text = totalUsageText;
             StatusCheckBox.IsChecked = member.IsActive;
         }

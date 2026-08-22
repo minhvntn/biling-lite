@@ -17,6 +17,7 @@ import { RejectTopupRequestDto } from './dto/reject-topup-request.dto';
 import { UpdateLoyaltySettingsDto } from './dto/update-loyalty-settings.dto';
 import { RecordMemberUsageDto } from './dto/record-member-usage.dto';
 import { RedeemLoyaltyPointsDto } from './dto/redeem-loyalty-points.dto';
+import { RedeemPromoTimeDto } from './dto/redeem-promo-time.dto';
 import { SetMemberPresenceDto } from './dto/set-member-presence.dto';
 import { SetAdminPresenceDto } from './dto/set-admin-presence.dto';
 import { UpdateLoyaltyRankDto } from './dto/update-loyalty-rank.dto';
@@ -150,9 +151,30 @@ export class MembersController {
     return this.membersService.updateLoyaltyRank(rankId, payload);
   }
 
+  @Get('leaderboard')
+  async getLeaderboard(
+    @Query('period') period?: string,
+    @Query('memberId') memberId?: string,
+  ) {
+    return this.membersService.getLeaderboard(period, memberId);
+  }
+
   @Get(':memberId/loyalty')
   async getMemberLoyalty(@Param('memberId') memberId: string) {
     return this.membersService.getMemberLoyalty(memberId);
+  }
+
+  @Get(':memberId/daily-missions')
+  async getMemberDailyMissions(@Param('memberId') memberId: string) {
+    return this.membersService.getMemberDailyMissions(memberId);
+  }
+
+  @Post(':memberId/daily-missions/:missionId/claim')
+  async claimDailyMission(
+    @Param('memberId') memberId: string,
+    @Param('missionId') missionId: string,
+  ) {
+    return this.membersService.claimDailyMission(memberId, missionId);
   }
 
   @Get(':memberId/avatars')
@@ -179,6 +201,22 @@ export class MembersController {
     @Body() payload: { wallpaperId: string },
   ) {
     return this.membersService.updateMemberWallpaper(memberId, payload.wallpaperId);
+  }
+
+  @Patch(':memberId/promo-play-time-mode')
+  async updatePromoPlayTimeMode(
+    @Param('memberId') memberId: string,
+    @Body() payload: { usePromoPlayTime: boolean },
+  ) {
+    return this.membersService.updatePromoPlayTimeMode(memberId, payload.usePromoPlayTime);
+  }
+
+  @Post(':memberId/redeem-promo-time')
+  async redeemPromoTime(
+    @Param('memberId') memberId: string,
+    @Body() payload: RedeemPromoTimeDto,
+  ) {
+    return this.membersService.redeemPromoPlayTime(memberId, payload);
   }
 
   @Post(':memberId/cloud-save')

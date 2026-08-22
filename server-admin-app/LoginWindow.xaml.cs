@@ -32,6 +32,7 @@ public partial class LoginWindow : Window
         catch { }
 
         _httpClient = new HttpClient { BaseAddress = new Uri(baseAddress) };
+        _httpClient.DefaultRequestHeaders.Add("X-API-KEY", "SmbSecureLANKey2026");
     }
 
     private async void LoginButton_Click(object sender, RoutedEventArgs e)

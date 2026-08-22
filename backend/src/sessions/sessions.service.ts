@@ -465,13 +465,16 @@ export class SessionsService {
         isActive: true,
       },
     });
-    const rawAmount = calculateSessionAmountByPromotions({
-      startedAt: effectiveStartedAt,
-      endedAt,
-      baseHourlyRate,
-      promotions: activePromotions,
-      mode: 'PER_SECOND',
-    });
+    const isUsingPromoPlayTime = await this.isMemberUsingPromoPlayTimeForPc(session.pcId);
+    const rawAmount = isUsingPromoPlayTime
+      ? 0
+      : calculateSessionAmountByPromotions({
+          startedAt: effectiveStartedAt,
+          endedAt,
+          baseHourlyRate,
+          promotions: activePromotions,
+          mode: 'PER_SECOND',
+        });
     const amount = Math.round(rawAmount * 100) / 100;
 
     await this.prisma.session.update({
@@ -527,6 +530,50 @@ export class SessionsService {
     });
 
     return Number(defaultGroup?.hourlyRate ?? 0);
+  }
+
+  private async isMemberUsingPromoPlayTimeForPc(
+    pcId: string,
+  ): Promise<boolean> {
+    const latestPresence = await this.prisma.eventLog.findFirst({
+      where: {
+        pcId,
+        eventType: {
+          in: ['member.pc.presence', 'guest.pc.presence', 'admin.pc.presence'],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        eventType: true,
+        payload: true,
+      },
+    });
+
+    if (
+      !latestPresence ||
+      latestPresence.eventType !== 'member.pc.presence' ||
+      !this.isActivePresencePayload(latestPresence.payload)
+    ) {
+      return false;
+    }
+
+    const payload = latestPresence.payload as Record<string, unknown>;
+    const memberId = typeof payload.memberId === 'string' ? payload.memberId : null;
+    if (!memberId) {
+      return false;
+    }
+
+    const member = await this.prisma.member.findUnique({
+      where: { id: memberId },
+      select: {
+        usePromoPlayTime: true,
+        playSeconds: true,
+      },
+    });
+
+    return Boolean(
+      member && member.usePromoPlayTime && Number(member.playSeconds) > 0,
+    );
   }
 
   private async hasActiveVipPresenceForPc(

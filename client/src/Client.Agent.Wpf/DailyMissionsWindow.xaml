@@ -1,0 +1,184 @@
+<Window x:Class="Client.Agent.Wpf.DailyMissionsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Nhiệm vụ hàng ngày"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Width="640"
+        Height="560">
+    <Window.Resources>
+        <LinearGradientBrush x:Key="OrangeGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#F97316" Offset="0"/>
+            <GradientStop Color="#FB923C" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="PurpleGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#8B5CF6" Offset="0"/>
+            <GradientStop Color="#A855F7" Offset="1"/>
+        </LinearGradientBrush>
+
+        <Style x:Key="ClaimButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource OrangeGradient}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#E2E8F0"/>
+                                <Setter Property="Foreground" Value="#94A3B8"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="White" CornerRadius="16" BorderBrush="#E2E8F0" BorderThickness="1">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="25" ShadowDepth="6" Color="Black" Opacity="0.12"/>
+        </Border.Effect>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="70"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border x:Name="HeaderBorder" BorderThickness="0,0,0,1" BorderBrush="#F1F5F9" Background="Transparent">
+                <Grid Margin="24,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="🎯" FontSize="28" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock x:Name="HeaderTitleText" Text="Nhiệm Vụ Hàng Ngày" FontSize="19" FontWeight="Bold" Foreground="#1E293B"/>
+                            <TextBlock Text="Hoàn thành nhiệm vụ mỗi ngày để nhận thưởng điểm và giờ chơi miễn phí!" FontSize="12" Foreground="#64748B"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <Button HorizontalAlignment="Right" VerticalAlignment="Center" Width="32" Height="32" Background="Transparent" BorderThickness="0" Cursor="Hand" Click="CloseButton_Click">
+                        <TextBlock Text="✕" FontSize="16" FontWeight="Bold" Foreground="#64748B" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Mission Cards List -->
+            <ScrollViewer Grid.Row="1" Margin="24,16,24,16" VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="MissionsListControl">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="#F8FAFC" CornerRadius="12" BorderBrush="#E2E8F0" BorderThickness="1" Padding="16" Margin="0,0,0,12">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="50"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Left Icon -->
+                                    <Border Grid.Column="0" Width="44" Height="44" CornerRadius="10" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Icon}" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+
+                                    <!-- Middle Info & Progress -->
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0,16,0">
+                                        <Grid>
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="15" Foreground="#1E293B"/>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                <TextBlock Text="Thưởng: " FontSize="12" Foreground="#64748B"/>
+                                                <TextBlock Text="{Binding RewardPoints, StringFormat='+{0} điểm'}" FontWeight="Bold" FontSize="12" Foreground="#8B5CF6"/>
+                                            </StackPanel>
+                                        </Grid>
+                                        <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#64748B" Margin="0,2,0,6"/>
+                                        
+                                        <!-- Progress Bar -->
+                                        <Grid>
+                                            <ProgressBar Height="8" Minimum="0" Maximum="100" Value="{Binding ProgressPercentage, Mode=OneWay}" Foreground="{StaticResource PurpleGradient}" Background="#E2E8F0" BorderThickness="0">
+                                                <ProgressBar.Template>
+                                                    <ControlTemplate TargetType="ProgressBar">
+                                                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                            <Grid x:Name="PART_Track">
+                                                                <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="4"/>
+                                                            </Grid>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </ProgressBar.Template>
+                                            </ProgressBar>
+                                        </Grid>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,3,0,0">
+                                            <TextBlock Text="{Binding ProgressText}" FontSize="11" FontWeight="SemiBold" Foreground="#475569"/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- Right Button / Status -->
+                                    <Grid Grid.Column="2" VerticalAlignment="Center">
+                                        <Button Content="{Binding ButtonText}"
+                                                Style="{StaticResource ClaimButtonStyle}"
+                                                IsEnabled="{Binding CanClaim}"
+                                                Click="ClaimButton_Click"
+                                                Tag="{Binding Id}"/>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- Footer: Summary & Close -->
+            <Border Grid.Row="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="24,14" CornerRadius="0,0,16,16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="✨" FontSize="20" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock x:Name="SummaryPointsText" Text="Hôm nay bạn đã nhận: 0 điểm thưởng" FontWeight="Bold" FontSize="14" Foreground="#1E293B"/>
+                            <TextBlock Text="Nhiệm vụ sẽ được làm mới vào lúc 00:00 hàng ngày" FontSize="12" Foreground="#64748B"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="Đóng" Width="90" Height="36" Click="CloseButton_Click">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="#E2E8F0"/>
+                                <Setter Property="Foreground" Value="#475569"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Cursor" Value="Hand"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="bg" Background="{TemplateBinding Background}" CornerRadius="8">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="bg" Property="Background" Value="#CBD5E1"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

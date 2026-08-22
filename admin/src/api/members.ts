@@ -1,3 +1,4 @@
+import { fetchWithAuth } from './fetchWithAuth';
 import { API_BASE_URL } from '../lib/config';
 import {
   BuyHoursPayload,
@@ -27,12 +28,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function fetchMembers(search?: string): Promise<MembersResponse> {
-  const response = await fetch(`${API_BASE_URL}/members${toQuery(search)}`);
+  const response = await fetchWithAuth(`${API_BASE_URL}/members${toQuery(search)}`);
   return handleResponse<MembersResponse>(response);
 }
 
 export async function createMember(payload: CreateMemberPayload): Promise<MemberItem> {
-  const response = await fetch(`${API_BASE_URL}/members`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/members`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -42,7 +43,7 @@ export async function createMember(payload: CreateMemberPayload): Promise<Member
 }
 
 export async function topupMember(memberId: string, payload: TopupPayload) {
-  const response = await fetch(`${API_BASE_URL}/members/${memberId}/topups`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/members/${memberId}/topups`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -52,7 +53,7 @@ export async function topupMember(memberId: string, payload: TopupPayload) {
 }
 
 export async function buyHours(memberId: string, payload: BuyHoursPayload) {
-  const response = await fetch(`${API_BASE_URL}/members/${memberId}/buy-hours`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/members/${memberId}/buy-hours`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -64,7 +65,7 @@ export async function buyHours(memberId: string, payload: BuyHoursPayload) {
 export async function fetchMemberTransactions(
   memberId: string,
 ): Promise<MemberTransactionsResponse> {
-  const response = await fetch(`${API_BASE_URL}/members/${memberId}/transactions`);
+  const response = await fetchWithAuth(`${API_BASE_URL}/members/${memberId}/transactions`);
   return handleResponse<MemberTransactionsResponse>(response);
 }
 
@@ -73,7 +74,7 @@ export async function setMemberPresence(
   agentId: string,
   isActive: boolean,
 ): Promise<any> {
-  const response = await fetch(`${API_BASE_URL}/members/presence`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/members/presence`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ memberId, agentId, isActive }),
@@ -83,7 +84,7 @@ export async function setMemberPresence(
 }
 
 export async function withdrawMemberBalance(memberId: string, payload: { amount: number; note?: string }) {
-  const response = await fetch(`${API_BASE_URL}/members/${memberId}/adjust`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/members/${memberId}/adjust`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

@@ -249,9 +249,10 @@ export function MembersPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', tableLayout: 'fixed' }}>
             <thead>
               <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--line)' }}>
-                <th style={{ padding: '0.5rem 0.4rem', textAlign: 'left', fontWeight: 600, color: 'var(--text)', width: '45%' }}>Username</th>
-                <th style={{ padding: '0.5rem 0.4rem', textAlign: 'left', fontWeight: 600, color: 'var(--text)', width: '35%' }}>Số dư</th>
-                <th style={{ padding: '0.5rem 0.4rem', textAlign: 'center', fontWeight: 600, color: 'var(--text)', width: '20%' }}>Chọn</th>
+                <th style={{ padding: '0.5rem 0.4rem', textAlign: 'left', fontWeight: 600, color: 'var(--text)', width: '38%' }}>Username</th>
+                <th style={{ padding: '0.5rem 0.4rem', textAlign: 'left', fontWeight: 600, color: 'var(--text)', width: '25%' }}>Số dư</th>
+                <th style={{ padding: '0.5rem 0.4rem', textAlign: 'left', fontWeight: 600, color: 'var(--text)', width: '22%' }}>Giờ chơi KM</th>
+                <th style={{ padding: '0.5rem 0.4rem', textAlign: 'center', fontWeight: 600, color: 'var(--text)', width: '15%' }}>Chọn</th>
               </tr>
             </thead>
             <tbody>
@@ -273,6 +274,9 @@ export function MembersPage() {
                   </td>
                   <td style={{ padding: '0.5rem 0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {formatMoney(member.balance)} đ
+                  </td>
+                  <td style={{ padding: '0.5rem 0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#10B981', fontWeight: 600 }}>
+                    {(Number(member.playSeconds || 0) / 3600).toFixed(2)}h
                   </td>
                   <td style={{ padding: '0.5rem 0.4rem', textAlign: 'center' }}>
                     <button

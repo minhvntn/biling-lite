@@ -215,7 +215,7 @@ public partial class MainWindow : Window
             BalanceRaw = item.Balance,
             PlayHoursRaw = item.PlayHours,
             BalanceText = item.Balance.ToString("N0", CultureInfo.InvariantCulture),
-            PlayHoursText = item.PlayHours.ToString("0.##", CultureInfo.InvariantCulture),
+            PlayHoursText = FormatPlayHoursText((double)item.PlayHours),
             Rank = string.IsNullOrWhiteSpace(item.Rank) ? "S\u1eaft" : item.Rank,
             TotalTopupRaw = item.TotalTopup,
             AvailablePoints = item.AvailablePoints,
@@ -230,6 +230,17 @@ public partial class MainWindow : Window
             BirthdayText = $"{random.Next(1, 28):D2}-{random.Next(1, 12):D2}-{random.Next(1990, 2005)}",
             LastLoginText = DateTime.Now.AddDays(-random.Next(0, 5)).AddHours(-random.Next(1, 12)).ToString("dd-MM-yyyy HH:mm:ss")
         };
+    }
+
+    private static string FormatPlayHoursText(double playHours)
+    {
+        if (playHours <= 0) return "0 phút";
+        var span = TimeSpan.FromHours(playHours);
+        var hours = (int)span.TotalHours;
+        var minutes = span.Minutes;
+        if (hours > 0 && minutes > 0) return $"{hours} giờ {minutes} phút";
+        if (hours > 0) return $"{hours} giờ";
+        return $"{minutes} phút";
     }
 
     private void UpdateMemberDashboardStats(List<MemberRow> members)
@@ -2135,11 +2146,17 @@ public partial class MainWindow : Window
             ? "-"
             : $"{FormatUsageDuration(totalUsageSeconds)} ({(totalUsageSeconds / 3600d):0.##} giờ)";
 
+        var playSeconds = Math.Max(0, usageSummary?.PlaySeconds ?? 0);
+        var promoTimeText = usageSummary is null
+            ? "-"
+            : $"{FormatUsageDuration(playSeconds)} ({(playSeconds / 3600d):0.##} giờ)";
+
         var dialog = new Windows.EditMemberWindow(
             _httpClient,
             BuildApiUrl(""),
             member,
             lastLoginText,
+            promoTimeText,
             totalUsageText,
             lifetimeTopup)
         {

@@ -8,7 +8,7 @@
         AllowsTransparency="True"
         Background="Transparent"
         Width="700"
-        Height="620">
+        Height="680">
     <Window.Resources>
         <LinearGradientBrush x:Key="PurpleGradient" StartPoint="0,0" EndPoint="1,1">
             <GradientStop Color="#8B5CF6" Offset="0"/>

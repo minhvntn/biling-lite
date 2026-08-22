@@ -1,3 +1,4 @@
+import { fetchWithAuth } from './fetchWithAuth';
 import { API_BASE_URL } from '../lib/config';
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -46,12 +47,12 @@ export type PcServiceOrdersResponse = {
 };
 
 export async function fetchServiceItems(): Promise<ServiceItemsResponse> {
-  const response = await fetch(`${API_BASE_URL}/services/items`);
+  const response = await fetchWithAuth(`${API_BASE_URL}/services/items`);
   return handleResponse<ServiceItemsResponse>(response);
 }
 
 export async function fetchPcServiceOrders(pcId: string): Promise<PcServiceOrdersResponse> {
-  const response = await fetch(`${API_BASE_URL}/services/pcs/${pcId}/orders`);
+  const response = await fetchWithAuth(`${API_BASE_URL}/services/pcs/${pcId}/orders`);
   return handleResponse<PcServiceOrdersResponse>(response);
 }
 
@@ -64,7 +65,7 @@ export async function createPcServiceOrder(
     requestedBy?: string;
   },
 ): Promise<PcServiceOrder> {
-  const response = await fetch(`${API_BASE_URL}/services/pcs/${pcId}/orders`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/services/pcs/${pcId}/orders`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -83,7 +84,7 @@ export async function payPcServiceOrders(
     requestedBy?: string;
   },
 ): Promise<any> {
-  const response = await fetch(`${API_BASE_URL}/services/pcs/${pcId}/orders/pay`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/services/pcs/${pcId}/orders/pay`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

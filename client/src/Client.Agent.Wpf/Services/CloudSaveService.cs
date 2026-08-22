@@ -16,6 +16,7 @@ namespace Client.Agent.Wpf.Services
         {
             _app = app;
             _httpClient = new HttpClient();
+            _httpClient.DefaultRequestHeaders.Add("X-API-KEY", "SmbSecureLANKey2026");
         }
 
         private string GetSaveGameDirectory()

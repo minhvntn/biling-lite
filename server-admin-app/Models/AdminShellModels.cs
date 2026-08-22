@@ -89,6 +89,7 @@ public sealed class ActiveMemberInfo
     public string FullName { get; set; } = string.Empty;
     public decimal Balance { get; set; }
     public int PlaySeconds { get; set; }
+    public bool UsePromoPlayTime { get; set; }
     public string MemberType { get; set; } = "REGULAR";
 }
 
@@ -249,6 +250,9 @@ public sealed class MachineRow : ObservableObject
 
     private bool _isVipSession;
     public bool IsVipSession { get => _isVipSession; set => SetProperty(ref _isVipSession, value); }
+
+    private bool _isUsingPromoPlayTime;
+    public bool IsUsingPromoPlayTime { get => _isUsingPromoPlayTime; set => SetProperty(ref _isUsingPromoPlayTime, value); }
 }
 
 public sealed class MemberListResponse
@@ -291,6 +295,7 @@ public sealed class MemberUsageSummaryResponse
     public string? LastLoginAgentId { get; set; }
     public int TotalUsageSeconds { get; set; }
     public double TotalUsageHours { get; set; }
+    public int PlaySeconds { get; set; }
     public int SessionUsageCount { get; set; }
     public string ServerTime { get; set; } = string.Empty;
 }

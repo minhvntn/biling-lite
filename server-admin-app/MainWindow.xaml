@@ -1387,7 +1387,7 @@
                                             </DataGridTemplateColumn>
                                             <DataGridTextColumn Header="Số dư (VND)" Binding="{Binding BalanceText}" Width="1*" MinWidth="130" ElementStyle="{StaticResource BoldBlackDataGridText}" />
                                             <DataGridTextColumn x:Name="MemberTotalTopupColumn" Header="Tổng nạp (VND)" Binding="{Binding TotalTopupText}" Width="1.2*" MinWidth="140" ElementStyle="{StaticResource BoldBlackDataGridText}" />
-                                            <DataGridTextColumn Header="Giờ chơi" Binding="{Binding PlayHoursText}" Width="0.8*" MinWidth="100" ElementStyle="{StaticResource BoldBlackDataGridText}" />
+                                            <DataGridTextColumn Header="Giờ chơi KM" Binding="{Binding PlayHoursText}" Width="1.1*" MinWidth="110" ElementStyle="{StaticResource BoldBlackDataGridText}" />
                                             <DataGridTemplateColumn Header="Trạng thái" Width="1*" MinWidth="120">
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>

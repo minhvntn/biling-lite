@@ -1,3 +1,4 @@
+import { fetchWithAuth } from './fetchWithAuth';
 import { API_BASE_URL } from '../lib/config';
 import { SessionListResponse } from '../types/session';
 
@@ -24,7 +25,7 @@ export async function fetchSessions(params?: {
   const url = `${API_BASE_URL}/sessions${
     query.toString() ? `?${query.toString()}` : ''
   }`;
-  const response = await fetch(url);
+  const response = await fetchWithAuth(url);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch sessions: ${response.status}`);

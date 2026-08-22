@@ -66,7 +66,7 @@ public partial class MainWindow : Window
                 TotalRevenueTextBlock.Text = $"{response.TotalRevenue:N0} VND";
                 TotalGrowthTextBlock.Text = response.TotalGrowth;
                 
-                TotalPlayHoursTextBlock.Text = $"{response.TotalPlayHours:N0} giờ";
+                TotalPlayHoursTextBlock.Text = FormatPlayHoursText((double)response.TotalPlayHours);
                 PlayHoursGrowthTextBlock.Text = response.PlayhoursGrowth;
 
                 var memberRows = response.TopMembers.Select((m, idx) => {
@@ -85,7 +85,7 @@ public partial class MainWindow : Window
                         Username = m.Username,
                         ProgressValue = m.Progress,
                         BarColor = barColor,
-                        PlayHoursText = $"{m.PlayHours} giờ"
+                        PlayHoursText = FormatPlayHoursText(m.PlayHours)
                     };
                 }).ToList();
 
@@ -107,7 +107,7 @@ public partial class MainWindow : Window
                         PcName = p.Name,
                         ProgressValue = p.Progress,
                         BarColor = barColor,
-                        PlayHoursText = $"{p.PlayHours} giờ"
+                        PlayHoursText = FormatPlayHoursText(p.PlayHours)
                     };
                 }).ToList();
 
@@ -119,7 +119,7 @@ public partial class MainWindow : Window
                         RankNumber = (idx + 1).ToString(),
                         PcName = p.Name,
                         ProgressValue = p.Progress,
-                        PlayHoursText = $"{p.PlayHours} giờ"
+                        PlayHoursText = FormatPlayHoursText(p.PlayHours)
                     };
                 }).ToList();
 
@@ -729,13 +729,13 @@ public partial class MainWindow : Window
                 PcStatsPlaytimeRevenueTextBlock.Text = $"{response.TotalPlaytimeRevenue:N0} VND";
                 PcStatsServiceRevenueTextBlock.Text = $"{response.TotalServiceRevenue:N0} VND";
                 PcStatsTotalRevenueTextBlock.Text = $"{response.TotalRevenue:N0} VND";
-                PcStatsTotalPlayHoursTextBlock.Text = $"{response.TotalPlayHours:0.#} giờ";
+                PcStatsTotalPlayHoursTextBlock.Text = FormatPlayHoursText((double)response.TotalPlayHours);
 
                 var rows = response.Items.Select((item, idx) => new PcRevenueMachineStatsRowViewModel
                 {
                     RankText = (idx + 1).ToString(),
                     PcName = item.PcName,
-                    PlayHoursText = $"{item.PlayHours:0.#}",
+                    PlayHoursText = FormatPlayHoursText((double)item.PlayHours),
                     PlaytimeRevenueText = $"{item.PlaytimeRevenue:N0}",
                     ServiceRevenueText = $"{item.ServiceRevenue:N0}",
                     TotalRevenueText = $"{item.TotalRevenue:N0}",

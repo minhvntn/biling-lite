@@ -164,7 +164,10 @@ public partial class MainWindow : Window
 
         var isOffline = item.Status == "OFFLINE" && item.ActiveSession is null;
         var startedAt = (item.ActiveSession is null) ? null : ParseDateLocal(item.ActiveSession.StartedAt);
-        var usedText = (item.ActiveSession is null) ? "-" : FormatUsed(item.ActiveSession.ElapsedSeconds);
+        var isUsingPromoPlayTime = activeMember is not null && activeMember.UsePromoPlayTime && activeMember.PlaySeconds > 0;
+        var usedText = (item.ActiveSession is null)
+            ? "-"
+            : FormatUsed(item.ActiveSession.ElapsedSeconds);
 
 
         var statusIconBrush = Brushes.Gray;
@@ -320,6 +323,7 @@ public partial class MainWindow : Window
             ActiveGuestDisplayName = isGuestSession ? guestDisplayName : null,
             ActiveGuestPrepaidAmount = isGuestSession ? activeGuest!.PrepaidAmount : 0,
             IsVipSession = isVipSession,
+            IsUsingPromoPlayTime = isUsingPromoPlayTime,
         };
     }
 
@@ -2766,7 +2770,7 @@ public partial class MainWindow : Window
             }
 
             var isVip = machine.IsVipSession;
-            var playAmount = isVip ? 0m : machine.ActiveSessionEstimatedAmount;
+            var playAmount = machine.ActiveSessionEstimatedAmount;
             var totalAmount = playAmount + serviceAmount;
             var hasActiveSession = !string.IsNullOrWhiteSpace(machine.ActiveSessionId);
             var playDurationText = hasActiveSession
@@ -2788,7 +2792,7 @@ public partial class MainWindow : Window
                 HasServiceLoadError = hasServiceLoadError,
                 NoteText = hasServiceLoadError
                     ? "Lỗi tải tiền dịch vụ"
-                    : (isVip ? "Hội viên VIP (Giờ chơi tích lũy vào tổng nạp)" : "-"),
+                    : (isVip ? "Hội viên VIP (Giờ chơi được thanh toán sau)" : "-"),
             };
         });
 
@@ -4538,6 +4542,7 @@ public partial class MainWindow
         target.ActiveGuestDisplayName = source.ActiveGuestDisplayName;
         target.ActiveGuestPrepaidAmount = source.ActiveGuestPrepaidAmount;
         target.IsVipSession = source.IsVipSession;
+        target.IsUsingPromoPlayTime = source.IsUsingPromoPlayTime;
     }
 
     private static void UpdateMachineRowsInPlace(IList<MachineRow> targetList, IList<MachineRow> sourceList)

@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Thông tin hội viên" Height="580" Width="1050"
+        Title="Thông tin hội viên" Height="640" Width="1050"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize">
@@ -270,6 +270,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
                             <!-- Loại hội viên -->
@@ -305,8 +306,23 @@
                                 </Border>
                             </StackPanel>
 
-                            <!-- Tổng thời gian sử dụng máy -->
+                            <!-- Thời gian khuyến mãi -->
                             <StackPanel Grid.Row="2">
+                                <TextBlock Text="Thời gian khuyến mãi" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextMain}" />
+                                <Border Style="{StaticResource InputBorderStyle}" Background="{StaticResource ReadOnlyInputBg}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="40"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="🎁" Grid.Column="0" Foreground="{StaticResource PrimaryColor}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16"/>
+                                        <TextBox x:Name="PromoTimeBox" Grid.Column="1" Style="{StaticResource IconTextBoxStyle}" IsReadOnly="True" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- Tổng thời gian sử dụng máy -->
+                            <StackPanel Grid.Row="3">
                                 <TextBlock Text="Tổng thời gian sử dụng máy" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextMain}" />
                                 <Border Style="{StaticResource InputBorderStyle}" Background="{StaticResource ReadOnlyInputBg}">
                                     <Grid>
@@ -321,7 +337,7 @@
                             </StackPanel>
                             
                             <!-- Đổi mật khẩu -->
-                            <StackPanel Grid.Row="3">
+                            <StackPanel Grid.Row="4">
                                 <TextBlock Text="Đổi mật khẩu" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextMain}" />
                                 <Border Style="{StaticResource InputBorderStyle}">
                                     <Grid>
@@ -337,7 +353,7 @@
                                 </Border>
                             </StackPanel>
                             
-                            <CheckBox x:Name="StatusCheckBox" Grid.Row="4" Content="Tài khoản đang hoạt động" Foreground="{StaticResource TextMain}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,0,16" />
+                            <CheckBox x:Name="StatusCheckBox" Grid.Row="5" Content="Tài khoản đang hoạt động" Foreground="{StaticResource TextMain}" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,16,0,16" />
                             
                         </Grid>
                     </StackPanel>

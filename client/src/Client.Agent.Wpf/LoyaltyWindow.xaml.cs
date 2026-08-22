@@ -208,6 +208,17 @@ public partial class LoyaltyWindow : Window
             return;
         }
 
+        const int minutesPerPoint = 1;
+        var totalMinutes = redeemPoints * minutesPerPoint;
+        var confirm = MessageBox.Show(
+            $"Bạn có chắc chắn muốn đổi {redeemPoints} điểm tích lũy để nhận +{totalMinutes} phút chơi miễn phí?",
+            "Xác nhận đổi điểm",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes)
+            return;
+
         await ExecuteRedeemAsync(redeemPoints);
     }
 
@@ -220,6 +231,17 @@ public partial class LoyaltyWindow : Window
             RedeemErrorText.Text = "Bạn chưa có điểm nào để đổi.";
             return;
         }
+
+        const int minutesPerPoint = 1;
+        var totalMinutes = redeemPoints * minutesPerPoint;
+        var confirm = MessageBox.Show(
+            $"Bạn có chắc chắn muốn đổi toàn bộ {redeemPoints} điểm tích lũy để nhận +{totalMinutes} phút chơi miễn phí?",
+            "Xác nhận đổi tất cả",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes)
+            return;
 
         await ExecuteRedeemAsync(redeemPoints);
     }
@@ -266,8 +288,10 @@ public partial class LoyaltyWindow : Window
             RedeemPointsBox.Text = string.Empty;
             RefreshUi();
 
+            const int minutesPerPoint = 1;
+            var totalMinutes = redeemPoints * minutesPerPoint;
             MessageBox.Show(
-                $"Đổi điểm thành công: +{redeemPoints} phút chơi.",
+                $"🎉 Đổi điểm thành công!\n\n- Đã trừ: {redeemPoints} điểm\n- Đã cộng: +{totalMinutes} phút chơi miễn phí vào tài khoản.",
                 "Điểm tích lũy",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);

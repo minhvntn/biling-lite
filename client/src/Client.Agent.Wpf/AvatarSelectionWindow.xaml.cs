@@ -28,6 +28,7 @@ namespace Client.Agent.Wpf
             // Re-use HttpClient from App
             var app = (App)Application.Current;
             _httpClient = new HttpClient(); // For simplicity here, or use App's if exposed. Actually, Wpf app uses `_httpClient` but it's private in App.
+            _httpClient.DefaultRequestHeaders.Add("X-API-KEY", "SmbSecureLANKey2026");
             // Let's grab the API URL from App
             
             Loaded += AvatarSelectionWindow_Loaded;

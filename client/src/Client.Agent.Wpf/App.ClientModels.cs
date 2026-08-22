@@ -61,6 +61,7 @@ public sealed class MemberLoginItem
 
     public string? Rank { get; set; }
     public string MemberType { get; set; } = "REGULAR";
+    public bool UsePromoPlayTime { get; set; } = true;
     public string? AvatarId { get; set; }
     public string? ComboExpiresAt { get; set; }
 }
@@ -507,3 +508,140 @@ public sealed class ClientOrderedServiceRow
     public string UnitPriceText => $"{UnitPrice:N0} đ";
     public string LineTotalText => $"{LineTotal:N0} đ";
 }
+
+public sealed class LeaderboardResponse
+{
+    public List<LeaderboardEntry> TopPoints { get; set; } = new();
+    public List<LeaderboardEntry> TopPlaytime { get; set; } = new();
+    public LeaderboardUserRank? CurrentUserRank { get; set; }
+}
+
+public sealed class LeaderboardEntry
+{
+    public int Rank { get; set; }
+    public string MemberId { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    public string? AvatarId { get; set; }
+    public string RankName { get; set; } = string.Empty;
+    public double Value { get; set; }
+    public string DisplayValue { get; set; } = string.Empty;
+    public bool IsCurrentUser { get; set; }
+
+    public string RankDisplay => Rank switch
+    {
+        1 => "🥇 1",
+        2 => "🥈 2",
+        3 => "🥉 3",
+        _ => $"#{Rank}"
+    };
+}
+
+public sealed class LeaderboardUserRank
+{
+    public int PointsRank { get; set; }
+    public int PlaytimeRank { get; set; }
+    public double PointsValue { get; set; }
+    public double PlaytimeValue { get; set; }
+}
+
+public sealed class DailyMissionsResponse
+{
+    public List<DailyMissionItem> Missions { get; set; } = new();
+    public int TotalEarnedToday { get; set; }
+    public string TodayDateKey { get; set; } = string.Empty;
+}
+
+public sealed class DailyMissionItem : INotifyPropertyChanged
+{
+    private bool _isClaimed;
+    private bool _isCompleted;
+    private int _currentValue;
+
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Icon { get; set; } = string.Empty;
+    public int TargetValue { get; set; }
+    public int RewardPoints { get; set; }
+
+    public int CurrentValue
+    {
+        get => _currentValue;
+        set
+        {
+            if (_currentValue != value)
+            {
+                _currentValue = value;
+                NotifyPropertyChanged(nameof(CurrentValue));
+                NotifyPropertyChanged(nameof(ProgressText));
+                NotifyPropertyChanged(nameof(ProgressPercentage));
+            }
+        }
+    }
+
+    public bool IsCompleted
+    {
+        get => _isCompleted;
+        set
+        {
+            if (_isCompleted != value)
+            {
+                _isCompleted = value;
+                NotifyPropertyChanged(nameof(IsCompleted));
+                NotifyPropertyChanged(nameof(CanClaim));
+                NotifyPropertyChanged(nameof(StatusText));
+                NotifyPropertyChanged(nameof(ButtonText));
+            }
+        }
+    }
+
+    public bool IsClaimed
+    {
+        get => _isClaimed;
+        set
+        {
+            if (_isClaimed != value)
+            {
+                _isClaimed = value;
+                NotifyPropertyChanged(nameof(IsClaimed));
+                NotifyPropertyChanged(nameof(CanClaim));
+                NotifyPropertyChanged(nameof(StatusText));
+                NotifyPropertyChanged(nameof(ButtonText));
+            }
+        }
+    }
+
+    public bool CanClaim => IsCompleted && !IsClaimed;
+
+    public string ButtonText
+    {
+        get
+        {
+            if (IsClaimed) return "✓ Đã nhận";
+            if (IsCompleted) return "Nhận Thưởng";
+            return "Đang thực hiện";
+        }
+    }
+
+    public string StatusText
+    {
+        get
+        {
+            if (IsClaimed) return "Đã nhận thưởng";
+            if (IsCompleted) return "Có thể nhận!";
+            return $"Tiến độ: {CurrentValue}/{TargetValue}";
+        }
+    }
+
+    public string ProgressText => $"{CurrentValue} / {TargetValue}";
+
+    public double ProgressPercentage => TargetValue > 0 ? Math.Min(100.0, (double)CurrentValue / TargetValue * 100.0) : 0;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void NotifyPropertyChanged(string propertyName)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+}
+

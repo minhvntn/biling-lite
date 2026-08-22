@@ -1698,15 +1698,19 @@ export class CommandsService {
         isActive: true,
       },
     });
-    let amount = calculateSessionAmountByPromotions({
-      startedAt: effectiveStartedAt,
-      endedAt,
-      baseHourlyRate,
-      promotions: activePromotions,
-      mode: applySettlementRules ? 'PER_MINUTE_STARTED' : 'PER_SECOND',
-    });
+    const isUsingPromoPlayTime = await this.isMemberUsingPromoPlayTimeForPcTx(tx, pcId);
 
-    if (applySettlementRules) {
+    let amount = isUsingPromoPlayTime
+      ? 0
+      : calculateSessionAmountByPromotions({
+          startedAt: effectiveStartedAt,
+          endedAt,
+          baseHourlyRate,
+          promotions: activePromotions,
+          mode: applySettlementRules ? 'PER_MINUTE_STARTED' : 'PER_SECOND',
+        });
+
+    if (applySettlementRules && !isUsingPromoPlayTime) {
       if (pricingStep > 0) {
         amount = Math.ceil(amount / pricingStep) * pricingStep;
       }
@@ -1714,7 +1718,7 @@ export class CommandsService {
       if (amount < minimumCharge) {
         amount = minimumCharge;
       }
-    } else {
+    } else if (!applySettlementRules) {
       amount = Math.round(amount * 100) / 100;
     }
 
@@ -1823,6 +1827,46 @@ export class CommandsService {
     }
 
     return this.isActivePresencePayload(latestPresence.payload);
+  }
+
+  private async isMemberUsingPromoPlayTimeForPcTx(
+    tx: Prisma.TransactionClient,
+    pcId: string,
+  ): Promise<boolean> {
+    const latestPresence = await tx.eventLog.findFirst({
+      where: {
+        pcId,
+        eventType: {
+          in: ['member.pc.presence', 'guest.pc.presence', 'admin.pc.presence'],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        eventType: true,
+        payload: true,
+      },
+    });
+
+    if (!latestPresence || latestPresence.eventType !== 'member.pc.presence' || !this.isActivePresencePayload(latestPresence.payload)) {
+      return false;
+    }
+
+    const payload = latestPresence.payload as Record<string, unknown>;
+    const memberId = typeof payload.memberId === 'string' ? payload.memberId : null;
+    if (!memberId) {
+      return false;
+    }
+
+    const member = await tx.member.findUnique({
+      where: { id: memberId },
+      select: {
+        usePromoPlayTime: true,
+        playSeconds: true,
+        memberType: true,
+      },
+    });
+
+    return Boolean(member && member.memberType === 'COMBO' && Number(member.playSeconds) > 0);
   }
 
   private isActivePresencePayload(payload?: Prisma.JsonValue | null): boolean {

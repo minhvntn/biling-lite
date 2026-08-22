@@ -1,8 +1,9 @@
+import { fetchWithAuth } from './fetchWithAuth';
 import { API_BASE_URL } from '../lib/config';
 import { DailyRevenueResponse } from '../types/session';
 
 export async function fetchDailyRevenue(date: string): Promise<DailyRevenueResponse> {
-  const response = await fetch(
+  const response = await fetchWithAuth(
     `${API_BASE_URL}/reports/revenue/daily?date=${encodeURIComponent(date)}`,
   );
 
@@ -15,7 +16,7 @@ export async function fetchDailyRevenue(date: string): Promise<DailyRevenueRespo
 
 export async function fetchDashboardStats(period?: string): Promise<any> {
   const url = `${API_BASE_URL}/reports/dashboard${period ? `?period=${period}` : ''}`;
-  const response = await fetch(url);
+  const response = await fetchWithAuth(url);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch dashboard stats: ${response.status}`);

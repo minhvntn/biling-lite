@@ -234,7 +234,11 @@ public partial class PaymentDetailsWindow : Window, INotifyPropertyChanged
 
         if (_machineSnapshot.ActiveMemberId != null)
         {
-            if (_machineSnapshot.ActiveMemberBalance < 0)
+            if (_machineSnapshot.IsVipSession)
+            {
+                playAmountToPay = playAmount;
+            }
+            else if (_machineSnapshot.ActiveMemberBalance < 0)
             {
                 var rawDebt = Math.Abs(_machineSnapshot.ActiveMemberBalance);
                 playAmountToPay = Math.Ceiling(rawDebt / 500m) * 500m;

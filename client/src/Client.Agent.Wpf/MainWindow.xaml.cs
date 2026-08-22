@@ -62,6 +62,8 @@ public static decimal PricingStep { get; set; } = 1000m;
     private bool _isPostpaidSession;
     private decimal _memberBalance;
     private int _playSeconds;
+    private bool _usePromoPlayTime = true;
+    private bool IsUsingPromoPlayTimeNow => _isMemberSession && _usePromoPlayTime && _playSeconds > 0;
     private bool _withdrawActionEnabledSetting = true;
     private bool _topupActionEnabledSetting = true;
     private TimeSpan _usedDuration = TimeSpan.Zero;
@@ -271,7 +273,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         WindowState = WindowState.Minimized;
     }
 
-    public void ConfigureBilling(int totalSessionMinutes, decimal hourlyRate, bool resetUsage = false, decimal? memberBalance = null, bool isPostpaid = false, int playSeconds = 0)
+    public void ConfigureBilling(int totalSessionMinutes, decimal hourlyRate, bool resetUsage = false, decimal? memberBalance = null, bool isPostpaid = false, int playSeconds = 0, bool usePromoPlayTime = true)
     {
         var elapsedSeconds = Math.Max(0, (int)GetCurrentUsedDuration().TotalSeconds);
 
@@ -306,7 +308,35 @@ public static decimal PricingStep { get; set; } = 1000m;
         _isPostpaidSession = isPostpaid;
         SetExternalInfoVisibility(isPostpaid || _isVipSession);
 
+        UpdatePromoPlayTimeUi(playSeconds, usePromoPlayTime);
         UpdateUsageUi();
+    }
+
+    public void UpdatePromoPlayTimeUi(int playSeconds, bool usePromoPlayTime)
+    {
+        _playSeconds = Math.Max(0, playSeconds);
+        _usePromoPlayTime = usePromoPlayTime;
+
+        if (_isMemberSession)
+        {
+            PromoPlayTimeCard.Visibility = Visibility.Visible;
+            var hours = _playSeconds / 3600;
+            var mins = (_playSeconds % 3600) / 60;
+            PromoPlayTimeText.Text = hours > 0 ? $"{hours} giờ {mins:D2} phút" : $"{mins} phút";
+            PromoPlayTimeProgress.Maximum = Math.Max(_playSeconds, 36000);
+            PromoPlayTimeProgress.Value = _playSeconds;
+
+            if (TogglePromoTimeButton.IsEnabled)
+            {
+                TogglePromoTimeBadge.Background = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+                TogglePromoTimeBadge.BorderBrush = new SolidColorBrush(Color.FromRgb(5, 150, 105));
+                TogglePromoTimeText.Text = "🎁 Đổi giờ KM";
+            }
+        }
+        else
+        {
+            PromoPlayTimeCard.Visibility = Visibility.Collapsed;
+        }
     }
 
     public void SynchronizeUsedDuration(int elapsedSeconds)
@@ -1085,7 +1115,7 @@ public static decimal PricingStep { get; set; } = 1000m;
 
     public int GetRemainingMinutes()
     {
-        if (_isMemberSession && !_isVipSession)
+        if (_isMemberSession && (!_isVipSession || IsUsingPromoPlayTimeNow))
         {
             var elapsedNow = Math.Max(0, (int)GetCurrentUsedDuration().TotalSeconds);
             var remainingRawSeconds = ComputeMemberRemainingSecondsRealtime(elapsedNow);
@@ -1108,7 +1138,7 @@ public static decimal PricingStep { get; set; } = 1000m;
 
     private int GetEffectiveTotalSessionMinutes()
     {
-        if (_isVipSession || _isPostpaidSession)
+        if ((_isVipSession && !IsUsingPromoPlayTimeNow) || _isPostpaidSession)
         {
             return VipOrPostpaidTotalSessionMinutes;
         }
@@ -1122,7 +1152,8 @@ public static decimal PricingStep { get; set; } = 1000m;
         var balanceSeconds = pricePerMinute > 0
             ? (_memberBalance / pricePerMinute) * 60m
             : 0m;
-        var totalRemainingSeconds = Math.Max(0m, balanceSeconds) + Math.Max(0, _playSeconds);
+        var effectivePlaySeconds = _usePromoPlayTime ? Math.Max(0, _playSeconds) : 0;
+        var totalRemainingSeconds = Math.Max(0m, balanceSeconds) + effectivePlaySeconds;
         if (totalRemainingSeconds <= 0m)
         {
             return 0;
@@ -1137,7 +1168,8 @@ public static decimal PricingStep { get; set; } = 1000m;
         var balanceSecondsAtSync = pricePerMinute > 0
             ? (_lastSyncMemberBalance / pricePerMinute) * 60m
             : 0m;
-        var remainingSecondsAtSync = Math.Max(0m, balanceSecondsAtSync) + Math.Max(0, _playSeconds);
+        var effectivePlaySeconds = _usePromoPlayTime ? Math.Max(0, _playSeconds) : 0;
+        var remainingSecondsAtSync = Math.Max(0m, balanceSecondsAtSync) + effectivePlaySeconds;
         var elapsedSinceSync = Math.Max(0, elapsedSecondsNow - _lastSyncElapsedSeconds);
         var remainingRawSeconds = remainingSecondsAtSync - elapsedSinceSync;
         return Math.Max(0, (int)Math.Floor((double)remainingRawSeconds));
@@ -1165,7 +1197,7 @@ public static decimal PricingStep { get; set; } = 1000m;
             usedSecs = elapsedSeconds;
             usedMins = (int)Math.Floor(elapsedSeconds / 60.0);
             
-            if (_isVipSession)
+            if (_isVipSession && !IsUsingPromoPlayTimeNow)
             {
                 totalMins = VipOrPostpaidTotalSessionMinutes;
                 totalSecs = totalMins * 60;
@@ -1191,7 +1223,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         }
         else
         {
-            if (_isMemberSession && !_isVipSession)
+            if (_isMemberSession && (!_isVipSession || IsUsingPromoPlayTimeNow))
             {
                 totalMins = Math.Max(1, _totalSessionMinutes);
                 totalSecs = totalMins * 60;
@@ -1199,7 +1231,7 @@ public static decimal PricingStep { get; set; } = 1000m;
                 remainingSecs = remainingMins * 60;
                 remainingRawSecsForProgress = remainingSecs;
             }
-            else if (_isVipSession)
+            else if (_isVipSession && !IsUsingPromoPlayTimeNow)
             {
                 totalMins = VipOrPostpaidTotalSessionMinutes;
                 totalSecs = totalMins * 60;
@@ -1220,7 +1252,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         var rawCost = billableMins * (_hourlyRate / 60m);
         var step = PricingStep > 0 ? PricingStep : 1000m;
         var roundedCost = Math.Ceiling(rawCost / step) * step;
-        var isPostpaidUser = !_isMemberSession || _isPostpaidSession || _isVipSession;
+        var isPostpaidUser = !_isMemberSession || _isPostpaidSession || (_isVipSession && !IsUsingPromoPlayTimeNow);
         var gameCost = isPostpaidUser 
             ? Math.Max(MinimumCharge > 0 ? MinimumCharge : 1000m, roundedCost) 
             : (billableMins <= 0 ? 0m : roundedCost);
@@ -1267,13 +1299,13 @@ public static decimal PricingStep { get; set; } = 1000m;
             RemainingTimeValueTextBlock.Text = FormatSeconds(displayRemainingSecs);
         }
 
-        bool showTotalTime = (_isMemberSession && !_isVipSession && !_isAdminSession && !isUnlimitedCombo) || 
+        bool showTotalTime = (_isMemberSession && (!_isVipSession || IsUsingPromoPlayTimeNow) && !_isAdminSession && !isUnlimitedCombo) || 
                              (!_isMemberSession && !_isPostpaidSession && !_isAdminSession);
         var totalTimeVisibility = showTotalTime ? Visibility.Visible : Visibility.Collapsed;
         TotalTimeContainer.Visibility = totalTimeVisibility;
 
         double percentage = 1.0;
-        if (_isMemberSession && !_isVipSession)
+        if (_isMemberSession && (!_isVipSession || IsUsingPromoPlayTimeNow))
         {
             var totalSecondsForProgress = Math.Max(1.0, usedSecs + remainingRawSecsForProgress);
             percentage = Math.Max(0, remainingRawSecsForProgress) / totalSecondsForProgress;
@@ -1291,7 +1323,7 @@ public static decimal PricingStep { get; set; } = 1000m;
 
         if (_isMemberSession)
         {
-            if (_isVipSession || _isPostpaidSession)
+            if ((_isVipSession && !IsUsingPromoPlayTimeNow) || _isPostpaidSession)
             {
                 GameCostValueTextBlock.Text = gameCost.ToString("N0", CultureInfo.InvariantCulture);
             }
@@ -1661,8 +1693,38 @@ public static decimal PricingStep { get; set; } = 1000m;
         }
 
         MessageBox.Show(
-            "\u1ee8ng d\u1ee5ng ch\u01b0a s\u1eb5n s\u00e0ng \u0111\u1ec3 ki\u1ec3m tra \u0111i\u1ec3m t\u00edch l\u0169y.",
-            "\u0110i\u1ec3m t\u00edch l\u0169y",
+            "Ứng dụng chưa sẵn sàng để kiểm tra điểm tích lũy.",
+            "Điểm tích lũy",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
+
+    private void LeaderboardButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (Application.Current is App app)
+        {
+            app.OpenLeaderboardPanelFromClientUi();
+            return;
+        }
+
+        MessageBox.Show(
+            "Ứng dụng chưa sẵn sàng để xem bảng xếp hạng.",
+            "Bảng xếp hạng",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+    }
+
+    private void DailyMissionsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (Application.Current is App app)
+        {
+            app.OpenDailyMissionsPanelFromClientUi();
+            return;
+        }
+
+        MessageBox.Show(
+            "Ứng dụng chưa sẵn sàng để làm nhiệm vụ.",
+            "Nhiệm vụ hàng ngày",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }
@@ -1778,12 +1840,37 @@ public static decimal PricingStep { get; set; } = 1000m;
         _ = ApplyWallpaperAsync(CurrentMemberId);
     }
 
+    private void TogglePromoTimeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_isMemberSession || string.IsNullOrWhiteSpace(CurrentMemberId) || !TogglePromoTimeButton.IsEnabled) return;
+
+        int firstCardSeconds = _isVipSession
+            ? (int)_usedDuration.TotalSeconds
+            : ComputeMemberRemainingSecondsRealtime((int)_usedDuration.TotalSeconds);
+
+        var dlg = new PromoTimeRedeemWindow(CurrentMemberId, _isVipSession, firstCardSeconds, _playSeconds)
+        {
+            Owner = this
+        };
+
+        if (dlg.ShowDialog() == true && _isVipSession)
+        {
+            int redeemedSeconds = dlg.RedeemedSeconds;
+            if (redeemedSeconds > 0)
+            {
+                int newUsedSeconds = Math.Max(0, (int)_usedDuration.TotalSeconds - redeemedSeconds);
+                SynchronizeUsedDuration(newUsedSeconds);
+            }
+        }
+    }
+
     public async System.Threading.Tasks.Task ApplyWallpaperAsync(string memberId)
     {
         try
         {
             if (Application.Current is not App app) return;
             using var client = new System.Net.Http.HttpClient();
+            client.DefaultRequestHeaders.Add("X-API-KEY", "SmbSecureLANKey2026");
             var apiUrl = app.BuildApiUrl($"/members/{memberId}/wallpapers");
             var response = await client.GetAsync(apiUrl);
             if (response.IsSuccessStatusCode)

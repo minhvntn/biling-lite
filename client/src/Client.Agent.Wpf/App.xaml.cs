@@ -154,6 +154,7 @@ public partial class App : Application
 
         _currentHourlyRate = _settings.HourlyRate > 0 ? _settings.HourlyRate : 12000;
         _logger = new FileLogger(Path.Combine(GetLogDirectory(), "client-agent.log"));
+        _httpClient.DefaultRequestHeaders.Add("X-API-KEY", "SmbSecureLANKey2026");
         _cloudSaveService = new CloudSaveService(this);
         _ = _logger.InfoAsync("Client agent starting");
         _ = _logger.InfoAsync($"Client agent server endpoint: {_settings.ServerUrl}");
@@ -842,7 +843,7 @@ public partial class App : Application
                     totalMinutes = 1;
                 }
 
-                _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: member.PlaySeconds);
+                _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: member.PlaySeconds, usePromoPlayTime: member.UsePromoPlayTime);
                 _mainWindow?.SetUpfrontUsedDuration();
                 _mainWindow?.SetMemberInfo(member.Username, member.Rank, member.MemberType, member.AvatarId, member.ComboExpiresAt);
                 if (_mainWindow != null)
@@ -1063,7 +1064,7 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
         Dispatcher.Invoke(() =>
         {
-            _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: member.PlaySeconds);
+            _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false, member.Balance, isPostpaid: _isPostpaidGuestSession, playSeconds: member.PlaySeconds, usePromoPlayTime: member.UsePromoPlayTime);
         });
     }
 
@@ -1631,6 +1632,76 @@ public async void OpenLoyaltyPanelFromClientUi()
             MessageBox.Show(
                 $"Lỗi khi mở điểm tích lũy: {ex.Message}",
                 "Điểm tích lũy",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
+    public async void OpenLeaderboardPanelFromClientUi()
+    {
+        var activeSession = _activeMemberSession;
+        if (activeSession is null)
+        {
+            MessageBox.Show(
+                "Vui lòng đăng nhập bằng tài khoản hội viên để xem bảng xếp hạng.",
+                "Bảng xếp hạng",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            var url = BuildApiUrl($"/members/leaderboard?period=all&memberId={activeSession.MemberId}");
+            var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+            var response = await _httpClient.GetFromJsonAsync<LeaderboardResponse>(url, jsonOptions);
+
+            var dialog = new LeaderboardWindow(_httpClient, activeSession, BuildApiUrl, response)
+            {
+                Owner = _mainWindow
+            };
+            dialog.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Không thể tải bảng xếp hạng: {ex.Message}",
+                "Bảng xếp hạng",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
+    public async void OpenDailyMissionsPanelFromClientUi()
+    {
+        var activeSession = _activeMemberSession;
+        if (activeSession is null)
+        {
+            MessageBox.Show(
+                "Vui lòng đăng nhập bằng tài khoản hội viên để làm nhiệm vụ.",
+                "Nhiệm vụ hàng ngày",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            var url = BuildApiUrl($"/members/{activeSession.MemberId}/daily-missions");
+            var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web) { PropertyNameCaseInsensitive = true };
+            var response = await _httpClient.GetFromJsonAsync<DailyMissionsResponse>(url, jsonOptions);
+
+            var dialog = new DailyMissionsWindow(_httpClient, activeSession, BuildApiUrl, response)
+            {
+                Owner = _mainWindow
+            };
+            dialog.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Không thể tải danh sách nhiệm vụ: {ex.Message}",
+                "Nhiệm vụ hàng ngày",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }

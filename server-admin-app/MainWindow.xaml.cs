@@ -137,6 +137,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        _httpClient.DefaultRequestHeaders.Add("X-API-KEY", "SmbSecureLANKey2026");
         Loaded += MainWindow_Loaded;
         Closed += MainWindow_Closed;
         PreviewMouseLeftButtonDown += MainWindow_PreviewMouseLeftButtonDown;

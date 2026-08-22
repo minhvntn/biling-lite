@@ -25,6 +25,7 @@ namespace Client.Agent.Wpf
 
                 var app = (App)Application.Current;
                 using var client = new System.Net.Http.HttpClient();
+                client.DefaultRequestHeaders.Add("X-API-KEY", "SmbSecureLANKey2026");
                 var url = app.BuildApiUrl("/combos");
                 var response = await client.GetAsync(url);
                 

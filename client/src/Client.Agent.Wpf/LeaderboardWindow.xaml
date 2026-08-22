@@ -1,0 +1,230 @@
+<Window x:Class="Client.Agent.Wpf.LeaderboardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Bảng xếp hạng"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Width="800"
+        Height="640">
+    <Window.Resources>
+        <LinearGradientBrush x:Key="PurpleGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#8B5CF6" Offset="0"/>
+            <GradientStop Color="#C084FC" Offset="1"/>
+        </LinearGradientBrush>
+
+        <Style x:Key="TabButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="20" BorderThickness="1" BorderBrush="#E2E8F0" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#F1F5F9"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="White" CornerRadius="16" BorderBrush="#E2E8F0" BorderThickness="1">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="25" ShadowDepth="6" Color="Black" Opacity="0.12"/>
+        </Border.Effect>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="65"/>
+                <RowDefinition Height="50"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border x:Name="HeaderBorder" BorderThickness="0,0,0,1" BorderBrush="#F1F5F9" Background="Transparent">
+                <Grid Margin="24,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="🏆" FontSize="26" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock x:Name="HeaderTitleText" Text="Bảng Xếp Hạng Hội Viên" FontSize="19" FontWeight="Bold" Foreground="#1E293B"/>
+                            <TextBlock Text="Top 15 hội viên xuất sắc nhất hệ thống" FontSize="12" Foreground="#64748B"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <Button HorizontalAlignment="Right" VerticalAlignment="Center" Width="32" Height="32" Background="Transparent" BorderThickness="0" Cursor="Hand" Click="CloseButton_Click">
+                        <TextBlock Text="✕" FontSize="16" FontWeight="Bold" Foreground="#64748B" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Filter Tabs -->
+            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Button x:Name="AllTimeButton" Content="Tất cả thời gian" Style="{StaticResource TabButtonStyle}" Margin="4,0" Click="PeriodButton_Click" Tag="all"/>
+                <Button x:Name="MonthButton" Content="Tháng này" Style="{StaticResource TabButtonStyle}" Margin="4,0" Click="PeriodButton_Click" Tag="month"/>
+                <Button x:Name="WeekButton" Content="Tuần này" Style="{StaticResource TabButtonStyle}" Margin="4,0" Click="PeriodButton_Click" Tag="week"/>
+            </StackPanel>
+
+            <!-- Two Columns for Rankings -->
+            <Grid Grid.Row="2" Margin="24,8,24,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left: Top Points -->
+                <Border Grid.Column="0" Background="#F8FAFC" CornerRadius="12" BorderBrush="#E2E8F0" BorderThickness="1" Padding="12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Orientation="Horizontal" Margin="4,4,4,10">
+                            <TextBlock Text="💎" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Top Điểm Tích Lũy" FontSize="15" FontWeight="Bold" Foreground="#1E293B" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl x:Name="PointsListControl">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="8" Padding="10,8" Margin="0,0,0,6">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="White"/>
+                                                    <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsCurrentUser}" Value="True">
+                                                            <Setter Property="Background" Value="#EDE9FE"/>
+                                                            <Setter Property="BorderBrush" Value="#8B5CF6"/>
+                                                            <Setter Property="BorderThickness" Value="1.5"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="45"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding RankDisplay}" FontWeight="Bold" FontSize="14" Foreground="#1E293B" VerticalAlignment="Center"/>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,0">
+                                                    <TextBlock Text="{Binding Username}" FontWeight="SemiBold" FontSize="13" Foreground="#0F172A"/>
+                                                    <TextBlock Text="{Binding RankName}" FontSize="11" Foreground="#64748B"/>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Text="{Binding DisplayValue}" FontWeight="Bold" FontSize="13" Foreground="#8B5CF6" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- Right: Top Playtime -->
+                <Border Grid.Column="2" Background="#F8FAFC" CornerRadius="12" BorderBrush="#E2E8F0" BorderThickness="1" Padding="12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Orientation="Horizontal" Margin="4,4,4,10">
+                            <TextBlock Text="⏱️" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Top Giờ Chơi Game" FontSize="15" FontWeight="Bold" Foreground="#1E293B" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl x:Name="PlaytimeListControl">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="8" Padding="10,8" Margin="0,0,0,6">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="White"/>
+                                                    <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                                    <Setter Property="BorderThickness" Value="1"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsCurrentUser}" Value="True">
+                                                            <Setter Property="Background" Value="#EDE9FE"/>
+                                                            <Setter Property="BorderBrush" Value="#8B5CF6"/>
+                                                            <Setter Property="BorderThickness" Value="1.5"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="45"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding RankDisplay}" FontWeight="Bold" FontSize="14" Foreground="#1E293B" VerticalAlignment="Center"/>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,0">
+                                                    <TextBlock Text="{Binding Username}" FontWeight="SemiBold" FontSize="13" Foreground="#0F172A"/>
+                                                    <TextBlock Text="{Binding RankName}" FontSize="11" Foreground="#64748B"/>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Text="{Binding DisplayValue}" FontWeight="Bold" FontSize="13" Foreground="#0D9488" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Footer: User Current Ranking -->
+            <Border Grid.Row="3" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="24,14" CornerRadius="0,0,16,16">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="👤" FontSize="20" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock x:Name="MyRankText" Text="Thứ hạng của bạn: Đang tải..." FontWeight="Bold" FontSize="14" Foreground="#1E293B"/>
+                            <TextBlock x:Name="MyStatsText" Text="Hãy tích cực chơi game và sử dụng dịch vụ để leo hạng nhé!" FontSize="12" Foreground="#64748B"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="Đóng" Width="90" Height="36" Click="CloseButton_Click">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="#E2E8F0"/>
+                                <Setter Property="Foreground" Value="#475569"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Cursor" Value="Hand"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="bg" Background="{TemplateBinding Background}" CornerRadius="8">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="bg" Property="Background" Value="#CBD5E1"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

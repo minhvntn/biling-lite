@@ -127,9 +127,11 @@ model Member {
   memberType     String              @default("REGULAR") @map("member_type") @db.VarChar(20)
   comboExpiresAt DateTime?           @map("combo_expires_at") @db.Timestamptz(6)
   isLimitedCombo Boolean             @default(false) @map("is_limited_combo")
-  avatarId       String?             @map("avatar_id") @db.Text
-  wallpaperId    String?             @map("wallpaper_id") @db.Text
-  transactions   MemberTransaction[]
+  avatarId         String?             @map("avatar_id") @db.Text
+  wallpaperId      String?             @map("wallpaper_id") @db.Text
+  usePromoPlayTime Boolean             @default(true) @map("use_promo_play_time")
+  totalUsageSeconds Int                @default(0) @map("total_usage_seconds")
+  transactions     MemberTransaction[]
   dailyCheckins  MemberDailyCheckin[]
 
   @@index([fullName], map: "idx_members_full_name")

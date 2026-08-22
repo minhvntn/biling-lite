@@ -1,3 +1,4 @@
+import { fetchWithAuth } from './fetchWithAuth';
 import { API_BASE_URL } from '../lib/config';
 
 type CommandResponse = {
@@ -12,7 +13,7 @@ async function requestCommand(
   pcId: string,
   action: 'open' | 'lock' | 'shutdown' | 'restart',
 ): Promise<CommandResponse> {
-  const response = await fetch(`${API_BASE_URL}/pcs/${pcId}/${action}`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/pcs/${pcId}/${action}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -38,7 +39,7 @@ export function lockPc(pcId: string): Promise<CommandResponse> {
 }
 
 export async function guestOpenPc(pcId: string, amount: number): Promise<any> {
-  const response = await fetch(`${API_BASE_URL}/pcs/${pcId}/guest-open`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/pcs/${pcId}/guest-open`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -66,7 +67,7 @@ export async function restartPc(pcId: string): Promise<CommandResponse> {
 }
 
 export async function wakePc(pcId: string, macAddress: string): Promise<any> {
-  const response = await fetch(`${API_BASE_URL}/pcs/${pcId}/wake`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/pcs/${pcId}/wake`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -33,6 +33,7 @@ import { RequestTopupDto } from './dto/request-topup.dto';
 import { UpdateLoyaltySettingsDto } from './dto/update-loyalty-settings.dto';
 import { RecordMemberUsageDto } from './dto/record-member-usage.dto';
 import { RedeemLoyaltyPointsDto } from './dto/redeem-loyalty-points.dto';
+import { RedeemPromoTimeDto } from './dto/redeem-promo-time.dto';
 import { SetMemberPresenceDto } from './dto/set-member-presence.dto';
 import { SetAdminPresenceDto } from './dto/set-admin-presence.dto';
 import { UpdateLoyaltyRankDto } from './dto/update-loyalty-rank.dto';
@@ -156,7 +157,35 @@ const DEFAULT_HORSE_RACE_SETTINGS: HorseRaceSettings = {
   top3Multiplier: 1.5,
 };
 
+const DAILY_MISSIONS_CONFIG = [
+  {
+    id: 'play_2h',
+    name: 'Chơi đủ 2 giờ',
+    description: 'Tích lũy 120 phút chơi game hôm nay',
+    icon: '🎮',
+    targetValue: 120,
+    rewardPoints: 2,
+  },
+  {
+    id: 'daily_checkin',
+    name: 'Điểm danh hàng ngày',
+    description: 'Thực hiện điểm danh trong mục Điểm tích lũy',
+    icon: '📅',
+    targetValue: 1,
+    rewardPoints: 1,
+  },
+  {
+    id: 'lucky_spin',
+    name: 'Quay thưởng 1 lần',
+    description: 'Thử vận may với Vòng quay may mắn',
+    icon: '🎡',
+    targetValue: 1,
+    rewardPoints: 1,
+  },
+] as const;
+
 @Injectable()
+
 export class MembersService {
   constructor(
     private readonly prisma: PrismaService,
@@ -926,12 +955,16 @@ export class MembersService {
     const requestedSeconds = payload.usedSeconds;
 
     return this.prisma.$transaction(async (tx) => {
-      const member = await tx.member.findUnique({ where: { id: memberId } });
+      const member = await tx.member.update({
+        where: { id: memberId },
+        data: { totalUsageSeconds: { increment: requestedSeconds } }
+      }).catch(() => null);
       if (!member) {
         throw new NotFoundException('Khong tim thay hoi vien');
       }
 
-      const currentPlaySeconds = Math.max(0, member.playSeconds);
+      const canUsePromoTime = false; // Disabled for PREPAID and VIP, they must manually redeem
+      const currentPlaySeconds = member.memberType === 'COMBO' ? Math.max(0, member.playSeconds) : 0;
       const consumedSeconds = Math.max(0, Math.min(currentPlaySeconds, requestedSeconds));
       let updatedMember = member;
       const enabled = await this.getLoyaltyFeatureEnabled(tx);
@@ -1178,39 +1211,25 @@ export class MembersService {
       const playSecondsDelta = requestedPoints * loyaltySettings.pointsToMinutes * 60;
       let updatedMember = member;
 
-      if (member.memberType === 'VIP') {
-        await this.applyVipTimeDiscount(tx, member.id, playSecondsDelta, note, createdBy);
-      } else {
-        const defaultGroup = await tx.pcGroup.findFirst({
-          where: { isDefault: true },
-        });
-        const hourlyRate = Number(
-          defaultGroup?.memberHourlyRate ??
-          defaultGroup?.hourlyRate ??
-          6000,
-        );
-        const cashAmount = Math.round((playSecondsDelta / 3600) * hourlyRate);
-
-        updatedMember = await tx.member.update({
-          where: { id: member.id },
-          data: {
-            balance: {
-              increment: cashAmount,
-            },
+      updatedMember = await tx.member.update({
+        where: { id: member.id },
+        data: {
+          playSeconds: {
+            increment: playSecondsDelta,
           },
-        });
+        },
+      });
 
-        await tx.memberTransaction.create({
-          data: {
-            memberId: member.id,
-            type: MemberTransactionType.ADJUSTMENT,
-            amountDelta: cashAmount,
-            playSecondsDelta: 0,
-            note,
-            createdBy,
-          },
-        });
-      }
+      await tx.memberTransaction.create({
+        data: {
+          memberId: member.id,
+          type: MemberTransactionType.ADJUSTMENT,
+          amountDelta: 0,
+          playSecondsDelta: playSecondsDelta,
+          note,
+          createdBy,
+        },
+      });
 
       const after = await this.buildLoyaltySnapshot(member.id, tx);
 
@@ -1279,38 +1298,17 @@ export class MembersService {
         bonusPoints > 0
           ? `${note}:STREAK_BONUS_${streakAfterCheckin}D_PLUS_${bonusPoints}`
           : note;
-      let updatedMember = member;
-
-      if (member.memberType === 'VIP') {
-        await this.applyVipTimeDiscount(tx, member.id, rewardSeconds, noteWithBonus, LOYALTY_USAGE_CREATED_BY);
-      } else {
-        const defaultGroup = await tx.pcGroup.findFirst({
-          where: { isDefault: true },
-        });
-        const hourlyRate = Number(
-          defaultGroup?.memberHourlyRate ??
-          defaultGroup?.hourlyRate ??
-          6000,
-        );
-        const cashAmount = Math.round((rewardSeconds / 3600) * hourlyRate);
-
-        updatedMember = await tx.member.update({
-          where: { id: member.id },
-          data: {
-            balance: { increment: cashAmount },
-          },
-        });
-        await tx.memberTransaction.create({
-          data: {
-            memberId: member.id,
-            type: MemberTransactionType.ADJUSTMENT,
-            amountDelta: cashAmount,
-            playSecondsDelta: 0,
-            note: noteWithBonus,
-            createdBy: LOYALTY_USAGE_CREATED_BY,
-          },
-        });
-      }
+      // Điểm danh chỉ thưởng Điểm Tích Lũy (Loyalty Points), không thưởng trực tiếp vào tiền/giờ
+      await tx.memberTransaction.create({
+        data: {
+          memberId: member.id,
+          type: MemberTransactionType.ADJUSTMENT,
+          amountDelta: 0,
+          playSecondsDelta: rewardSeconds, // Tương đương số điểm thưởng (bonusPoints calculation sẽ gom dòng này)
+          note: noteWithBonus,
+          createdBy: LOYALTY_USAGE_CREATED_BY,
+        },
+      });
 
       const [loyalty, dailyCheckin] = await Promise.all([
         this.buildLoyaltySnapshot(member.id, tx),
@@ -1318,7 +1316,7 @@ export class MembersService {
       ]);
 
       return {
-        member: this.toMemberItem(updatedMember),
+        member: this.toMemberItem(member),
         loyalty,
         dailyCheckin,
         gainedPoints: totalGainedPoints,
@@ -1903,6 +1901,7 @@ export class MembersService {
         id: true,
         username: true,
         playSeconds: true,
+        totalUsageSeconds: true,
       },
     });
 
@@ -1941,8 +1940,9 @@ export class MembersService {
       lastLoginAt: latestPresence?.created_at ? new Date(latestPresence.created_at).toISOString() : null,
       lastLoginPcName: latestPresence?.pc_name || null,
       lastLoginAgentId: latestPresence?.agent_id || null,
-      totalUsageSeconds: member.playSeconds || 0,
-      totalUsageHours: Math.floor((member.playSeconds || 0) / 3600),
+      totalUsageSeconds: member.totalUsageSeconds || 0,
+      totalUsageHours: Math.floor((member.totalUsageSeconds || 0) / 3600),
+      playSeconds: member.playSeconds || 0,
       sessionUsageCount: sessionCount,
       serverTime: new Date().toISOString(),
     };
@@ -2807,6 +2807,7 @@ export class MembersService {
       rank: rankName || 'N/A',
       availablePoints: availablePoints ?? 0,
       memberType: member.memberType ?? 'REGULAR',
+      usePromoPlayTime: member.usePromoPlayTime ?? true,
       avatarId: member.avatarId,
       wallpaperId: (member as any).wallpaperId,
       isActive: member.isActive,
@@ -3282,10 +3283,25 @@ export class MembersService {
       },
       where: {
         memberId,
-        createdBy: LOYALTY_REDEEM_CREATED_BY,
         note: {
           startsWith: LOYALTY_REDEEM_NOTE_PREFIX,
         },
+        playSecondsDelta: {
+          gt: 0,
+        },
+      },
+    });
+
+    const bonusAggregate = await tx.memberTransaction.aggregate({
+      _sum: {
+        playSecondsDelta: true,
+      },
+      where: {
+        memberId,
+        OR: [
+          { note: { startsWith: 'MISSION_REWARD' } },
+          { note: { startsWith: 'LOYALTY_DAILY_CHECKIN' } },
+        ],
         playSecondsDelta: {
           gt: 0,
         },
@@ -3330,7 +3346,10 @@ export class MembersService {
     totalWeightedSeconds = Math.round(totalWeightedSeconds);
 
     const redeemedSeconds = Math.max(0, redeemAggregate._sum.playSecondsDelta ?? 0);
-    const earnedPoints = Math.floor(totalWeightedSeconds / currentSecondsPerPoint);
+    const bonusSeconds = Math.max(0, bonusAggregate._sum.playSecondsDelta ?? 0);
+    const bonusPoints = Math.floor(bonusSeconds / currentSecondsPerPoint);
+
+    const earnedPoints = Math.floor(totalWeightedSeconds / currentSecondsPerPoint) + bonusPoints;
     const redeemedPoints = Math.floor(redeemedSeconds / redeemSecondsPerPoint);
     const availablePoints = Math.max(0, earnedPoints - redeemedPoints);
     const progressSeconds = totalWeightedSeconds % currentSecondsPerPoint;
@@ -3664,6 +3683,15 @@ export class MembersService {
         rank: member.rank,
         memberType: member.memberType,
       },
+    });
+
+    this.realtime.emitToAll('pc.status.changed', {
+      pcId: activePc.pcId,
+      agentId: activePc.agentId,
+      previousStatus: 'ONLINE',
+      status: 'ONLINE',
+      at: new Date().toISOString(),
+      sourceEvent: reason,
     });
   }
 
@@ -4122,6 +4150,154 @@ export class MembersService {
     return { success: true };
   }
 
+  async updatePromoPlayTimeMode(memberId: string, usePromoPlayTime: boolean) {
+    const member = await this.prisma.member.findUnique({ where: { id: memberId } });
+    if (!member) throw new NotFoundException('Member not found');
+
+    await this.prisma.member.update({
+      where: { id: memberId },
+      data: { usePromoPlayTime },
+    });
+
+    const rankConfigs = await this.prisma.loyaltyRankConfig.findMany({
+      orderBy: { minTopup: 'desc' },
+    });
+    const updatedMember = await this.prisma.member.findUnique({ where: { id: memberId } });
+    const memberItem = this.toMemberItem(
+      updatedMember!,
+      this.calculateRankName(Number(updatedMember!.totalTopup), rankConfigs),
+    );
+    await this.emitMemberAccountChanged(memberItem, 'UPDATE_PROMO_PLAY_TIME_MODE', 'client');
+
+    return {
+      success: true,
+      member: memberItem,
+    };
+  }
+
+  async redeemPromoPlayTime(memberId: string, payload: RedeemPromoTimeDto) {
+    const { redeemSeconds } = payload;
+    if (redeemSeconds <= 0) {
+      throw new BadRequestException('Số giây quy đổi phải lớn hơn 0');
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const member = await tx.member.findUnique({ where: { id: memberId } });
+      if (!member) throw new NotFoundException('Khong tim thay hoi vien');
+
+      const currentPlaySeconds = Number(member.playSeconds || 0);
+      if (redeemSeconds > currentPlaySeconds) {
+        throw new BadRequestException('Số giờ khuyến mãi không đủ để quy đổi');
+      }
+
+      // Calculate equivalent monetary value of redeemSeconds
+      const defaultGroup = await tx.pcGroup.findFirst({
+        where: { isDefault: true },
+      });
+      const baseRate = Number(
+        defaultGroup?.memberHourlyRate ??
+        defaultGroup?.hourlyRate ??
+        12000,
+      );
+      const hourlyRate = await this.getEffectiveHourlyRate(baseRate);
+      const pricePerSecond = Number(hourlyRate) / 3600;
+      const isVip = member.memberType === 'VIP';
+
+      let activeSessionResetSeconds = 0;
+      if (isVip) {
+        const activePc = await this.findMemberActivePc(memberId);
+        if (activePc) {
+          const activeSession = await tx.session.findFirst({
+            where: {
+              pcId: activePc.pcId,
+              status: 'ACTIVE',
+            },
+            orderBy: { startedAt: 'desc' },
+          });
+
+          if (activeSession) {
+            const elapsed = Math.max(
+              0,
+              Math.floor(
+                (Date.now() - activeSession.startedAt.getTime()) / 1000,
+              ),
+            );
+            const secondsToReset = Math.min(redeemSeconds, elapsed);
+            if (secondsToReset > 0) {
+              const newStartedAt = new Date(
+                activeSession.startedAt.getTime() + secondsToReset * 1000,
+              );
+              await tx.session.update({
+                where: { id: activeSession.id },
+                data: {
+                  startedAt: newStartedAt,
+                },
+              });
+              activeSessionResetSeconds = secondsToReset;
+            }
+          }
+        }
+      }
+
+      // If VIP member used seconds to reset session elapsed time, balance is not incremented for those reset seconds
+      const secondsForBalance = isVip
+        ? Math.max(0, redeemSeconds - activeSessionResetSeconds)
+        : redeemSeconds;
+      const amountCredit = Math.round(secondsForBalance * pricePerSecond);
+
+      const updatedMember = await tx.member.update({
+        where: { id: memberId },
+        data: {
+          playSeconds: { decrement: redeemSeconds },
+          ...(amountCredit > 0 ? { balance: { increment: amountCredit } } : {}),
+        },
+      });
+
+      const minutes = Math.round(redeemSeconds / 60);
+      const resetMinutes = Math.round(activeSessionResetSeconds / 60);
+      const defaultNote = isVip
+        ? activeSessionResetSeconds > 0
+          ? `Đổi ${minutes} phút KM (VIP cấn trừ ${resetMinutes} phút đã chơi)`
+          : `Đổi ${minutes} phút KM (VIP cấn trừ)`
+        : `Đổi ${minutes} phút KM (+${amountCredit.toLocaleString('vi-VN')} VND vào TK chính)`;
+      const note = payload.note?.trim() || defaultNote;
+
+      await tx.memberTransaction.create({
+        data: {
+          memberId: member.id,
+          type: MemberTransactionType.ADJUSTMENT,
+          amountDelta: amountCredit,
+          playSecondsDelta: -redeemSeconds,
+          note,
+          createdBy: payload.createdBy?.trim() || 'client.session',
+        },
+      });
+
+      const rankConfigs = await tx.loyaltyRankConfig.findMany({
+        orderBy: { minTopup: 'desc' },
+      });
+      const memberItem = this.toMemberItem(
+        updatedMember,
+        this.calculateRankName(Number(updatedMember.totalTopup), rankConfigs),
+      );
+
+      return {
+        memberItem,
+        redeemedSeconds: redeemSeconds,
+        creditedAmount: amountCredit,
+      };
+    });
+
+    await this.emitMemberAccountChanged(result.memberItem, 'REDEEM_PROMO_PLAY_TIME', 'client');
+
+    return {
+      success: true,
+      member: result.memberItem,
+      redeemedSeconds: result.redeemedSeconds,
+      creditedAmount: result.creditedAmount,
+    };
+  }
+
   async saveCloudSyncFile(memberId: string, file: Express.Multer.File) {
     const member = await this.prisma.member.findUnique({ where: { id: memberId } });
     if (!member) throw new NotFoundException("Member not found");
@@ -4151,4 +4327,331 @@ export class MembersService {
 
     res.download(filePath, `CloudSave_${member.username}.zip`);
   }
+
+  async getLeaderboard(period: string = 'all', currentMemberId?: string) {
+    const now = new Date();
+    let startDate: Date | undefined;
+    if (period === 'week') {
+      const day = now.getDay();
+      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+      startDate = new Date(now.setDate(diff));
+      startDate.setHours(0, 0, 0, 0);
+    } else if (period === 'month') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    }
+
+    const members = await this.prisma.member.findMany({
+      where: {
+        isActive: true,
+        memberType: 'REGULAR',
+      },
+      select: {
+        id: true,
+        username: true,
+        playSeconds: true,
+        avatarId: true,
+        totalTopup: true,
+      },
+      take: 100,
+    });
+
+    const rankConfigs = await this.getLoyaltyRanks();
+    const loyaltySettings = await this.getLoyaltySettingsItem();
+
+    let memberStats: Array<{
+      memberId: string;
+      username: string;
+      avatarId: string | null;
+      rankName: string;
+      points: number;
+      playHours: number;
+    }> = [];
+
+    if (startDate) {
+      const txs = await this.prisma.memberTransaction.findMany({
+        where: {
+          createdAt: { gte: startDate },
+          createdBy: LOYALTY_USAGE_CREATED_BY,
+          playSecondsDelta: { lt: 0 },
+        },
+        select: {
+          memberId: true,
+          playSecondsDelta: true,
+        },
+      });
+
+      const statsMap = new Map<string, { playSeconds: number }>();
+      for (const tx of txs) {
+        const current = statsMap.get(tx.memberId) || { playSeconds: 0 };
+        current.playSeconds += Math.abs(tx.playSecondsDelta);
+        statsMap.set(tx.memberId, current);
+      }
+
+      for (const m of members) {
+        const stats = statsMap.get(m.id) || { playSeconds: 0 };
+        const playHours = Number((stats.playSeconds / 3600).toFixed(2));
+        const rankName = this.calculateRankName(Number(m.totalTopup), rankConfigs);
+        const minutesPerPoint = rankConfigs.find(r => r.rankName === rankName)?.minutesPerPoint || loyaltySettings.minutesPerPoint || 15;
+        const points = Math.floor(stats.playSeconds / (minutesPerPoint * 60));
+
+        memberStats.push({
+          memberId: m.id,
+          username: m.username,
+          avatarId: m.avatarId,
+          rankName,
+          points,
+          playHours,
+        });
+      }
+    } else {
+      memberStats = await Promise.all(
+        members.map(async (m) => {
+          const rankName = this.calculateRankName(Number(m.totalTopup), rankConfigs);
+          const playHours = Number((m.playSeconds / 3600).toFixed(2));
+          try {
+            const snapshot = await this.buildLoyaltySnapshot(m.id, this.prisma);
+            return {
+              memberId: m.id,
+              username: m.username,
+              avatarId: m.avatarId,
+              rankName,
+              points: snapshot.earnedPoints,
+              playHours,
+            };
+          } catch {
+            return {
+              memberId: m.id,
+              username: m.username,
+              avatarId: m.avatarId,
+              rankName,
+              points: 0,
+              playHours,
+            };
+          }
+        })
+      );
+    }
+
+    const byPoints = [...memberStats].sort((a, b) => b.points - a.points || b.playHours - a.playHours || a.username.localeCompare(b.username));
+    const byPlaytime = [...memberStats].sort((a, b) => b.playHours - a.playHours || b.points - a.points || a.username.localeCompare(b.username));
+
+    const topPoints = byPoints.slice(0, 15).map((m, index) => ({
+      rank: index + 1,
+      memberId: m.memberId,
+      username: m.username,
+      avatarId: m.avatarId,
+      rankName: m.rankName,
+      value: m.points,
+      displayValue: `${m.points.toLocaleString()} điểm`,
+      isCurrentUser: Boolean(currentMemberId && m.memberId === currentMemberId),
+    }));
+
+    const topPlaytime = byPlaytime.slice(0, 15).map((m, index) => ({
+      rank: index + 1,
+      memberId: m.memberId,
+      username: m.username,
+      avatarId: m.avatarId,
+      rankName: m.rankName,
+      value: m.playHours,
+      displayValue: `${m.playHours} giờ`,
+      isCurrentUser: Boolean(currentMemberId && m.memberId === currentMemberId),
+    }));
+
+    let currentUserRank = {
+      pointsRank: 0,
+      playtimeRank: 0,
+      pointsValue: 0,
+      playtimeValue: 0,
+    };
+
+    if (currentMemberId) {
+      const pIdx = byPoints.findIndex((m) => m.memberId === currentMemberId);
+      const tIdx = byPlaytime.findIndex((m) => m.memberId === currentMemberId);
+      currentUserRank = {
+        pointsRank: pIdx >= 0 ? pIdx + 1 : 0,
+        playtimeRank: tIdx >= 0 ? tIdx + 1 : 0,
+        pointsValue: pIdx >= 0 ? byPoints[pIdx].points : 0,
+        playtimeValue: tIdx >= 0 ? byPlaytime[tIdx].playHours : 0,
+      };
+    }
+
+    return {
+      topPoints,
+      topPlaytime,
+      currentUserRank,
+    };
+  }
+
+  async getMemberDailyMissions(memberId: string) {
+    const member = await this.prisma.member.findUnique({
+      where: { id: memberId },
+    });
+    if (!member) {
+      throw new NotFoundException('Không tìm thấy hội viên');
+    }
+
+    const todayKey = this.getDateKeyInTimeZone();
+    const startOfTodayVn = new Date(`${todayKey}T00:00:00+07:00`);
+    const endOfTodayVn = new Date(`${todayKey}T23:59:59.999+07:00`);
+
+    const usageTxs = await this.prisma.memberTransaction.findMany({
+      where: {
+        memberId,
+        createdBy: LOYALTY_USAGE_CREATED_BY,
+        playSecondsDelta: { lt: 0 },
+        createdAt: { gte: startOfTodayVn, lte: endOfTodayVn },
+        NOT: {
+          note: {
+            startsWith: 'MISSION_REWARD:',
+          },
+        },
+      },
+      select: { playSecondsDelta: true },
+    });
+    const totalUsageSecs = usageTxs.reduce((sum, tx) => sum + Math.abs(tx.playSecondsDelta), 0);
+    const playedMinutesToday = Math.floor(totalUsageSecs / 60);
+
+    const todayDateValue = this.dateKeyToUtcDate(todayKey);
+    const checkinCount = await this.prisma.memberDailyCheckin.count({
+      where: {
+        memberId,
+        checkinDate: todayDateValue,
+      },
+    });
+
+    const spinCount = await this.prisma.memberTransaction.count({
+      where: {
+        memberId,
+        note: {
+          startsWith: 'LUCKY_SPIN:',
+        },
+        createdAt: { gte: startOfTodayVn, lte: endOfTodayVn },
+      },
+    });
+
+    const claimedTxs = await this.prisma.memberTransaction.findMany({
+      where: {
+        memberId,
+        note: {
+          startsWith: 'MISSION_REWARD:',
+        },
+        createdAt: { gte: startOfTodayVn, lte: endOfTodayVn },
+      },
+      select: { note: true, playSecondsDelta: true },
+    });
+
+    const claimedMissionIds = new Set<string>();
+    let totalEarnedToday = 0;
+    const loyaltySettings = await this.getLoyaltySettingsItem();
+    const secondsPerPoint = (loyaltySettings.minutesPerPoint || 15) * 60;
+
+    for (const tx of claimedTxs) {
+      if (tx.note) {
+        const parts = tx.note.split(':');
+        if (parts.length >= 2) {
+          claimedMissionIds.add(parts[1]);
+        }
+      }
+      const pts = Math.round(Math.abs(tx.playSecondsDelta) / (secondsPerPoint || 900));
+      totalEarnedToday += pts;
+    }
+
+    const missions = DAILY_MISSIONS_CONFIG.map((cfg) => {
+      let currentValue = 0;
+      if (cfg.id === 'play_2h') currentValue = playedMinutesToday;
+      else if (cfg.id === 'daily_checkin') currentValue = checkinCount;
+      else if (cfg.id === 'lucky_spin') currentValue = spinCount;
+
+      const isCompleted = currentValue >= cfg.targetValue;
+      const isClaimed = claimedMissionIds.has(cfg.id);
+
+      return {
+        id: cfg.id,
+        name: cfg.name,
+        description: cfg.description,
+        icon: cfg.icon,
+        targetValue: cfg.targetValue,
+        currentValue: Math.min(currentValue, cfg.targetValue),
+        rewardPoints: cfg.rewardPoints,
+        isCompleted,
+        isClaimed,
+      };
+    });
+
+    return {
+      missions,
+      totalEarnedToday,
+      todayDateKey: todayKey,
+    };
+  }
+
+  async claimDailyMission(memberId: string, missionId: string) {
+    const config = DAILY_MISSIONS_CONFIG.find((m) => m.id === missionId);
+    if (!config) {
+      throw new BadRequestException('Nhiệm vụ không tồn tại');
+    }
+
+    const enabled = await this.getLoyaltyFeatureEnabled();
+    if (!enabled) {
+      throw new BadRequestException('Tính năng điểm tích lũy đang tắt');
+    }
+
+    const todayKey = this.getDateKeyInTimeZone();
+
+    return this.prisma.$transaction(async (tx) => {
+      const member = await tx.member.findUnique({ where: { id: memberId } });
+      if (!member) {
+        throw new NotFoundException('Không tìm thấy hội viên');
+      }
+
+      const noteKey = `MISSION_REWARD:${missionId}:${todayKey}`;
+      const existing = await tx.memberTransaction.findFirst({
+        where: {
+          memberId,
+          note: noteKey,
+        },
+      });
+      if (existing) {
+        throw new BadRequestException('Bạn đã nhận thưởng nhiệm vụ này hôm nay rồi');
+      }
+
+      const status = await this.getMemberDailyMissions(memberId);
+      const missionStatus = status.missions.find((m) => m.id === missionId);
+      if (!missionStatus || !missionStatus.isCompleted) {
+        throw new BadRequestException('Bạn chưa hoàn thành nhiệm vụ này');
+      }
+
+      const loyaltySettings = await this.getLoyaltySettingsItem(tx);
+      const secondsToReward = config.rewardPoints * loyaltySettings.minutesPerPoint * 60;
+
+      if (member.memberType === 'VIP') {
+        await this.applyVipTimeDiscount(tx, memberId, secondsToReward, noteKey, LOYALTY_USAGE_CREATED_BY);
+      } else {
+        await tx.member.update({
+          where: { id: memberId },
+          data: { playSeconds: { increment: secondsToReward } },
+        });
+        await tx.memberTransaction.create({
+          data: {
+            memberId,
+            type: MemberTransactionType.ADJUSTMENT,
+            amountDelta: 0,
+            playSecondsDelta: -secondsToReward,
+            note: noteKey,
+            createdBy: LOYALTY_USAGE_CREATED_BY,
+          },
+        });
+      }
+
+      const loyalty = await this.buildLoyaltySnapshot(memberId, tx);
+
+      return {
+        success: true,
+        rewardPoints: config.rewardPoints,
+        rewardSeconds: secondsToReward,
+        loyalty,
+      };
+    });
+  }
 }
+

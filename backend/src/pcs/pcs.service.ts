@@ -104,6 +104,7 @@ export class PcsService {
             balance: true,
             memberType: true,
             playSeconds: true,
+            usePromoPlayTime: true,
           },
         })
       : [];
@@ -115,6 +116,9 @@ export class PcsService {
     );
     const activeMemberTypeById = new Map(
       activeMembers.map((member) => [member.id, member.memberType]),
+    );
+    const activeMemberUsePromoPlayTimeById = new Map(
+      activeMembers.map((member) => [member.id, Boolean(member.usePromoPlayTime)]),
     );
 
     const pricingStepSetting = await this.prisma.appSetting.findUnique({
@@ -203,6 +207,7 @@ export class PcsService {
               balance: activeMemberBalanceById.get(activeMemberBase.memberId) ?? 0,
               playSeconds: activeMemberPlaySecondsById.get(activeMemberBase.memberId) ?? 0,
               memberType: activeMemberTypeById.get(activeMemberBase.memberId) ?? 'REGULAR',
+              usePromoPlayTime: activeMemberUsePromoPlayTimeById.get(activeMemberBase.memberId) ?? false,
             }
           : null;
         const sessionClockAtMs =
@@ -225,17 +230,25 @@ export class PcsService {
         const billableMinutes = activeSession
           ? Math.max(1, Math.ceil(elapsedSeconds / 60))
           : 0;
-        let estimatedAmount = activeSession
-          ? calculateSessionAmountByPromotions({
-              startedAt: effectiveStartedAt,
-              endedAt: new Date(sessionClockAtMs),
-              baseHourlyRate,
-              promotions: activePromotions,
-              mode: 'PER_MINUTE_STARTED',
-            })
-          : 0;
 
-        if (activeSession) {
+        const isUsingPromoPlayTime = Boolean(
+          activeMember &&
+            activeMember.memberType === 'COMBO' &&
+            Number(activeMember.playSeconds) > 0,
+        );
+
+        let estimatedAmount =
+          activeSession && !isUsingPromoPlayTime
+            ? calculateSessionAmountByPromotions({
+                startedAt: effectiveStartedAt,
+                endedAt: new Date(sessionClockAtMs),
+                baseHourlyRate,
+                promotions: activePromotions,
+                mode: 'PER_MINUTE_STARTED',
+              })
+            : 0;
+
+        if (activeSession && !isUsingPromoPlayTime) {
           if (pricingStep > 0) {
             estimatedAmount = Math.ceil(estimatedAmount / pricingStep) * pricingStep;
           }
