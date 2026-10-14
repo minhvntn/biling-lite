@@ -1,0 +1,396 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Pc {
+  id            String           @id @default(uuid()) @db.Uuid
+  agentId       String           @unique @map("agent_id") @db.VarChar(100)
+  name          String           @db.VarChar(100)
+  hostname      String?          @db.VarChar(120)
+  ipAddress     String?          @map("ip_address") @db.VarChar(45)
+  status        PcStatus         @default(OFFLINE)
+  lastSeenAt    DateTime?        @map("last_seen_at") @db.Timestamptz(6)
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  groupId       String?          @map("group_id") @db.Uuid
+  commands      Command[]
+  eventsLog     EventLog[]
+  serviceOrders PcServiceOrder[]
+  group         PcGroup?         @relation(fields: [groupId], references: [id])
+  sessions      Session[]
+  hardware      PcHardware?
+  maintenanceLogs PcMaintenanceLog[]
+  supportMessages SupportMessage[]
+  appUsages       PcAppUsage[]
+
+  @@index([status], map: "idx_pcs_status")
+  @@index([groupId], map: "idx_pcs_group_id")
+  @@map("pcs")
+}
+
+model PcGroup {
+  id               String   @id @default(uuid()) @db.Uuid
+  name             String   @unique @db.VarChar(80)
+  hourlyRate       Decimal  @map("hourly_rate") @db.Decimal(12, 2)
+  memberHourlyRate Decimal  @map("member_hourly_rate") @db.Decimal(12, 2)
+  isDefault        Boolean  @default(false) @map("is_default")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  pcs              Pc[]
+
+  @@index([isDefault], map: "idx_pc_groups_is_default")
+  @@map("pc_groups")
+}
+
+model PricingConfig {
+  id             String   @id @default(uuid()) @db.Uuid
+  name           String   @unique @db.VarChar(100)
+  pricePerMinute Decimal  @map("price_per_minute") @db.Decimal(12, 2)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("pricing_config")
+}
+
+model Session {
+  id              String           @id @default(uuid()) @db.Uuid
+  pcId            String           @map("pc_id") @db.Uuid
+  startedAt       DateTime         @map("started_at") @db.Timestamptz(6)
+  endedAt         DateTime?        @map("ended_at") @db.Timestamptz(6)
+  durationSeconds Int?             @map("duration_seconds")
+  billableMinutes Int?             @map("billable_minutes")
+  pricePerMinute  Decimal?         @map("price_per_minute") @db.Decimal(12, 2)
+  amount          Decimal?         @db.Decimal(12, 2)
+  status          SessionStatus    @default(ACTIVE)
+  closedReason    ClosedReason?    @map("closed_reason")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  serviceOrders   PcServiceOrder[]
+  pc              Pc               @relation(fields: [pcId], references: [id], onDelete: Cascade)
+
+  @@index([pcId], map: "idx_sessions_pc_id")
+  @@index([startedAt], map: "idx_sessions_started_at")
+  @@map("sessions")
+}
+
+model Command {
+  id           String        @id @default(uuid()) @db.Uuid
+  pcId         String        @map("pc_id") @db.Uuid
+  type         CommandType
+  status       CommandStatus @default(PENDING)
+  requestedBy  String        @map("requested_by") @db.VarChar(100)
+  requestedAt  DateTime      @default(now()) @map("requested_at") @db.Timestamptz(6)
+  sentAt       DateTime?     @map("sent_at") @db.Timestamptz(6)
+  ackAt        DateTime?     @map("ack_at") @db.Timestamptz(6)
+  errorMessage String?       @map("error_message")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  pc           Pc            @relation(fields: [pcId], references: [id], onDelete: Cascade)
+
+  @@index([pcId], map: "idx_commands_pc_id")
+  @@index([status], map: "idx_commands_status")
+  @@map("commands")
+}
+
+model EventLog {
+  id        String      @id @default(uuid()) @db.Uuid
+  source    EventSource
+  eventType String      @map("event_type") @db.VarChar(50)
+  pcId      String?     @map("pc_id") @db.Uuid
+  payload   Json?
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  pc        Pc?         @relation(fields: [pcId], references: [id])
+
+  @@map("events_log")
+}
+
+model Member {
+  id             String              @id @default(uuid()) @db.Uuid
+  username       String              @unique @db.VarChar(50)
+  fullName       String              @map("full_name") @db.VarChar(120)
+  phone          String?             @db.VarChar(30)
+  balance        Decimal             @default(0) @db.Decimal(12, 2)
+  isActive       Boolean             @default(true) @map("is_active")
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  passwordHash   String?             @map("password_hash") @db.VarChar(255)
+  plainPassword  String?             @map("plain_password") @db.VarChar(50)
+  identityNumber String?             @map("identity_number") @db.VarChar(30)
+  totalTopup     Decimal             @default(0) @map("total_topup") @db.Decimal(12, 2)
+  playSeconds    Int                 @default(0) @map("play_seconds")
+  memberType     String              @default("REGULAR") @map("member_type") @db.VarChar(20)
+  comboExpiresAt DateTime?           @map("combo_expires_at") @db.Timestamptz(6)
+  isLimitedCombo Boolean             @default(false) @map("is_limited_combo")
+  avatarId         String?             @map("avatar_id") @db.Text
+  wallpaperId      String?             @map("wallpaper_id") @db.Text
+  usePromoPlayTime Boolean             @default(true) @map("use_promo_play_time")
+  totalUsageSeconds Int                @default(0) @map("total_usage_seconds")
+  referralCode     String?             @unique @map("referral_code") @db.VarChar(10)
+  referredById     String?             @map("referred_by_id") @db.Uuid
+  transactions     MemberTransaction[]
+  dailyCheckins  MemberDailyCheckin[]
+  referredBy       Member?             @relation("MemberReferrals", fields: [referredById], references: [id])
+  referrals        Member[]            @relation("MemberReferrals")
+
+  @@index([fullName], map: "idx_members_full_name")
+  @@map("members")
+}
+
+model MemberDailyCheckin {
+  id          String   @id @default(uuid()) @db.Uuid
+  memberId    String   @map("member_id") @db.Uuid
+  checkinDate DateTime @map("checkin_date") @db.Date
+  createdBy   String   @map("created_by") @db.VarChar(100)
+  note        String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  member      Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, checkinDate], map: "uq_member_daily_checkins_member_date")
+  @@index([memberId], map: "idx_member_daily_checkins_member_id")
+  @@index([checkinDate], map: "idx_member_daily_checkins_checkin_date")
+  @@map("member_daily_checkins")
+}
+
+model LoyaltyRankConfig {
+  id              String   @id @default(uuid()) @db.Uuid
+  rankName        String   @unique @map("rank_name") @db.VarChar(50)
+  minTopup        Decimal  @map("min_topup") @db.Decimal(12, 2)
+  bonusPercent    Decimal  @default(0) @map("bonus_percent") @db.Decimal(5, 2)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  minutesPerPoint Float      @default(15) @map("minutes_per_point")
+
+  @@map("loyalty_rank_configs")
+}
+
+model MemberTransaction {
+  id               String                @id @default(uuid()) @db.Uuid
+  memberId         String                @map("member_id") @db.Uuid
+  type             MemberTransactionType
+  amountDelta      Decimal               @default(0) @map("amount_delta") @db.Decimal(12, 2)
+  playSecondsDelta Int                   @default(0) @map("play_seconds_delta")
+  note             String?
+  createdBy        String                @map("created_by") @db.VarChar(100)
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  member           Member                @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId], map: "idx_member_transactions_member_id")
+  @@index([createdAt], map: "idx_member_transactions_created_at")
+  @@map("member_transactions")
+}
+
+model ServiceItem {
+  id        String           @id @default(uuid()) @db.Uuid
+  name      String           @unique @db.VarChar(120)
+  category  String?          @db.VarChar(80)
+  unitPrice Decimal          @map("unit_price") @db.Decimal(12, 2)
+  isActive  Boolean          @default(true) @map("is_active")
+  imageDataUrl String?       @map("image_data_url") @db.Text
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  pcOrders  PcServiceOrder[]
+
+  @@index([isActive], map: "idx_service_items_is_active")
+  @@map("service_items")
+}
+
+model PcServiceOrder {
+  id            String      @id @default(uuid()) @db.Uuid
+  pcId          String      @map("pc_id") @db.Uuid
+  sessionId     String?     @map("session_id") @db.Uuid
+  serviceItemId String      @map("service_item_id") @db.Uuid
+  quantity      Int         @default(1)
+  unitPrice     Decimal     @map("unit_price") @db.Decimal(12, 2)
+  lineTotal     Decimal     @map("line_total") @db.Decimal(12, 2)
+  note          String?     @db.VarChar(255)
+  createdBy     String      @map("created_by") @db.VarChar(100)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  pc            Pc          @relation(fields: [pcId], references: [id], onDelete: Cascade)
+  serviceItem   ServiceItem @relation(fields: [serviceItemId], references: [id])
+  session       Session?    @relation(fields: [sessionId], references: [id])
+
+  @@index([pcId], map: "idx_pc_service_orders_pc_id")
+  @@index([sessionId], map: "idx_pc_service_orders_session_id")
+  @@index([serviceItemId], map: "idx_pc_service_orders_item_id")
+  @@index([createdAt], map: "idx_pc_service_orders_created_at")
+  @@map("pc_service_orders")
+}
+
+model TimeBasedPromotion {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @db.VarChar(100)
+  daysOfWeek      Int[]    @map("days_of_week")
+  annualDates     String[] @default([]) @map("annual_dates")
+  startTime       String   @db.VarChar(5)
+  endTime         String   @db.VarChar(5)
+  discountPercent Decimal  @default(0) @map("discount_percent") @db.Decimal(5, 2)
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("time_based_promotions")
+}
+
+model ComboPackage {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @unique @db.VarChar(100)
+  price        Decimal  @db.Decimal(12, 2)
+  startTime    String   @map("start_time") @db.VarChar(5) // e.g. "22:00"
+  endTime      String   @map("end_time") @db.VarChar(5)   // e.g. "06:00"
+  validityDays Int      @default(1) @map("validity_days")
+  durationHours Int     @default(0) @map("duration_hours")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("combo_packages")
+}
+
+model AppSetting {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique @db.VarChar(100)
+  value     String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("app_settings")
+}
+
+enum PcStatus {
+  OFFLINE
+  ONLINE
+  IN_USE
+  LOCKED
+  PAUSED
+}
+
+enum SessionStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum ClosedReason {
+  ADMIN_LOCK
+  AUTO_OFFLINE
+  SYSTEM
+}
+
+enum CommandType {
+  OPEN
+  LOCK
+  RESTART
+  SHUTDOWN
+  CLOSE_APPS
+  PAUSE
+  RESUME
+}
+
+enum CommandStatus {
+  PENDING
+  SENT
+  ACK_SUCCESS
+  ACK_FAILED
+  TIMEOUT
+}
+
+enum EventSource {
+  ADMIN
+  SERVER
+  CLIENT
+}
+
+enum MemberTransactionType {
+  TOPUP
+  BUY_PLAYTIME
+  ADJUSTMENT
+}
+
+enum AdminRole {
+  ADMIN
+  STAFF
+}
+
+model AdminUser {
+  id           String    @id @default(uuid()) @db.Uuid
+  username     String    @unique @db.VarChar(50)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  fullName     String    @map("full_name") @db.VarChar(120)
+  role         AdminRole @default(STAFF)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("admin_users")
+}
+
+model PcHardware {
+  id          String   @id @default(uuid()) @db.Uuid
+  pcId        String   @unique @map("pc_id") @db.Uuid
+  cpu         String?  @db.VarChar(100)
+  ram         String?  @db.VarChar(100)
+  gpu         String?  @db.VarChar(100)
+  motherboard String?  @db.VarChar(100)
+  storage     String?  @db.VarChar(100)
+  monitor     String?  @db.VarChar(100)
+  lan         String?  @db.VarChar(100)
+  temperature String?  @db.VarChar(50)
+  note        String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  pc          Pc       @relation(fields: [pcId], references: [id], onDelete: Cascade)
+
+  @@map("pc_hardware")
+}
+
+model PcMaintenanceLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  pcId        String   @map("pc_id") @db.Uuid
+  date        DateTime @db.Date
+  description String   @db.Text
+  cost        Decimal  @default(0) @db.Decimal(12, 2)
+  performedBy String?  @map("performed_by") @db.VarChar(100)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  pc          Pc       @relation(fields: [pcId], references: [id], onDelete: Cascade)
+
+  @@index([pcId], map: "idx_pc_maintenance_logs_pc_id")
+  @@index([date], map: "idx_pc_maintenance_logs_date")
+  @@map("pc_maintenance_logs")
+}
+
+model SupportMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  pcId      String   @map("pc_id") @db.Uuid
+  direction String   @db.VarChar(10) // "CLIENT" or "ADMIN"
+  message   String   @db.Text
+  category  String?  @db.VarChar(50)
+  sentBy    String?  @map("sent_by") @db.VarChar(100)
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  pc        Pc       @relation(fields: [pcId], references: [id], onDelete: Cascade)
+
+  @@index([pcId], map: "idx_support_messages_pc_id")
+  @@index([createdAt], map: "idx_support_messages_created_at")
+  @@map("support_messages")
+}
+
+model PcAppUsage {
+  id              String    @id @default(uuid()) @db.Uuid
+  pcId            String    @map("pc_id") @db.Uuid
+  sessionId       String?   @map("session_id") @db.Uuid
+  appName         String    @map("app_name") @db.VarChar(200)
+  windowTitle     String?   @map("window_title") @db.VarChar(500)
+  startedAt       DateTime  @map("started_at") @db.Timestamptz(6)
+  endedAt         DateTime? @map("ended_at") @db.Timestamptz(6)
+  durationSeconds Int       @default(0) @map("duration_seconds")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  pc              Pc        @relation(fields: [pcId], references: [id], onDelete: Cascade)
+
+  @@index([pcId, startedAt], map: "idx_pc_app_usage_pc_started")
+  @@map("pc_app_usage")
+}

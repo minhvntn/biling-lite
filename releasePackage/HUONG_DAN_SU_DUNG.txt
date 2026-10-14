@@ -1,0 +1,33 @@
+======================================================================
+     GÓI CÀI ĐẶT SERVER MANAGER BILLING (PHÒNG GAME & QUẢN LÝ HỘI VIÊN)
+======================================================================
+
+Trọn bộ gói cài đặt bao gồm 2 phần độc lập:
+
+📁 Thư mục [Server] - Dành riêng cho MÁY TÍNH MÁY CHỦ (Thu ngân / Quản trị):
+  ├── 1-Cai-Dat-Server.bat           -> Chạy 1 lần đầu để cài đặt môi trường và khởi tạo Database.
+  ├── 2-Khoi-Dong-Server.bat         -> Bấm để khởi chạy Máy chủ + Ứng dụng Quản lý Server Admin App.
+  ├── README_HUONG_DAN_SERVER.txt    -> Hướng dẫn chi tiết.
+  ├── Backend/                       -> Dịch vụ lõi máy chủ.
+  └── Server-Admin-App/              -> Phần mềm quản lý máy chủ trên desktop.
+
+📁 Thư mục [Client] - Dành cho CÁC MÁY TRẠM (Máy của khách chơi):
+  ├── 1-Cau-Hinh-IP-May-Chu.bat      -> Nhập IP máy chủ để kết nối.
+  ├── 2-Chay-Client.bat              -> Bấm để chạy Client Agent máy trạm.
+  ├── 3-Tu-Dong-Khoi-Dong-Cung-Windows.bat -> Cài đặt tự khởi động cùng máy tính.
+  ├── README_HUONG_DAN_CLIENT.txt    -> Hướng dẫn chi tiết.
+  └── Client-Agent/                  -> Phần mềm giao diện máy trạm.
+
+----------------------------------------------------------------------
+QUY TRÌNH TRIỂN KHAI NHANH:
+1. Tại Máy Chủ:
+   - Cài Node.js (https://nodejs.org/).
+   - Chạy "Server\1-Cai-Dat-Server.bat".
+   - Chạy "Server\2-Khoi-Dong-Server.bat".
+   - Xem IP của máy chủ (dùng lệnh 'ipconfig' trong CMD, ví dụ: 192.168.1.100).
+
+2. Tại Máy Trạm:
+   - Copy thư mục "Client" sang máy trạm.
+   - Chạy "Client\1-Cau-Hinh-IP-May-Chu.bat" -> Nhập IP máy chủ (192.168.1.100).
+   - Chạy "Client\2-Chay-Client.bat" -> Máy trạm lập tức online trên hệ thống quản lý!
+======================================================================

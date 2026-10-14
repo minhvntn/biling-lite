@@ -242,14 +242,22 @@ public partial class MainWindow : Window
             }
             else if (activeMember is not null)
             {
-                var pricePerMinute = (item.ActiveSession?.PricePerMinute > 0) ? item.ActiveSession.PricePerMinute : (item.HourlyRate / 60m);
-                var balanceSeconds = pricePerMinute > 0 ? (activeMember.Balance / pricePerMinute) * 60m : 0m;
-                var totalRemainingSeconds = Math.Max(0m, balanceSeconds) + Math.Max(0, activeMember.PlaySeconds);
-                var remainingMinutes = totalRemainingSeconds <= 0m
-                    ? 0
-                    : Math.Max(1, (int)Math.Ceiling((double)(totalRemainingSeconds / 60m)));
-                var displayRemainingSeconds = remainingMinutes * 60;
-                remainingText = FormatRemainingTime(Math.Max(0, displayRemainingSeconds));
+                var isVip = string.Equals(activeMember.MemberType, "VIP", StringComparison.OrdinalIgnoreCase);
+                if (isVip)
+                {
+                    remainingText = "99:99";
+                }
+                else
+                {
+                    var pricePerMinute = (item.ActiveSession?.PricePerMinute > 0) ? item.ActiveSession.PricePerMinute : (item.HourlyRate / 60m);
+                    var balanceSeconds = pricePerMinute > 0 ? (activeMember.Balance / pricePerMinute) * 60m : 0m;
+                    var totalRemainingSeconds = Math.Max(0m, balanceSeconds) + Math.Max(0, activeMember.PlaySeconds);
+                    var remainingMinutes = totalRemainingSeconds <= 0m
+                        ? 0
+                        : Math.Max(1, (int)Math.Ceiling((double)(totalRemainingSeconds / 60m)));
+                    var displayRemainingSeconds = remainingMinutes * 60;
+                    remainingText = FormatRemainingTime(Math.Max(0, displayRemainingSeconds));
+                }
             }
         }
         
@@ -258,7 +266,15 @@ public partial class MainWindow : Window
         {
             if (activeMember is not null)
             {
-                moneyText = activeMember.Balance < 0 ? Math.Abs(activeMember.Balance).ToString("N0") : "-";
+                var isVip = string.Equals(activeMember.MemberType, "VIP", StringComparison.OrdinalIgnoreCase);
+                if (isVip)
+                {
+                    moneyText = item.ActiveSession.EstimatedAmount.ToString("N0");
+                }
+                else
+                {
+                    moneyText = activeMember.Balance < 0 ? Math.Abs(activeMember.Balance).ToString("N0") : "-";
+                }
             }
             else
             {
@@ -524,6 +540,10 @@ public partial class MainWindow : Window
 
     private static string FormatRemainingTime(int totalSeconds)
     {
+        if (totalSeconds >= 359940) // >= 99h 59m
+        {
+            return "99:99";
+        }
         var hours = totalSeconds / 3600;
         var minutes = (totalSeconds % 3600) / 60;
 

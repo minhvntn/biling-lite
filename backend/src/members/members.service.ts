@@ -44,6 +44,7 @@ import { LoyaltyDailyCheckinDto } from './dto/loyalty-daily-checkin.dto';
 import { HorseRaceDto } from './dto/horse-race.dto';
 import { UpdateLuckyEnvelopeSettingsDto } from './dto/lucky-envelope-settings.dto';
 import { OpenLuckyEnvelopeDto } from './dto/open-lucky-envelope.dto';
+import { PushNotificationsService } from '../push-notifications/push-notifications.service';
 
 const LOYALTY_CONFIG_KEY = '__LOYALTY_MEMBER_POINTS__';
 const LOYALTY_MINUTES_PER_POINT = 15;
@@ -214,6 +215,7 @@ export class MembersService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly realtime: RealtimeService,
+    private readonly pushNotificationsService: PushNotificationsService,
   ) { }
 
   async getMembers(search?: string, memberType?: string) {
@@ -564,7 +566,7 @@ export class MembersService {
       );
       const hourlyRate = await this.getEffectiveHourlyRate(baseRate);
       pricePerMinute = Number(hourlyRate) / 60;
-      const upfrontLoginCharge = 0; // Members do not pay upfront charges
+      upfrontLoginCharge = 0; // Members do not pay upfront charges
       const currentBalance = Number(member.balance);
       const isVip = member.memberType === 'VIP';
       const isCombo = member.memberType === 'COMBO';
@@ -1138,11 +1140,21 @@ export class MembersService {
 
   async getEffectiveHourlyRate(baseRate: number): Promise<number> {
     const now = new Date();
-    const day = now.getDay();
-    const currentTime =
-      now.getHours().toString().padStart(2, '0') +
-      ':' +
-      now.getMinutes().toString().padStart(2, '0');
+    // Use Vietnam timezone to ensure promotion schedules are correct regardless of server timezone
+    const vnFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      weekday: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    const parts = vnFormatter.formatToParts(now);
+    const weekdayStr = parts.find(p => p.type === 'weekday')?.value ?? '';
+    const hourStr = parts.find(p => p.type === 'hour')?.value ?? '00';
+    const minuteStr = parts.find(p => p.type === 'minute')?.value ?? '00';
+    const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    const day = weekdayMap[weekdayStr] ?? now.getDay();
+    const currentTime = hourStr + ':' + minuteStr;
 
     const promotions = await this.prisma.timeBasedPromotion.findMany({
       where: { isActive: true },
@@ -1738,7 +1750,7 @@ export class MembersService {
         wonMinutes = prizeTable[0].minutes; // Fallback
       }
 
-      // 3. Reward won minutes (Playtime)
+      // 3. Reward won minutes (Promo Playtime)
       if (wonMinutes > 0) {
         const secondsToReward = wonMinutes * 60;
         const rewardNote = `LUCKY_SPIN_WIN: won ${wonMinutes} minutes`;
@@ -1746,26 +1758,16 @@ export class MembersService {
         if (member.memberType === 'VIP') {
           await this.applyVipTimeDiscount(tx, memberId, secondsToReward, rewardNote, createdBy);
         } else {
-          const defaultGroup = await tx.pcGroup.findFirst({
-            where: { isDefault: true },
-          });
-          const hourlyRate = Number(
-            defaultGroup?.memberHourlyRate ??
-            defaultGroup?.hourlyRate ??
-            6000,
-          );
-          const cashAmount = Math.round((secondsToReward / 3600) * hourlyRate);
-
           await tx.member.update({
             where: { id: memberId },
-            data: { balance: { increment: cashAmount } },
+            data: { playSeconds: { increment: secondsToReward } },
           });
           await tx.memberTransaction.create({
             data: {
               memberId,
               type: MemberTransactionType.ADJUSTMENT,
-              amountDelta: cashAmount,
-              playSecondsDelta: 0,
+              amountDelta: 0,
+              playSecondsDelta: secondsToReward,
               note: rewardNote,
               createdBy,
             },
@@ -1883,47 +1885,22 @@ export class MembersService {
       else if (rank === 1) wonPoints = Math.floor(betPoints * 2.25);
       else if (rank === 2) wonPoints = Math.floor(betPoints * 1.5);
 
-      // 3. Reward if won
+      // 3. Reward if won (Loyalty Points)
       if (isWin && wonPoints > 0) {
-        const secondsToReward = wonPoints * earnSecondsPerPoint;
-        const rewardNote = `HORSE_RACE_WIN: won ${wonPoints} points (Rank ${rank + 1})`;
+        const rankConfigs = await tx.loyaltyRankConfig.findMany({ orderBy: { minTopup: 'desc' } });
+        const memberRank = rankConfigs.find(
+          (r) => Number(member.totalTopup) >= Number(r.minTopup)
+        );
+        const minutesPerPoint = memberRank?.minutesPerPoint || loyaltySettings.minutesPerPoint || 15;
+        const secondsToReward = wonPoints * minutesPerPoint * 60;
+        const rewardNote = `HORSE_RACE_REWARD: won ${wonPoints} points (Rank ${rank + 1})`;
 
-        if (member.memberType === 'VIP') {
-          await this.applyVipTimeDiscount(tx, memberId, secondsToReward, rewardNote, createdBy);
-        } else {
-          const defaultGroup = await tx.pcGroup.findFirst({
-            where: { isDefault: true },
-          });
-          const hourlyRate = Number(
-            defaultGroup?.memberHourlyRate ??
-            defaultGroup?.hourlyRate ??
-            6000,
-          );
-          const cashAmount = Math.round((secondsToReward / 3600) * hourlyRate);
-
-          await tx.member.update({
-            where: { id: memberId },
-            data: { balance: { increment: cashAmount } },
-          });
-          await tx.memberTransaction.create({
-            data: {
-              memberId,
-              type: MemberTransactionType.ADJUSTMENT,
-              amountDelta: cashAmount,
-              playSecondsDelta: 0,
-              note: rewardNote,
-              createdBy,
-            },
-          });
-        }
-
-        // Pseudo-usage transaction to add Loyalty Points
         await tx.memberTransaction.create({
           data: {
-            memberId,
+            memberId: member.id,
             type: MemberTransactionType.ADJUSTMENT,
             amountDelta: 0,
-            playSecondsDelta: -secondsToReward,
+            playSecondsDelta: secondsToReward,
             note: rewardNote,
             createdBy: LOYALTY_USAGE_CREATED_BY,
           },
@@ -2148,7 +2125,7 @@ export class MembersService {
             increment: finalAmount,
           },
           totalTopup: {
-            increment: finalAmount,
+            increment: amount, // Only count original amount toward rank, not bonus
           },
         },
       });
@@ -2675,6 +2652,31 @@ export class MembersService {
     const requestItem = this.toTopupRequestItem(requestEvent.id, requestPayload);
     this.realtime.emitToAll('member.topup.requested', requestItem);
 
+    // Send Web Push to awake sleeping/screen-off mobile devices
+    const formattedAmount = Number(amount || 0).toLocaleString('vi-VN');
+    const machine = pc?.name || normalizedAgentId || 'Máy trạm';
+    const memberName = member.fullName ? `${member.fullName} (${member.username})` : member.username;
+    this.pushNotificationsService
+      .sendPushNotification({
+        title: '💰 Yêu cầu nạp tiền hội viên',
+        body: `${memberName}: +${formattedAmount} VND (${machine})`,
+        icon: '/pwa-192x192.png',
+        badge: '/pwa-192x192.png',
+        tag: `topup-${requestEvent.id}`,
+        data: {
+          url: '/pcs',
+          type: 'MEMBER_TOPUP_REQUEST',
+          requestId: requestEvent.id,
+          memberId: member.id,
+          username: member.username,
+          amount,
+        },
+      })
+      .catch((err) => {
+        // Log without failing main flow
+        console.warn('[MembersService] Failed to send push notification:', err?.message || err);
+      });
+
     return {
       request: requestItem,
       status: 'PENDING',
@@ -2762,7 +2764,7 @@ export class MembersService {
             increment: finalAmount,
           },
           totalTopup: {
-            increment: finalAmount,
+            increment: requestPayload.amount, // Only count original amount toward rank, not bonus
           },
         },
       });
@@ -3651,6 +3653,8 @@ export class MembersService {
           { note: { startsWith: 'MISSION_REWARD' } },
           { note: { startsWith: 'LOYALTY_DAILY_CHECKIN' } },
           { note: { startsWith: 'REFERRAL_REWARD' } },
+          { note: { startsWith: 'HORSE_RACE_REWARD' } },
+          { note: { startsWith: 'HORSE_RACE_WIN' } },
         ],
         playSecondsDelta: {
           gt: 0,

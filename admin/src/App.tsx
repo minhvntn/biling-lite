@@ -4,6 +4,8 @@ import { PcsPage } from './pages/PcsPage';
 import { SessionHistoryPage } from './pages/SessionHistoryPage';
 import { MembersPage } from './pages/MembersPage';
 import { PWAPrompt } from './components/PWAPrompt';
+import { MemberTopupModal } from './components/MemberTopupModal';
+import { PushNotificationManager } from './components/PushNotificationManager';
 
 function App() {
   return (
@@ -16,6 +18,8 @@ function App() {
         <Route path="/members" element={<MembersPage />} />
         <Route path="*" element={<Navigate to="/pcs" replace />} />
       </Routes>
+      <MemberTopupModal />
+      <PushNotificationManager />
       <PWAPrompt />
     </>
   );

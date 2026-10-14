@@ -1043,14 +1043,14 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
     private int ComputeRemainingMinutesFromMemberSnapshot(MemberLoginItem member)
     {
+        if (string.Equals(member.MemberType, "VIP", StringComparison.OrdinalIgnoreCase))
+        {
+            return 6_000; // 100 giờ (99:99) cho Hội viên VIP
+        }
+
         var balanceMinutes = ComputeMinutesFromBalance(member.Balance, _currentHourlyRate);
         var playMinutes = ComputeMinutesFromPlaySeconds(member.PlaySeconds);
         var remainingMins = Math.Max(0, balanceMinutes + playMinutes);
-        
-        if (member.MemberType == "VIP")
-        {
-            return Math.Max(0, remainingMins);
-        }
         
         return Math.Max(0, remainingMins);
     }
@@ -1060,11 +1060,20 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
     private void SynchronizeMemberBillingFromServer(MemberLoginItem member, int usedSecondsNow)
     {
-        var pricePerMinute = _currentHourlyRate > 0 ? (_currentHourlyRate / 60m) : 0m;
-        var remainingMinutesExact = pricePerMinute > 0 ? (member.Balance / pricePerMinute) : 0m;
-        var playMinutesExact = Math.Max(0m, member.PlaySeconds / 60m);
-        var totalMinutesExact = Math.Max(0m, remainingMinutesExact + playMinutesExact);
-        var totalMinutes = Math.Max(1, (int)Math.Ceiling(totalMinutesExact));
+        var isVip = string.Equals(member.MemberType, "VIP", StringComparison.OrdinalIgnoreCase);
+        int totalMinutes;
+        if (isVip)
+        {
+            totalMinutes = 6_000; // 100 giờ (99:99)
+        }
+        else
+        {
+            var pricePerMinute = _currentHourlyRate > 0 ? (_currentHourlyRate / 60m) : 0m;
+            var remainingMinutesExact = pricePerMinute > 0 ? (member.Balance / pricePerMinute) : 0m;
+            var playMinutesExact = Math.Max(0m, member.PlaySeconds / 60m);
+            var totalMinutesExact = Math.Max(0m, remainingMinutesExact + playMinutesExact);
+            totalMinutes = Math.Max(1, (int)Math.Ceiling(totalMinutesExact));
+        }
 
         Dispatcher.Invoke(() =>
         {

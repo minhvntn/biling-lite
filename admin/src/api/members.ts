@@ -20,7 +20,16 @@ function toQuery(search?: string): string {
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const message = await response.text();
+    const raw = await response.text();
+    let message = raw;
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed.message) {
+        message = Array.isArray(parsed.message) ? parsed.message.join(', ') : parsed.message;
+      }
+    } catch {
+      // Not JSON
+    }
     throw new Error(message || `Request failed: ${response.status}`);
   }
 
@@ -95,5 +104,28 @@ export async function withdrawMemberBalance(memberId: string, payload: { amount:
   });
 
   return handleResponse<{ member: MemberItem }>(response);
+}
+
+export async function fetchPendingTopupRequests(): Promise<{ items: any[]; total: number }> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/members/topup-requests/pending`);
+  return handleResponse<{ items: any[]; total: number }>(response);
+}
+
+export async function approveTopupRequest(requestId: string, payload?: { approvedBy?: string }) {
+  const response = await fetchWithAuth(`${API_BASE_URL}/members/topup-requests/${requestId}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload ?? { approvedBy: 'admin.web' }),
+  });
+  return handleResponse<any>(response);
+}
+
+export async function rejectTopupRequest(requestId: string, payload?: { rejectedBy?: string; note?: string }) {
+  const response = await fetchWithAuth(`${API_BASE_URL}/members/topup-requests/${requestId}/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload ?? { rejectedBy: 'admin.web', note: 'Từ chối bởi admin web' }),
+  });
+  return handleResponse<any>(response);
 }
 

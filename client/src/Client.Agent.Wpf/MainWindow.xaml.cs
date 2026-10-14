@@ -63,7 +63,7 @@ public static decimal PricingStep { get; set; } = 1000m;
     private decimal _memberBalance;
     private int _playSeconds;
     private bool _usePromoPlayTime = true;
-    private bool IsUsingPromoPlayTimeNow => _isMemberSession && _usePromoPlayTime && _playSeconds > 0;
+    private bool IsUsingPromoPlayTimeNow => _isMemberSession && !_isVipSession && _usePromoPlayTime && _playSeconds > 0;
     private bool _withdrawActionEnabledSetting = true;
     private bool _topupActionEnabledSetting = true;
     private TimeSpan _usedDuration = TimeSpan.Zero;
@@ -1621,6 +1621,10 @@ public static decimal PricingStep { get; set; } = 1000m;
 
     private static string FormatSeconds(int totalSeconds)
     {
+        if (totalSeconds >= 359940)
+        {
+            return "99:99";
+        }
         var hours = totalSeconds / 3600;
         var mins = (totalSeconds % 3600) / 60;
         return $"{hours:00}:{mins:00}";

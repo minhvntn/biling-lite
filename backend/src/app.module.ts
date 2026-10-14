@@ -17,6 +17,7 @@ import { WebFilterModule } from './web-filter/web-filter.module';
 import { WebsiteLogsModule } from './website-logs/website-logs.module';
 import { SettingsModule } from './settings/settings.module';
 import { CombosModule } from './combos/combos.module';
+import { PushNotificationsModule } from './push-notifications/push-notifications.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { CombosModule } from './combos/combos.module';
     WebsiteLogsModule,
     SettingsModule,
     CombosModule,
+    PushNotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -59,3 +59,32 @@ export type BuyHoursPayload = {
   note?: string;
   createdBy?: string;
 };
+
+export type MemberTopupRequestItem = {
+  requestId: string;
+  memberId: string;
+  username: string;
+  fullName?: string | null;
+  amount: number;
+  note?: string | null;
+  createdBy: string;
+  agentId?: string | null;
+  pcId?: string | null;
+  pcName?: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  requestedAt: string;
+  approvedAt?: string | null;
+  approvedBy?: string | null;
+  rejectedAt?: string | null;
+  rejectedBy?: string | null;
+  rejectNote?: string | null;
+  processedAmount?: number | null;
+  balanceAfterTopup?: number | null;
+  transactionId?: string | null;
+};
+
+export type MemberTopupPendingListResponse = {
+  items: MemberTopupRequestItem[];
+  total: number;
+  serverTime: string;
+};

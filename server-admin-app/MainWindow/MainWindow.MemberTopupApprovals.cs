@@ -208,9 +208,19 @@ public partial class MainWindow : Window
                     if (!response.IsSuccessStatusCode)
                     {
                         var body = await response.Content.ReadAsStringAsync();
-                        errorText.Text = string.IsNullOrWhiteSpace(body)
-                            ? $"Hủy yêu cầu thất bại ({(int)response.StatusCode})."
-                            : body;
+                        var friendlyMsg = ParseMemberTopupErrorMessage(body, $"Hủy yêu cầu thất bại ({(int)response.StatusCode}).");
+
+                        if (response.StatusCode == System.Net.HttpStatusCode.Conflict || response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                        {
+                            MessageBox.Show(dialog, friendlyMsg, "Thông báo giao dịch", MessageBoxButton.OK, MessageBoxImage.Information);
+                            decisionSubmitted = true;
+                            dialog.Close();
+                            _ = RefreshMembersAsync();
+                            _ = RefreshMachinesAsync();
+                            return;
+                        }
+
+                        errorText.Text = friendlyMsg;
                         return;
                     }
 
@@ -251,9 +261,19 @@ public partial class MainWindow : Window
                     if (!response.IsSuccessStatusCode)
                     {
                         var body = await response.Content.ReadAsStringAsync();
-                        errorText.Text = string.IsNullOrWhiteSpace(body)
-                            ? $"Chấp nhận thất bại ({(int)response.StatusCode})."
-                            : body;
+                        var friendlyMsg = ParseMemberTopupErrorMessage(body, $"Chấp nhận thất bại ({(int)response.StatusCode}).");
+
+                        if (response.StatusCode == System.Net.HttpStatusCode.Conflict || response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                        {
+                            MessageBox.Show(dialog, friendlyMsg, "Thông báo giao dịch", MessageBoxButton.OK, MessageBoxImage.Information);
+                            decisionSubmitted = true;
+                            dialog.Close();
+                            _ = RefreshMembersAsync();
+                            _ = RefreshMachinesAsync();
+                            return;
+                        }
+
+                        errorText.Text = friendlyMsg;
                         return;
                     }
 
@@ -299,5 +319,43 @@ public partial class MainWindow : Window
             dialog.Content = root;
             _ = dialog.ShowModal(this);
         });
+    }
+
+    private static string ParseMemberTopupErrorMessage(string? body, string defaultMessage)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return defaultMessage;
+        }
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("message", out var msgElement))
+            {
+                if (msgElement.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    var msg = msgElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(msg))
+                    {
+                        return msg;
+                    }
+                }
+                else if (msgElement.ValueKind == System.Text.Json.JsonValueKind.Array && msgElement.GetArrayLength() > 0)
+                {
+                    var first = msgElement[0].GetString();
+                    if (!string.IsNullOrWhiteSpace(first))
+                    {
+                        return first;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Not valid JSON
+        }
+
+        return body.Trim();
     }
 }
