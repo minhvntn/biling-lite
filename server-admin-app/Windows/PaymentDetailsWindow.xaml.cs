@@ -232,7 +232,19 @@ public partial class PaymentDetailsWindow : Window, INotifyPropertyChanged
         var playAmount = _machineSnapshot.ActiveSessionEstimatedAmount;
         var playAmountToPay = 0m;
 
-        if (_machineSnapshot.ActiveMemberId != null)
+        if (_machineSnapshot.IsVipSession)
+        {
+            if (_machineSnapshot.ActiveMemberBalance <= 0)
+            {
+                var rawDebt = _machineSnapshot.ActiveMemberBalance < 0 ? Math.Abs(_machineSnapshot.ActiveMemberBalance) : 0m;
+                playAmountToPay = playAmount + rawDebt;
+            }
+            else
+            {
+                playAmountToPay = Math.Max(0m, playAmount - _machineSnapshot.ActiveMemberBalance);
+            }
+        }
+        else if (_machineSnapshot.ActiveMemberId != null)
         {
             if (_machineSnapshot.ActiveMemberBalance < 0)
             {
@@ -280,7 +292,33 @@ public partial class PaymentDetailsWindow : Window, INotifyPropertyChanged
         ClientServiceAmountText = $"{clientServiceAmount:N0} VND";
         ServerServiceAmountText = $"{serverServiceAmount:N0} VND";
 
-        if (_machineSnapshot.ActiveMemberId != null)
+        if (_machineSnapshot.IsVipSession)
+        {
+            if (_machineSnapshot.ActiveMemberBalance <= 0)
+            {
+                if (_machineSnapshot.ActiveMemberBalance < 0)
+                {
+                    var rawDebt = Math.Abs(_machineSnapshot.ActiveMemberBalance);
+                    PlayAmountText = $"{playAmount:N0} VND (VIP trả sau + Nợ {rawDebt:N0}đ)";
+                }
+                else
+                {
+                    PlayAmountText = $"{playAmount:N0} VND (VIP trả sau - Thu tại quầy)";
+                }
+            }
+            else
+            {
+                if (playAmount <= _machineSnapshot.ActiveMemberBalance)
+                {
+                    PlayAmountText = $"{playAmount:N0} VND (Đã trừ số dư)";
+                }
+                else
+                {
+                    PlayAmountText = $"{playAmount:N0} VND (Đã cấn trừ {_machineSnapshot.ActiveMemberBalance:N0}đ số dư)";
+                }
+            }
+        }
+        else if (_machineSnapshot.ActiveMemberId != null)
         {
             if (_machineSnapshot.ActiveMemberBalance >= 0)
             {

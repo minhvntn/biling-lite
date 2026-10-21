@@ -323,8 +323,6 @@ public static decimal PricingStep { get; set; } = 1000m;
             var hours = _playSeconds / 3600;
             var mins = (_playSeconds % 3600) / 60;
             PromoPlayTimeText.Text = hours > 0 ? $"{hours} giờ {mins:D2} phút" : $"{mins} phút";
-            PromoPlayTimeProgress.Maximum = Math.Max(_playSeconds, 36000);
-            PromoPlayTimeProgress.Value = _playSeconds;
 
             if (TogglePromoTimeButton.IsEnabled)
             {

@@ -109,14 +109,14 @@ public partial class ColorSettingsWindow : Window
     {
         _settings.ColorOnlineBg = "#ECFDF5";
         _settings.ColorOnlineFg = "#16A34A";
-        _settings.ColorAdminBg = "#FACC15";
-        _settings.ColorAdminFg = "#DC2626";
-        _settings.ColorOfflineBg = "#DC2626";
-        _settings.ColorOfflineFg = "#FFFFFF";
+        _settings.ColorAdminBg = "#FEF9C3";
+        _settings.ColorAdminFg = "#B45309";
+        _settings.ColorOfflineBg = "#F1F5F9";
+        _settings.ColorOfflineFg = "#64748B";
         _settings.ColorInUseBg = "#EFF6FF";
         _settings.ColorInUseFg = "#2563EB";
-        _settings.ColorUsedTimeBg = "#FEF2F2";
-        _settings.ColorUsedTimeFg = "#DC2626";
+        _settings.ColorUsedTimeBg = "#F8FAFC";
+        _settings.ColorUsedTimeFg = "#334155";
         _settings.ColorRemainingTimeBg = "#EFF6FF";
         _settings.ColorRemainingTimeFg = "#2563EB";
         _settings.ColorMinorBg = "#FFFFFF";

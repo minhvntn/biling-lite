@@ -25,10 +25,10 @@ public sealed class AdminShellSettings
 
     public string ColorInUseBg { get; set; } = "#EFF6FF";
     public string ColorInUseFg { get; set; } = "#2563EB";
-    public string ColorAdminBg { get; set; } = "#FACC15";
-    public string ColorAdminFg { get; set; } = "#DC2626";
-    public string ColorOfflineBg { get; set; } = "#DC2626";
-    public string ColorOfflineFg { get; set; } = "#FFFFFF";
+    public string ColorAdminBg { get; set; } = "#FEF9C3";
+    public string ColorAdminFg { get; set; } = "#B45309";
+    public string ColorOfflineBg { get; set; } = "#F1F5F9";
+    public string ColorOfflineFg { get; set; } = "#64748B";
     public string ColorOnlineBg { get; set; } = "#ECFDF5";
     public string ColorOnlineFg { get; set; } = "#16A34A";
     public string ColorUsedTimeBg { get; set; } = "#FEF2F2";

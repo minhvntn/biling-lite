@@ -20,15 +20,15 @@
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType">
     <Window.Resources>
-        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#1E5AA8" />
+        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#2563EB" />
         <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="White" />
-        <SolidColorBrush x:Key="PanelBorderBrush" Color="#CFCFCF" />
-        <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#E6E6E6" />
+        <SolidColorBrush x:Key="PanelBorderBrush" Color="#E2E8F0" />
+        <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#F8FAFC" />
         <Thickness x:Key="MachineContextMenuItemPadding">12</Thickness>
         <sys:Double x:Key="MachineContextMenuFontSize">14</sys:Double>
 
         <Style x:Key="BoldBlackDataGridText" TargetType="TextBlock">
-            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="#0F172A"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Style.Triggers>
@@ -39,42 +39,89 @@
         </Style>
 
         <Style TargetType="DataGridColumnHeader">
-            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#475569" />
             <Setter Property="Background" Value="{StaticResource HeaderBackgroundBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource PanelBorderBrush}" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="6,5" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Padding" Value="12,10" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="SeparatorVisibility" Value="Collapsed" />
         </Style>
 
         <Style TargetType="DataGridRow">
             <Setter Property="Background" Value="White" />
-            <Setter Property="BorderBrush" Value="#E0E0E0" />
-            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderBrush" Value="#F1F5F9" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
             <Setter Property="SnapsToDevicePixels" Value="True" />
             <Style.Triggers>
                 <Trigger Property="ItemsControl.AlternationIndex" Value="1">
-                    <Setter Property="Background" Value="#F2F2F2" />
+                    <Setter Property="Background" Value="#F8FAFC" />
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#F1F5F9" />
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#1E5AA8" />
+                    <Setter Property="Background" Value="#2563EB" />
                     <Setter Property="Foreground" Value="White" />
                 </Trigger>
             </Style.Triggers>
         </Style>
 
+        <SolidColorBrush x:Key="{x:Static DataGrid.FocusBorderBrushKey}" Color="#93C5FD" />
+
+        <Style TargetType="DataGridCell">
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter Property="BorderBrush" Value="#93C5FD" />
+                </Trigger>
+                <MultiTrigger>
+                    <MultiTrigger.Conditions>
+                        <Condition Property="IsKeyboardFocusWithin" Value="True" />
+                        <Condition Property="IsSelected" Value="True" />
+                    </MultiTrigger.Conditions>
+                    <Setter Property="BorderBrush" Value="#93C5FD" />
+                </MultiTrigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="BorderBrush" Value="Transparent" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <Style TargetType="TabItem">
-            <Setter Property="Padding" Value="12,7" />
-            <Setter Property="Foreground" Value="#1E5AA8" />
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="Foreground" Value="#475569" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
                         <Border x:Name="TabRoot"
-                                Background="#F7F9FC"
-                                BorderBrush="#CFCFCF"
+                                Background="#F8FAFC"
+                                BorderBrush="#E2E8F0"
                                 BorderThickness="1,1,1,0"
-                                CornerRadius="0"
+                                CornerRadius="6,6,0,0"
                                 Padding="{TemplateBinding Padding}">
                             <Border.Resources>
                                 <Style TargetType="TextBlock">
@@ -89,13 +136,13 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="#DC2626" />
-                                <Setter TargetName="TabRoot" Property="BorderBrush" Value="#DC2626" />
-                                <Setter TargetName="TabRoot" Property="Background" Value="#FEF2F2" />
+                                <Setter Property="Foreground" Value="#2563EB" />
+                                <Setter TargetName="TabRoot" Property="BorderBrush" Value="#BFDBFE" />
+                                <Setter TargetName="TabRoot" Property="Background" Value="#EFF6FF" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Foreground" Value="#DC2626" />
-                                <Setter TargetName="TabRoot" Property="BorderBrush" Value="#DC2626" />
+                                <Setter Property="Foreground" Value="#2563EB" />
+                                <Setter TargetName="TabRoot" Property="BorderBrush" Value="#2563EB" />
                                 <Setter TargetName="TabRoot" Property="Background" Value="#FFFFFF" />
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -150,38 +197,38 @@
 
         <!-- Style cho TextBlock Icon trong Tab Header -->
         <Style x:Key="TabIconStyle" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#60A5FA" /> <!-- Mặc định màu xanh nhạt -->
+            <Setter Property="Foreground" Value="#64748B" /> <!-- Mặc định màu Slate dịu mắt -->
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=TabItem}}" Value="True">
-                    <Setter Property="Foreground" Value="#DC2626" /> <!-- Màu đỏ khi active -->
+                    <Setter Property="Foreground" Value="#2563EB" /> <!-- Màu xanh Primary khi active -->
                 </DataTrigger>
                 <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=TabItem}}" Value="True">
-                    <Setter Property="Foreground" Value="#DC2626" /> <!-- Màu đỏ khi hover -->
+                    <Setter Property="Foreground" Value="#2563EB" /> <!-- Màu xanh Primary khi hover -->
                 </DataTrigger>
             </Style.Triggers>
         </Style>
 
         <!-- Style cho TextBlock Nhãn trong Tab Header -->
         <Style x:Key="TabHeaderTextStyle" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#1E293B" /> <!-- Mặc định màu Slate đậm rõ ràng -->
-            <Setter Property="FontWeight" Value="Medium" /> <!-- Tăng độ dày chữ để dễ đọc -->
-            <Setter Property="FontFamily" Value="Segoe UI" /> <!-- Đảm bảo hiển thị font tiếng Việt chuẩn -->
+            <Setter Property="Foreground" Value="#475569" /> <!-- Mặc định màu Slate trung tính thanh lịch -->
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=TabItem}}" Value="True">
-                    <Setter Property="Foreground" Value="#DC2626" /> <!-- Màu đỏ khi active -->
-                    <Setter Property="FontWeight" Value="SemiBold" />
+                    <Setter Property="Foreground" Value="#2563EB" /> <!-- Màu xanh Primary khi active -->
+                    <Setter Property="FontWeight" Value="Bold" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=TabItem}}" Value="True">
-                    <Setter Property="Foreground" Value="#DC2626" /> <!-- Màu đỏ khi hover -->
+                    <Setter Property="Foreground" Value="#2563EB" /> <!-- Màu xanh Primary khi hover -->
                 </DataTrigger>
             </Style.Triggers>
         </Style>
 
         <!-- Main TabItem Style -->
         <Style x:Key="MainTabItemStyle" TargetType="TabItem">
-            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="Padding" Value="14,0" />
             <Setter Property="Height" Value="42" />
-            <Setter Property="Foreground" Value="#0F172A" /> <!-- Xanh Navy đậm -->
+            <Setter Property="Foreground" Value="#475569" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="Template">
@@ -191,9 +238,9 @@
                             <!-- Nền của Tab, bo góc -->
                             <Border x:Name="BackgroundBorder" 
                                     Background="Transparent" 
-                                    CornerRadius="8" 
+                                    CornerRadius="6" 
                                     Padding="{TemplateBinding Padding}"
-                                    Margin="0,0,0,1">
+                                    Margin="0,0,0,2">
                                 <ContentPresenter x:Name="ContentSite"
                                                    ContentSource="Header"
                                                    HorizontalAlignment="Center"
@@ -204,24 +251,24 @@
                             <!-- Đường gạch chân indicator -->
                             <Border x:Name="Indicator" 
                                     Height="3" 
-                                    Background="#DC2626" 
+                                    Background="#2563EB" 
                                     CornerRadius="1.5,1.5,0,0"
                                     VerticalAlignment="Bottom" 
-                                    Margin="8,0,8,0"
+                                    Margin="6,0,6,0"
                                     Visibility="Collapsed" />
 
                             <!-- Separator line (viền ngăn cách) -->
-                            <Border Width="1" Background="#E2E8F0" HorizontalAlignment="Right" VerticalAlignment="Center" Height="20" Margin="0,0,-2,0" />
+                            <Border Width="1" Background="#E2E8F0" HorizontalAlignment="Right" VerticalAlignment="Center" Height="18" Margin="0,0,-2,0" />
                         </Grid>
                         
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="#DC2626" />
-                                <Setter TargetName="BackgroundBorder" Property="Background" Value="#FEF2F2" />
+                                <Setter Property="Foreground" Value="#2563EB" />
+                                <Setter TargetName="BackgroundBorder" Property="Background" Value="#EFF6FF" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Foreground" Value="#DC2626" />
-                                <Setter TargetName="BackgroundBorder" Property="Background" Value="#FFF5F5" />
+                                <Setter Property="Foreground" Value="#2563EB" />
+                                <Setter TargetName="BackgroundBorder" Property="Background" Value="#EFF6FF" />
                                 <Setter TargetName="Indicator" Property="Visibility" Value="Visible" />
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -577,7 +624,7 @@
                                   MouseDoubleClick="MachinesDataGrid_MouseDoubleClick"
                                   SelectionChanged="MachinesDataGrid_SelectionChanged">
                             <DataGrid.CellStyle>
-                                <Style TargetType="DataGridCell">
+                                <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
                                     <Setter Property="VerticalContentAlignment" Value="Center" />
                                     <Setter Property="Padding" Value="8,0" />
                                 </Style>
@@ -653,13 +700,14 @@
                             </DataGrid.ContextMenu>
                             <DataGrid.ColumnHeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="Background" Value="#EAE8E3" />
-                                    <Setter Property="Foreground" Value="#334155" />
-                                    <Setter Property="FontWeight" Value="Bold" />
-                                    <Setter Property="Padding" Value="8,6" />
-                                    <Setter Property="BorderThickness" Value="0,0,1,1" />
-                                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                                    <Setter Property="Background" Value="#F8FAFC" />
+                                    <Setter Property="Foreground" Value="#475569" />
+                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                    <Setter Property="Padding" Value="10,8" />
+                                    <Setter Property="BorderThickness" Value="0,0,0,1" />
+                                    <Setter Property="BorderBrush" Value="#E2E8F0" />
                                     <Setter Property="HorizontalContentAlignment" Value="Center" />
+                                    <Setter Property="SeparatorVisibility" Value="Collapsed" />
                                 </Style>
                             </DataGrid.ColumnHeaderStyle>
                             <DataGrid.Columns>
@@ -675,124 +723,12 @@
                                                                  ToolTip="{Binding StatusIconToolTip}" />
                                                 <TextBlock Text="{Binding Name}" 
                                                            VerticalAlignment="Center" 
-                                                           TextTrimming="CharacterEllipsis" />
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Tình trạng" Width="1.1*">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Border CornerRadius="0" Margin="-2">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="Transparent" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding StatusCode}" Value="ONLINE">
-                                                                <Setter Property="Background" Value="{DynamicResource ColorOnlineBgBrush}" />
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
-                                                                <Setter Property="Background" Value="{DynamicResource ColorInUseBgBrush}" />
-                                                            </DataTrigger>
-                                                            
-                                                            <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
-                                                                <Setter Property="Background" Value="#FEF2F2" />
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
-                                                                <Setter Property="Background" Value="{DynamicResource ColorOfflineBgBrush}" />
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding IsOfflineUnpaidGuest}" Value="True">
-                                                                <Setter Property="Background" Value="{DynamicResource ColorTransferPayBgBrush}" />
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
-                                                                <Setter Property="Background" Value="{DynamicResource ColorAdminBgBrush}" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="4,2">
-                                                    <TextBlock Text="{Binding StatusText}"
-                                                               FontWeight="Bold"
-                                                               HorizontalAlignment="Center"
-                                                               TextAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
-                                                                <Setter Property="Foreground" Value="Gray" />
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding StatusCode}" Value="ONLINE">
-                                                                        <Setter Property="Foreground" Value="{DynamicResource ColorOnlineFgBrush}" />
-                                                                    </DataTrigger>
-                                                                    <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
-                                                                        <Setter Property="Foreground" Value="{DynamicResource ColorInUseFgBrush}" />
-                                                                    </DataTrigger>
-                                                                    <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
-                                                                        <Setter Property="Foreground" Value="#DC2626" />
-                                                                    </DataTrigger>
-                                                                    <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
-                                                                        <Setter Property="Foreground" Value="{DynamicResource ColorOfflineFgBrush}" />
-                                                                    </DataTrigger>
-                                                                    <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
-                                                                        <Setter Property="Foreground" Value="{DynamicResource ColorAdminFgBrush}" />
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
-                                                    <TextBlock Text="{Binding StatusSubText}"
-                                                               Margin="0,1,0,0"
-                                                               FontSize="11"
-                                                               FontWeight="SemiBold"
-                                                               HorizontalAlignment="Center"
-                                                               TextAlignment="Center"
-                                                               Foreground="White">
-                                                        <TextBlock.Style>
-                                                            <Style TargetType="TextBlock">
-                                                                <Setter Property="Visibility" Value="Visible" />
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding StatusSubText}" Value="">
-                                                                        <Setter Property="Visibility" Value="Collapsed" />
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </TextBlock.Style>
-                                                    </TextBlock>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Người sử dụng" Width="1.1*">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Border CornerRadius="0" Margin="-2">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="Background" Value="Transparent" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsVipSession}" Value="True">
-                                                                <Setter Property="Background" Value="{DynamicResource ColorVipBgBrush}" />
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}}" Value="True">
-                                                                <Setter Property="Background" Value="Transparent" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
-                                                <TextBlock Text="{Binding UserName}"
-                                                           VerticalAlignment="Center"
-                                                           HorizontalAlignment="Center"
-                                                           TextAlignment="Center"
                                                            FontWeight="SemiBold"
-                                                           Margin="8,6"
+                                                           Foreground="#0F172A"
                                                            TextTrimming="CharacterEllipsis">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
-                                                            <Setter Property="Foreground" Value="#1E293B" />
                                                             <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsVipSession}" Value="True">
-                                                                    <Setter Property="Foreground" Value="{DynamicResource ColorVipFgBrush}" />
-                                                                </DataTrigger>
                                                                 <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}}" Value="True">
                                                                     <Setter Property="Foreground" Value="White" />
                                                                 </DataTrigger>
@@ -800,7 +736,186 @@
                                                         </Style>
                                                     </TextBlock.Style>
                                                 </TextBlock>
-                                            </Border>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Tình trạng" Width="1.1*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Vertical" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,3">
+                                                <!-- Status Pill Tag -->
+                                                <Border CornerRadius="12" Padding="8,3" BorderThickness="1" HorizontalAlignment="Center">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="#F1F5F9" />
+                                                            <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding StatusCode}" Value="ONLINE">
+                                                                    <Setter Property="Background" Value="{DynamicResource ColorOnlineBgBrush}" />
+                                                                    <Setter Property="BorderBrush" Value="#A7F3D0" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
+                                                                    <Setter Property="Background" Value="{DynamicResource ColorInUseBgBrush}" />
+                                                                    <Setter Property="BorderBrush" Value="#BFDBFE" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
+                                                                    <Setter Property="Background" Value="#F8FAFC" />
+                                                                    <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
+                                                                    <Setter Property="Background" Value="{DynamicResource ColorOfflineBgBrush}" />
+                                                                    <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
+                                                                    <Setter Property="Background" Value="{DynamicResource ColorAdminBgBrush}" />
+                                                                    <Setter Property="BorderBrush" Value="#FDE047" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding IsOfflineUnpaidGuest}" Value="True">
+                                                                    <Setter Property="Background" Value="#FEF2F2" />
+                                                                    <Setter Property="BorderBrush" Value="#FECACA" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                        <!-- Status dot -->
+                                                        <Ellipse Width="6" Height="6" Margin="0,0,5,0" VerticalAlignment="Center">
+                                                            <Ellipse.Style>
+                                                                <Style TargetType="Ellipse">
+                                                                    <Setter Property="Fill" Value="#94A3B8" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding StatusCode}" Value="ONLINE">
+                                                                            <Setter Property="Fill" Value="#10B981" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
+                                                                            <Setter Property="Fill" Value="#3B82F6" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
+                                                                            <Setter Property="Fill" Value="#94A3B8" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
+                                                                            <Setter Property="Fill" Value="#94A3B8" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
+                                                                            <Setter Property="Fill" Value="#EAB308" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding IsOfflineUnpaidGuest}" Value="True">
+                                                                            <Setter Property="Fill" Value="#EF4444" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Ellipse.Style>
+                                                        </Ellipse>
+                                                        <!-- Status text -->
+                                                        <TextBlock Text="{Binding StatusText}"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="12"
+                                                                   VerticalAlignment="Center"
+                                                                   HorizontalAlignment="Center"
+                                                                   TextTrimming="CharacterEllipsis">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="#64748B" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding StatusCode}" Value="ONLINE">
+                                                                            <Setter Property="Foreground" Value="{DynamicResource ColorOnlineFgBrush}" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding StatusCode}" Value="IN_USE">
+                                                                            <Setter Property="Foreground" Value="{DynamicResource ColorInUseFgBrush}" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
+                                                                            <Setter Property="Foreground" Value="#64748B" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
+                                                                            <Setter Property="Foreground" Value="{DynamicResource ColorOfflineFgBrush}" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
+                                                                            <Setter Property="Foreground" Value="{DynamicResource ColorAdminFgBrush}" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding IsOfflineUnpaidGuest}" Value="True">
+                                                                            <Setter Property="Foreground" Value="#DC2626" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                </Border>
+                                                <!-- Status SubText badge -->
+                                                <Border CornerRadius="4" 
+                                                        Background="#FEF2F2" 
+                                                        BorderBrush="#FECACA" 
+                                                        BorderThickness="1" 
+                                                        Padding="5,1" 
+                                                        Margin="0,2,0,0" 
+                                                        HorizontalAlignment="Center">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding StatusSubText}" Value="">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding StatusSubText}" Value="{x:Null}">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="{Binding StatusSubText}"
+                                                               FontSize="10.5"
+                                                               FontWeight="Bold"
+                                                               Foreground="#DC2626"
+                                                               HorizontalAlignment="Center"
+                                                               TextAlignment="Center" />
+                                                </Border>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Người sử dụng" Width="1.1*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="6,4">
+                                                <TextBlock Text="{Binding UserName}"
+                                                           VerticalAlignment="Center"
+                                                           HorizontalAlignment="Center"
+                                                           TextAlignment="Center"
+                                                           FontWeight="SemiBold"
+                                                           FontSize="12.5"
+                                                           TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#1E293B" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}}" Value="True">
+                                                                    <Setter Property="Foreground" Value="White" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <Border Margin="5,0,0,0" 
+                                                        Padding="4,1" 
+                                                        CornerRadius="4" 
+                                                        Background="#FEF3C7" 
+                                                        BorderBrush="#FDE68A" 
+                                                        BorderThickness="1"
+                                                        VerticalAlignment="Center">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsVipSession}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="VIP" FontSize="10" FontWeight="Bold" Foreground="#B45309" VerticalAlignment="Center" />
+                                                </Border>
+                                            </StackPanel>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -818,13 +933,20 @@
                                 <DataGridTemplateColumn Header="Đã sử dụng" Width="0.95*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Border CornerRadius="0" Margin="-2">
+                                            <Border CornerRadius="6" 
+                                                    Padding="8,2" 
+                                                    Margin="4,2"
+                                                    BorderThickness="1"
+                                                    HorizontalAlignment="Center" 
+                                                    VerticalAlignment="Center">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="{DynamicResource ColorUsedTimeBgBrush}" />
+                                                        <Setter Property="BorderBrush" Value="#FECACA" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}}" Value="True">
                                                                 <Setter Property="Background" Value="Transparent" />
+                                                                <Setter Property="BorderBrush" Value="Transparent" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -832,7 +954,8 @@
                                                 <TextBlock Text="{Binding UsedText}"
                                                            VerticalAlignment="Center"
                                                            HorizontalAlignment="Center"
-                                                           FontWeight="SemiBold"
+                                                           FontWeight="Bold"
+                                                           FontSize="12"
                                                            TextTrimming="CharacterEllipsis">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
@@ -852,13 +975,20 @@
                                 <DataGridTemplateColumn Header="Còn lại" Width="0.95*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Border CornerRadius="0" Margin="-2">
+                                            <Border CornerRadius="6" 
+                                                    Padding="8,2" 
+                                                    Margin="4,2"
+                                                    BorderThickness="1"
+                                                    HorizontalAlignment="Center" 
+                                                    VerticalAlignment="Center">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="{DynamicResource ColorRemainingTimeBgBrush}" />
+                                                        <Setter Property="BorderBrush" Value="#BFDBFE" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}}" Value="True">
                                                                 <Setter Property="Background" Value="Transparent" />
+                                                                <Setter Property="BorderBrush" Value="Transparent" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -867,6 +997,7 @@
                                                            VerticalAlignment="Center"
                                                            HorizontalAlignment="Center"
                                                            FontWeight="SemiBold"
+                                                           FontSize="12"
                                                            TextTrimming="CharacterEllipsis">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
@@ -897,19 +1028,27 @@
                                 <DataGridTemplateColumn Header="Tiền dịch vụ" Width="0.9*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Border Padding="3,2"
-                                                    CornerRadius="0"
-                                                    Margin="-8,0"
-                                                    HorizontalAlignment="Stretch">
+                                            <Border Padding="6,2"
+                                                    CornerRadius="6"
+                                                    BorderThickness="1"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center">
                                                 <Border.Style>
                                                     <Style TargetType="Border">
                                                         <Setter Property="Background" Value="Transparent" />
+                                                        <Setter Property="BorderBrush" Value="Transparent" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding HasServiceDebtHighlight}" Value="True">
-                                                                <Setter Property="Background" Value="{DynamicResource ColorServiceDebtBgBrush}" />
+                                                                <Setter Property="Background" Value="#CCFBF1" />
+                                                                <Setter Property="BorderBrush" Value="#99F6E4" />
                                                             </DataTrigger>
                                                             <DataTrigger Binding="{Binding HasPendingClientServiceOrderHighlight}" Value="True">
-                                                                <Setter Property="Background" Value="{DynamicResource ColorServiceCallBgBrush}" />
+                                                                <Setter Property="Background" Value="#F3E8FF" />
+                                                                <Setter Property="BorderBrush" Value="#E9D5FF" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}}" Value="True">
+                                                                <Setter Property="Background" Value="Transparent" />
+                                                                <Setter Property="BorderBrush" Value="Transparent" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
                                                     </Style>
@@ -925,11 +1064,11 @@
                                                             <Setter Property="FontWeight" Value="SemiBold" />
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding HasServiceDebtHighlight}" Value="True">
-                                                                    <Setter Property="Foreground" Value="White" />
+                                                                    <Setter Property="Foreground" Value="#0D9488" />
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding HasPendingClientServiceOrderHighlight}" Value="True">
-                                                                    <Setter Property="Foreground" Value="White" />
-                                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                                    <Setter Property="Foreground" Value="#7E22CE" />
+                                                                    <Setter Property="FontWeight" Value="Bold" />
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}}" Value="True">
                                                                     <Setter Property="Foreground" Value="White" />
@@ -1096,23 +1235,23 @@
                                         Orientation="Horizontal"
                                         HorizontalAlignment="Right"
                                         VerticalAlignment="Center">
-                                <Border Margin="0,0,6,0" Padding="8,4" Background="#EEF2FF" CornerRadius="6">
-                                    <TextBlock x:Name="SummaryTotalTextBlock" FontWeight="SemiBold" FontSize="13" Text="Tổng máy: 0" />
+                                <Border Margin="0,0,6,0" Padding="9,4" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6">
+                                    <TextBlock x:Name="SummaryTotalTextBlock" FontWeight="SemiBold" FontSize="12.5" Foreground="#334155" Text="Tổng máy: 0" />
                                 </Border>
-                                <Border Margin="0,0,6,0" Padding="8,4" Background="#EEF6FF" CornerRadius="6">
-                                    <TextBlock x:Name="SummaryMemberCountTextBlock" FontWeight="SemiBold" FontSize="12.5" Text="Tổng hội viên: 0" />
+                                <Border Margin="0,0,6,0" Padding="9,4" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="6">
+                                    <TextBlock x:Name="SummaryMemberCountTextBlock" FontWeight="SemiBold" FontSize="12.5" Foreground="#1D4ED8" Text="Tổng hội viên: 0" />
                                 </Border>
-                                <Border Margin="0,0,6,0" Padding="8,4" Background="#ECFDF3" CornerRadius="6">
-                                    <TextBlock x:Name="SummaryUsingTextBlock" FontWeight="SemiBold" FontSize="13" Text="Đang sử dụng: 0" />
+                                <Border Margin="0,0,6,0" Padding="9,4" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="6">
+                                    <TextBlock x:Name="SummaryUsingTextBlock" FontWeight="SemiBold" FontSize="12.5" Foreground="#047857" Text="Đang sử dụng: 0" />
                                 </Border>
-                                <Border Margin="0,0,6,0" Padding="8,4" Background="#FEF2F2" CornerRadius="6">
-                                    <TextBlock x:Name="SummaryLockedTextBlock" FontWeight="SemiBold" FontSize="13" Text="Đang tắt: 0" />
+                                <Border Margin="0,0,6,0" Padding="9,4" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6">
+                                    <TextBlock x:Name="SummaryLockedTextBlock" FontWeight="SemiBold" FontSize="12.5" Foreground="#64748B" Text="Đang tắt: 0" />
                                 </Border>
-                                <Border Margin="0,0,6,0" Padding="8,4" Background="#FEF2F2" CornerRadius="6">
-                                    <TextBlock x:Name="SummaryOfflineTextBlock" FontWeight="SemiBold" FontSize="13" Text="Mất kết nối: 0" Foreground="#DC2626" />
+                                <Border Margin="0,0,6,0" Padding="9,4" Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="6">
+                                    <TextBlock x:Name="SummaryOfflineTextBlock" FontWeight="SemiBold" FontSize="12.5" Foreground="#DC2626" Text="Mất kết nối: 0" />
                                 </Border>
-                                <Border Padding="8,4" Background="#FFF7ED" CornerRadius="6">
-                                    <TextBlock x:Name="SummaryMoneyTextBlock" FontWeight="SemiBold" FontSize="13" Text="Tiền tạm tính: 0" />
+                                <Border Padding="9,4" Background="#FFF7ED" BorderBrush="#FED7AA" BorderThickness="1" CornerRadius="6">
+                                    <TextBlock x:Name="SummaryMoneyTextBlock" FontWeight="SemiBold" FontSize="12.5" Foreground="#C2410C" Text="Tiền tạm tính: 0" />
                                 </Border>
                             </StackPanel>
                         </Grid>
@@ -1285,19 +1424,25 @@
                                               IsReadOnly="True"
                                               CanUserAddRows="False"
                                               SelectionMode="Single"
+                                              SelectionUnit="FullRow"
                                               HeadersVisibility="Column"
                                               GridLinesVisibility="Horizontal"
                                               HorizontalGridLinesBrush="#F1F5F9"
                                               VerticalGridLinesBrush="Transparent"
                                               BorderThickness="0"
                                               Background="Transparent"
-                                              RowBackground="White"
-                                              AlternatingRowBackground="#EBEDEE"
+                                              AlternationCount="2"
                                               RowHeight="50"
                                               RowHeaderWidth="0"
                                               ContextMenuOpening="MembersDataGrid_ContextMenuOpening"
                                               MouseDoubleClick="MembersDataGrid_MouseDoubleClick"
                                               SelectionChanged="MembersDataGrid_SelectionChanged">
+                                        <DataGrid.CellStyle>
+                                            <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                                                <Setter Property="VerticalContentAlignment" Value="Center" />
+                                                <Setter Property="Padding" Value="8,0" />
+                                            </Style>
+                                        </DataGrid.CellStyle>
                                         <DataGrid.ColumnHeaderStyle>
                                             <Style TargetType="DataGridColumnHeader">
                                                 <Setter Property="Background" Value="#F8FAFC"/>
@@ -1311,14 +1456,27 @@
                                         <DataGrid.RowStyle>
                                             <Style TargetType="DataGridRow">
                                                 <EventSetter Event="PreviewMouseRightButtonDown" Handler="MembersDataGridRow_PreviewMouseRightButtonDown" />
-                                                <Setter Property="BorderThickness" Value="0"/>
+                                                <Setter Property="Background" Value="White"/>
+                                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                                <Setter Property="BorderBrush" Value="#F1F5F9"/>
+                                                <Setter Property="SnapsToDevicePixels" Value="True"/>
                                                 <Style.Triggers>
-                                                    <Trigger Property="IsSelected" Value="True">
-                                                        <Setter Property="Background" Value="#EEF2FF"/>
-                                                    </Trigger>
-                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                    <Trigger Property="ItemsControl.AlternationIndex" Value="1">
                                                         <Setter Property="Background" Value="#F8FAFC"/>
                                                     </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#F1F5F9"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter Property="Background" Value="#2563EB"/>
+                                                    </Trigger>
+                                                    <MultiTrigger>
+                                                        <MultiTrigger.Conditions>
+                                                            <Condition Property="IsSelected" Value="True"/>
+                                                            <Condition Property="IsMouseOver" Value="True"/>
+                                                        </MultiTrigger.Conditions>
+                                                        <Setter Property="Background" Value="#1D4ED8"/>
+                                                    </MultiTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </DataGrid.RowStyle>
@@ -1777,12 +1935,19 @@
                                         <Style TargetType="DataGridRow">
                                             <Setter Property="BorderThickness" Value="0"/>
                                             <Style.Triggers>
-                                                <Trigger Property="IsSelected" Value="True">
-                                                    <Setter Property="Background" Value="#EEF2FF"/>
-                                                </Trigger>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                                    <Setter Property="Background" Value="#F1F5F9"/>
                                                 </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="#2563EB"/>
+                                                </Trigger>
+                                                <MultiTrigger>
+                                                    <MultiTrigger.Conditions>
+                                                        <Condition Property="IsSelected" Value="True"/>
+                                                        <Condition Property="IsMouseOver" Value="True"/>
+                                                    </MultiTrigger.Conditions>
+                                                    <Setter Property="Background" Value="#1D4ED8"/>
+                                                </MultiTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </DataGrid.RowStyle>
@@ -1869,12 +2034,19 @@
                                         <Style TargetType="DataGridRow">
                                             <Setter Property="BorderThickness" Value="0"/>
                                             <Style.Triggers>
-                                                <Trigger Property="IsSelected" Value="True">
-                                                    <Setter Property="Background" Value="#EEF2FF"/>
-                                                </Trigger>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                                    <Setter Property="Background" Value="#F1F5F9"/>
                                                 </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="#2563EB"/>
+                                                </Trigger>
+                                                <MultiTrigger>
+                                                    <MultiTrigger.Conditions>
+                                                        <Condition Property="IsSelected" Value="True"/>
+                                                        <Condition Property="IsMouseOver" Value="True"/>
+                                                    </MultiTrigger.Conditions>
+                                                    <Setter Property="Background" Value="#1D4ED8"/>
+                                                </MultiTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </DataGrid.RowStyle>
@@ -2035,12 +2207,19 @@
                                         <Style TargetType="DataGridRow">
                                             <Setter Property="BorderThickness" Value="0"/>
                                             <Style.Triggers>
-                                                <Trigger Property="IsSelected" Value="True">
-                                                    <Setter Property="Background" Value="#EEF2FF"/>
-                                                </Trigger>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                                    <Setter Property="Background" Value="#F1F5F9"/>
                                                 </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="#2563EB"/>
+                                                </Trigger>
+                                                <MultiTrigger>
+                                                    <MultiTrigger.Conditions>
+                                                        <Condition Property="IsSelected" Value="True"/>
+                                                        <Condition Property="IsMouseOver" Value="True"/>
+                                                    </MultiTrigger.Conditions>
+                                                    <Setter Property="Background" Value="#1D4ED8"/>
+                                                </MultiTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </DataGrid.RowStyle>
@@ -3261,7 +3440,7 @@
                             </DataGrid.Columns>
                         </DataGrid>
 
-                        <TextBlock Grid.Row="2" Margin="0,8,0,0" x:Name="LoyaltyRanksInfoTextBlock" Text="Dữ liệu được lưu tự động sau khi sửa ô và nhấn Enter hoặc chuyển ô." Foreground="#1E5AA8" FontWeight="SemiBold" />
+                        <TextBlock Grid.Row="2" Margin="0,8,0,0" x:Name="LoyaltyRanksInfoTextBlock" Text="Dữ liệu được lưu tự động sau khi sửa ô và nhấn Enter hoặc chuyển ô." Foreground="#2563EB" FontWeight="SemiBold" />
                     </Grid>
                 </TabItem>
 

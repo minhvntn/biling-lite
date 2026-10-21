@@ -11,6 +11,8 @@ namespace Client.Agent.Wpf;
 
 public partial class App : Application
 {
+    private static DateTime? _lastTopupRequestTimeUtc;
+
     private void ShowTransferBalanceDialog(
         ActiveMemberSession activeSession,
         MemberLoginItem sourceMember)
@@ -811,6 +813,24 @@ public partial class App : Application
         requestBtn.Click += async (_, _) =>
         {
             errorTextBlock.Text = string.Empty;
+
+            if (_lastTopupRequestTimeUtc.HasValue)
+            {
+                var elapsed = DateTime.UtcNow - _lastTopupRequestTimeUtc.Value;
+                var cooldown = TimeSpan.FromMinutes(5);
+                if (elapsed < cooldown)
+                {
+                    var remaining = cooldown - elapsed;
+                    var remainingMins = (int)remaining.TotalMinutes;
+                    var remainingSecs = remaining.Seconds;
+                    var waitStr = remainingMins > 0
+                        ? (remainingSecs > 0 ? $"{remainingMins} phút {remainingSecs} giây" : $"{remainingMins} phút")
+                        : $"{remainingSecs} giây";
+                    errorTextBlock.Text = $"Vui lòng đợi {waitStr} trước khi gửi yêu cầu nạp tiền tiếp theo.";
+                    return;
+                }
+            }
+
             var cleanText = amountBox.Text.Replace(",", "").Replace(".", "").Trim();
             if (!TryParsePositiveMoney(cleanText, out var amount))
             {
@@ -845,6 +865,8 @@ public partial class App : Application
                         : message;
                     return;
                 }
+
+                _lastTopupRequestTimeUtc = DateTime.UtcNow;
 
                 var payload = await response.Content.ReadFromJsonAsync<MemberTopupRequestResponse>(
                     new JsonSerializerOptions

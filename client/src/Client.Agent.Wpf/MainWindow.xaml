@@ -290,10 +290,6 @@
                              <!-- Promo Play Time Bar & Toggle -->
                              <Border x:Name="PromoPlayTimeCard" Visibility="Collapsed" Background="#80FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="16" Padding="14,10" Margin="20,14,20,0" HorizontalAlignment="Center" MinWidth="280">
                                  <Grid>
-                                     <Grid.RowDefinitions>
-                                         <RowDefinition Height="Auto"/>
-                                         <RowDefinition Height="Auto"/>
-                                     </Grid.RowDefinitions>
                                      <Grid.ColumnDefinitions>
                                          <ColumnDefinition Width="*"/>
                                          <ColumnDefinition Width="Auto"/>
@@ -310,8 +306,6 @@
                                              <TextBlock x:Name="TogglePromoTimeText" Text="🎁 Đổi giờ KM" Foreground="White" FontSize="13" FontWeight="Bold"/>
                                          </Border>
                                      </Button>
-
-                                     <ProgressBar x:Name="PromoPlayTimeProgress" Grid.Row="1" Grid.ColumnSpan="2" Height="6" Minimum="0" Maximum="100" Value="100" Foreground="#10B981" Background="#E2E8F0" BorderThickness="0" Margin="0,8,0,0"/>
                                  </Grid>
                              </Border>
                          </StackPanel>

@@ -234,18 +234,27 @@ public partial class MainWindow : Window
                 if (activeGuest is not null && activeGuest.PrepaidAmount > 0 && item.HourlyRate > 0)
                 {
                     guestRemainingSecondsBase = (int)Math.Floor((activeGuest.PrepaidAmount / item.HourlyRate) * 3600m);
+                    var guestUsedSeconds = Math.Max(0, item.ActiveSession!.ElapsedSeconds);
+                    var guestRemainingSeconds = Math.Max(0, guestRemainingSecondsBase - guestUsedSeconds);
+                    var displayRemainingSeconds = (int)Math.Ceiling(guestRemainingSeconds / 60.0) * 60;
+                    remainingText = FormatRemainingTime(displayRemainingSeconds);
                 }
-                var guestUsedSeconds = Math.Max(0, item.ActiveSession!.ElapsedSeconds);
-                var guestRemainingSeconds = Math.Max(0, guestRemainingSecondsBase - guestUsedSeconds);
-                var displayRemainingSeconds = (int)Math.Ceiling(guestRemainingSeconds / 60.0) * 60;
-                remainingText = FormatRemainingTime(displayRemainingSeconds);
+                else
+                {
+                    var guestUsedSeconds = Math.Max(0, item.ActiveSession!.ElapsedSeconds);
+                    var guestRemainingSeconds = Math.Max(0, guestRemainingSecondsBase - guestUsedSeconds);
+                    remainingText = FormatRemainingTime(guestRemainingSeconds);
+                }
             }
             else if (activeMember is not null)
             {
                 var isVip = string.Equals(activeMember.MemberType, "VIP", StringComparison.OrdinalIgnoreCase);
                 if (isVip)
                 {
-                    remainingText = "99:99";
+                    var vipRemainingSecondsBase = VipOrPostpaidStartingHours * 3600;
+                    var vipUsedSeconds = Math.Max(0, item.ActiveSession?.ElapsedSeconds ?? 0);
+                    var vipRemainingSeconds = Math.Max(0, vipRemainingSecondsBase - vipUsedSeconds);
+                    remainingText = FormatRemainingTime(vipRemainingSeconds);
                 }
                 else
                 {
@@ -2790,7 +2799,19 @@ public partial class MainWindow : Window
             var hasActiveMember = machine.ActiveMemberId != null;
             var playAmount = machine.ActiveSessionEstimatedAmount;
             var playAmountToPay = playAmount;
-            if (hasActiveMember)
+            if (isVip)
+            {
+                if (machine.ActiveMemberBalance <= 0)
+                {
+                    var debt = machine.ActiveMemberBalance < 0 ? Math.Abs(machine.ActiveMemberBalance) : 0m;
+                    playAmountToPay = playAmount + debt;
+                }
+                else
+                {
+                    playAmountToPay = Math.Max(0m, playAmount - machine.ActiveMemberBalance);
+                }
+            }
+            else if (hasActiveMember)
             {
                 if (machine.ActiveMemberBalance < 0)
                 {
@@ -2807,6 +2828,33 @@ public partial class MainWindow : Window
                 ? FormatUsed(machine.ActiveSessionElapsedSeconds)
                 : "0 phút";
 
+            string playAmountText;
+            if (isVip)
+            {
+                if (machine.ActiveMemberBalance <= 0)
+                {
+                    playAmountText = machine.ActiveMemberBalance < 0
+                        ? $"{playAmount:N0} (VIP trả sau + nợ {Math.Abs(machine.ActiveMemberBalance):N0})"
+                        : $"{playAmount:N0} (VIP trả sau)";
+                }
+                else
+                {
+                    playAmountText = playAmount <= machine.ActiveMemberBalance
+                        ? $"{playAmount:N0} (Đã trừ TK)"
+                        : $"{playAmount:N0} (Cấn trừ {machine.ActiveMemberBalance:N0}đ TK)";
+                }
+            }
+            else if (hasActiveMember)
+            {
+                playAmountText = machine.ActiveMemberBalance >= 0
+                    ? $"{playAmount:N0} (Đã trừ TK)"
+                    : $"{playAmount:N0} (Nợ: {Math.Abs(machine.ActiveMemberBalance):N0})";
+            }
+            else
+            {
+                playAmountText = $"{playAmount:N0}";
+            }
+
             return new MachineBillingSummaryRow
             {
                 MachineName = machine.Name,
@@ -2816,15 +2864,15 @@ public partial class MainWindow : Window
                 PlayAmount = playAmount,
                 ServiceAmount = serviceAmount,
                 TotalAmount = totalAmount,
-                PlayAmountText = hasActiveMember
-                    ? (machine.ActiveMemberBalance >= 0 ? $"{playAmount:N0} (Đã trừ TK)" : $"{playAmount:N0} (Nợ: {Math.Abs(machine.ActiveMemberBalance):N0})")
-                    : $"{playAmount:N0}",
+                PlayAmountText = playAmountText,
                 ServiceAmountText = $"{serviceAmount:N0}",
                 TotalAmountText = $"{totalAmount:N0}",
                 HasServiceLoadError = hasServiceLoadError,
                 NoteText = hasServiceLoadError
                     ? "Lỗi tải tiền dịch vụ"
-                    : (hasActiveMember ? "Hội viên (Tiền giờ trừ vào số dư tài khoản)" : "-"),
+                    : (isVip
+                        ? (machine.ActiveMemberBalance <= 0 ? "Hội viên VIP (Thanh toán trả sau tại quầy)" : "Hội viên VIP (Đã trừ số dư)")
+                        : (hasActiveMember ? "Hội viên (Tiền giờ trừ vào số dư tài khoản)" : "-")),
             };
         });
 

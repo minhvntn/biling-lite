@@ -2626,6 +2626,52 @@ export class MembersService {
       throw new BadRequestException('Tài khoản hội viên không hoạt động');
     }
 
+    // Chặn spam nạp tiền:
+    // 1. Chặn nếu hội viên đang có yêu cầu nạp tiền ở trạng thái PENDING
+    // 2. Chặn nếu gửi quá nhanh (cooldown 5 phút giữa các yêu cầu)
+    const recentTopupEvents = await this.prisma.eventLog.findMany({
+      where: {
+        eventType: MEMBER_TOPUP_REQUEST_EVENT_TYPE,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 100,
+    });
+
+    const now = Date.now();
+    for (const event of recentTopupEvents) {
+      const p = this.parseMemberTopupRequestPayload(event.payload);
+      if (!p) continue;
+
+      if (p.memberId === member.id) {
+        if (p.status === 'PENDING') {
+          throw new BadRequestException(
+            'Bạn đang có một yêu cầu nạp tiền chưa được xử lý. Vui lòng đợi thu ngân duyệt hoặc hủy yêu cầu trước đó.',
+          );
+        }
+
+        const requestedAtMs = new Date(p.requestedAt).getTime();
+        const elapsedMs = now - requestedAtMs;
+        const cooldownMs = 5 * 60 * 1000; // 5 phút cooldown
+        if (elapsedMs < cooldownMs) {
+          const remainingSecs = Math.max(1, Math.ceil((cooldownMs - elapsedMs) / 1000));
+          const waitMins = Math.floor(remainingSecs / 60);
+          const waitSecs = remainingSecs % 60;
+          const waitStr =
+            waitMins > 0
+              ? waitSecs > 0
+                ? `${waitMins} phút ${waitSecs} giây`
+                : `${waitMins} phút`
+              : `${waitSecs} giây`;
+          throw new BadRequestException(
+            `Vui lòng đợi ${waitStr} trước khi gửi yêu cầu nạp tiền tiếp theo.`,
+          );
+        }
+        break;
+      }
+    }
+
     const requestPayload: MemberTopupRequestPayload = {
       memberId: member.id,
       username: member.username,

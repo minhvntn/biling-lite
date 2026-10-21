@@ -1832,63 +1832,78 @@ public async void OpenLoyaltyPanelFromClientUi()
         }
     }
 
+    private bool _isOpeningTopupDialog;
+
     public async void OpenTopupRequestPanelFromClientUi()
     {
-        if (_activeMemberSession?.MemberType == "VIP")
-        {
-            MessageBox.Show(
-                "Hội viên VIP không được sử dụng chức năng nạp tiền.",
-                "Nạp tiền hội viên",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-            return;
-        }
-
-        if (!_isMemberTopupRequestEnabled)
-        {
-            MessageBox.Show(
-                "Tính năng nạp tiền nhanh hội viên đang tắt từ app server.",
-                "Nạp tiền hội viên",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return;
-        }
-
-        var activeSession = _activeMemberSession;
-        if (activeSession is null)
-        {
-            MessageBox.Show(
-                "Vui lòng đăng nhập bằng tài khoản hội viên để nạp tiền.",
-                "Nạp tiền hội viên",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return;
-        }
-
-        if (!await PromptForPasswordAsync(activeSession.Username))
+        if (_isOpeningTopupDialog)
         {
             return;
         }
 
+        _isOpeningTopupDialog = true;
         try
         {
-            var loyalty = await GetMemberLoyaltyAsync(activeSession.MemberId);
-            var sourceMember = loyalty?.Member ?? new MemberLoginItem
+            if (_activeMemberSession?.MemberType == "VIP")
             {
-                Id = activeSession.MemberId,
-                Username = activeSession.Username,
-                FullName = activeSession.FullName,
-            };
+                MessageBox.Show(
+                    "Hội viên VIP không được sử dụng chức năng nạp tiền.",
+                    "Nạp tiền hội viên",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
 
-            ShowTopupRequestDialog(activeSession, sourceMember);
+            if (!_isMemberTopupRequestEnabled)
+            {
+                MessageBox.Show(
+                    "Tính năng nạp tiền nhanh hội viên đang tắt từ app server.",
+                    "Nạp tiền hội viên",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            var activeSession = _activeMemberSession;
+            if (activeSession is null)
+            {
+                MessageBox.Show(
+                    "Vui lòng đăng nhập bằng tài khoản hội viên để nạp tiền.",
+                    "Nạp tiền hội viên",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            if (!await PromptForPasswordAsync(activeSession.Username))
+            {
+                return;
+            }
+
+            try
+            {
+                var loyalty = await GetMemberLoyaltyAsync(activeSession.MemberId);
+                var sourceMember = loyalty?.Member ?? new MemberLoginItem
+                {
+                    Id = activeSession.MemberId,
+                    Username = activeSession.Username,
+                    FullName = activeSession.FullName,
+                };
+
+                ShowTopupRequestDialog(activeSession, sourceMember);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Không thể mở màn hình nạp tiền: {ex.Message}",
+                    "Nạp tiền hội viên",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            MessageBox.Show(
-                $"Không thể mở màn hình nạp tiền: {ex.Message}",
-                "Nạp tiền hội viên",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+            _isOpeningTopupDialog = false;
         }
     }
 

@@ -283,7 +283,7 @@
                         <Border Grid.Column="0" Background="#6D28D9" CornerRadius="4" Padding="6,2" Margin="0,0,8,0" VerticalAlignment="Top">
                             <TextBlock Text="VIP" FontSize="10" FontWeight="Bold" Foreground="White"/>
                         </Border>
-                        <TextBlock Grid.Column="1" Text="Hội viên VIP: Tiền giờ chơi tự động trừ từ số dư tài khoản. Quầy chỉ thu thêm tiền dịch vụ hoặc tiền nợ nếu số dư âm." FontSize="11" Foreground="#64748B" TextWrapping="Wrap"/>
+                        <TextBlock Grid.Column="1" Text="Hội viên VIP: Chơi trả sau. Tiền giờ sẽ trừ vào số dư tài khoản (nếu còn) hoặc thu trực tiếp tại quầy khi kết thúc phiên." FontSize="11" Foreground="#64748B" TextWrapping="Wrap"/>
                     </Grid>
                 </StackPanel>
 

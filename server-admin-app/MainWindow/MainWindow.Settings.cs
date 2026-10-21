@@ -217,10 +217,10 @@ public partial class MainWindow : Window
         ApplyBrushSetting("ColorOnlineFgBrush", _settings.ColorOnlineFg, "#16A34A");
         ApplyBrushSetting("ColorInUseBgBrush", _settings.ColorInUseBg, "#EFF6FF");
         ApplyBrushSetting("ColorInUseFgBrush", _settings.ColorInUseFg, "#2563EB");
-        ApplyBrushSetting("ColorAdminBgBrush", _settings.ColorAdminBg, "#FACC15");
-        ApplyBrushSetting("ColorAdminFgBrush", _settings.ColorAdminFg, "#DC2626");
-        ApplyBrushSetting("ColorOfflineBgBrush", _settings.ColorOfflineBg, "#DC2626");
-        ApplyBrushSetting("ColorOfflineFgBrush", _settings.ColorOfflineFg, "#FFFFFF");
+        ApplyBrushSetting("ColorAdminBgBrush", _settings.ColorAdminBg, "#FEF9C3");
+        ApplyBrushSetting("ColorAdminFgBrush", _settings.ColorAdminFg, "#B45309");
+        ApplyBrushSetting("ColorOfflineBgBrush", _settings.ColorOfflineBg, "#F1F5F9");
+        ApplyBrushSetting("ColorOfflineFgBrush", _settings.ColorOfflineFg, "#64748B");
         ApplyBrushSetting("ColorUsedTimeBgBrush", _settings.ColorUsedTimeBg, "#FEF2F2");
         ApplyBrushSetting("ColorUsedTimeFgBrush", _settings.ColorUsedTimeFg, "#DC2626");
         ApplyBrushSetting("ColorRemainingTimeBgBrush", _settings.ColorRemainingTimeBg, "#EFF6FF");
