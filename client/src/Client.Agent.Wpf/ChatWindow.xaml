@@ -12,8 +12,19 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         
-        <Border Background="#3B82F6" Padding="12">
-            <TextBlock Text="Kênh hỗ trợ quản trị" Foreground="White" FontWeight="SemiBold" FontSize="16" />
+        <Border Background="#3B82F6" Padding="12,10">
+            <Grid>
+                <TextBlock Text="Kênh hỗ trợ quản trị" Foreground="White" FontWeight="SemiBold" FontSize="16" VerticalAlignment="Center" />
+                <Button x:Name="ResetChatButton" Content="Chat mới" HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Padding="10,4" Background="#2563EB" Foreground="White" BorderBrush="#93C5FD" BorderThickness="1"
+                        FontWeight="Medium" FontSize="12" Cursor="Hand" Click="ResetChatButton_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="4"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+            </Grid>
         </Border>
         
         <ScrollViewer x:Name="MessagesScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="8">

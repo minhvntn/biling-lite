@@ -380,6 +380,11 @@ export class PcsService {
     const pricePerMinute = hourlyRate / 60;
 
     const result = await this.prisma.$transaction(async (tx) => {
+      // Reset chat session messages for the new guest session
+      await tx.supportMessage.deleteMany({
+        where: { pcId: pc.id },
+      });
+
       // Create guest session
       const session = await tx.session.create({
         data: {
@@ -436,6 +441,9 @@ export class PcsService {
       at: new Date().toISOString(),
       sourceEvent: 'guest_login_request',
     });
+
+    this.realtime.emitToAgent(pc.agentId, 'admin.support_cleared', {});
+    this.realtime.emitToAll('client.support_cleared', { pcId: pc.id });
 
     return result;
   }
@@ -976,6 +984,107 @@ export class PcsService {
     };
   }
 
+  async getActiveSessionBillingForPc(pcId: string): Promise<{
+    elapsedSeconds: number;
+    billableMinutes: number;
+    estimatedAmount: number;
+    hourlyRate: number;
+  } | null> {
+    const pc = await this.prisma.pc.findUnique({
+      where: { id: pcId },
+      include: {
+        group: true,
+        sessions: {
+          where: { status: 'ACTIVE' },
+          orderBy: { startedAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!pc || !pc.sessions[0]) {
+      return null;
+    }
+
+    const activeSession = pc.sessions[0];
+    const now = Date.now();
+    const effectiveStartedAtMs = Math.max(
+      activeSession.startedAt.getTime(),
+      activeSession.createdAt.getTime(),
+    );
+    const elapsedSeconds = Math.max(0, Math.floor((now - effectiveStartedAtMs) / 1000));
+    const billableMinutes = Math.max(1, Math.ceil(elapsedSeconds / 60));
+
+    const activeMember = await this.getActiveMemberForPc(pc.id);
+    const isUsingPromoPlayTime = Boolean(
+      activeMember &&
+        activeMember.memberType === 'COMBO' &&
+        ((activeMember as any).playSeconds ?? 0) > 0,
+    );
+
+    const activePromotions = await this.prisma.timeBasedPromotion.findMany({
+      where: { isActive: true },
+      select: {
+        daysOfWeek: true,
+        annualDates: true,
+        startTime: true,
+        endTime: true,
+        discountPercent: true,
+        isActive: true,
+      },
+    });
+
+    const defaultGroup = await this.prisma.pcGroup.findFirst({
+      where: { isDefault: true },
+    });
+    const effectiveGroup = pc.group ?? defaultGroup;
+    const baseHourlyRate = activeMember
+      ? Number((effectiveGroup as any)?.memberHourlyRate ?? effectiveGroup?.hourlyRate ?? 12000)
+      : Number(effectiveGroup?.hourlyRate ?? 12000);
+
+    const currentHourlyRate = getEffectiveHourlyRateAt(
+      baseHourlyRate,
+      new Date(now),
+      activePromotions,
+    );
+
+    const pricingStepSetting = await this.prisma.appSetting.findUnique({
+      where: { key: 'PRICING_STEP' },
+    });
+    const minimumChargeSetting = await this.prisma.appSetting.findUnique({
+      where: { key: 'MINIMUM_CHARGE' },
+    });
+    const pricingStep = pricingStepSetting ? Number(pricingStepSetting.value) : 1000;
+    const minimumCharge = minimumChargeSetting ? Number(minimumChargeSetting.value) : 1000;
+
+    let estimatedAmount =
+      activeSession && !isUsingPromoPlayTime
+        ? calculateSessionAmountByPromotions({
+            startedAt: new Date(effectiveStartedAtMs),
+            endedAt: new Date(now),
+            baseHourlyRate,
+            promotions: activePromotions,
+            mode: 'PER_MINUTE_STARTED',
+          })
+        : 0;
+
+    if (activeSession && !isUsingPromoPlayTime) {
+      if (pricingStep > 0) {
+        estimatedAmount = Math.ceil(estimatedAmount / pricingStep) * pricingStep;
+      }
+      if (estimatedAmount < minimumCharge) {
+        estimatedAmount = minimumCharge;
+      }
+    }
+
+    return {
+      elapsedSeconds,
+      billableMinutes,
+      estimatedAmount,
+      hourlyRate: currentHourlyRate,
+    };
+  }
+
   private async logEvent(
     eventType: string,
     pcId?: string,
@@ -1099,9 +1208,18 @@ export class PcsService {
   }
 
   async clearSupportMessages(pcId: string) {
-    return this.prisma.supportMessage.deleteMany({
+    const pc = await this.prisma.pc.findUnique({
+      where: { id: pcId },
+      select: { id: true, agentId: true },
+    });
+    const result = await this.prisma.supportMessage.deleteMany({
       where: { pcId },
     });
+    if (pc) {
+      this.realtime.emitToAgent(pc.agentId, 'admin.support_cleared', {});
+      this.realtime.emitToAll('client.support_cleared', { pcId: pc.id });
+    }
+    return result;
   }
 
   async getRecentSupportMessages(limit = 100) {

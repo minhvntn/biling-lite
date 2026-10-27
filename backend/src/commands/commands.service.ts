@@ -712,6 +712,9 @@ export class CommandsService {
                 pricePerMinute,
               },
             });
+            await tx.supportMessage.deleteMany({
+              where: { pcId: command.pcId },
+            });
             sessionEvent = {
               type: 'session.opened',
               sessionId: createdSession.id,
@@ -805,6 +808,10 @@ export class CommandsService {
       });
     }
     if (result.sessionEvent) {
+      if (result.updatedCommand.pc?.agentId) {
+        this.realtime.emitToAgent(result.updatedCommand.pc.agentId, 'admin.support_cleared', {});
+      }
+      this.realtime.emitToAll('client.support_cleared', { pcId: command.pcId });
       await this.logEvent(EventSource.SERVER, result.sessionEvent.type, command.pcId, {
         sessionId: result.sessionEvent.sessionId,
         amount: result.sessionEvent.amount ?? null,
@@ -1112,6 +1119,10 @@ export class CommandsService {
       }
 
       if (offlineCheckout.closedSession) {
+        if (offlineCheckout.command.pc?.agentId) {
+          this.realtime.emitToAgent(offlineCheckout.command.pc.agentId, 'admin.support_cleared', {});
+        }
+        this.realtime.emitToAll('client.support_cleared', { pcId: targetPcId });
         await this.logEvent(EventSource.SERVER, 'session.closed', targetPcId, {
           sessionId: offlineCheckout.closedSession.sessionId,
           amount: offlineCheckout.closedSession.amount,
@@ -1243,6 +1254,10 @@ export class CommandsService {
       });
 
       if (immediateTransition.sessionClosed) {
+        if (sentCommand.pc?.agentId) {
+          this.realtime.emitToAgent(sentCommand.pc.agentId, 'admin.support_cleared', {});
+        }
+        this.realtime.emitToAll('client.support_cleared', { pcId: targetPcId });
         await this.logEvent(EventSource.SERVER, 'session.closed', targetPcId, {
           sessionId: immediateTransition.sessionClosed.sessionId,
           amount: immediateTransition.sessionClosed.amount,
@@ -1696,6 +1711,10 @@ export class CommandsService {
         status: 'CLOSED',
         closedReason,
       },
+    });
+
+    await tx.supportMessage.deleteMany({
+      where: { pcId },
     });
 
     // Auto-pay unpaid service orders associated with this session on close

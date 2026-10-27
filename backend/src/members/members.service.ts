@@ -45,6 +45,7 @@ import { HorseRaceDto } from './dto/horse-race.dto';
 import { UpdateLuckyEnvelopeSettingsDto } from './dto/lucky-envelope-settings.dto';
 import { OpenLuckyEnvelopeDto } from './dto/open-lucky-envelope.dto';
 import { PushNotificationsService } from '../push-notifications/push-notifications.service';
+import { PcsService } from '../pcs/pcs.service';
 
 const LOYALTY_CONFIG_KEY = '__LOYALTY_MEMBER_POINTS__';
 const LOYALTY_MINUTES_PER_POINT = 15;
@@ -216,6 +217,7 @@ export class MembersService {
     private readonly configService: ConfigService,
     private readonly realtime: RealtimeService,
     private readonly pushNotificationsService: PushNotificationsService,
+    private readonly pcsService: PcsService,
   ) { }
 
   async getMembers(search?: string, memberType?: string) {
@@ -644,6 +646,13 @@ export class MembersService {
         });
       }
 
+      // Reset chat session messages for the new member session
+      await this.prisma.supportMessage.deleteMany({
+        where: { pcId: pc.id },
+      });
+      this.realtime.emitToAgent(pc.agentId, 'admin.support_cleared', {});
+      this.realtime.emitToAll('client.support_cleared', { pcId: pc.id });
+
       await this.prisma.session.create({
         data: {
           pcId: pc.id,
@@ -688,6 +697,13 @@ export class MembersService {
             closedReason: 'ADMIN_LOCK',
           },
         });
+
+        // Reset chat session messages when session ends
+        await this.prisma.supportMessage.deleteMany({
+          where: { pcId: pc.id },
+        });
+        this.realtime.emitToAgent(pc.agentId, 'admin.support_cleared', {});
+        this.realtime.emitToAll('client.support_cleared', { pcId: pc.id });
       }
 
       // Update PC status to ONLINE (Sẵn sàng) on logout
@@ -4685,10 +4701,24 @@ export class MembersService {
         memberItem,
         redeemedSeconds: redeemSeconds,
         creditedAmount: amountCredit,
+        activeSessionResetSeconds,
       };
     });
 
     await this.emitMemberAccountChanged(result.memberItem, 'REDEEM_PROMO_PLAY_TIME', 'client');
+
+    if (result.activeSessionResetSeconds > 0) {
+      const activePc = await this.findMemberActivePc(memberId);
+      if (activePc) {
+        const billingInfo = await this.pcsService.getActiveSessionBillingForPc(activePc.pcId);
+        if (billingInfo) {
+          this.realtime.emitToAgent(activePc.agentId, 'session.billing.updated', {
+            ...billingInfo,
+            serverTime: new Date().toISOString(),
+          });
+        }
+      }
+    }
 
     return {
       success: true,

@@ -104,6 +104,9 @@ public sealed class ClientRuntimeSettingsResponse
     public bool TopupPromoEnabled { get; set; } = false;
     public string TopupPromoTiers { get; set; } = "[]";
     public bool AdminOnline { get; set; } = true;
+    public bool VpnEnabled { get; set; } = true;
+    public string? VpnLocalInstallerPath { get; set; }
+    public string? VpnDownloadUrl { get; set; }
 
     public string ServerTime { get; set; } = string.Empty;
 }

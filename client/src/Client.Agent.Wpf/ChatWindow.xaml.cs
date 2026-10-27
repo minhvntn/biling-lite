@@ -30,6 +30,7 @@ public partial class ChatWindow : Window
 
         // Register event handler for incoming messages
         _socketService.SupportReplyHandler += OnSupportReplyReceived;
+        _socketService.SupportClearedHandler += OnSupportCleared;
 
         _ = LoadMessagesAsync();
     }
@@ -115,8 +116,50 @@ public partial class ChatWindow : Window
         MessagesScrollViewer.ScrollToEnd();
     }
 
+    public void ClearMessages()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            _messages.Clear();
+        });
+    }
+
+    private void OnSupportCleared()
+    {
+        ClearMessages();
+    }
+
+    private async void ResetChatButton_Click(object sender, RoutedEventArgs e)
+    {
+        var result = MessageBox.Show(
+            "Bạn có chắc muốn bắt đầu phiên chat mới và xóa toàn bộ lịch sử hỗ trợ hiện tại?",
+            "Xác nhận phiên chat mới",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            var url = _app.BuildApiUrl($"/pcs/agent/{_app.Settings.AgentId}/support-messages");
+            var response = await _app.HttpClient.DeleteAsync(url);
+            if (response.IsSuccessStatusCode)
+            {
+                ClearMessages();
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Không thể xóa tin nhắn: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
     {
         _socketService.SupportReplyHandler -= OnSupportReplyReceived;
+        _socketService.SupportClearedHandler -= OnSupportCleared;
     }
 }

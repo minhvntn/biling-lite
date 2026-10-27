@@ -196,6 +196,30 @@ public partial class MainWindow : Window
                 }
             });
 
+            socket.On("client.support_cleared", response =>
+            {
+                try
+                {
+                    var json = response.GetValue<System.Text.Json.JsonElement>();
+                    var pcId = json.TryGetProperty("pcId", out var p) ? p.GetString() : null;
+
+                    QueueRealtimeUi(() =>
+                    {
+                        foreach (Window w in Application.Current.Windows)
+                        {
+                            if (w is AdminChatWindow chatWindow && (string.IsNullOrEmpty(pcId) || string.Equals(chatWindow.PcId, pcId, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                chatWindow.ClearMessages();
+                            }
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    QueueRealtimeUi(() => AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Lỗi client.support_cleared: {ex.Message}"));
+                }
+            });
+
             _billingSocket = socket;
             await _billingSocket.ConnectAsync();
         }

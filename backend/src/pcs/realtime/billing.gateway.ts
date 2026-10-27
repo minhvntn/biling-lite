@@ -107,7 +107,8 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
       : null;
     const resumeGuestSession =
       !!activeSession && activePresenceKind === 'GUEST';
-    const elapsedSeconds = activeSession
+    const billingInfo = await this.pcsService.getActiveSessionBillingForPc(transition.pc.id);
+    const elapsedSeconds = billingInfo?.elapsedSeconds ?? (activeSession
       ? Math.max(
           0,
           Math.floor(
@@ -119,7 +120,9 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
               1000,
           ),
         )
-      : 0;
+      : 0);
+    const estimatedAmount = billingInfo?.estimatedAmount ?? null;
+    const effectiveHourlyRate = billingInfo?.hourlyRate ?? hourlyRate;
 
     let resumeMemberSession = false;
     let memberInfo = null;
@@ -143,12 +146,13 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
       ok: true,
       pcId: transition.pc.id,
       status: transition.pc.status,
-      hourlyRate,
+      hourlyRate: effectiveHourlyRate,
       isGuestLoginEnabled,
       resumeGuestSession,
       resumeMemberSession,
       memberInfo,
       elapsedSeconds,
+      estimatedAmount,
       activePromotions: activePromos,
       serverTime: new Date().toISOString(),
     });
@@ -180,7 +184,8 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
     const activePromos = await this.pcsService.getActivePromotions();
 
     const activeSession = await this.pcsService.getActiveSessionForPc(transition.pc.id);
-    const elapsedSeconds = activeSession
+    const billingInfo = await this.pcsService.getActiveSessionBillingForPc(transition.pc.id);
+    const elapsedSeconds = billingInfo?.elapsedSeconds ?? (activeSession
       ? Math.max(
           0,
           Math.floor(
@@ -192,14 +197,17 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
               1000,
           ),
         )
-      : 0;
+      : 0);
+    const estimatedAmount = billingInfo?.estimatedAmount ?? null;
+    const effectiveHourlyRate = billingInfo?.hourlyRate ?? hourlyRate;
 
     client.emit('agent.heartbeat.ack', {
       ok: true,
       status: transition.pc.status,
-      hourlyRate,
+      hourlyRate: effectiveHourlyRate,
       isGuestLoginEnabled,
       elapsedSeconds,
+      estimatedAmount,
       activePromotions: activePromos,
       serverTime: new Date().toISOString(),
     });
@@ -289,6 +297,26 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
 
     // Mark client messages as read
     await this.pcsService.markSupportMessagesRead(pc.id);
+  }
+
+  @SubscribeMessage('agent.clear_support')
+  async handleAgentClearSupport(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { agentId: string },
+  ) {
+    if (!payload?.agentId) return;
+    const pc = await this.pcsService.getPcByAgentId(payload.agentId);
+    if (!pc) return;
+    await this.pcsService.clearSupportMessages(pc.id);
+  }
+
+  @SubscribeMessage('admin.clear_support')
+  async handleAdminClearSupport(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { pcId: string },
+  ) {
+    if (!payload?.pcId) return;
+    await this.pcsService.clearSupportMessages(payload.pcId);
   }
 
   @SubscribeMessage('agent.app_usage')

@@ -489,6 +489,10 @@ export class SessionsService {
       },
     });
 
+    await this.prisma.supportMessage.deleteMany({
+      where: { pcId: session.pcId },
+    });
+
     await this.logEvent('session.closed.auto_offline', session.pcId, {
       sessionId: session.id,
       durationSeconds,

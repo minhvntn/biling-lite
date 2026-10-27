@@ -70,4 +70,19 @@ export class SetClientRuntimeSettingsDto {
   @IsString()
   @MaxLength(150)
   vietQrAccountName?: string;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  vpnEnabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  vpnLocalInstallerPath?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  vpnDownloadUrl?: string;
 }

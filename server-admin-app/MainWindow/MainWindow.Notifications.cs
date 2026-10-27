@@ -10,6 +10,7 @@ namespace Server.Admin.App;
 public partial class MainWindow : Window
 {
     private readonly Dictionary<string, GuestSessionSnapshot> _guestSessionSnapshotByPcId = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTime> _lastGuestAlertAtByPcId = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _guestLoginSpeechLock = new(1, 1);
     private readonly object _guestLoginAudioPlaybackSync = new();
     private MediaPlayer? _guestLoginAudioPlayer;
@@ -51,9 +52,11 @@ public partial class MainWindow : Window
 
         _guestSessionSnapshotByPcId.Clear();
         _guestSessionSnapshotInitialized = false;
+        _lastGuestAlertAtByPcId.Clear();
 
         _vipSessionSnapshotByPcId.Clear();
         _vipSessionSnapshotInitialized = false;
+        _lastVipAlertAtByPcId.Clear();
     }
 
     private void TrackGuestSessionNotifications(IReadOnlyList<MachineRow> currentRows)
@@ -62,6 +65,11 @@ public partial class MainWindow : Window
         {
             foreach (var row in currentRows)
             {
+                if (row.IsVirtual)
+                {
+                    continue;
+                }
+
                 if (!IsGuestSessionActive(row))
                 {
                     continue;
@@ -69,12 +77,31 @@ public partial class MainWindow : Window
 
                 if (_guestSessionSnapshotByPcId.TryGetValue(row.Id, out var previousSnapshot) &&
                     previousSnapshot.IsGuestSession &&
-                    previousSnapshot.StatusCode.Equals("IN_USE", StringComparison.OrdinalIgnoreCase) &&
-                    string.Equals(previousSnapshot.ActiveSessionId, row.ActiveSessionId, StringComparison.OrdinalIgnoreCase))
+                    previousSnapshot.StatusCode.Equals("IN_USE", StringComparison.OrdinalIgnoreCase))
+                {
+                    bool isSameSession;
+                    if (!string.IsNullOrWhiteSpace(row.ActiveSessionId) && !string.IsNullOrWhiteSpace(previousSnapshot.ActiveSessionId))
+                    {
+                        isSameSession = string.Equals(previousSnapshot.ActiveSessionId, row.ActiveSessionId, StringComparison.OrdinalIgnoreCase);
+                    }
+                    else
+                    {
+                        isSameSession = true;
+                    }
+
+                    if (isSameSession)
+                    {
+                        continue;
+                    }
+                }
+
+                var now = DateTime.UtcNow;
+                if (_lastGuestAlertAtByPcId.TryGetValue(row.Id, out var lastAlertTime) && (now - lastAlertTime).TotalSeconds < 30)
                 {
                     continue;
                 }
 
+                _lastGuestAlertAtByPcId[row.Id] = now;
                 NotifyGuestSessionStarted(row);
             }
         }
@@ -82,6 +109,11 @@ public partial class MainWindow : Window
         _guestSessionSnapshotByPcId.Clear();
         foreach (var row in currentRows)
         {
+            if (row.IsVirtual)
+            {
+                continue;
+            }
+
             _guestSessionSnapshotByPcId[row.Id] = new GuestSessionSnapshot
             {
                 StatusCode = row.StatusCode,
@@ -453,6 +485,7 @@ public partial class MainWindow : Window
     }
 
     private readonly Dictionary<string, VipSessionSnapshot> _vipSessionSnapshotByPcId = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTime> _lastVipAlertAtByPcId = new(StringComparer.OrdinalIgnoreCase);
     private bool _vipSessionSnapshotInitialized;
 
     private sealed class VipSessionSnapshot
@@ -460,6 +493,7 @@ public partial class MainWindow : Window
         public string StatusCode { get; init; } = string.Empty;
         public bool IsVipSession { get; init; }
         public string? ActiveSessionId { get; init; }
+        public string? UserName { get; init; }
     }
 
     private void TrackVipSessionNotifications(IReadOnlyList<MachineRow> currentRows)
@@ -468,19 +502,54 @@ public partial class MainWindow : Window
         {
             foreach (var row in currentRows)
             {
+                if (row.IsVirtual)
+                {
+                    continue;
+                }
+
                 if (!IsVipSessionActive(row))
                 {
                     continue;
                 }
 
+                var currentUserName = !string.IsNullOrWhiteSpace(row.ActiveMemberUsername)
+                    ? row.ActiveMemberUsername
+                    : row.UserName;
+
                 if (_vipSessionSnapshotByPcId.TryGetValue(row.Id, out var previousSnapshot) &&
                     previousSnapshot.IsVipSession &&
-                    !string.IsNullOrWhiteSpace(row.ActiveSessionId) &&
-                    string.Equals(previousSnapshot.ActiveSessionId, row.ActiveSessionId, StringComparison.OrdinalIgnoreCase))
+                    previousSnapshot.StatusCode.Equals("IN_USE", StringComparison.OrdinalIgnoreCase))
+                {
+                    bool isSameSession;
+                    if (!string.IsNullOrWhiteSpace(row.ActiveSessionId) && !string.IsNullOrWhiteSpace(previousSnapshot.ActiveSessionId))
+                    {
+                        isSameSession = string.Equals(previousSnapshot.ActiveSessionId, row.ActiveSessionId, StringComparison.OrdinalIgnoreCase);
+                    }
+                    else
+                    {
+                        if (!string.IsNullOrWhiteSpace(currentUserName) && !string.IsNullOrWhiteSpace(previousSnapshot.UserName))
+                        {
+                            isSameSession = string.Equals(previousSnapshot.UserName, currentUserName, StringComparison.OrdinalIgnoreCase);
+                        }
+                        else
+                        {
+                            isSameSession = true;
+                        }
+                    }
+
+                    if (isSameSession)
+                    {
+                        continue;
+                    }
+                }
+
+                var now = DateTime.UtcNow;
+                if (_lastVipAlertAtByPcId.TryGetValue(row.Id, out var lastAlertTime) && (now - lastAlertTime).TotalSeconds < 30)
                 {
                     continue;
                 }
 
+                _lastVipAlertAtByPcId[row.Id] = now;
                 NotifyVipSessionStarted(row);
             }
         }
@@ -488,11 +557,21 @@ public partial class MainWindow : Window
         _vipSessionSnapshotByPcId.Clear();
         foreach (var row in currentRows)
         {
+            if (row.IsVirtual)
+            {
+                continue;
+            }
+
+            var currentUserName = !string.IsNullOrWhiteSpace(row.ActiveMemberUsername)
+                ? row.ActiveMemberUsername
+                : row.UserName;
+
             _vipSessionSnapshotByPcId[row.Id] = new VipSessionSnapshot
             {
                 StatusCode = row.StatusCode,
                 IsVipSession = row.IsVipSession,
                 ActiveSessionId = row.ActiveSessionId,
+                UserName = currentUserName,
             };
         }
 

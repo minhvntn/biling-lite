@@ -1,7 +1,7 @@
 {
   "version": 1,
   "app": "servermanagerbilling",
-  "createdAt": "2026-08-08T15:00:00.016Z",
+  "createdAt": "2026-10-21T15:00:00.020Z",
   "requestedBy": "system.scheduler",
   "trigger": "auto",
   "data": {
@@ -11,77 +11,84 @@
         "key": "__CLIENT_AUTO_COLLAPSE_INTERVAL_SECONDS__",
         "value": "0",
         "createdAt": "2026-05-30T01:52:53.849Z",
-        "updatedAt": "2026-07-20T09:18:46.317Z"
+        "updatedAt": "2026-08-22T08:22:04.468Z"
       },
       {
         "id": "6a1e25c3-8900-4848-a60d-273564632642",
         "key": "__CLIENT_GAME_LAUNCHER_PATH__",
         "value": "I:\\servermanagergame\\src\\GameLauncher.Client\\bin\\Release\\net8.0-windows",
         "createdAt": "2026-06-03T06:27:09.258Z",
-        "updatedAt": "2026-07-20T09:18:46.318Z"
+        "updatedAt": "2026-08-22T08:22:04.469Z"
       },
       {
         "id": "bacd4e2f-e1d3-4e95-8c64-ae483dd22a3e",
         "key": "__CLIENT_LOCK_SCREEN_BACKGROUND_MODE__",
         "value": "video",
         "createdAt": "2026-05-05T12:53:09.581Z",
-        "updatedAt": "2026-07-20T09:18:46.314Z"
+        "updatedAt": "2026-08-22T08:22:04.460Z"
       },
       {
         "id": "76f5222f-470f-428e-bc4c-f126f3e37e4c",
         "key": "__CLIENT_LOCK_SCREEN_BACKGROUND_URL__",
         "value": "http://192.168.1.14:39090/api/v1/pricing/client-settings/lock-screen-media/1780740666649-0h075n.mp4",
         "createdAt": "2026-05-05T12:53:09.583Z",
-        "updatedAt": "2026-07-20T09:18:46.315Z"
+        "updatedAt": "2026-08-22T08:22:04.462Z"
       },
       {
         "id": "8039a0a0-6c05-40c8-b1e7-a2026384b93b",
         "key": "__CLIENT_LOCK_SCREEN_INTERVAL_SECONDS__",
         "value": "5",
         "createdAt": "2026-05-22T10:17:00.511Z",
-        "updatedAt": "2026-07-20T09:18:46.316Z"
+        "updatedAt": "2026-08-22T08:22:04.466Z"
       },
       {
         "id": "d9b85dfe-ebf1-405a-8278-f4f84e62f753",
         "key": "__CLIENT_MEMBER_TOPUP_REQUEST_ENABLED__",
         "value": "true",
         "createdAt": "2026-05-15T03:05:32.979Z",
-        "updatedAt": "2026-07-20T09:18:46.316Z"
+        "updatedAt": "2026-08-22T08:22:04.465Z"
       },
       {
         "id": "5f4ef3d9-b709-4cd8-abe5-cd3345493127",
         "key": "__CLIENT_MEMBER_WITHDRAW_ENABLED__",
         "value": "true",
         "createdAt": "2026-05-14T09:57:57.009Z",
-        "updatedAt": "2026-07-20T09:18:46.315Z"
+        "updatedAt": "2026-08-22T08:22:04.464Z"
       },
       {
         "id": "f786c666-489d-40d6-855a-baef2db6e688",
         "key": "__LOYALTY_HORSE_RACE_MIN_TOPUP__",
         "value": "2754821",
         "createdAt": "2026-06-02T10:54:27.690Z",
-        "updatedAt": "2026-07-20T09:18:46.391Z"
+        "updatedAt": "2026-08-22T08:22:04.622Z"
       },
       {
         "id": "6ed5fa88-26c7-4905-9626-a4ded1bd2c55",
         "key": "__LOYALTY_LOWEST_RANK_MINUTES_PER_POINT__",
         "value": "50",
         "createdAt": "2026-05-28T15:34:49.217Z",
-        "updatedAt": "2026-07-20T09:18:46.389Z"
+        "updatedAt": "2026-08-22T08:22:04.617Z"
       },
       {
         "id": "4928953f-1f20-473d-b408-2255a98d49cc",
         "key": "__LOYALTY_MINUTES_PER_POINT__",
         "value": "20",
         "createdAt": "2026-05-17T04:26:17.674Z",
-        "updatedAt": "2026-07-20T09:18:46.327Z"
+        "updatedAt": "2026-08-22T08:22:04.495Z"
       },
       {
         "id": "e78f19da-1121-4f3b-8a47-6a213964f42a",
         "key": "__LOYALTY_POINTS_TO_MINUTES__",
         "value": "5",
         "createdAt": "2026-05-17T04:26:17.675Z",
-        "updatedAt": "2026-07-20T09:18:46.389Z"
+        "updatedAt": "2026-08-22T08:22:04.618Z"
+      },
+      {
+        "id": "cb0a67d3-3a9b-4084-a047-e97085b30ee9",
+        "key": "__LOYALTY_REFERRAL_REWARD_POINTS__",
+        "value": "20",
+        "createdAt": "2026-08-19T02:55:58.319Z",
+        "updatedAt": "2026-08-22T08:22:04.623Z"
       },
       {
         "id": "633218c7-b227-49be-8ca8-553650099506",
@@ -95,35 +102,49 @@
         "key": "__LOYALTY_WEEKDAY_MULTIPLIER__",
         "value": "1.25",
         "createdAt": "2026-05-23T08:38:36.051Z",
-        "updatedAt": "2026-07-20T09:18:46.390Z"
+        "updatedAt": "2026-08-22T08:22:04.619Z"
       },
       {
         "id": "946fa9eb-a75a-48b9-9dc9-16d746d95590",
         "key": "__LOYALTY_WEEKEND_MULTIPLIER__",
         "value": "5",
         "createdAt": "2026-05-23T08:38:36.052Z",
-        "updatedAt": "2026-07-20T09:18:46.390Z"
+        "updatedAt": "2026-08-22T08:22:04.621Z"
+      },
+      {
+        "id": "a974d857-9e0e-4150-9e75-ef2d48523b0c",
+        "key": "__LUCKY_ENVELOPE_CONFIG__",
+        "value": "{\"enabled\":true,\"startDate\":\"2026-08-20T17:00:00.0000000Z\",\"endDate\":\"2026-08-31T16:59:59.9999999Z\",\"pointCost\":10,\"minMinutes\":60,\"maxMinutes\":360,\"maxClaims\":0}",
+        "createdAt": "2026-08-22T08:00:27.437Z",
+        "updatedAt": "2026-08-22T08:22:45.846Z"
+      },
+      {
+        "id": "ba2284d2-0553-4ae2-acfc-cd8b430f49c3",
+        "key": "__VAPID_KEYS__",
+        "value": "{\"publicKey\":\"BGnjh7jfyRTVXzQ8YBPYZPzIQtAUXWeB3tlOoo9jbESOFW7VVEIaSqRoqhzshtfoXksO_FHxbw3oWsZosNG7m0s\",\"privateKey\":\"tXgQ4SIjkdlGzO1Vn1hB3Hv6R2ulD__-6mtOEF0BACU\"}",
+        "createdAt": "2026-08-27T12:01:14.054Z",
+        "updatedAt": "2026-08-27T12:01:14.054Z"
       },
       {
         "id": "370c3f92-bcdc-41fa-9b0f-12e345128036",
         "key": "__VIETQR_ACCOUNT_NAME__",
         "value": "VO NGOC MINH",
         "createdAt": "2026-06-06T04:43:48.191Z",
-        "updatedAt": "2026-07-20T09:18:46.320Z"
+        "updatedAt": "2026-08-22T08:22:04.473Z"
       },
       {
         "id": "593ac79d-40c1-4237-9df1-dea927057dbc",
         "key": "__VIETQR_ACCOUNT_NO__",
         "value": "0071001072225",
         "createdAt": "2026-06-06T04:43:48.189Z",
-        "updatedAt": "2026-07-20T09:18:46.319Z"
+        "updatedAt": "2026-08-22T08:22:04.472Z"
       },
       {
         "id": "eb67b1d6-1e6b-4cea-a41a-5cb1f238f6ac",
         "key": "__VIETQR_BANK_ID__",
         "value": "VCB",
         "createdAt": "2026-06-06T04:43:48.187Z",
-        "updatedAt": "2026-07-20T09:18:46.319Z"
+        "updatedAt": "2026-08-22T08:22:04.470Z"
       },
       {
         "id": "05822388-2961-4516-96e6-0173899863d4",
@@ -158,112 +179,112 @@
         "key": "AUTO_BACKUP_DIRECTORY",
         "value": "I:\\servermanagerbilling\\backend\\backups",
         "createdAt": "2026-05-13T10:53:55.059Z",
-        "updatedAt": "2026-07-20T09:18:46.405Z"
+        "updatedAt": "2026-08-22T08:22:04.664Z"
       },
       {
         "id": "2bc84838-8ab5-44ad-82ff-244e2d4602ca",
         "key": "AUTO_BACKUP_ENABLED",
         "value": "true",
         "createdAt": "2026-05-13T10:53:55.054Z",
-        "updatedAt": "2026-07-20T09:18:46.402Z"
+        "updatedAt": "2026-08-22T08:22:04.658Z"
       },
       {
         "id": "e3655e46-a491-487b-ab4e-e7b44eb5b861",
         "key": "AUTO_BACKUP_LAST_ERROR",
         "value": "",
         "createdAt": "2026-05-13T10:54:42.227Z",
-        "updatedAt": "2026-06-16T15:00:00.569Z"
+        "updatedAt": "2026-08-22T15:00:00.357Z"
       },
       {
         "id": "d8a491da-4fe3-40ac-995c-58894d9e9cac",
         "key": "AUTO_BACKUP_LAST_FILE_NAME",
-        "value": "billing-backup-auto-20260616-220000.json",
+        "value": "billing-backup-auto-20260822-220000.json",
         "createdAt": "2026-05-13T10:54:42.232Z",
-        "updatedAt": "2026-06-16T15:00:00.570Z"
+        "updatedAt": "2026-08-22T15:00:00.358Z"
       },
       {
         "id": "3cea80f8-6617-4f67-ac2e-fd6e14627ec5",
         "key": "AUTO_BACKUP_LAST_FILE_PATH",
-        "value": "I:\\servermanagerbilling\\backend\\backups\\billing-backup-auto-20260616-220000.json",
+        "value": "I:\\servermanagerbilling\\backend\\backups\\billing-backup-auto-20260822-220000.json",
         "createdAt": "2026-05-13T10:54:42.235Z",
-        "updatedAt": "2026-06-16T15:00:00.571Z"
+        "updatedAt": "2026-08-22T15:00:00.359Z"
       },
       {
         "id": "35bb80ba-116c-4369-823e-63c661ee3666",
         "key": "AUTO_BACKUP_LAST_RUN_AT",
-        "value": "2026-06-16T15:00:00.028Z",
+        "value": "2026-08-22T15:00:00.018Z",
         "createdAt": "2026-05-13T10:54:42.223Z",
-        "updatedAt": "2026-06-16T15:00:00.543Z"
+        "updatedAt": "2026-08-22T15:00:00.351Z"
       },
       {
         "id": "bf03d4bf-d72f-452d-a1ab-e8d7ce540b63",
         "key": "AUTO_BACKUP_LAST_SLOT",
-        "value": "daily:20260616:22:00",
+        "value": "daily:20260822:22:00",
         "createdAt": "2026-05-28T15:00:00.472Z",
-        "updatedAt": "2026-06-16T15:00:00.580Z"
+        "updatedAt": "2026-08-22T15:00:00.370Z"
       },
       {
         "id": "71b2f246-6f51-49c5-a3f0-751e8f73ec07",
         "key": "AUTO_BACKUP_LAST_STATUS",
         "value": "success",
         "createdAt": "2026-05-13T10:54:42.225Z",
-        "updatedAt": "2026-06-16T15:00:00.568Z"
+        "updatedAt": "2026-08-22T15:00:00.355Z"
       },
       {
         "id": "457da157-9d1c-41a0-bd98-39605dedfbda",
         "key": "AUTO_BACKUP_RETENTION_DAYS",
         "value": "30",
         "createdAt": "2026-05-13T10:53:55.060Z",
-        "updatedAt": "2026-07-20T09:18:46.406Z"
+        "updatedAt": "2026-08-22T08:22:04.665Z"
       },
       {
         "id": "2ca1e15f-ff84-41f3-8c30-53e0b8ac2db7",
         "key": "AUTO_BACKUP_SCHEDULE_TYPE",
         "value": "daily",
         "createdAt": "2026-05-13T10:53:55.056Z",
-        "updatedAt": "2026-07-20T09:18:46.403Z"
+        "updatedAt": "2026-08-22T08:22:04.660Z"
       },
       {
         "id": "567673ee-c86b-4dd7-a7c6-e22e7e9c67c8",
         "key": "AUTO_BACKUP_TIME",
         "value": "22:00",
         "createdAt": "2026-05-13T10:53:55.057Z",
-        "updatedAt": "2026-07-20T09:18:46.404Z"
+        "updatedAt": "2026-08-22T08:22:04.661Z"
       },
       {
         "id": "ef13ca46-4593-4e56-b749-afa189a7f137",
         "key": "AUTO_BACKUP_WEEKLY_DAY",
         "value": "1",
         "createdAt": "2026-05-13T10:53:55.058Z",
-        "updatedAt": "2026-07-20T09:18:46.405Z"
+        "updatedAt": "2026-08-22T08:22:04.663Z"
       },
       {
         "id": "0e81dd19-504c-4152-a21b-735bbe662d0f",
         "key": "db.storage.history",
-        "value": "[{\"date\":\"2026-05-20\",\"sizeBytes\":14523415},{\"date\":\"2026-05-21\",\"sizeBytes\":14539799},{\"date\":\"2026-05-22\",\"sizeBytes\":14564375},{\"date\":\"2026-05-23\",\"sizeBytes\":14695447},{\"date\":\"2026-05-24\",\"sizeBytes\":14720023},{\"date\":\"2026-05-25\",\"sizeBytes\":14744599},{\"date\":\"2026-05-26\",\"sizeBytes\":14777367},{\"date\":\"2026-05-27\",\"sizeBytes\":14842903},{\"date\":\"2026-05-28\",\"sizeBytes\":15391767},{\"date\":\"2026-05-29\",\"sizeBytes\":15391767},{\"date\":\"2026-05-30\",\"sizeBytes\":15506455},{\"date\":\"2026-05-31\",\"sizeBytes\":15547415},{\"date\":\"2026-06-01\",\"sizeBytes\":15547415},{\"date\":\"2026-06-02\",\"sizeBytes\":15563799},{\"date\":\"2026-06-03\",\"sizeBytes\":15670295},{\"date\":\"2026-06-04\",\"sizeBytes\":15711255},{\"date\":\"2026-06-05\",\"sizeBytes\":16415767},{\"date\":\"2026-06-06\",\"sizeBytes\":16505879},{\"date\":\"2026-06-07\",\"sizeBytes\":16514071},{\"date\":\"2026-06-09\",\"sizeBytes\":16514071},{\"date\":\"2026-06-15\",\"sizeBytes\":16514071},{\"date\":\"2026-06-16\",\"sizeBytes\":16522263},{\"date\":\"2026-06-17\",\"sizeBytes\":16522263},{\"date\":\"2026-06-18\",\"sizeBytes\":16595991},{\"date\":\"2026-06-19\",\"sizeBytes\":16595991},{\"date\":\"2026-07-20\",\"sizeBytes\":16595991},{\"date\":\"2026-07-22\",\"sizeBytes\":16595991},{\"date\":\"2026-07-23\",\"sizeBytes\":16907287},{\"date\":\"2026-07-24\",\"sizeBytes\":16907287},{\"date\":\"2026-07-25\",\"sizeBytes\":16907287},{\"date\":\"2026-07-26\",\"sizeBytes\":16915479},{\"date\":\"2026-07-27\",\"sizeBytes\":16915479},{\"date\":\"2026-07-29\",\"sizeBytes\":16948247},{\"date\":\"2026-07-30\",\"sizeBytes\":16972823},{\"date\":\"2026-08-08\",\"sizeBytes\":16989207}]",
+        "value": "[{\"date\":\"2026-05-20\",\"sizeBytes\":14523415},{\"date\":\"2026-05-21\",\"sizeBytes\":14539799},{\"date\":\"2026-05-22\",\"sizeBytes\":14564375},{\"date\":\"2026-05-23\",\"sizeBytes\":14695447},{\"date\":\"2026-05-24\",\"sizeBytes\":14720023},{\"date\":\"2026-05-25\",\"sizeBytes\":14744599},{\"date\":\"2026-05-26\",\"sizeBytes\":14777367},{\"date\":\"2026-05-27\",\"sizeBytes\":14842903},{\"date\":\"2026-05-28\",\"sizeBytes\":15391767},{\"date\":\"2026-05-29\",\"sizeBytes\":15391767},{\"date\":\"2026-05-30\",\"sizeBytes\":15506455},{\"date\":\"2026-05-31\",\"sizeBytes\":15547415},{\"date\":\"2026-06-01\",\"sizeBytes\":15547415},{\"date\":\"2026-06-02\",\"sizeBytes\":15563799},{\"date\":\"2026-06-03\",\"sizeBytes\":15670295},{\"date\":\"2026-06-04\",\"sizeBytes\":15711255},{\"date\":\"2026-06-05\",\"sizeBytes\":16415767},{\"date\":\"2026-06-06\",\"sizeBytes\":16505879},{\"date\":\"2026-06-07\",\"sizeBytes\":16514071},{\"date\":\"2026-06-09\",\"sizeBytes\":16514071},{\"date\":\"2026-06-15\",\"sizeBytes\":16514071},{\"date\":\"2026-06-16\",\"sizeBytes\":16522263},{\"date\":\"2026-06-17\",\"sizeBytes\":16522263},{\"date\":\"2026-06-18\",\"sizeBytes\":16595991},{\"date\":\"2026-06-19\",\"sizeBytes\":16595991},{\"date\":\"2026-07-20\",\"sizeBytes\":16595991},{\"date\":\"2026-07-22\",\"sizeBytes\":16595991},{\"date\":\"2026-07-23\",\"sizeBytes\":16907287},{\"date\":\"2026-07-24\",\"sizeBytes\":16907287},{\"date\":\"2026-07-25\",\"sizeBytes\":16907287},{\"date\":\"2026-07-26\",\"sizeBytes\":16915479},{\"date\":\"2026-07-27\",\"sizeBytes\":16915479},{\"date\":\"2026-07-29\",\"sizeBytes\":16948247},{\"date\":\"2026-07-30\",\"sizeBytes\":16972823},{\"date\":\"2026-08-08\",\"sizeBytes\":16989207},{\"date\":\"2026-08-09\",\"sizeBytes\":17013783},{\"date\":\"2026-08-10\",\"sizeBytes\":17013783},{\"date\":\"2026-08-19\",\"sizeBytes\":17013783},{\"date\":\"2026-08-22\",\"sizeBytes\":17013783},{\"date\":\"2026-08-27\",\"sizeBytes\":17030167},{\"date\":\"2026-10-16\",\"sizeBytes\":17030167},{\"date\":\"2026-10-21\",\"sizeBytes\":17046551}]",
         "createdAt": "2026-05-20T04:59:06.479Z",
-        "updatedAt": "2026-08-08T00:22:52.676Z"
+        "updatedAt": "2026-10-21T04:13:36.565Z"
       },
       {
         "id": "d0661f3a-c055-4d29-ba94-1a5042aadde9",
         "key": "GUEST_LOGIN_ENABLED",
         "value": "true",
         "createdAt": "2026-05-05T12:53:09.597Z",
-        "updatedAt": "2026-07-20T09:18:46.395Z"
+        "updatedAt": "2026-08-22T08:22:04.635Z"
       },
       {
         "id": "af37d102-201d-4b3e-bdd1-6a4d79fc6ac6",
         "key": "MINIMUM_CHARGE",
         "value": "1000",
         "createdAt": "2026-05-06T03:17:33.310Z",
-        "updatedAt": "2026-07-20T09:18:46.399Z"
+        "updatedAt": "2026-08-22T08:22:04.646Z"
       },
       {
         "id": "9e466ada-c81d-482c-922f-beb523565485",
         "key": "PRICING_STEP",
         "value": "500",
         "createdAt": "2026-05-06T03:17:33.308Z",
-        "updatedAt": "2026-07-20T09:18:46.397Z"
+        "updatedAt": "2026-08-22T08:22:04.641Z"
       },
       {
         "id": "d38c3429-806b-416c-a017-17e08343fd8c",
@@ -323,7 +344,7 @@
         "pricePerMinute": "0",
         "isActive": true,
         "createdAt": "2026-04-30T04:24:38.041Z",
-        "updatedAt": "2026-07-20T09:18:46.326Z"
+        "updatedAt": "2026-08-22T08:22:04.493Z"
       },
       {
         "id": "dd7cfa25-5900-4610-bfb3-824096381489",
@@ -331,7 +352,7 @@
         "pricePerMinute": "3",
         "isActive": true,
         "createdAt": "2026-05-01T06:44:33.879Z",
-        "updatedAt": "2026-07-20T09:18:46.312Z"
+        "updatedAt": "2026-08-22T08:22:04.457Z"
       }
     ],
     "pcGroups": [
@@ -360,11 +381,11 @@
         "agentId": "PC-001",
         "name": "PC",
         "hostname": "PC",
-        "ipAddress": "::ffff:192.168.1.2",
+        "ipAddress": "::ffff:192.168.102.4",
         "status": "OFFLINE",
-        "lastSeenAt": "2026-08-08T02:02:05.987Z",
+        "lastSeenAt": "2026-10-21T13:30:35.801Z",
         "createdAt": "2026-05-22T14:38:29.680Z",
-        "updatedAt": "2026-08-08T02:02:40.004Z",
+        "updatedAt": "2026-10-21T13:30:38.836Z",
         "groupId": "e3513723-d6a4-4a97-92b3-3d3d4f5a246c"
       },
       {
@@ -422,14 +443,14 @@
         "username": "teo",
         "fullName": "teo",
         "phone": null,
-        "balance": "347087.5",
+        "balance": "382635.83",
         "isActive": true,
         "createdAt": "2026-04-29T12:10:38.521Z",
-        "updatedAt": "2026-08-08T12:31:13.658Z",
+        "updatedAt": "2026-08-27T13:07:25.389Z",
         "passwordHash": "$2b$10$0Oj.uepfU4tvnUi348haCu98bRUnoPurgREuOd8Ftpx7hxvL5zomS",
         "plainPassword": null,
         "identityNumber": null,
-        "totalTopup": "47271634",
+        "totalTopup": "47311634",
         "playSeconds": 0,
         "memberType": "REGULAR",
         "comboExpiresAt": null,
@@ -437,7 +458,7 @@
         "avatarId": "avatar_tutien_2.png",
         "wallpaperId": null,
         "usePromoPlayTime": true,
-        "totalUsageSeconds": 0,
+        "totalUsageSeconds": 5071,
         "referralCode": "AS6NYB",
         "referredById": null
       },
@@ -782,22 +803,22 @@
         "username": "tong",
         "fullName": "tong",
         "phone": null,
-        "balance": "28700",
+        "balance": "0",
         "isActive": true,
         "createdAt": "2026-05-23T12:01:45.305Z",
-        "updatedAt": "2026-08-08T12:31:13.651Z",
+        "updatedAt": "2026-10-21T13:30:29.147Z",
         "passwordHash": "$2b$10$vrDrd3OHrqw9t/EPc.RR3esoJZCuyae9wQifPxrdCo3WKg.9PAX1q",
         "plainPassword": null,
         "identityNumber": null,
         "totalTopup": "112363.29",
-        "playSeconds": 32806,
+        "playSeconds": 46,
         "memberType": "VIP",
         "comboExpiresAt": null,
         "isLimitedCombo": false,
         "avatarId": "avatar_5.png",
         "wallpaperId": "wp_cyberpunk.png",
         "usePromoPlayTime": true,
-        "totalUsageSeconds": 2624,
+        "totalUsageSeconds": 88394,
         "referralCode": "Y0H1TN",
         "referredById": null
       },
@@ -992,6 +1013,198 @@
         "totalUsageSeconds": 0,
         "referralCode": "9C8FYG",
         "referredById": "8927dc72-9c68-4cf7-83bf-05e3a3ebaf48"
+      },
+      {
+        "id": "e68a4947-aeac-46bd-883e-8f1a020e3ecc",
+        "username": "test5d923abe",
+        "fullName": "Referrer User",
+        "phone": null,
+        "balance": "0",
+        "isActive": true,
+        "createdAt": "2026-08-09T01:06:31.869Z",
+        "updatedAt": "2026-08-09T01:06:31.869Z",
+        "passwordHash": "$2b$10$V6pzgSNxhwTukaYR2dteQ.oAOTGm.ISy8Rs9RQDGDdSlQaR3iDSBy",
+        "plainPassword": null,
+        "identityNumber": null,
+        "totalTopup": "0",
+        "playSeconds": 0,
+        "memberType": "REGULAR",
+        "comboExpiresAt": null,
+        "isLimitedCombo": false,
+        "avatarId": null,
+        "wallpaperId": null,
+        "usePromoPlayTime": true,
+        "totalUsageSeconds": 0,
+        "referralCode": "UH0ECI",
+        "referredById": null
+      },
+      {
+        "id": "870c14b7-6f23-42ad-bf01-c10856f16d00",
+        "username": "teste0cd529a",
+        "fullName": "Referred User",
+        "phone": null,
+        "balance": "0",
+        "isActive": true,
+        "createdAt": "2026-08-09T01:06:31.939Z",
+        "updatedAt": "2026-08-09T01:06:31.939Z",
+        "passwordHash": "$2b$10$ZTRlO2WGArzyHPGcbWkEt.detMMZc0A1NDWCPk3.JF6aLmumaeSO2",
+        "plainPassword": null,
+        "identityNumber": null,
+        "totalTopup": "0",
+        "playSeconds": 0,
+        "memberType": "REGULAR",
+        "comboExpiresAt": null,
+        "isLimitedCombo": false,
+        "avatarId": null,
+        "wallpaperId": null,
+        "usePromoPlayTime": true,
+        "totalUsageSeconds": 0,
+        "referralCode": "61GX0P",
+        "referredById": "e68a4947-aeac-46bd-883e-8f1a020e3ecc"
+      },
+      {
+        "id": "5f25fbdb-9b49-439f-9569-3196b5ba0ea7",
+        "username": "test95b14f46",
+        "fullName": "Referrer User",
+        "phone": null,
+        "balance": "0",
+        "isActive": true,
+        "createdAt": "2026-08-09T01:15:44.276Z",
+        "updatedAt": "2026-08-09T01:15:44.276Z",
+        "passwordHash": "$2b$10$rgVSVgKRBnythmHCH5uG/uQPiuxefctL71bLgjw/ghBy12REEcAf.",
+        "plainPassword": null,
+        "identityNumber": null,
+        "totalTopup": "0",
+        "playSeconds": 0,
+        "memberType": "REGULAR",
+        "comboExpiresAt": null,
+        "isLimitedCombo": false,
+        "avatarId": null,
+        "wallpaperId": null,
+        "usePromoPlayTime": true,
+        "totalUsageSeconds": 0,
+        "referralCode": "FRPB2U",
+        "referredById": null
+      },
+      {
+        "id": "5ea96942-cde9-4143-8547-e756890a7318",
+        "username": "test162aeae4",
+        "fullName": "Referred User",
+        "phone": null,
+        "balance": "0",
+        "isActive": true,
+        "createdAt": "2026-08-09T01:15:44.353Z",
+        "updatedAt": "2026-08-09T01:15:44.353Z",
+        "passwordHash": "$2b$10$vKDHGtsuNm.IMv5c9fYc8u3T.lumYVZV4oBZYCoLB83GHfLcp1L0y",
+        "plainPassword": null,
+        "identityNumber": null,
+        "totalTopup": "0",
+        "playSeconds": 0,
+        "memberType": "REGULAR",
+        "comboExpiresAt": null,
+        "isLimitedCombo": false,
+        "avatarId": null,
+        "wallpaperId": null,
+        "usePromoPlayTime": true,
+        "totalUsageSeconds": 0,
+        "referralCode": "QQIZQI",
+        "referredById": "5f25fbdb-9b49-439f-9569-3196b5ba0ea7"
+      },
+      {
+        "id": "7079adcc-116a-4796-aa72-814e32ea24f7",
+        "username": "test_tet_1304",
+        "fullName": "Hội Viên Thử Nghiệm Tết",
+        "phone": null,
+        "balance": "100000",
+        "isActive": true,
+        "createdAt": "2026-08-22T08:06:11.312Z",
+        "updatedAt": "2026-08-22T08:06:11.496Z",
+        "passwordHash": null,
+        "plainPassword": null,
+        "identityNumber": null,
+        "totalTopup": "500000",
+        "playSeconds": 13200,
+        "memberType": "REGULAR",
+        "comboExpiresAt": null,
+        "isLimitedCombo": false,
+        "avatarId": null,
+        "wallpaperId": null,
+        "usePromoPlayTime": true,
+        "totalUsageSeconds": 0,
+        "referralCode": null,
+        "referredById": null
+      },
+      {
+        "id": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "username": "test_regular_topup",
+        "fullName": "Test Regular Member Topup",
+        "phone": null,
+        "balance": "203250",
+        "isActive": true,
+        "createdAt": "2026-10-21T03:50:14.723Z",
+        "updatedAt": "2026-10-21T03:52:25.280Z",
+        "passwordHash": "$2b$10$3AOsJ.PSD2jTB5XEZA9Jj.vB1pvQcAgSmGskdwndOqWvdy2.5zxte",
+        "plainPassword": null,
+        "identityNumber": null,
+        "totalTopup": "190000",
+        "playSeconds": 0,
+        "memberType": "REGULAR",
+        "comboExpiresAt": null,
+        "isLimitedCombo": false,
+        "avatarId": null,
+        "wallpaperId": null,
+        "usePromoPlayTime": true,
+        "totalUsageSeconds": 0,
+        "referralCode": "E0NSQN",
+        "referredById": null
+      },
+      {
+        "id": "9a64a64b-e330-4044-9251-0ea9742b932d",
+        "username": "test_client_7529",
+        "fullName": "Test Client Member",
+        "phone": null,
+        "balance": "15750",
+        "isActive": true,
+        "createdAt": "2026-10-21T03:51:37.596Z",
+        "updatedAt": "2026-10-21T03:51:40.003Z",
+        "passwordHash": "$2b$10$s0nIYw7wyUiRjG//jSjc8O0sDd0ziEtH.GK6xEPVo8oct0Ln7E6Vy",
+        "plainPassword": null,
+        "identityNumber": null,
+        "totalTopup": "15000",
+        "playSeconds": 0,
+        "memberType": "REGULAR",
+        "comboExpiresAt": null,
+        "isLimitedCombo": false,
+        "avatarId": null,
+        "wallpaperId": null,
+        "usePromoPlayTime": true,
+        "totalUsageSeconds": 0,
+        "referralCode": "WVFGLF",
+        "referredById": null
+      },
+      {
+        "id": "100d8f4a-098a-48eb-baa9-184338db534a",
+        "username": "test_client_5303",
+        "fullName": "Test Client Member",
+        "phone": null,
+        "balance": "15750",
+        "isActive": true,
+        "createdAt": "2026-10-21T03:52:25.366Z",
+        "updatedAt": "2026-10-21T03:52:25.415Z",
+        "passwordHash": "$2b$10$YzHcqkQ90oZuhA1luOO0aucGwr5bDM/GI8IK5wdJ0HJ8rnAaoVjxi",
+        "plainPassword": null,
+        "identityNumber": null,
+        "totalTopup": "15000",
+        "playSeconds": 0,
+        "memberType": "REGULAR",
+        "comboExpiresAt": null,
+        "isLimitedCombo": false,
+        "avatarId": null,
+        "wallpaperId": null,
+        "usePromoPlayTime": true,
+        "totalUsageSeconds": 0,
+        "referralCode": "B19P1W",
+        "referredById": null
       }
     ],
     "loyaltyRankConfigs": [
@@ -1001,7 +1214,7 @@
         "minTopup": "0",
         "bonusPercent": "0",
         "createdAt": "2026-06-03T04:18:43.014Z",
-        "updatedAt": "2026-07-20T09:18:46.333Z",
+        "updatedAt": "2026-08-22T08:22:04.509Z",
         "minutesPerPoint": 50
       },
       {
@@ -1010,7 +1223,7 @@
         "minTopup": "3061",
         "bonusPercent": "1",
         "createdAt": "2026-06-03T04:18:43.015Z",
-        "updatedAt": "2026-07-20T09:18:46.333Z",
+        "updatedAt": "2026-08-22T08:22:04.511Z",
         "minutesPerPoint": 49.697
       },
       {
@@ -1019,7 +1232,7 @@
         "minTopup": "12244",
         "bonusPercent": "2",
         "createdAt": "2026-06-03T04:18:43.016Z",
-        "updatedAt": "2026-07-20T09:18:46.334Z",
+        "updatedAt": "2026-08-22T08:22:04.512Z",
         "minutesPerPoint": 49.3939
       },
       {
@@ -1028,7 +1241,7 @@
         "minTopup": "27548",
         "bonusPercent": "3",
         "createdAt": "2026-06-03T04:18:43.017Z",
-        "updatedAt": "2026-07-20T09:18:46.335Z",
+        "updatedAt": "2026-08-22T08:22:04.514Z",
         "minutesPerPoint": 49.0909
       },
       {
@@ -1037,17 +1250,8 @@
         "minTopup": "48975",
         "bonusPercent": "4",
         "createdAt": "2026-06-03T04:18:43.018Z",
-        "updatedAt": "2026-07-20T09:18:46.335Z",
+        "updatedAt": "2026-08-22T08:22:04.515Z",
         "minutesPerPoint": 48.7879
-      },
-      {
-        "id": "2831a93e-6980-40d1-8cef-78cc2a762d18",
-        "rankName": "Sắt 7",
-        "minTopup": "110193",
-        "bonusPercent": "6",
-        "createdAt": "2026-06-03T04:18:43.019Z",
-        "updatedAt": "2026-07-20T09:18:46.336Z",
-        "minutesPerPoint": 48.1818
       },
       {
         "id": "1c89f0c7-d435-4324-a76f-9b7eba9fabe5",
@@ -1055,17 +1259,17 @@
         "minTopup": "76523",
         "bonusPercent": "5",
         "createdAt": "2026-06-03T04:18:43.019Z",
-        "updatedAt": "2026-07-20T09:18:46.336Z",
+        "updatedAt": "2026-08-22T08:22:04.516Z",
         "minutesPerPoint": 48.4848
       },
       {
-        "id": "c7828d8c-816b-4319-8ff9-be007cbec2bb",
-        "rankName": "Sắt 10",
-        "minTopup": "247934",
-        "bonusPercent": "9",
-        "createdAt": "2026-06-03T04:18:43.020Z",
-        "updatedAt": "2026-07-20T09:18:46.338Z",
-        "minutesPerPoint": 47.2727
+        "id": "2831a93e-6980-40d1-8cef-78cc2a762d18",
+        "rankName": "Sắt 7",
+        "minTopup": "110193",
+        "bonusPercent": "6",
+        "createdAt": "2026-06-03T04:18:43.019Z",
+        "updatedAt": "2026-08-22T08:22:04.517Z",
+        "minutesPerPoint": 48.1818
       },
       {
         "id": "2e937623-a6e2-4cf4-8af4-c9b54dad336a",
@@ -1073,7 +1277,7 @@
         "minTopup": "149985",
         "bonusPercent": "7",
         "createdAt": "2026-06-03T04:18:43.020Z",
-        "updatedAt": "2026-07-20T09:18:46.337Z",
+        "updatedAt": "2026-08-22T08:22:04.519Z",
         "minutesPerPoint": 47.8788
       },
       {
@@ -1082,8 +1286,17 @@
         "minTopup": "195898",
         "bonusPercent": "8",
         "createdAt": "2026-06-03T04:18:43.020Z",
-        "updatedAt": "2026-07-20T09:18:46.337Z",
+        "updatedAt": "2026-08-22T08:22:04.520Z",
         "minutesPerPoint": 47.5758
+      },
+      {
+        "id": "c7828d8c-816b-4319-8ff9-be007cbec2bb",
+        "rankName": "Sắt 10",
+        "minTopup": "247934",
+        "bonusPercent": "9",
+        "createdAt": "2026-06-03T04:18:43.020Z",
+        "updatedAt": "2026-08-22T08:22:04.521Z",
+        "minutesPerPoint": 47.2727
       },
       {
         "id": "4ec84395-3230-4c02-a514-44c4a0be35ce",
@@ -1091,7 +1304,7 @@
         "minTopup": "306091",
         "bonusPercent": "10",
         "createdAt": "2026-06-03T04:18:43.021Z",
-        "updatedAt": "2026-07-20T09:18:46.338Z",
+        "updatedAt": "2026-08-22T08:22:04.522Z",
         "minutesPerPoint": 46.9697
       },
       {
@@ -1100,7 +1313,7 @@
         "minTopup": "370370",
         "bonusPercent": "11",
         "createdAt": "2026-06-03T04:18:43.022Z",
-        "updatedAt": "2026-07-20T09:18:46.339Z",
+        "updatedAt": "2026-08-22T08:22:04.523Z",
         "minutesPerPoint": 46.6667
       },
       {
@@ -1109,17 +1322,8 @@
         "minTopup": "440771",
         "bonusPercent": "12",
         "createdAt": "2026-06-03T04:18:43.022Z",
-        "updatedAt": "2026-07-20T09:18:46.339Z",
+        "updatedAt": "2026-08-22T08:22:04.524Z",
         "minutesPerPoint": 46.3636
-      },
-      {
-        "id": "3d982dad-0c11-45c2-9486-5e212535332d",
-        "rankName": "Đồng 5",
-        "minTopup": "599939",
-        "bonusPercent": "14",
-        "createdAt": "2026-06-03T04:18:43.023Z",
-        "updatedAt": "2026-07-20T09:18:46.341Z",
-        "minutesPerPoint": 45.7576
       },
       {
         "id": "15679b12-0581-40c7-9ccb-11b09c9a4b4d",
@@ -1127,8 +1331,17 @@
         "minTopup": "517294",
         "bonusPercent": "13",
         "createdAt": "2026-06-03T04:18:43.023Z",
-        "updatedAt": "2026-07-20T09:18:46.340Z",
+        "updatedAt": "2026-08-22T08:22:04.525Z",
         "minutesPerPoint": 46.0606
+      },
+      {
+        "id": "3d982dad-0c11-45c2-9486-5e212535332d",
+        "rankName": "Đồng 5",
+        "minTopup": "599939",
+        "bonusPercent": "14",
+        "createdAt": "2026-06-03T04:18:43.023Z",
+        "updatedAt": "2026-08-22T08:22:04.526Z",
+        "minutesPerPoint": 45.7576
       },
       {
         "id": "48f5af83-740e-4eec-9dda-36118e1e7689",
@@ -1136,7 +1349,7 @@
         "minTopup": "688705",
         "bonusPercent": "15",
         "createdAt": "2026-06-03T04:18:43.024Z",
-        "updatedAt": "2026-07-20T09:18:46.341Z",
+        "updatedAt": "2026-08-22T08:22:04.527Z",
         "minutesPerPoint": 45.4545
       },
       {
@@ -1145,7 +1358,7 @@
         "minTopup": "783594",
         "bonusPercent": "16",
         "createdAt": "2026-06-03T04:18:43.024Z",
-        "updatedAt": "2026-07-20T09:18:46.342Z",
+        "updatedAt": "2026-08-22T08:22:04.529Z",
         "minutesPerPoint": 45.1515
       },
       {
@@ -1154,17 +1367,8 @@
         "minTopup": "884604",
         "bonusPercent": "17",
         "createdAt": "2026-06-03T04:18:43.025Z",
-        "updatedAt": "2026-07-20T09:18:46.343Z",
+        "updatedAt": "2026-08-22T08:22:04.530Z",
         "minutesPerPoint": 44.8485
-      },
-      {
-        "id": "55954f87-55ec-4df6-8f43-a41f96b2c5c5",
-        "rankName": "Đồng 10",
-        "minTopup": "1104989",
-        "bonusPercent": "19",
-        "createdAt": "2026-06-03T04:18:43.026Z",
-        "updatedAt": "2026-07-20T09:18:46.344Z",
-        "minutesPerPoint": 44.2424
       },
       {
         "id": "0c25e5c8-0ec5-4293-8825-df60aaa500ed",
@@ -1172,17 +1376,17 @@
         "minTopup": "991736",
         "bonusPercent": "18",
         "createdAt": "2026-06-03T04:18:43.026Z",
-        "updatedAt": "2026-07-20T09:18:46.343Z",
+        "updatedAt": "2026-08-22T08:22:04.531Z",
         "minutesPerPoint": 44.5455
       },
       {
-        "id": "60d30d62-5408-4100-8d42-5f87121254a2",
-        "rankName": "Bạc 2",
-        "minTopup": "1349862",
-        "bonusPercent": "21",
-        "createdAt": "2026-06-03T04:18:43.027Z",
-        "updatedAt": "2026-07-20T09:18:46.345Z",
-        "minutesPerPoint": 43.6364
+        "id": "55954f87-55ec-4df6-8f43-a41f96b2c5c5",
+        "rankName": "Đồng 10",
+        "minTopup": "1104989",
+        "bonusPercent": "19",
+        "createdAt": "2026-06-03T04:18:43.026Z",
+        "updatedAt": "2026-08-22T08:22:04.532Z",
+        "minutesPerPoint": 44.2424
       },
       {
         "id": "319278a5-bd74-44a5-8141-e23b02179807",
@@ -1190,17 +1394,17 @@
         "minTopup": "1224365",
         "bonusPercent": "20",
         "createdAt": "2026-06-03T04:18:43.027Z",
-        "updatedAt": "2026-07-20T09:18:46.345Z",
+        "updatedAt": "2026-08-22T08:22:04.533Z",
         "minutesPerPoint": 43.9394
       },
       {
-        "id": "9ba8facd-3af2-4678-8dae-97f1350af071",
-        "rankName": "Bạc 4",
-        "minTopup": "1619223",
-        "bonusPercent": "23",
-        "createdAt": "2026-06-03T04:18:43.028Z",
-        "updatedAt": "2026-07-20T09:18:46.346Z",
-        "minutesPerPoint": 43.0303
+        "id": "60d30d62-5408-4100-8d42-5f87121254a2",
+        "rankName": "Bạc 2",
+        "minTopup": "1349862",
+        "bonusPercent": "21",
+        "createdAt": "2026-06-03T04:18:43.027Z",
+        "updatedAt": "2026-08-22T08:22:04.534Z",
+        "minutesPerPoint": 43.6364
       },
       {
         "id": "bcae6c53-f8db-4fb5-9a89-6625eab1b82d",
@@ -1208,17 +1412,17 @@
         "minTopup": "1481481",
         "bonusPercent": "22",
         "createdAt": "2026-06-03T04:18:43.028Z",
-        "updatedAt": "2026-07-20T09:18:46.346Z",
+        "updatedAt": "2026-08-22T08:22:04.536Z",
         "minutesPerPoint": 43.3333
       },
       {
-        "id": "51b3bf04-4760-4c87-bde8-1a8ead8a469d",
-        "rankName": "Bạc 6",
-        "minTopup": "1913070",
-        "bonusPercent": "25",
-        "createdAt": "2026-06-03T04:18:43.029Z",
-        "updatedAt": "2026-07-20T09:18:46.348Z",
-        "minutesPerPoint": 42.4242
+        "id": "9ba8facd-3af2-4678-8dae-97f1350af071",
+        "rankName": "Bạc 4",
+        "minTopup": "1619223",
+        "bonusPercent": "23",
+        "createdAt": "2026-06-03T04:18:43.028Z",
+        "updatedAt": "2026-08-22T08:22:04.537Z",
+        "minutesPerPoint": 43.0303
       },
       {
         "id": "99e31d56-f6d2-4226-accc-768a78ea0aba",
@@ -1226,8 +1430,17 @@
         "minTopup": "1763085",
         "bonusPercent": "24",
         "createdAt": "2026-06-03T04:18:43.029Z",
-        "updatedAt": "2026-07-20T09:18:46.347Z",
+        "updatedAt": "2026-08-22T08:22:04.538Z",
         "minutesPerPoint": 42.7273
+      },
+      {
+        "id": "51b3bf04-4760-4c87-bde8-1a8ead8a469d",
+        "rankName": "Bạc 6",
+        "minTopup": "1913070",
+        "bonusPercent": "25",
+        "createdAt": "2026-06-03T04:18:43.029Z",
+        "updatedAt": "2026-08-22T08:22:04.539Z",
+        "minutesPerPoint": 42.4242
       },
       {
         "id": "596cc249-ba83-4585-8321-a4e203f1a85d",
@@ -1235,7 +1448,7 @@
         "minTopup": "2069177",
         "bonusPercent": "26",
         "createdAt": "2026-06-03T04:18:43.030Z",
-        "updatedAt": "2026-07-20T09:18:46.348Z",
+        "updatedAt": "2026-08-22T08:22:04.540Z",
         "minutesPerPoint": 42.1212
       },
       {
@@ -1244,17 +1457,8 @@
         "minTopup": "2231405",
         "bonusPercent": "27",
         "createdAt": "2026-06-03T04:18:43.030Z",
-        "updatedAt": "2026-07-20T09:18:46.349Z",
+        "updatedAt": "2026-08-22T08:22:04.541Z",
         "minutesPerPoint": 41.8182
-      },
-      {
-        "id": "5c313f1f-7e7f-4949-a04f-72ad331956f5",
-        "rankName": "Bạc 10",
-        "minTopup": "2574227",
-        "bonusPercent": "29",
-        "createdAt": "2026-06-03T04:18:43.031Z",
-        "updatedAt": "2026-07-20T09:18:46.350Z",
-        "minutesPerPoint": 41.2121
       },
       {
         "id": "7525bc37-d886-4c4b-8d4a-e69dd348ec6f",
@@ -1262,8 +1466,17 @@
         "minTopup": "2399755",
         "bonusPercent": "28",
         "createdAt": "2026-06-03T04:18:43.031Z",
-        "updatedAt": "2026-07-20T09:18:46.350Z",
+        "updatedAt": "2026-08-22T08:22:04.542Z",
         "minutesPerPoint": 41.5152
+      },
+      {
+        "id": "5c313f1f-7e7f-4949-a04f-72ad331956f5",
+        "rankName": "Bạc 10",
+        "minTopup": "2574227",
+        "bonusPercent": "29",
+        "createdAt": "2026-06-03T04:18:43.031Z",
+        "updatedAt": "2026-08-22T08:22:04.544Z",
+        "minutesPerPoint": 41.2121
       },
       {
         "id": "1eaa3f2f-4810-4fd3-b9b1-2705d2777640",
@@ -1271,7 +1484,7 @@
         "minTopup": "2754821",
         "bonusPercent": "30",
         "createdAt": "2026-06-03T04:18:43.032Z",
-        "updatedAt": "2026-07-20T09:18:46.351Z",
+        "updatedAt": "2026-08-22T08:22:04.545Z",
         "minutesPerPoint": 40.9091
       },
       {
@@ -1280,7 +1493,7 @@
         "minTopup": "2941537",
         "bonusPercent": "31",
         "createdAt": "2026-06-03T04:18:43.033Z",
-        "updatedAt": "2026-07-20T09:18:46.352Z",
+        "updatedAt": "2026-08-22T08:22:04.546Z",
         "minutesPerPoint": 40.6061
       },
       {
@@ -1289,17 +1502,8 @@
         "minTopup": "3134374",
         "bonusPercent": "32",
         "createdAt": "2026-06-03T04:18:43.034Z",
-        "updatedAt": "2026-07-20T09:18:46.352Z",
+        "updatedAt": "2026-08-22T08:22:04.547Z",
         "minutesPerPoint": 40.303
-      },
-      {
-        "id": "a7b0c01f-b7cc-4f0f-87e0-fc6236ef336e",
-        "rankName": "Vàng 5",
-        "minTopup": "3538414",
-        "bonusPercent": "34",
-        "createdAt": "2026-06-03T04:18:43.035Z",
-        "updatedAt": "2026-07-20T09:18:46.354Z",
-        "minutesPerPoint": 39.697
       },
       {
         "id": "94c1f537-20fa-425d-ba8e-32bb1e92bac5",
@@ -1307,17 +1511,17 @@
         "minTopup": "3333333",
         "bonusPercent": "33",
         "createdAt": "2026-06-03T04:18:43.035Z",
-        "updatedAt": "2026-07-20T09:18:46.353Z",
+        "updatedAt": "2026-08-22T08:22:04.548Z",
         "minutesPerPoint": 40
       },
       {
-        "id": "d4a3f4df-5c32-4594-b581-7ca6a1e1fcc0",
-        "rankName": "Vàng 8",
-        "minTopup": "4190389",
-        "bonusPercent": "37",
-        "createdAt": "2026-06-03T04:18:43.036Z",
-        "updatedAt": "2026-07-20T09:18:46.356Z",
-        "minutesPerPoint": 38.7879
+        "id": "a7b0c01f-b7cc-4f0f-87e0-fc6236ef336e",
+        "rankName": "Vàng 5",
+        "minTopup": "3538414",
+        "bonusPercent": "34",
+        "createdAt": "2026-06-03T04:18:43.035Z",
+        "updatedAt": "2026-08-22T08:22:04.549Z",
+        "minutesPerPoint": 39.697
       },
       {
         "id": "32d65f2d-8b3d-46a5-8707-4289f7a48018",
@@ -1325,7 +1529,7 @@
         "minTopup": "3749617",
         "bonusPercent": "35",
         "createdAt": "2026-06-03T04:18:43.036Z",
-        "updatedAt": "2026-07-20T09:18:46.354Z",
+        "updatedAt": "2026-08-22T08:22:04.549Z",
         "minutesPerPoint": 39.3939
       },
       {
@@ -1334,8 +1538,17 @@
         "minTopup": "3966942",
         "bonusPercent": "36",
         "createdAt": "2026-06-03T04:18:43.036Z",
-        "updatedAt": "2026-07-20T09:18:46.355Z",
+        "updatedAt": "2026-08-22T08:22:04.550Z",
         "minutesPerPoint": 39.0909
+      },
+      {
+        "id": "d4a3f4df-5c32-4594-b581-7ca6a1e1fcc0",
+        "rankName": "Vàng 8",
+        "minTopup": "4190389",
+        "bonusPercent": "37",
+        "createdAt": "2026-06-03T04:18:43.036Z",
+        "updatedAt": "2026-08-22T08:22:04.551Z",
+        "minutesPerPoint": 38.7879
       },
       {
         "id": "6005e244-4de3-48d0-b40c-bd05fb2c62bf",
@@ -1343,7 +1556,7 @@
         "minTopup": "4419957",
         "bonusPercent": "38",
         "createdAt": "2026-06-03T04:18:43.037Z",
-        "updatedAt": "2026-07-20T09:18:46.356Z",
+        "updatedAt": "2026-08-22T08:22:04.552Z",
         "minutesPerPoint": 38.4848
       },
       {
@@ -1352,7 +1565,7 @@
         "minTopup": "4655647",
         "bonusPercent": "39",
         "createdAt": "2026-06-03T04:18:43.038Z",
-        "updatedAt": "2026-07-20T09:18:46.357Z",
+        "updatedAt": "2026-08-22T08:22:04.553Z",
         "minutesPerPoint": 38.1818
       },
       {
@@ -1361,7 +1574,7 @@
         "minTopup": "4897459",
         "bonusPercent": "40",
         "createdAt": "2026-06-03T04:18:43.039Z",
-        "updatedAt": "2026-07-20T09:18:46.357Z",
+        "updatedAt": "2026-08-22T08:22:04.554Z",
         "minutesPerPoint": 37.8788
       },
       {
@@ -1370,7 +1583,7 @@
         "minTopup": "5145393",
         "bonusPercent": "41",
         "createdAt": "2026-06-03T04:18:43.040Z",
-        "updatedAt": "2026-07-20T09:18:46.358Z",
+        "updatedAt": "2026-08-22T08:22:04.555Z",
         "minutesPerPoint": 37.5758
       },
       {
@@ -1379,7 +1592,7 @@
         "minTopup": "5399449",
         "bonusPercent": "42",
         "createdAt": "2026-06-03T04:18:43.041Z",
-        "updatedAt": "2026-07-20T09:18:46.359Z",
+        "updatedAt": "2026-08-22T08:22:04.556Z",
         "minutesPerPoint": 37.2727
       },
       {
@@ -1388,7 +1601,7 @@
         "minTopup": "5659627",
         "bonusPercent": "43",
         "createdAt": "2026-06-03T04:18:43.041Z",
-        "updatedAt": "2026-07-20T09:18:46.360Z",
+        "updatedAt": "2026-08-22T08:22:04.557Z",
         "minutesPerPoint": 36.9697
       },
       {
@@ -1397,7 +1610,7 @@
         "minTopup": "5925926",
         "bonusPercent": "44",
         "createdAt": "2026-06-03T04:18:43.042Z",
-        "updatedAt": "2026-07-20T09:18:46.360Z",
+        "updatedAt": "2026-08-22T08:22:04.558Z",
         "minutesPerPoint": 36.6667
       },
       {
@@ -1406,17 +1619,8 @@
         "minTopup": "6198347",
         "bonusPercent": "45",
         "createdAt": "2026-06-03T04:18:43.042Z",
-        "updatedAt": "2026-07-20T09:18:46.361Z",
+        "updatedAt": "2026-08-22T08:22:04.559Z",
         "minutesPerPoint": 36.3636
-      },
-      {
-        "id": "82a209d3-2b58-4e32-bef8-8b8326832069",
-        "rankName": "Bạch Kim 8",
-        "minTopup": "6761555",
-        "bonusPercent": "47",
-        "createdAt": "2026-06-03T04:18:43.043Z",
-        "updatedAt": "2026-07-20T09:18:46.362Z",
-        "minutesPerPoint": 35.7576
       },
       {
         "id": "70e1ba02-47fb-4d5b-9c4c-d73bc20db1ce",
@@ -1424,8 +1628,17 @@
         "minTopup": "6476890",
         "bonusPercent": "46",
         "createdAt": "2026-06-03T04:18:43.043Z",
-        "updatedAt": "2026-07-20T09:18:46.361Z",
+        "updatedAt": "2026-08-22T08:22:04.560Z",
         "minutesPerPoint": 36.0606
+      },
+      {
+        "id": "82a209d3-2b58-4e32-bef8-8b8326832069",
+        "rankName": "Bạch Kim 8",
+        "minTopup": "6761555",
+        "bonusPercent": "47",
+        "createdAt": "2026-06-03T04:18:43.043Z",
+        "updatedAt": "2026-08-22T08:22:04.560Z",
+        "minutesPerPoint": 35.7576
       },
       {
         "id": "1a6b5b97-c01e-47fb-ae08-cf1462b6df41",
@@ -1433,7 +1646,7 @@
         "minTopup": "7052342",
         "bonusPercent": "48",
         "createdAt": "2026-06-03T04:18:43.044Z",
-        "updatedAt": "2026-07-20T09:18:46.363Z",
+        "updatedAt": "2026-08-22T08:22:04.561Z",
         "minutesPerPoint": 35.4545
       },
       {
@@ -1442,7 +1655,7 @@
         "minTopup": "7349250",
         "bonusPercent": "49",
         "createdAt": "2026-06-03T04:18:43.045Z",
-        "updatedAt": "2026-07-20T09:18:46.363Z",
+        "updatedAt": "2026-08-22T08:22:04.562Z",
         "minutesPerPoint": 35.1515
       },
       {
@@ -1451,7 +1664,7 @@
         "minTopup": "7652280",
         "bonusPercent": "51",
         "createdAt": "2026-06-03T04:18:43.046Z",
-        "updatedAt": "2026-07-20T09:18:46.364Z",
+        "updatedAt": "2026-08-22T08:22:04.563Z",
         "minutesPerPoint": 34.8485
       },
       {
@@ -1460,7 +1673,7 @@
         "minTopup": "7961433",
         "bonusPercent": "52",
         "createdAt": "2026-06-03T04:18:43.047Z",
-        "updatedAt": "2026-07-20T09:18:46.364Z",
+        "updatedAt": "2026-08-22T08:22:04.564Z",
         "minutesPerPoint": 34.5455
       },
       {
@@ -1469,7 +1682,7 @@
         "minTopup": "8276706",
         "bonusPercent": "53",
         "createdAt": "2026-06-03T04:18:43.047Z",
-        "updatedAt": "2026-07-20T09:18:46.365Z",
+        "updatedAt": "2026-08-22T08:22:04.565Z",
         "minutesPerPoint": 34.2424
       },
       {
@@ -1478,7 +1691,7 @@
         "minTopup": "8598102",
         "bonusPercent": "54",
         "createdAt": "2026-06-03T04:18:43.048Z",
-        "updatedAt": "2026-07-20T09:18:46.365Z",
+        "updatedAt": "2026-08-22T08:22:04.566Z",
         "minutesPerPoint": 33.9394
       },
       {
@@ -1487,7 +1700,7 @@
         "minTopup": "8925620",
         "bonusPercent": "55",
         "createdAt": "2026-06-03T04:18:43.048Z",
-        "updatedAt": "2026-07-20T09:18:46.366Z",
+        "updatedAt": "2026-08-22T08:22:04.567Z",
         "minutesPerPoint": 33.6364
       },
       {
@@ -1496,7 +1709,7 @@
         "minTopup": "9259259",
         "bonusPercent": "56",
         "createdAt": "2026-06-03T04:18:43.049Z",
-        "updatedAt": "2026-07-20T09:18:46.367Z",
+        "updatedAt": "2026-08-22T08:22:04.568Z",
         "minutesPerPoint": 33.3333
       },
       {
@@ -1505,7 +1718,7 @@
         "minTopup": "9599021",
         "bonusPercent": "57",
         "createdAt": "2026-06-03T04:18:43.050Z",
-        "updatedAt": "2026-07-20T09:18:46.367Z",
+        "updatedAt": "2026-08-22T08:22:04.569Z",
         "minutesPerPoint": 33.0303
       },
       {
@@ -1514,7 +1727,7 @@
         "minTopup": "9944904",
         "bonusPercent": "58",
         "createdAt": "2026-06-03T04:18:43.050Z",
-        "updatedAt": "2026-07-20T09:18:46.368Z",
+        "updatedAt": "2026-08-22T08:22:04.570Z",
         "minutesPerPoint": 32.7273
       },
       {
@@ -1523,7 +1736,7 @@
         "minTopup": "10296908",
         "bonusPercent": "59",
         "createdAt": "2026-06-03T04:18:43.051Z",
-        "updatedAt": "2026-07-20T09:18:46.368Z",
+        "updatedAt": "2026-08-22T08:22:04.571Z",
         "minutesPerPoint": 32.4242
       },
       {
@@ -1532,7 +1745,7 @@
         "minTopup": "10655035",
         "bonusPercent": "60",
         "createdAt": "2026-06-03T04:18:43.052Z",
-        "updatedAt": "2026-07-20T09:18:46.369Z",
+        "updatedAt": "2026-08-22T08:22:04.572Z",
         "minutesPerPoint": 32.1212
       },
       {
@@ -1541,7 +1754,7 @@
         "minTopup": "11019284",
         "bonusPercent": "61",
         "createdAt": "2026-06-03T04:18:43.052Z",
-        "updatedAt": "2026-07-20T09:18:46.370Z",
+        "updatedAt": "2026-08-22T08:22:04.573Z",
         "minutesPerPoint": 31.8182
       },
       {
@@ -1550,7 +1763,7 @@
         "minTopup": "11389654",
         "bonusPercent": "62",
         "createdAt": "2026-06-03T04:18:43.053Z",
-        "updatedAt": "2026-07-20T09:18:46.370Z",
+        "updatedAt": "2026-08-22T08:22:04.573Z",
         "minutesPerPoint": 31.5152
       },
       {
@@ -1559,7 +1772,7 @@
         "minTopup": "11766146",
         "bonusPercent": "63",
         "createdAt": "2026-06-03T04:18:43.054Z",
-        "updatedAt": "2026-07-20T09:18:46.371Z",
+        "updatedAt": "2026-08-22T08:22:04.574Z",
         "minutesPerPoint": 31.2121
       },
       {
@@ -1568,7 +1781,7 @@
         "minTopup": "12148760",
         "bonusPercent": "64",
         "createdAt": "2026-06-03T04:18:43.054Z",
-        "updatedAt": "2026-07-20T09:18:46.371Z",
+        "updatedAt": "2026-08-22T08:22:04.576Z",
         "minutesPerPoint": 30.9091
       },
       {
@@ -1577,7 +1790,7 @@
         "minTopup": "12537496",
         "bonusPercent": "65",
         "createdAt": "2026-06-03T04:18:43.055Z",
-        "updatedAt": "2026-07-20T09:18:46.372Z",
+        "updatedAt": "2026-08-22T08:22:04.577Z",
         "minutesPerPoint": 30.6061
       },
       {
@@ -1586,17 +1799,8 @@
         "minTopup": "12932354",
         "bonusPercent": "66",
         "createdAt": "2026-06-03T04:18:43.056Z",
-        "updatedAt": "2026-07-20T09:18:46.372Z",
+        "updatedAt": "2026-08-22T08:22:04.578Z",
         "minutesPerPoint": 30.303
-      },
-      {
-        "id": "fc4b762b-eb37-47d4-9325-e518e4ebcb81",
-        "rankName": "Kim Cương 8",
-        "minTopup": "13740435",
-        "bonusPercent": "68",
-        "createdAt": "2026-06-03T04:18:43.057Z",
-        "updatedAt": "2026-07-20T09:18:46.373Z",
-        "minutesPerPoint": 29.697
       },
       {
         "id": "a656087f-ce97-4d79-872f-903a86c18ff2",
@@ -1604,8 +1808,17 @@
         "minTopup": "13333333",
         "bonusPercent": "67",
         "createdAt": "2026-06-03T04:18:43.057Z",
-        "updatedAt": "2026-07-20T09:18:46.373Z",
+        "updatedAt": "2026-08-22T08:22:04.579Z",
         "minutesPerPoint": 30
+      },
+      {
+        "id": "fc4b762b-eb37-47d4-9325-e518e4ebcb81",
+        "rankName": "Kim Cương 8",
+        "minTopup": "13740435",
+        "bonusPercent": "68",
+        "createdAt": "2026-06-03T04:18:43.057Z",
+        "updatedAt": "2026-08-22T08:22:04.579Z",
+        "minutesPerPoint": 29.697
       },
       {
         "id": "466762fc-cd70-43cc-84fe-5b185dac6d21",
@@ -1613,7 +1826,7 @@
         "minTopup": "14153658",
         "bonusPercent": "69",
         "createdAt": "2026-06-03T04:18:43.058Z",
-        "updatedAt": "2026-07-20T09:18:46.374Z",
+        "updatedAt": "2026-08-22T08:22:04.580Z",
         "minutesPerPoint": 29.3939
       },
       {
@@ -1622,7 +1835,7 @@
         "minTopup": "14573003",
         "bonusPercent": "70",
         "createdAt": "2026-06-03T04:18:43.059Z",
-        "updatedAt": "2026-07-20T09:18:46.375Z",
+        "updatedAt": "2026-08-22T08:22:04.581Z",
         "minutesPerPoint": 29.0909
       },
       {
@@ -1631,7 +1844,7 @@
         "minTopup": "14998470",
         "bonusPercent": "71",
         "createdAt": "2026-06-03T04:18:43.060Z",
-        "updatedAt": "2026-07-20T09:18:46.375Z",
+        "updatedAt": "2026-08-22T08:22:04.582Z",
         "minutesPerPoint": 28.7879
       },
       {
@@ -1640,7 +1853,7 @@
         "minTopup": "15430058",
         "bonusPercent": "72",
         "createdAt": "2026-06-03T04:18:43.061Z",
-        "updatedAt": "2026-07-20T09:18:46.376Z",
+        "updatedAt": "2026-08-22T08:22:04.583Z",
         "minutesPerPoint": 28.4848
       },
       {
@@ -1649,17 +1862,8 @@
         "minTopup": "15867769",
         "bonusPercent": "73",
         "createdAt": "2026-06-03T04:18:43.061Z",
-        "updatedAt": "2026-07-20T09:18:46.376Z",
+        "updatedAt": "2026-08-22T08:22:04.584Z",
         "minutesPerPoint": 28.1818
-      },
-      {
-        "id": "2482039f-b693-4df3-82d3-12afbef1cd6d",
-        "rankName": "Cao Thủ 5",
-        "minTopup": "16761555",
-        "bonusPercent": "75",
-        "createdAt": "2026-06-03T04:18:43.062Z",
-        "updatedAt": "2026-07-20T09:18:46.377Z",
-        "minutesPerPoint": 27.5758
       },
       {
         "id": "7348bd71-ca74-41bb-9aec-41830db3f4fb",
@@ -1667,8 +1871,17 @@
         "minTopup": "16311601",
         "bonusPercent": "74",
         "createdAt": "2026-06-03T04:18:43.062Z",
-        "updatedAt": "2026-07-20T09:18:46.376Z",
+        "updatedAt": "2026-08-22T08:22:04.585Z",
         "minutesPerPoint": 27.8788
+      },
+      {
+        "id": "2482039f-b693-4df3-82d3-12afbef1cd6d",
+        "rankName": "Cao Thủ 5",
+        "minTopup": "16761555",
+        "bonusPercent": "75",
+        "createdAt": "2026-06-03T04:18:43.062Z",
+        "updatedAt": "2026-08-22T08:22:04.586Z",
+        "minutesPerPoint": 27.5758
       },
       {
         "id": "7bcc10e5-8e43-4907-be93-8219924ca1b3",
@@ -1676,7 +1889,7 @@
         "minTopup": "17217631",
         "bonusPercent": "76",
         "createdAt": "2026-06-03T04:18:43.063Z",
-        "updatedAt": "2026-07-20T09:18:46.377Z",
+        "updatedAt": "2026-08-22T08:22:04.587Z",
         "minutesPerPoint": 27.2727
       },
       {
@@ -1685,7 +1898,7 @@
         "minTopup": "17679829",
         "bonusPercent": "77",
         "createdAt": "2026-06-03T04:18:43.064Z",
-        "updatedAt": "2026-07-20T09:18:46.378Z",
+        "updatedAt": "2026-08-22T08:22:04.589Z",
         "minutesPerPoint": 26.9697
       },
       {
@@ -1694,17 +1907,8 @@
         "minTopup": "18148148",
         "bonusPercent": "78",
         "createdAt": "2026-06-03T04:18:43.064Z",
-        "updatedAt": "2026-07-20T09:18:46.378Z",
+        "updatedAt": "2026-08-22T08:22:04.590Z",
         "minutesPerPoint": 26.6667
-      },
-      {
-        "id": "0b4d010d-6e72-49b4-84cb-36fee013a69a",
-        "rankName": "Cao Thủ 10",
-        "minTopup": "19103153",
-        "bonusPercent": "80",
-        "createdAt": "2026-06-03T04:18:43.065Z",
-        "updatedAt": "2026-07-20T09:18:46.379Z",
-        "minutesPerPoint": 26.0606
       },
       {
         "id": "8d32ade8-08c2-4eb2-b860-402816ef1a63",
@@ -1712,8 +1916,17 @@
         "minTopup": "18622590",
         "bonusPercent": "79",
         "createdAt": "2026-06-03T04:18:43.065Z",
-        "updatedAt": "2026-07-20T09:18:46.378Z",
+        "updatedAt": "2026-08-22T08:22:04.591Z",
         "minutesPerPoint": 26.3636
+      },
+      {
+        "id": "0b4d010d-6e72-49b4-84cb-36fee013a69a",
+        "rankName": "Cao Thủ 10",
+        "minTopup": "19103153",
+        "bonusPercent": "80",
+        "createdAt": "2026-06-03T04:18:43.065Z",
+        "updatedAt": "2026-08-22T08:22:04.593Z",
+        "minutesPerPoint": 26.0606
       },
       {
         "id": "51a148e1-2fe2-4d7e-9a87-88820321f6d9",
@@ -1721,7 +1934,7 @@
         "minTopup": "19589838",
         "bonusPercent": "81",
         "createdAt": "2026-06-03T04:18:43.066Z",
-        "updatedAt": "2026-07-20T09:18:46.379Z",
+        "updatedAt": "2026-08-22T08:22:04.594Z",
         "minutesPerPoint": 25.7576
       },
       {
@@ -1730,7 +1943,7 @@
         "minTopup": "20082645",
         "bonusPercent": "82",
         "createdAt": "2026-06-03T04:18:43.067Z",
-        "updatedAt": "2026-07-20T09:18:46.380Z",
+        "updatedAt": "2026-08-22T08:22:04.595Z",
         "minutesPerPoint": 25.4545
       },
       {
@@ -1739,7 +1952,7 @@
         "minTopup": "20581573",
         "bonusPercent": "83",
         "createdAt": "2026-06-03T04:18:43.068Z",
-        "updatedAt": "2026-07-20T09:18:46.380Z",
+        "updatedAt": "2026-08-22T08:22:04.595Z",
         "minutesPerPoint": 25.1515
       },
       {
@@ -1748,7 +1961,7 @@
         "minTopup": "21086624",
         "bonusPercent": "84",
         "createdAt": "2026-06-03T04:18:43.068Z",
-        "updatedAt": "2026-07-20T09:18:46.381Z",
+        "updatedAt": "2026-08-22T08:22:04.596Z",
         "minutesPerPoint": 24.8485
       },
       {
@@ -1757,7 +1970,7 @@
         "minTopup": "21597796",
         "bonusPercent": "85",
         "createdAt": "2026-06-03T04:18:43.069Z",
-        "updatedAt": "2026-07-20T09:18:46.381Z",
+        "updatedAt": "2026-08-22T08:22:04.598Z",
         "minutesPerPoint": 24.5455
       },
       {
@@ -1766,7 +1979,7 @@
         "minTopup": "22115090",
         "bonusPercent": "86",
         "createdAt": "2026-06-03T04:18:43.070Z",
-        "updatedAt": "2026-07-20T09:18:46.382Z",
+        "updatedAt": "2026-08-22T08:22:04.599Z",
         "minutesPerPoint": 24.2424
       },
       {
@@ -1775,7 +1988,7 @@
         "minTopup": "22638506",
         "bonusPercent": "87",
         "createdAt": "2026-06-03T04:18:43.070Z",
-        "updatedAt": "2026-07-20T09:18:46.382Z",
+        "updatedAt": "2026-08-22T08:22:04.600Z",
         "minutesPerPoint": 23.9394
       },
       {
@@ -1784,7 +1997,7 @@
         "minTopup": "23168044",
         "bonusPercent": "88",
         "createdAt": "2026-06-03T04:18:43.071Z",
-        "updatedAt": "2026-07-20T09:18:46.382Z",
+        "updatedAt": "2026-08-22T08:22:04.602Z",
         "minutesPerPoint": 23.6364
       },
       {
@@ -1793,7 +2006,7 @@
         "minTopup": "23703704",
         "bonusPercent": "89",
         "createdAt": "2026-06-03T04:18:43.072Z",
-        "updatedAt": "2026-07-20T09:18:46.383Z",
+        "updatedAt": "2026-08-22T08:22:04.602Z",
         "minutesPerPoint": 23.3333
       },
       {
@@ -1802,7 +2015,7 @@
         "minTopup": "24245485",
         "bonusPercent": "90",
         "createdAt": "2026-06-03T04:18:43.072Z",
-        "updatedAt": "2026-07-20T09:18:46.383Z",
+        "updatedAt": "2026-08-22T08:22:04.603Z",
         "minutesPerPoint": 23.0303
       },
       {
@@ -1811,7 +2024,7 @@
         "minTopup": "24793388",
         "bonusPercent": "91",
         "createdAt": "2026-06-03T04:18:43.073Z",
-        "updatedAt": "2026-07-20T09:18:46.384Z",
+        "updatedAt": "2026-08-22T08:22:04.605Z",
         "minutesPerPoint": 22.7273
       },
       {
@@ -1820,7 +2033,7 @@
         "minTopup": "25347414",
         "bonusPercent": "92",
         "createdAt": "2026-06-03T04:18:43.074Z",
-        "updatedAt": "2026-07-20T09:18:46.384Z",
+        "updatedAt": "2026-08-22T08:22:04.606Z",
         "minutesPerPoint": 22.4242
       },
       {
@@ -1829,7 +2042,7 @@
         "minTopup": "25907560",
         "bonusPercent": "93",
         "createdAt": "2026-06-03T04:18:43.074Z",
-        "updatedAt": "2026-07-20T09:18:46.385Z",
+        "updatedAt": "2026-08-22T08:22:04.607Z",
         "minutesPerPoint": 22.1212
       },
       {
@@ -1838,7 +2051,7 @@
         "minTopup": "26473829",
         "bonusPercent": "94",
         "createdAt": "2026-06-03T04:18:43.075Z",
-        "updatedAt": "2026-07-20T09:18:46.386Z",
+        "updatedAt": "2026-08-22T08:22:04.608Z",
         "minutesPerPoint": 21.8182
       },
       {
@@ -1847,7 +2060,7 @@
         "minTopup": "27046220",
         "bonusPercent": "95",
         "createdAt": "2026-06-03T04:18:43.076Z",
-        "updatedAt": "2026-07-20T09:18:46.386Z",
+        "updatedAt": "2026-08-22T08:22:04.609Z",
         "minutesPerPoint": 21.5152
       },
       {
@@ -1856,7 +2069,7 @@
         "minTopup": "27624732",
         "bonusPercent": "96",
         "createdAt": "2026-06-03T04:18:43.076Z",
-        "updatedAt": "2026-07-20T09:18:46.387Z",
+        "updatedAt": "2026-08-22T08:22:04.610Z",
         "minutesPerPoint": 21.2121
       },
       {
@@ -1865,7 +2078,7 @@
         "minTopup": "28209366",
         "bonusPercent": "97",
         "createdAt": "2026-06-03T04:18:43.077Z",
-        "updatedAt": "2026-07-20T09:18:46.387Z",
+        "updatedAt": "2026-08-22T08:22:04.612Z",
         "minutesPerPoint": 20.9091
       },
       {
@@ -1874,7 +2087,7 @@
         "minTopup": "28800122",
         "bonusPercent": "98",
         "createdAt": "2026-06-03T04:18:43.078Z",
-        "updatedAt": "2026-07-20T09:18:46.388Z",
+        "updatedAt": "2026-08-22T08:22:04.613Z",
         "minutesPerPoint": 20.6061
       },
       {
@@ -1883,7 +2096,7 @@
         "minTopup": "29397000",
         "bonusPercent": "99",
         "createdAt": "2026-06-03T04:18:43.079Z",
-        "updatedAt": "2026-07-20T09:18:46.388Z",
+        "updatedAt": "2026-08-22T08:22:04.614Z",
         "minutesPerPoint": 20.303
       },
       {
@@ -1892,7 +2105,7 @@
         "minTopup": "30000000",
         "bonusPercent": "100",
         "createdAt": "2026-06-03T04:18:43.080Z",
-        "updatedAt": "2026-07-20T09:18:46.388Z",
+        "updatedAt": "2026-08-22T08:22:04.615Z",
         "minutesPerPoint": 20
       }
     ],
@@ -6686,16 +6899,100 @@
       {
         "id": "871ee2c2-ac01-4c1f-940a-83822f7b23b0",
         "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
-        "startedAt": "2026-08-08T01:21:56.539Z",
-        "endedAt": null,
+        "startedAt": "2026-08-19T01:27:21.671Z",
+        "endedAt": "2026-08-19T02:07:43.495Z",
         "durationSeconds": null,
         "billableMinutes": null,
         "pricePerMinute": "90",
         "amount": null,
+        "status": "CLOSED",
+        "closedReason": "SYSTEM",
+        "createdAt": "2026-08-08T00:59:51.015Z",
+        "updatedAt": "2026-08-19T02:07:43.496Z"
+      },
+      {
+        "id": "3952ed44-1b12-41fe-8cc1-d2b05ffbfee0",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "startedAt": "2026-08-22T09:11:52.588Z",
+        "endedAt": "2026-08-22T09:15:07.550Z",
+        "durationSeconds": 194,
+        "billableMinutes": 4,
+        "pricePerMinute": "50",
+        "amount": "200",
+        "status": "CLOSED",
+        "closedReason": "ADMIN_LOCK",
+        "createdAt": "2026-08-19T02:07:43.498Z",
+        "updatedAt": "2026-08-22T09:15:07.552Z"
+      },
+      {
+        "id": "61aa234a-2ec5-4c97-b799-43491bce3c7b",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "startedAt": "2026-08-27T09:35:42.324Z",
+        "endedAt": "2026-08-27T11:42:20.946Z",
+        "durationSeconds": 7598,
+        "billableMinutes": 127,
+        "pricePerMinute": "90",
+        "amount": "11430",
+        "status": "CLOSED",
+        "closedReason": "ADMIN_LOCK",
+        "createdAt": "2026-08-22T09:15:10.822Z",
+        "updatedAt": "2026-08-27T11:42:20.947Z"
+      },
+      {
+        "id": "0005a803-07ea-4930-8d85-a902989d1032",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "startedAt": "2026-08-27T11:42:40.394Z",
+        "endedAt": "2026-08-27T11:42:51.860Z",
+        "durationSeconds": 11,
+        "billableMinutes": 1,
+        "pricePerMinute": "100",
+        "amount": "100",
+        "status": "CLOSED",
+        "closedReason": "ADMIN_LOCK",
+        "createdAt": "2026-08-27T11:42:40.395Z",
+        "updatedAt": "2026-08-27T11:42:51.861Z"
+      },
+      {
+        "id": "0b1d6d10-186f-4542-bc45-fa91877a9dcf",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "startedAt": "2026-08-27T11:42:53.849Z",
+        "endedAt": "2026-08-27T13:07:39.191Z",
+        "durationSeconds": 5085,
+        "billableMinutes": 85,
+        "pricePerMinute": "100",
+        "amount": "8475.57",
+        "status": "CLOSED",
+        "closedReason": "AUTO_OFFLINE",
+        "createdAt": "2026-08-27T11:42:53.850Z",
+        "updatedAt": "2026-08-27T13:07:39.200Z"
+      },
+      {
+        "id": "d8ddc8a6-4faf-46ee-b80c-f9a169bf2b25",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "startedAt": "2026-10-21T01:44:35.999Z",
+        "endedAt": "2026-10-21T03:05:59.446Z",
+        "durationSeconds": 4883,
+        "billableMinutes": 82,
+        "pricePerMinute": "50",
+        "amount": "4100",
+        "status": "CLOSED",
+        "closedReason": "ADMIN_LOCK",
+        "createdAt": "2026-10-16T07:50:48.140Z",
+        "updatedAt": "2026-10-21T03:05:59.447Z"
+      },
+      {
+        "id": "b00e46bd-1806-4175-a4ed-0a3f6435d915",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "startedAt": "2026-10-21T05:55:32.093Z",
+        "endedAt": null,
+        "durationSeconds": null,
+        "billableMinutes": null,
+        "pricePerMinute": "50",
+        "amount": null,
         "status": "ACTIVE",
         "closedReason": null,
-        "createdAt": "2026-08-08T00:59:51.015Z",
-        "updatedAt": "2026-08-08T01:34:05.987Z"
+        "createdAt": "2026-10-21T03:06:02.840Z",
+        "updatedAt": "2026-10-21T12:23:03.895Z"
       }
     ],
     "commands": [
@@ -8596,6 +8893,58 @@
         "errorMessage": null,
         "createdAt": "2026-07-30T10:25:33.931Z",
         "updatedAt": "2026-07-30T10:25:34.030Z"
+      },
+      {
+        "id": "849dbe66-44d8-4f35-ab6c-9d8cb95b4c3f",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "type": "LOCK",
+        "status": "ACK_SUCCESS",
+        "requestedBy": "admin.desktop",
+        "requestedAt": "2026-08-22T09:15:07.497Z",
+        "sentAt": "2026-08-22T09:15:07.503Z",
+        "ackAt": "2026-08-22T09:15:07.602Z",
+        "errorMessage": null,
+        "createdAt": "2026-08-22T09:15:07.497Z",
+        "updatedAt": "2026-08-22T09:15:07.604Z"
+      },
+      {
+        "id": "42208c9a-3228-4662-876b-47e1898998e5",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "type": "LOCK",
+        "status": "ACK_SUCCESS",
+        "requestedBy": "admin.desktop",
+        "requestedAt": "2026-08-27T11:42:20.890Z",
+        "sentAt": "2026-08-27T11:42:20.895Z",
+        "ackAt": "2026-08-27T11:42:20.990Z",
+        "errorMessage": null,
+        "createdAt": "2026-08-27T11:42:20.890Z",
+        "updatedAt": "2026-08-27T11:42:20.991Z"
+      },
+      {
+        "id": "28b778bd-eb7d-4878-ae04-75f2163865eb",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "type": "LOCK",
+        "status": "ACK_SUCCESS",
+        "requestedBy": "admin.desktop",
+        "requestedAt": "2026-08-27T11:42:51.823Z",
+        "sentAt": "2026-08-27T11:42:51.828Z",
+        "ackAt": "2026-08-27T11:42:51.898Z",
+        "errorMessage": null,
+        "createdAt": "2026-08-27T11:42:51.823Z",
+        "updatedAt": "2026-08-27T11:42:51.900Z"
+      },
+      {
+        "id": "738cd1d0-ab26-47b3-9cd0-6f734cc9e514",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "type": "LOCK",
+        "status": "ACK_SUCCESS",
+        "requestedBy": "admin.desktop",
+        "requestedAt": "2026-10-21T03:05:59.402Z",
+        "sentAt": "2026-10-21T03:05:59.407Z",
+        "ackAt": "2026-10-21T03:05:59.496Z",
+        "errorMessage": null,
+        "createdAt": "2026-10-21T03:05:59.402Z",
+        "updatedAt": "2026-10-21T03:05:59.497Z"
       }
     ],
     "eventLogs": [
@@ -9436,6 +9785,18 @@
         "createdAt": "2026-05-23T00:47:40.331Z"
       },
       {
+        "id": "ab355f37-16c0-41bd-bdf9-e3d8105326c0",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "IN_USE",
+          "sourceEvent": "guest_login_request",
+          "previousStatus": "ONLINE"
+        },
+        "createdAt": "2026-05-23T00:47:42.183Z"
+      },
+      {
         "id": "52666db3-b34f-4bc8-aaa1-a9b26a9ba3a8",
         "source": "SERVER",
         "eventType": "guest.pc.presence",
@@ -9445,18 +9806,6 @@
           "isActive": true,
           "displayName": "Khách vãng lai",
           "prepaidAmount": 0
-        },
-        "createdAt": "2026-05-23T00:47:42.183Z"
-      },
-      {
-        "id": "ab355f37-16c0-41bd-bdf9-e3d8105326c0",
-        "source": "SERVER",
-        "eventType": "pc.status.changed",
-        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
-        "payload": {
-          "status": "IN_USE",
-          "sourceEvent": "guest_login_request",
-          "previousStatus": "ONLINE"
         },
         "createdAt": "2026-05-23T00:47:42.183Z"
       },
@@ -9823,23 +10172,23 @@
         "createdAt": "2026-05-23T01:37:39.733Z"
       },
       {
-        "id": "59cabe7a-c866-4a9a-9f60-756e964e228c",
-        "source": "SERVER",
-        "eventType": "guest.pc.presence",
-        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
-        "payload": {
-          "at": "2026-05-23T01:37:39.732Z",
-          "isActive": false
-        },
-        "createdAt": "2026-05-23T01:37:39.734Z"
-      },
-      {
         "id": "b8ee333c-5722-4194-8d3a-99f82cb0f156",
         "source": "SERVER",
         "eventType": "admin.pc.presence",
         "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
         "payload": {
           "at": "2026-05-23T01:37:39.733Z",
+          "isActive": false
+        },
+        "createdAt": "2026-05-23T01:37:39.734Z"
+      },
+      {
+        "id": "59cabe7a-c866-4a9a-9f60-756e964e228c",
+        "source": "SERVER",
+        "eventType": "guest.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-05-23T01:37:39.732Z",
           "isActive": false
         },
         "createdAt": "2026-05-23T01:37:39.734Z"
@@ -11986,18 +12335,6 @@
         "createdAt": "2026-05-23T14:25:37.239Z"
       },
       {
-        "id": "50c5128c-f2c8-4b06-8cb3-76b1a3c92665",
-        "source": "SERVER",
-        "eventType": "session.opened",
-        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
-        "payload": {
-          "amount": null,
-          "sessionId": "1ecee82d-ed3d-46fe-ab8b-0e9adb4a1461",
-          "billableMinutes": null
-        },
-        "createdAt": "2026-05-23T14:25:37.266Z"
-      },
-      {
         "id": "88ab80e0-0e91-4331-88e3-f9465c569657",
         "source": "SERVER",
         "eventType": "pc.status.changed",
@@ -12006,6 +12343,18 @@
           "status": "IN_USE",
           "sourceEvent": "command.ack",
           "previousStatus": "ONLINE"
+        },
+        "createdAt": "2026-05-23T14:25:37.266Z"
+      },
+      {
+        "id": "50c5128c-f2c8-4b06-8cb3-76b1a3c92665",
+        "source": "SERVER",
+        "eventType": "session.opened",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "amount": null,
+          "sessionId": "1ecee82d-ed3d-46fe-ab8b-0e9adb4a1461",
+          "billableMinutes": null
         },
         "createdAt": "2026-05-23T14:25:37.266Z"
       },
@@ -13000,9 +13349,9 @@
         "createdAt": "2026-05-24T10:15:54.656Z"
       },
       {
-        "id": "579abd2a-22ff-4173-9e4f-edd0c967f300",
+        "id": "0a7c21d9-936d-41ff-ba42-56237980cd93",
         "source": "SERVER",
-        "eventType": "admin.pc.presence",
+        "eventType": "guest.pc.presence",
         "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
         "payload": {
           "at": "2026-05-24T10:15:54.703Z",
@@ -13011,9 +13360,9 @@
         "createdAt": "2026-05-24T10:15:54.704Z"
       },
       {
-        "id": "0a7c21d9-936d-41ff-ba42-56237980cd93",
+        "id": "579abd2a-22ff-4173-9e4f-edd0c967f300",
         "source": "SERVER",
-        "eventType": "guest.pc.presence",
+        "eventType": "admin.pc.presence",
         "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
         "payload": {
           "at": "2026-05-24T10:15:54.703Z",
@@ -15665,17 +16014,6 @@
         "createdAt": "2026-05-26T12:30:51.672Z"
       },
       {
-        "id": "aaa29344-5eac-4b9f-b0ad-eec22be3db26",
-        "source": "SERVER",
-        "eventType": "guest.pc.presence",
-        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
-        "payload": {
-          "at": "2026-05-26T12:30:51.673Z",
-          "isActive": false
-        },
-        "createdAt": "2026-05-26T12:30:51.673Z"
-      },
-      {
         "id": "94abbc38-84ab-4795-a39b-48c67dbe7b8f",
         "source": "SERVER",
         "eventType": "session.closed",
@@ -15685,6 +16023,17 @@
           "sessionId": "009321c0-940d-4913-ae35-0e74530bfadb",
           "sourceEvent": "command.lock.offline_checkout",
           "billableMinutes": 29
+        },
+        "createdAt": "2026-05-26T12:30:51.673Z"
+      },
+      {
+        "id": "aaa29344-5eac-4b9f-b0ad-eec22be3db26",
+        "source": "SERVER",
+        "eventType": "guest.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-05-26T12:30:51.673Z",
+          "isActive": false
         },
         "createdAt": "2026-05-26T12:30:51.673Z"
       },
@@ -18112,23 +18461,23 @@
         "createdAt": "2026-05-27T09:15:42.975Z"
       },
       {
-        "id": "54abe140-2bfd-49c2-a6f4-0d43451fe1de",
-        "source": "SERVER",
-        "eventType": "member.pc.presence",
-        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
-        "payload": {
-          "at": "2026-05-27T09:15:42.975Z",
-          "isActive": false
-        },
-        "createdAt": "2026-05-27T09:15:42.976Z"
-      },
-      {
         "id": "d84330e5-f56d-4a35-8404-e8a8c13c897f",
         "source": "SERVER",
         "eventType": "admin.pc.presence",
         "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
         "payload": {
           "at": "2026-05-27T09:15:42.974Z",
+          "isActive": false
+        },
+        "createdAt": "2026-05-27T09:15:42.976Z"
+      },
+      {
+        "id": "54abe140-2bfd-49c2-a6f4-0d43451fe1de",
+        "source": "SERVER",
+        "eventType": "member.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-05-27T09:15:42.975Z",
           "isActive": false
         },
         "createdAt": "2026-05-27T09:15:42.976Z"
@@ -20705,23 +21054,23 @@
         "createdAt": "2026-05-27T12:47:33.745Z"
       },
       {
-        "id": "4a5cac46-a93f-481f-95ff-edaf36ef67df",
-        "source": "SERVER",
-        "eventType": "admin.pc.presence",
-        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
-        "payload": {
-          "at": "2026-05-27T12:47:33.746Z",
-          "isActive": false
-        },
-        "createdAt": "2026-05-27T12:47:33.747Z"
-      },
-      {
         "id": "fd16f27b-3c69-4132-a5d7-127302995e00",
         "source": "SERVER",
         "eventType": "guest.pc.presence",
         "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
         "payload": {
           "at": "2026-05-27T12:47:33.745Z",
+          "isActive": false
+        },
+        "createdAt": "2026-05-27T12:47:33.747Z"
+      },
+      {
+        "id": "4a5cac46-a93f-481f-95ff-edaf36ef67df",
+        "source": "SERVER",
+        "eventType": "admin.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-05-27T12:47:33.746Z",
           "isActive": false
         },
         "createdAt": "2026-05-27T12:47:33.747Z"
@@ -27509,23 +27858,23 @@
         "createdAt": "2026-05-30T05:48:41.397Z"
       },
       {
-        "id": "889559c1-bd68-4f08-a701-4689a41bc85c",
-        "source": "SERVER",
-        "eventType": "member.pc.presence",
-        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
-        "payload": {
-          "at": "2026-05-30T05:48:41.398Z",
-          "isActive": false
-        },
-        "createdAt": "2026-05-30T05:48:41.398Z"
-      },
-      {
         "id": "1460c83e-c0df-4951-8952-47b406646190",
         "source": "SERVER",
         "eventType": "admin.pc.presence",
         "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
         "payload": {
           "at": "2026-05-30T05:48:41.397Z",
+          "isActive": false
+        },
+        "createdAt": "2026-05-30T05:48:41.398Z"
+      },
+      {
+        "id": "889559c1-bd68-4f08-a701-4689a41bc85c",
+        "source": "SERVER",
+        "eventType": "member.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-05-30T05:48:41.398Z",
           "isActive": false
         },
         "createdAt": "2026-05-30T05:48:41.398Z"
@@ -32750,17 +33099,6 @@
         "createdAt": "2026-06-05T04:22:26.029Z"
       },
       {
-        "id": "0a376051-0e91-4958-889c-02592306fff1",
-        "source": "SERVER",
-        "eventType": "guest.pc.presence",
-        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
-        "payload": {
-          "at": "2026-06-05T04:22:26.031Z",
-          "isActive": false
-        },
-        "createdAt": "2026-06-05T04:22:26.031Z"
-      },
-      {
         "id": "69a9ad8a-a685-4d85-9ae4-5a84b14b2b66",
         "source": "SERVER",
         "eventType": "session.closed",
@@ -32769,6 +33107,17 @@
           "amount": 1000,
           "sessionId": "a172ace2-ab16-4322-803b-d5c140979ab8",
           "billableMinutes": 2
+        },
+        "createdAt": "2026-06-05T04:22:26.031Z"
+      },
+      {
+        "id": "0a376051-0e91-4958-889c-02592306fff1",
+        "source": "SERVER",
+        "eventType": "guest.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-06-05T04:22:26.031Z",
+          "isActive": false
         },
         "createdAt": "2026-06-05T04:22:26.031Z"
       },
@@ -32870,9 +33219,9 @@
         "createdAt": "2026-06-05T04:32:27.223Z"
       },
       {
-        "id": "3fe68603-d65c-49ed-9c67-bbc1d4cce6e7",
+        "id": "a0496264-2aa5-4c8b-bdbd-c2456dd00fa8",
         "source": "SERVER",
-        "eventType": "admin.pc.presence",
+        "eventType": "guest.pc.presence",
         "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
         "payload": {
           "at": "2026-06-05T04:32:27.223Z",
@@ -32881,9 +33230,9 @@
         "createdAt": "2026-06-05T04:32:27.224Z"
       },
       {
-        "id": "a0496264-2aa5-4c8b-bdbd-c2456dd00fa8",
+        "id": "3fe68603-d65c-49ed-9c67-bbc1d4cce6e7",
         "source": "SERVER",
-        "eventType": "guest.pc.presence",
+        "eventType": "admin.pc.presence",
         "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
         "payload": {
           "at": "2026-06-05T04:32:27.223Z",
@@ -39583,6 +39932,1342 @@
           "previousStatus": "IN_USE"
         },
         "createdAt": "2026-08-08T02:02:40.007Z"
+      },
+      {
+        "id": "1af71373-eea4-4f46-82d6-ddd6ac78f2c8",
+        "source": "SERVER",
+        "eventType": "backup.created",
+        "pcId": null,
+        "payload": {
+          "counts": {
+            "pcs": 3,
+            "members": 25,
+            "commands": 146,
+            "pcGroups": 2,
+            "sessions": 337,
+            "eventLogs": 2360,
+            "appSettings": 43,
+            "serviceItems": 8,
+            "pricingConfigs": 3,
+            "pcServiceOrders": 33,
+            "loyaltyRankConfigs": 100,
+            "memberTransactions": 15123,
+            "timeBasedPromotions": 5
+          },
+          "trigger": "auto",
+          "fileName": "billing-backup-auto-20260808-220000.json",
+          "filePath": "I:\\servermanagerbilling\\backend\\backups\\billing-backup-auto-20260808-220000.json",
+          "createdAt": "2026-08-08T15:00:00.016Z",
+          "requestedBy": "system.scheduler"
+        },
+        "createdAt": "2026-08-08T15:00:00.445Z"
+      },
+      {
+        "id": "253bca85-c54b-41c6-8b02-fd61885a2b13",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "IN_USE",
+          "sourceEvent": "presence",
+          "previousStatus": "OFFLINE"
+        },
+        "createdAt": "2026-08-19T02:07:31.140Z"
+      },
+      {
+        "id": "19e388dd-7f77-422f-94d6-d7180a07c36c",
+        "source": "CLIENT",
+        "eventType": "member.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-08-19T02:07:43.493Z",
+          "fullName": "tong",
+          "isActive": true,
+          "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+          "username": "tong"
+        },
+        "createdAt": "2026-08-19T02:07:43.494Z"
+      },
+      {
+        "id": "0134e389-1240-479b-8d5a-0ffba9c1b24b",
+        "source": "CLIENT",
+        "eventType": "member.loyalty.spin",
+        "pcId": null,
+        "payload": {
+          "at": "2026-08-19T02:10:39.696Z",
+          "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+          "betPoints": 5,
+          "wonMinutes": 4
+        },
+        "createdAt": "2026-08-19T02:10:39.697Z"
+      },
+      {
+        "id": "c71115dd-0305-4e64-a969-b653059a8e05",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "OFFLINE",
+          "sourceEvent": "socket.disconnect",
+          "previousStatus": "IN_USE"
+        },
+        "createdAt": "2026-08-19T02:24:49.358Z"
+      },
+      {
+        "id": "d6196157-754c-4b33-8d95-524337f1f89c",
+        "source": "SERVER",
+        "eventType": "session.preserved.offline_vip",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "sessionId": "3952ed44-1b12-41fe-8cc1-d2b05ffbfee0",
+          "sourceEvent": "socket.disconnect"
+        },
+        "createdAt": "2026-08-19T02:24:49.371Z"
+      },
+      {
+        "id": "2b27123b-8f2c-43f5-8925-7872567df304",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "IN_USE",
+          "sourceEvent": "presence",
+          "previousStatus": "OFFLINE"
+        },
+        "createdAt": "2026-08-19T02:24:56.175Z"
+      },
+      {
+        "id": "d4141b22-0278-44d8-9027-cf61c6691358",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "OFFLINE",
+          "sourceEvent": "socket.disconnect",
+          "previousStatus": "IN_USE"
+        },
+        "createdAt": "2026-08-19T02:40:48.649Z"
+      },
+      {
+        "id": "a1a6ed43-23fe-4b7e-ba27-10f8277a9856",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "IN_USE",
+          "sourceEvent": "presence",
+          "previousStatus": "OFFLINE"
+        },
+        "createdAt": "2026-08-19T02:41:02.232Z"
+      },
+      {
+        "id": "4420ca94-b92d-4cab-8300-643b1a5fc3e4",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "OFFLINE",
+          "sourceEvent": "presence.timeout",
+          "previousStatus": "IN_USE"
+        },
+        "createdAt": "2026-08-19T14:54:42.310Z"
+      },
+      {
+        "id": "55e17035-6164-43f7-807f-d3ba01ff5b3a",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "IN_USE",
+          "sourceEvent": "presence",
+          "previousStatus": "OFFLINE"
+        },
+        "createdAt": "2026-08-19T14:54:49.129Z"
+      },
+      {
+        "id": "6d763619-19df-435d-8f5a-a38c91746521",
+        "source": "CLIENT",
+        "eventType": "member.loyalty.lucky_envelope",
+        "pcId": null,
+        "payload": {
+          "at": "2026-08-22T08:06:11.501Z",
+          "blessing": "Khai xuân đắc lộc! Mã đáo thành công!",
+          "memberId": "7079adcc-116a-4796-aa72-814e32ea24f7",
+          "username": "test_tet_1304",
+          "wonMinutes": 220,
+          "wonSeconds": 13200,
+          "spentPoints": 10
+        },
+        "createdAt": "2026-08-22T08:06:11.502Z"
+      },
+      {
+        "id": "9faddfda-bbcd-4372-9419-8d85df9971e4",
+        "source": "CLIENT",
+        "eventType": "member.loyalty.lucky_envelope",
+        "pcId": null,
+        "payload": {
+          "at": "2026-08-22T08:06:29.994Z",
+          "blessing": "Chúc mừng năm mới! Vạn sự như ý - Tỉ sự như mơ!",
+          "memberId": "9e5fa680-c8e9-4859-b787-d7bcb7cfb8ee",
+          "username": "test_tet_9840",
+          "wonMinutes": 330,
+          "wonSeconds": 19800,
+          "spentPoints": 10
+        },
+        "createdAt": "2026-08-22T08:06:29.996Z"
+      },
+      {
+        "id": "2a0fed2d-5bd1-4a69-9454-4da2131489f9",
+        "source": "CLIENT",
+        "eventType": "member.loyalty.lucky_envelope",
+        "pcId": null,
+        "payload": {
+          "at": "2026-08-22T08:06:30.081Z",
+          "blessing": "Xuân an khang - Đắc lộc toàn niên!",
+          "memberId": "9e5fa680-c8e9-4859-b787-d7bcb7cfb8ee",
+          "username": "test_tet_9840",
+          "wonMinutes": 120,
+          "wonSeconds": 7200,
+          "spentPoints": 10
+        },
+        "createdAt": "2026-08-22T08:06:30.082Z"
+      },
+      {
+        "id": "403b8344-3e45-4c74-9560-ee83f7f0633c",
+        "source": "CLIENT",
+        "eventType": "member.loyalty.lucky_envelope",
+        "pcId": null,
+        "payload": {
+          "at": "2026-08-22T08:06:30.149Z",
+          "blessing": "Tấn tài tấn lộc - Công danh rạng rỡ!",
+          "memberId": "9e5fa680-c8e9-4859-b787-d7bcb7cfb8ee",
+          "username": "test_tet_9840",
+          "wonMinutes": 305,
+          "wonSeconds": 18300,
+          "spentPoints": 10
+        },
+        "createdAt": "2026-08-22T08:06:30.151Z"
+      },
+      {
+        "id": "6ea6ba01-b1ce-4144-94d9-7fe008b2efcc",
+        "source": "CLIENT",
+        "eventType": "member.loyalty.lucky_envelope",
+        "pcId": null,
+        "payload": {
+          "at": "2026-08-22T08:06:46.219Z",
+          "blessing": "Năm mới phát tài - Chơi game bất bại!",
+          "memberId": "73cc266b-fe40-433f-b6fd-aff642b9ace8",
+          "username": "test_tet_6094",
+          "wonMinutes": 75,
+          "wonSeconds": 4500,
+          "spentPoints": 10
+        },
+        "createdAt": "2026-08-22T08:06:46.221Z"
+      },
+      {
+        "id": "6c786e9b-999d-4803-aa11-6e13230bc277",
+        "source": "CLIENT",
+        "eventType": "member.loyalty.lucky_envelope",
+        "pcId": null,
+        "payload": {
+          "at": "2026-08-22T08:06:46.283Z",
+          "blessing": "Khai xuân đắc lộc! Mã đáo thành công!",
+          "memberId": "73cc266b-fe40-433f-b6fd-aff642b9ace8",
+          "username": "test_tet_6094",
+          "wonMinutes": 165,
+          "wonSeconds": 9900,
+          "spentPoints": 10
+        },
+        "createdAt": "2026-08-22T08:06:46.285Z"
+      },
+      {
+        "id": "5f5e294a-d7b0-4832-b5a0-b9af0c658330",
+        "source": "CLIENT",
+        "eventType": "member.loyalty.lucky_envelope",
+        "pcId": null,
+        "payload": {
+          "at": "2026-08-22T08:06:46.349Z",
+          "blessing": "Năm mới bình an - Đón ngàn tài lộc!",
+          "memberId": "73cc266b-fe40-433f-b6fd-aff642b9ace8",
+          "username": "test_tet_6094",
+          "wonMinutes": 140,
+          "wonSeconds": 8400,
+          "spentPoints": 10
+        },
+        "createdAt": "2026-08-22T08:06:46.351Z"
+      },
+      {
+        "id": "53bbf37a-8eab-4a74-865c-a1d7228341cd",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "OFFLINE",
+          "sourceEvent": "presence.timeout",
+          "previousStatus": "IN_USE"
+        },
+        "createdAt": "2026-08-22T08:21:10.028Z"
+      },
+      {
+        "id": "2c7796ed-4a29-4b7c-9ba4-81b488ecdb8e",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "IN_USE",
+          "sourceEvent": "presence",
+          "previousStatus": "OFFLINE"
+        },
+        "createdAt": "2026-08-22T08:21:10.273Z"
+      },
+      {
+        "id": "a02cc878-ddf3-4182-938e-32d2499c3010",
+        "source": "CLIENT",
+        "eventType": "member.loyalty.lucky_envelope",
+        "pcId": null,
+        "payload": {
+          "at": "2026-08-22T08:22:54.810Z",
+          "blessing": "Năm mới phát tài - Chơi game bất bại!",
+          "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+          "username": "tong",
+          "wonMinutes": 335,
+          "wonSeconds": 20100,
+          "spentPoints": 10
+        },
+        "createdAt": "2026-08-22T08:22:54.812Z"
+      },
+      {
+        "id": "4a702ba8-1bf5-4319-a767-46d93285d78b",
+        "source": "SERVER",
+        "eventType": "command.created",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "type": "LOCK",
+          "commandId": "849dbe66-44d8-4f35-ab6c-9d8cb95b4c3f",
+          "targetPcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+          "requestedPcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c"
+        },
+        "createdAt": "2026-08-22T09:15:07.503Z"
+      },
+      {
+        "id": "dcfb38cc-a25b-4705-a4c8-fb1235224f1a",
+        "source": "SERVER",
+        "eventType": "command.dispatched",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "type": "LOCK",
+          "sockets": 1,
+          "commandId": "849dbe66-44d8-4f35-ab6c-9d8cb95b4c3f",
+          "targetPcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+          "requestedPcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+          "targetAgentId": "PC-001"
+        },
+        "createdAt": "2026-08-22T09:15:07.508Z"
+      },
+      {
+        "id": "044db0ea-4554-4ffb-a1be-2176dec260f5",
+        "source": "CLIENT",
+        "eventType": "member.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-08-22T09:15:07.547Z",
+          "fullName": "tong",
+          "isActive": false,
+          "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+          "username": "tong"
+        },
+        "createdAt": "2026-08-22T09:15:07.549Z"
+      },
+      {
+        "id": "c4ef7485-ed0e-4a32-b1be-ba49433e43d9",
+        "source": "SERVER",
+        "eventType": "command.ack.received",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "result": "SUCCESS",
+          "message": "locked",
+          "commandId": "849dbe66-44d8-4f35-ab6c-9d8cb95b4c3f",
+          "nextStatus": "ACK_SUCCESS"
+        },
+        "createdAt": "2026-08-22T09:15:07.613Z"
+      },
+      {
+        "id": "db9319a5-174e-495a-9d06-84ff747be772",
+        "source": "SERVER",
+        "eventType": "guest.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-08-22T09:15:07.613Z",
+          "isActive": false
+        },
+        "createdAt": "2026-08-22T09:15:07.615Z"
+      },
+      {
+        "id": "52b9d782-adc2-4bae-8f86-cc94c0c9d742",
+        "source": "SERVER",
+        "eventType": "admin.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-08-22T09:15:07.615Z",
+          "isActive": false
+        },
+        "createdAt": "2026-08-22T09:15:07.616Z"
+      },
+      {
+        "id": "a49a133a-51b2-49ce-855c-20e16ed884e9",
+        "source": "SERVER",
+        "eventType": "member.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-08-22T09:15:07.616Z",
+          "isActive": false
+        },
+        "createdAt": "2026-08-22T09:15:07.618Z"
+      },
+      {
+        "id": "59dd03dc-e583-4dc0-8cb8-718fda006b0c",
+        "source": "CLIENT",
+        "eventType": "member.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-08-22T09:15:10.816Z",
+          "fullName": "tong",
+          "isActive": true,
+          "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+          "username": "tong"
+        },
+        "createdAt": "2026-08-22T09:15:10.818Z"
+      },
+      {
+        "id": "1681b482-23f3-4b4e-8cc4-69539650fdf8",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "OFFLINE",
+          "sourceEvent": "socket.disconnect",
+          "previousStatus": "IN_USE"
+        },
+        "createdAt": "2026-08-22T11:21:32.407Z"
+      },
+      {
+        "id": "899599c4-e7bb-40e6-8edf-6cd23df1d9be",
+        "source": "SERVER",
+        "eventType": "session.preserved.offline_vip",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "sessionId": "61aa234a-2ec5-4c97-b799-43491bce3c7b",
+          "sourceEvent": "socket.disconnect"
+        },
+        "createdAt": "2026-08-22T11:21:32.418Z"
+      },
+      {
+        "id": "8d2c64ef-09aa-456d-926d-4b3e2b74d1c4",
+        "source": "SERVER",
+        "eventType": "backup.created",
+        "pcId": null,
+        "payload": {
+          "counts": {
+            "pcs": 3,
+            "members": 30,
+            "commands": 147,
+            "pcGroups": 2,
+            "sessions": 339,
+            "eventLogs": 2391,
+            "appSettings": 45,
+            "serviceItems": 8,
+            "pricingConfigs": 3,
+            "pcServiceOrders": 33,
+            "loyaltyRankConfigs": 100,
+            "memberTransactions": 15151,
+            "timeBasedPromotions": 5
+          },
+          "trigger": "auto",
+          "fileName": "billing-backup-auto-20260822-220000.json",
+          "filePath": "I:\\servermanagerbilling\\backend\\backups\\billing-backup-auto-20260822-220000.json",
+          "createdAt": "2026-08-22T15:00:00.018Z",
+          "requestedBy": "system.scheduler"
+        },
+        "createdAt": "2026-08-22T15:00:00.361Z"
+      },
+      {
+        "id": "3ccd4af7-4a20-438e-8087-276b6d53cd1a",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "IN_USE",
+          "sourceEvent": "presence",
+          "previousStatus": "OFFLINE"
+        },
+        "createdAt": "2026-08-27T11:42:02.527Z"
+      },
+      {
+        "id": "8080a9ea-e512-48b3-a4dd-981c5f34a35e",
+        "source": "SERVER",
+        "eventType": "command.created",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "type": "LOCK",
+          "commandId": "42208c9a-3228-4662-876b-47e1898998e5",
+          "targetPcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+          "requestedPcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c"
+        },
+        "createdAt": "2026-08-27T11:42:20.895Z"
+      },
+      {
+        "id": "5416a82f-1e04-406d-8688-20d175eef780",
+        "source": "SERVER",
+        "eventType": "command.dispatched",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "type": "LOCK",
+          "sockets": 1,
+          "commandId": "42208c9a-3228-4662-876b-47e1898998e5",
+          "targetPcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+          "requestedPcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+          "targetAgentId": "PC-001"
+        },
+        "createdAt": "2026-08-27T11:42:20.901Z"
+      },
+      {
+        "id": "ea27bb70-42e0-494f-bf0c-54164bc9395f",
+        "source": "CLIENT",
+        "eventType": "member.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-08-27T11:42:20.944Z",
+          "fullName": "tong",
+          "isActive": false,
+          "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+          "username": "tong"
+        },
+        "createdAt": "2026-08-27T11:42:20.945Z"
+      },
+      {
+        "id": "93692b66-6c12-4acf-b5cd-59ff4f06488c",
+        "source": "SERVER",
+        "eventType": "command.ack.received",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "result": "SUCCESS",
+          "message": "locked",
+          "commandId": "42208c9a-3228-4662-876b-47e1898998e5",
+          "nextStatus": "ACK_SUCCESS"
+        },
+        "createdAt": "2026-08-27T11:42:20.999Z"
+      },
+      {
+        "id": "cf3e8d54-5da2-4da2-8394-e66b5678a3a0",
+        "source": "SERVER",
+        "eventType": "guest.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-08-27T11:42:20.999Z",
+          "isActive": false
+        },
+        "createdAt": "2026-08-27T11:42:21.000Z"
+      },
+      {
+        "id": "d071a63a-b2f6-4193-bca6-40c66536bf0b",
+        "source": "SERVER",
+        "eventType": "admin.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-08-27T11:42:21.000Z",
+          "isActive": false
+        },
+        "createdAt": "2026-08-27T11:42:21.001Z"
+      },
+      {
+        "id": "fd476518-c645-4023-a852-963058ab5191",
+        "source": "SERVER",
+        "eventType": "member.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-08-27T11:42:21.001Z",
+          "isActive": false
+        },
+        "createdAt": "2026-08-27T11:42:21.002Z"
+      },
+      {
+        "id": "297bbfc7-007c-46e4-b471-3a13ec91f6c1",
+        "source": "CLIENT",
+        "eventType": "member.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-08-27T11:42:40.389Z",
+          "fullName": "tong",
+          "isActive": true,
+          "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+          "username": "tong"
+        },
+        "createdAt": "2026-08-27T11:42:40.390Z"
+      },
+      {
+        "id": "30d07670-3d97-48c5-a984-534a94fcf49c",
+        "source": "SERVER",
+        "eventType": "command.created",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "type": "LOCK",
+          "commandId": "28b778bd-eb7d-4878-ae04-75f2163865eb",
+          "targetPcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+          "requestedPcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c"
+        },
+        "createdAt": "2026-08-27T11:42:51.827Z"
+      },
+      {
+        "id": "8b2723af-922c-4c50-ac3e-94729af3f0f2",
+        "source": "SERVER",
+        "eventType": "command.dispatched",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "type": "LOCK",
+          "sockets": 1,
+          "commandId": "28b778bd-eb7d-4878-ae04-75f2163865eb",
+          "targetPcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+          "requestedPcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+          "targetAgentId": "PC-001"
+        },
+        "createdAt": "2026-08-27T11:42:51.832Z"
+      },
+      {
+        "id": "340928db-6aac-43af-bed5-3bb05b0038f1",
+        "source": "CLIENT",
+        "eventType": "member.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-08-27T11:42:51.857Z",
+          "fullName": "tong",
+          "isActive": false,
+          "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+          "username": "tong"
+        },
+        "createdAt": "2026-08-27T11:42:51.858Z"
+      },
+      {
+        "id": "3579162c-5df9-4581-b8b6-f176cb88f8a5",
+        "source": "SERVER",
+        "eventType": "command.ack.received",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "result": "SUCCESS",
+          "message": "locked",
+          "commandId": "28b778bd-eb7d-4878-ae04-75f2163865eb",
+          "nextStatus": "ACK_SUCCESS"
+        },
+        "createdAt": "2026-08-27T11:42:51.907Z"
+      },
+      {
+        "id": "35b33cae-6cb8-4d83-a45e-0237dee54335",
+        "source": "SERVER",
+        "eventType": "guest.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-08-27T11:42:51.907Z",
+          "isActive": false
+        },
+        "createdAt": "2026-08-27T11:42:51.908Z"
+      },
+      {
+        "id": "cce73b98-34f8-44ba-941e-5107ffa72d00",
+        "source": "SERVER",
+        "eventType": "admin.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-08-27T11:42:51.908Z",
+          "isActive": false
+        },
+        "createdAt": "2026-08-27T11:42:51.909Z"
+      },
+      {
+        "id": "aae7d6b3-3fb1-4fcc-b763-f85c158f2999",
+        "source": "SERVER",
+        "eventType": "member.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-08-27T11:42:51.909Z",
+          "isActive": false
+        },
+        "createdAt": "2026-08-27T11:42:51.910Z"
+      },
+      {
+        "id": "53d00ada-d118-4473-a145-9fa01486f093",
+        "source": "CLIENT",
+        "eventType": "member.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-08-27T11:42:53.845Z",
+          "fullName": "teo",
+          "isActive": true,
+          "memberId": "3a0a785b-9518-47b4-b54c-322a88a4548b",
+          "username": "teo"
+        },
+        "createdAt": "2026-08-27T11:42:53.846Z"
+      },
+      {
+        "id": "eafb2fed-6ff6-420d-b915-b6c8e73f8b01",
+        "source": "CLIENT",
+        "eventType": "member.topup.requested",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "note": null,
+          "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+          "amount": 20000,
+          "pcName": "PC",
+          "status": "APPROVED",
+          "agentId": "PC-001",
+          "fullName": "teo",
+          "memberId": "3a0a785b-9518-47b4-b54c-322a88a4548b",
+          "username": "teo",
+          "createdBy": "client.member.topup.request",
+          "approvedAt": "2026-08-27T11:45:18.805Z",
+          "approvedBy": "admin.desktop",
+          "rejectNote": null,
+          "requestedAt": "2026-08-27T11:43:58.135Z",
+          "transactionId": "635af4a0-37a8-4db4-b874-33a6b70bb4de",
+          "processedAmount": 22000,
+          "balanceAfterTopup": 368862.5
+        },
+        "createdAt": "2026-08-27T11:43:58.136Z"
+      },
+      {
+        "id": "43f49c38-efe1-42d0-b3d6-dc24238cc87e",
+        "source": "CLIENT",
+        "eventType": "member.topup.requested",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "note": null,
+          "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+          "amount": 20000,
+          "pcName": "PC",
+          "status": "REJECTED",
+          "agentId": "PC-001",
+          "fullName": "teo",
+          "memberId": "3a0a785b-9518-47b4-b54c-322a88a4548b",
+          "username": "teo",
+          "createdBy": "client.member.topup.request",
+          "rejectNote": "Admin hủy yêu cầu nạp tiền",
+          "rejectedAt": "2026-08-27T11:51:00.367Z",
+          "rejectedBy": "admin.desktop",
+          "requestedAt": "2026-08-27T11:50:53.709Z"
+        },
+        "createdAt": "2026-08-27T11:50:53.710Z"
+      },
+      {
+        "id": "122518d1-0c3f-4bff-9135-f22f1b8e987f",
+        "source": "CLIENT",
+        "eventType": "member.topup.requested",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "note": null,
+          "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+          "amount": 20000,
+          "pcName": "PC",
+          "status": "APPROVED",
+          "agentId": "PC-001",
+          "fullName": "teo",
+          "memberId": "3a0a785b-9518-47b4-b54c-322a88a4548b",
+          "username": "teo",
+          "createdBy": "client.member.topup.request",
+          "approvedAt": "2026-08-27T11:59:11.299Z",
+          "approvedBy": "admin.web",
+          "rejectNote": null,
+          "requestedAt": "2026-08-27T11:58:51.865Z",
+          "transactionId": "98e69ee6-8e3b-45d0-84d7-b088b199c862",
+          "processedAmount": 22000,
+          "balanceAfterTopup": 389462.5
+        },
+        "createdAt": "2026-08-27T11:58:51.865Z"
+      },
+      {
+        "id": "748566f5-ee74-4f08-a650-92c7fc3e6fe1",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "OFFLINE",
+          "sourceEvent": "socket.disconnect",
+          "previousStatus": "IN_USE"
+        },
+        "createdAt": "2026-08-27T13:07:39.182Z"
+      },
+      {
+        "id": "7d5d9526-31b0-48be-a151-b5a6e71b3e24",
+        "source": "SERVER",
+        "eventType": "session.closed.auto_offline",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "amount": 8475.57,
+          "sessionId": "0b1d6d10-186f-4542-bc45-fa91877a9dcf",
+          "lastSeenAt": "2026-08-27T13:07:33.275Z",
+          "sourceEvent": "socket.disconnect",
+          "billableMinutes": 85,
+          "durationSeconds": 5085
+        },
+        "createdAt": "2026-08-27T13:07:39.202Z"
+      },
+      {
+        "id": "c874c5ae-5c94-43cf-868a-8f4b04c96e30",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "ONLINE",
+          "sourceEvent": "presence",
+          "previousStatus": "OFFLINE"
+        },
+        "createdAt": "2026-10-16T07:50:44.474Z"
+      },
+      {
+        "id": "01ac64f9-4e42-4aa5-b3bc-cba494221b1f",
+        "source": "CLIENT",
+        "eventType": "member.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-10-16T07:50:48.134Z",
+          "fullName": "tong",
+          "isActive": true,
+          "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+          "username": "tong"
+        },
+        "createdAt": "2026-10-16T07:50:48.135Z"
+      },
+      {
+        "id": "2432701a-69c1-4ab2-86cd-10d4b2ec0775",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "OFFLINE",
+          "sourceEvent": "socket.disconnect",
+          "previousStatus": "IN_USE"
+        },
+        "createdAt": "2026-10-16T08:45:27.167Z"
+      },
+      {
+        "id": "9638577f-8b61-4e3d-8c04-d269bce1bc32",
+        "source": "SERVER",
+        "eventType": "session.preserved.offline_vip",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "sessionId": "d8ddc8a6-4faf-46ee-b80c-f9a169bf2b25",
+          "sourceEvent": "offline.close_stale"
+        },
+        "createdAt": "2026-10-21T02:39:00.018Z"
+      },
+      {
+        "id": "a89e80ac-c9bf-4bc2-a328-000a850019c4",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "IN_USE",
+          "sourceEvent": "presence",
+          "previousStatus": "OFFLINE"
+        },
+        "createdAt": "2026-10-21T02:39:12.339Z"
+      },
+      {
+        "id": "39b871bc-74b5-4060-b41b-0055d4e68c15",
+        "source": "SERVER",
+        "eventType": "command.created",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "type": "LOCK",
+          "commandId": "738cd1d0-ab26-47b3-9cd0-6f734cc9e514",
+          "targetPcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+          "requestedPcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c"
+        },
+        "createdAt": "2026-10-21T03:05:59.407Z"
+      },
+      {
+        "id": "7b17d78f-111e-495d-8f69-35cc1a8f1650",
+        "source": "SERVER",
+        "eventType": "command.dispatched",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "type": "LOCK",
+          "sockets": 1,
+          "commandId": "738cd1d0-ab26-47b3-9cd0-6f734cc9e514",
+          "targetPcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+          "requestedPcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+          "targetAgentId": "PC-001"
+        },
+        "createdAt": "2026-10-21T03:05:59.412Z"
+      },
+      {
+        "id": "35504a8c-99fd-42a2-bde1-83d9e2177a84",
+        "source": "CLIENT",
+        "eventType": "member.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-10-21T03:05:59.444Z",
+          "fullName": "tong",
+          "isActive": false,
+          "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+          "username": "tong"
+        },
+        "createdAt": "2026-10-21T03:05:59.445Z"
+      },
+      {
+        "id": "5d1d799a-11ba-4911-9b4d-47c64b1d2579",
+        "source": "SERVER",
+        "eventType": "command.ack.received",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "result": "SUCCESS",
+          "message": "locked",
+          "commandId": "738cd1d0-ab26-47b3-9cd0-6f734cc9e514",
+          "nextStatus": "ACK_SUCCESS"
+        },
+        "createdAt": "2026-10-21T03:05:59.503Z"
+      },
+      {
+        "id": "2c8dccd1-6327-4e3b-b6fc-75adb6535a5d",
+        "source": "SERVER",
+        "eventType": "guest.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-10-21T03:05:59.504Z",
+          "isActive": false
+        },
+        "createdAt": "2026-10-21T03:05:59.505Z"
+      },
+      {
+        "id": "ad3861d9-ecbf-4549-9940-b5fa109f1332",
+        "source": "SERVER",
+        "eventType": "admin.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-10-21T03:05:59.505Z",
+          "isActive": false
+        },
+        "createdAt": "2026-10-21T03:05:59.506Z"
+      },
+      {
+        "id": "5b992ca4-395c-46eb-8915-780a944e54ae",
+        "source": "SERVER",
+        "eventType": "member.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-10-21T03:05:59.506Z",
+          "isActive": false
+        },
+        "createdAt": "2026-10-21T03:05:59.508Z"
+      },
+      {
+        "id": "0f1439db-c2a0-4081-89f6-eb435c4066b5",
+        "source": "CLIENT",
+        "eventType": "member.pc.presence",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "at": "2026-10-21T03:06:02.829Z",
+          "fullName": "tong",
+          "isActive": true,
+          "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+          "username": "tong"
+        },
+        "createdAt": "2026-10-21T03:06:02.830Z"
+      },
+      {
+        "id": "34b75531-dd7a-42d7-bef1-73269f89153b",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "OFFLINE",
+          "sourceEvent": "socket.disconnect",
+          "previousStatus": "IN_USE"
+        },
+        "createdAt": "2026-10-21T03:10:06.533Z"
+      },
+      {
+        "id": "dd8b8f64-d36a-4730-a755-56750626b62f",
+        "source": "SERVER",
+        "eventType": "session.preserved.offline_vip",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "sessionId": "b00e46bd-1806-4175-a4ed-0a3f6435d915",
+          "sourceEvent": "socket.disconnect"
+        },
+        "createdAt": "2026-10-21T03:10:06.548Z"
+      },
+      {
+        "id": "4696697e-6764-49e2-a9a0-1593a072fe80",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "IN_USE",
+          "sourceEvent": "presence",
+          "previousStatus": "OFFLINE"
+        },
+        "createdAt": "2026-10-21T03:10:10.510Z"
+      },
+      {
+        "id": "e0e0ac05-578d-4901-aaa4-c0e4a477a3f5",
+        "source": "SERVER",
+        "eventType": "member.topup",
+        "pcId": null,
+        "payload": {
+          "at": "2026-10-21T03:50:14.772Z",
+          "note": "Test nạp không KM",
+          "amount": 5000,
+          "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+          "username": "test_regular_topup",
+          "createdBy": "test.runner"
+        },
+        "createdAt": "2026-10-21T03:50:14.773Z"
+      },
+      {
+        "id": "4d4345c1-7c7a-494b-abef-82d7dd2ff852",
+        "source": "SERVER",
+        "eventType": "member.topup",
+        "pcId": null,
+        "payload": {
+          "at": "2026-10-21T03:50:14.799Z",
+          "note": "Test nạp bậc 1 (+500 KM)",
+          "amount": 10500,
+          "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+          "username": "test_regular_topup",
+          "createdBy": "test.runner"
+        },
+        "createdAt": "2026-10-21T03:50:14.799Z"
+      },
+      {
+        "id": "7989ca4f-6cb7-40f4-8c97-1dc00d33eccf",
+        "source": "SERVER",
+        "eventType": "member.topup",
+        "pcId": null,
+        "payload": {
+          "at": "2026-10-21T03:50:14.818Z",
+          "note": "Test nạp bậc 2 (+2,000 KM)",
+          "amount": 22000,
+          "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+          "username": "test_regular_topup",
+          "createdBy": "test.runner"
+        },
+        "createdAt": "2026-10-21T03:50:14.819Z"
+      },
+      {
+        "id": "b5470475-3890-408f-ad1b-4c19d1270469",
+        "source": "SERVER",
+        "eventType": "member.topup",
+        "pcId": null,
+        "payload": {
+          "at": "2026-10-21T03:50:31.350Z",
+          "note": "Test nạp không KM",
+          "amount": 5000,
+          "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+          "username": "test_regular_topup",
+          "createdBy": "test.runner"
+        },
+        "createdAt": "2026-10-21T03:50:31.351Z"
+      },
+      {
+        "id": "94c24b6d-d0f0-4db3-a739-61f033da5e19",
+        "source": "SERVER",
+        "eventType": "member.topup",
+        "pcId": null,
+        "payload": {
+          "at": "2026-10-21T03:50:31.369Z",
+          "note": "Test nạp bậc 1 (+500 KM)",
+          "amount": 10500,
+          "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+          "username": "test_regular_topup",
+          "createdBy": "test.runner"
+        },
+        "createdAt": "2026-10-21T03:50:31.370Z"
+      },
+      {
+        "id": "61ea85fe-781f-4a23-be90-85164fdf848d",
+        "source": "SERVER",
+        "eventType": "member.topup",
+        "pcId": null,
+        "payload": {
+          "at": "2026-10-21T03:50:31.390Z",
+          "note": "Test nạp bậc 2 (+2,000 KM)",
+          "amount": 22000,
+          "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+          "username": "test_regular_topup",
+          "createdBy": "test.runner"
+        },
+        "createdAt": "2026-10-21T03:50:31.391Z"
+      },
+      {
+        "id": "635a2d7d-1842-41a5-84fb-1176490fff01",
+        "source": "CLIENT",
+        "eventType": "member.topup.requested",
+        "pcId": null,
+        "payload": {
+          "note": "Yêu cầu nạp tiền từ máy 01",
+          "pcId": null,
+          "amount": 15000,
+          "pcName": null,
+          "status": "APPROVED",
+          "agentId": "pc-01",
+          "fullName": "Test Regular Member Topup",
+          "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+          "username": "test_regular_topup",
+          "createdBy": "client.member.topup.request",
+          "approvedAt": "2026-10-21T03:50:36.153Z",
+          "approvedBy": "admin.desktop",
+          "rejectNote": null,
+          "requestedAt": "2026-10-21T03:50:31.420Z",
+          "transactionId": "055b0ab7-acee-4adc-b55a-f3540a4ef362",
+          "processedAmount": 15750,
+          "balanceAfterTopup": 90750
+        },
+        "createdAt": "2026-10-21T03:50:31.420Z"
+      },
+      {
+        "id": "6d45cf1b-2292-4c0a-b90c-0d6b3fa828ad",
+        "source": "SERVER",
+        "eventType": "member.topup",
+        "pcId": null,
+        "payload": {
+          "at": "2026-10-21T03:50:58.404Z",
+          "note": "Test nạp không KM",
+          "amount": 5000,
+          "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+          "username": "test_regular_topup",
+          "createdBy": "test.runner"
+        },
+        "createdAt": "2026-10-21T03:50:58.405Z"
+      },
+      {
+        "id": "c084874e-ca0a-4426-b553-d60d30dbff5a",
+        "source": "SERVER",
+        "eventType": "member.topup",
+        "pcId": null,
+        "payload": {
+          "at": "2026-10-21T03:50:58.434Z",
+          "note": "Test nạp bậc 1 (+500 KM)",
+          "amount": 10500,
+          "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+          "username": "test_regular_topup",
+          "createdBy": "test.runner"
+        },
+        "createdAt": "2026-10-21T03:50:58.436Z"
+      },
+      {
+        "id": "efa3dfdc-2dd4-414d-b68f-a01ce9e5cb17",
+        "source": "SERVER",
+        "eventType": "member.topup",
+        "pcId": null,
+        "payload": {
+          "at": "2026-10-21T03:50:58.459Z",
+          "note": "Test nạp bậc 2 (+2,000 KM)",
+          "amount": 22000,
+          "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+          "username": "test_regular_topup",
+          "createdBy": "test.runner"
+        },
+        "createdAt": "2026-10-21T03:50:58.460Z"
+      },
+      {
+        "id": "ce42b9b7-02d3-4a57-8a9e-dd99fd2e6a1d",
+        "source": "SERVER",
+        "eventType": "member.topup",
+        "pcId": null,
+        "payload": {
+          "at": "2026-10-21T03:51:37.464Z",
+          "note": "Test nạp không KM",
+          "amount": 5000,
+          "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+          "username": "test_regular_topup",
+          "createdBy": "test.runner"
+        },
+        "createdAt": "2026-10-21T03:51:37.465Z"
+      },
+      {
+        "id": "7e7d0360-1b40-4f32-ae3b-4cb0373fba39",
+        "source": "SERVER",
+        "eventType": "member.topup",
+        "pcId": null,
+        "payload": {
+          "at": "2026-10-21T03:51:37.486Z",
+          "note": "Test nạp bậc 1 (+500 KM)",
+          "amount": 10500,
+          "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+          "username": "test_regular_topup",
+          "createdBy": "test.runner"
+        },
+        "createdAt": "2026-10-21T03:51:37.487Z"
+      },
+      {
+        "id": "f3dba4f5-2cb6-46e2-910f-29a759638043",
+        "source": "SERVER",
+        "eventType": "member.topup",
+        "pcId": null,
+        "payload": {
+          "at": "2026-10-21T03:51:37.506Z",
+          "note": "Test nạp bậc 2 (+2,000 KM)",
+          "amount": 22000,
+          "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+          "username": "test_regular_topup",
+          "createdBy": "test.runner"
+        },
+        "createdAt": "2026-10-21T03:51:37.507Z"
+      },
+      {
+        "id": "218bf4f0-e762-4442-be78-f3daac258ec3",
+        "source": "CLIENT",
+        "eventType": "member.topup.requested",
+        "pcId": null,
+        "payload": {
+          "note": "Yêu cầu nạp tiền từ máy 01",
+          "pcId": null,
+          "amount": 15000,
+          "pcName": null,
+          "status": "APPROVED",
+          "agentId": "pc-01",
+          "fullName": "Test Client Member",
+          "memberId": "9a64a64b-e330-4044-9251-0ea9742b932d",
+          "username": "test_client_7529",
+          "createdBy": "client.member.topup.request",
+          "approvedAt": "2026-10-21T03:51:40.006Z",
+          "approvedBy": "admin.desktop",
+          "rejectNote": null,
+          "requestedAt": "2026-10-21T03:51:37.612Z",
+          "transactionId": "4a19b2ac-0fdd-4584-bee1-1d1ebd5dbfb0",
+          "processedAmount": 15750,
+          "balanceAfterTopup": 15750
+        },
+        "createdAt": "2026-10-21T03:51:37.613Z"
+      },
+      {
+        "id": "d4fe30c2-aaa4-4b2d-b9f6-75f02d99a5fb",
+        "source": "SERVER",
+        "eventType": "member.topup",
+        "pcId": null,
+        "payload": {
+          "at": "2026-10-21T03:52:25.229Z",
+          "note": "Test nạp không KM",
+          "amount": 5000,
+          "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+          "username": "test_regular_topup",
+          "createdBy": "test.runner"
+        },
+        "createdAt": "2026-10-21T03:52:25.230Z"
+      },
+      {
+        "id": "1c8161f6-fc05-45c4-8636-c216d9a7d5ba",
+        "source": "SERVER",
+        "eventType": "member.topup",
+        "pcId": null,
+        "payload": {
+          "at": "2026-10-21T03:52:25.258Z",
+          "note": "Test nạp bậc 1 (+500 KM)",
+          "amount": 10500,
+          "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+          "username": "test_regular_topup",
+          "createdBy": "test.runner"
+        },
+        "createdAt": "2026-10-21T03:52:25.259Z"
+      },
+      {
+        "id": "a288d653-69f2-4ea6-8a77-63985935cd86",
+        "source": "SERVER",
+        "eventType": "member.topup",
+        "pcId": null,
+        "payload": {
+          "at": "2026-10-21T03:52:25.282Z",
+          "note": "Test nạp bậc 2 (+2,000 KM)",
+          "amount": 22000,
+          "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+          "username": "test_regular_topup",
+          "createdBy": "test.runner"
+        },
+        "createdAt": "2026-10-21T03:52:25.283Z"
+      },
+      {
+        "id": "d49f480c-7812-4f27-991b-bc0b801fbb89",
+        "source": "CLIENT",
+        "eventType": "member.topup.requested",
+        "pcId": null,
+        "payload": {
+          "note": "Yêu cầu nạp tiền từ máy 01",
+          "pcId": null,
+          "amount": 15000,
+          "pcName": null,
+          "status": "APPROVED",
+          "agentId": "pc-01",
+          "fullName": "Test Client Member",
+          "memberId": "100d8f4a-098a-48eb-baa9-184338db534a",
+          "username": "test_client_5303",
+          "createdBy": "client.member.topup.request",
+          "approvedAt": "2026-10-21T03:52:25.418Z",
+          "approvedBy": "admin.desktop",
+          "rejectNote": null,
+          "requestedAt": "2026-10-21T03:52:25.383Z",
+          "transactionId": "88da2373-409c-4078-946c-4ca18b3f39ac",
+          "processedAmount": 15750,
+          "balanceAfterTopup": 15750
+        },
+        "createdAt": "2026-10-21T03:52:25.384Z"
+      },
+      {
+        "id": "79b0ab83-77af-454f-96c7-c75d45f490e7",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "OFFLINE",
+          "sourceEvent": "socket.disconnect",
+          "previousStatus": "IN_USE"
+        },
+        "createdAt": "2026-10-21T04:13:30.120Z"
+      },
+      {
+        "id": "d4cc1ad5-21aa-49ff-b1ff-f4b3cb4d68d2",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "IN_USE",
+          "sourceEvent": "presence",
+          "previousStatus": "OFFLINE"
+        },
+        "createdAt": "2026-10-21T04:13:43.112Z"
+      },
+      {
+        "id": "38e95a9d-c35d-40f0-8113-75cb6f090b21",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "OFFLINE",
+          "sourceEvent": "socket.disconnect",
+          "previousStatus": "IN_USE"
+        },
+        "createdAt": "2026-10-21T04:34:24.792Z"
+      },
+      {
+        "id": "89b5e9dc-528a-4b16-b733-b32e273aa735",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "IN_USE",
+          "sourceEvent": "presence",
+          "previousStatus": "OFFLINE"
+        },
+        "createdAt": "2026-10-21T04:34:28.980Z"
+      },
+      {
+        "id": "98eaeceb-5e9b-4209-955f-29c7f1fa161b",
+        "source": "SERVER",
+        "eventType": "pc.status.changed",
+        "pcId": "9bddfbd3-af6d-494d-a8ee-edbdc142f82c",
+        "payload": {
+          "status": "OFFLINE",
+          "sourceEvent": "socket.disconnect",
+          "previousStatus": "IN_USE"
+        },
+        "createdAt": "2026-10-21T13:30:38.838Z"
       }
     ],
     "memberTransactions": [
@@ -190815,6 +192500,556 @@
         "note": "SESSION_USAGE:PERIODIC",
         "createdBy": "client.session.loyalty",
         "createdAt": "2026-08-08T01:41:05.811Z"
+      },
+      {
+        "id": "742c6a40-5ba5-4f11-93ad-c0e50ffbadfc",
+        "memberId": "5f25fbdb-9b49-439f-9569-3196b5ba0ea7",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": 60000,
+        "note": "REFERRAL_REWARD:test162aeae4",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-09T01:15:44.367Z"
+      },
+      {
+        "id": "351b5988-6717-4347-9436-b9a8fc1219a3",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "-133.33",
+        "playSecondsDelta": -160,
+        "note": "SESSION_USAGE:PERIODIC:CASH_CHARGE",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-19T02:07:54.385Z"
+      },
+      {
+        "id": "fbe70df4-fee8-401e-b3fe-7456d0a7f3ac",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "-3.33",
+        "playSecondsDelta": -4,
+        "note": "SESSION_USAGE:LOYALTY_CHECK:CASH_CHARGE",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-19T02:10:28.436Z"
+      },
+      {
+        "id": "a3c4756f-79fe-4467-86e4-bcb3af6ceb68",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": 1200,
+        "note": "LOYALTY_DAILY_CHECKIN:2026-08-19",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-19T02:10:32.835Z"
+      },
+      {
+        "id": "ddb0d06b-1d71-40e4-9e73-529623a7c8e1",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": -1500,
+        "note": "LUCKY_SPIN: spend 5 points (VIP: update playSeconds -1500s; never shift session startedAt)",
+        "createdBy": "client.loyalty.spin",
+        "createdAt": "2026-08-19T02:10:39.692Z"
+      },
+      {
+        "id": "0b3922ad-1158-4025-b988-e83251894865",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": 1500,
+        "note": "LOYALTY_REDEEM: LUCKY_SPIN: spend 5 points",
+        "createdBy": "client.loyalty",
+        "createdAt": "2026-08-19T02:10:39.693Z"
+      },
+      {
+        "id": "a8752502-1891-4e75-a469-df5ea560fd29",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": 240,
+        "note": "LUCKY_SPIN_WIN: won 4 minutes (VIP: update playSeconds +240s; never shift session startedAt)",
+        "createdBy": "client.loyalty.spin",
+        "createdAt": "2026-08-19T02:10:39.696Z"
+      },
+      {
+        "id": "859b1f79-56e1-4b46-8cf2-43736e99f6b2",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "-45",
+        "playSecondsDelta": -54,
+        "note": "SESSION_USAGE:PERIODIC:CASH_CHARGE",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-19T02:11:09.375Z"
+      },
+      {
+        "id": "a14d82d9-1343-4321-a2f4-0324e575bf36",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "-11.67",
+        "playSecondsDelta": -14,
+        "note": "SESSION_USAGE:LOYALTY_CHECK:CASH_CHARGE",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-19T02:11:53.576Z"
+      },
+      {
+        "id": "dcecb581-bed8-42bb-b430-8e185d90a5c6",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "-638.33",
+        "playSecondsDelta": -766,
+        "note": "SESSION_USAGE:PERIODIC:CASH_CHARGE",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-19T02:12:09.378Z"
+      },
+      {
+        "id": "9a4e4135-792a-40b8-ab13-7db2e0a35412",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "-2.5",
+        "playSecondsDelta": -3,
+        "note": "SESSION_USAGE:LOYALTY_CHECK:CASH_CHARGE",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-19T02:24:59.702Z"
+      },
+      {
+        "id": "2b54dd23-fa14-441e-ad8e-e9ad6ed762bd",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": 300,
+        "note": "LOYALTY_REDEEM: doi 1 diem",
+        "createdBy": "client.loyalty.redeem",
+        "createdAt": "2026-08-19T02:25:06.977Z"
+      },
+      {
+        "id": "c7cdb7c8-d111-4a14-8faa-42c28debc80b",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "-990",
+        "playSecondsDelta": -1188,
+        "note": "SESSION_USAGE:PERIODIC:CASH_CHARGE",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-19T02:25:25.895Z"
+      },
+      {
+        "id": "0b32b684-f691-445a-b879-b624a4aca05b",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "-0.83",
+        "playSecondsDelta": -1,
+        "note": "SESSION_USAGE:LOYALTY_CHECK:CASH_CHARGE",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-19T02:45:17.880Z"
+      },
+      {
+        "id": "f2832cf8-15b5-486e-9524-8dc41ebff32d",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": 600,
+        "note": "LOYALTY_REDEEM: doi 2 diem",
+        "createdBy": "client.loyalty.redeem",
+        "createdAt": "2026-08-19T02:45:23.649Z"
+      },
+      {
+        "id": "3bb77848-8bd8-4590-a971-69afa76022de",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "-669.17",
+        "playSecondsDelta": -803,
+        "note": "SESSION_USAGE:PERIODIC:CASH_CHARGE",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-19T02:45:46.982Z"
+      },
+      {
+        "id": "7599d2ce-d936-462e-b38c-c89feb444be4",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "-10",
+        "playSecondsDelta": -12,
+        "note": "SESSION_USAGE:LOYALTY_CHECK:CASH_CHARGE",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-19T02:58:58.957Z"
+      },
+      {
+        "id": "c6bede73-f68d-417e-8254-910c59d3485c",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "-26195.84",
+        "playSecondsDelta": -31438,
+        "note": "SESSION_USAGE:PERIODIC:CASH_CHARGE",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-19T02:59:16.937Z"
+      },
+      {
+        "id": "6b03a6b5-caa4-4722-888e-bc770c8a3e1b",
+        "memberId": "7079adcc-116a-4796-aa72-814e32ea24f7",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": 45000,
+        "note": "LOYALTY_DAILY_CHECKIN: test seed points",
+        "createdBy": "test.seed",
+        "createdAt": "2026-08-22T08:06:11.338Z"
+      },
+      {
+        "id": "1838a588-c6c2-4da0-90d0-b9741d8b3488",
+        "memberId": "7079adcc-116a-4796-aa72-814e32ea24f7",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": 3000,
+        "note": "LOYALTY_REDEEM_LUCKY_ENVELOPE: -10 diem doi li xi",
+        "createdBy": "client.test",
+        "createdAt": "2026-08-22T08:06:11.492Z"
+      },
+      {
+        "id": "8866d948-bc3a-45cd-be13-394a4dd87b43",
+        "memberId": "7079adcc-116a-4796-aa72-814e32ea24f7",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": 13200,
+        "note": "TET_LUCKY_ENVELOPE_REWARD: +220 phut - Khai xuân đắc lộc! Mã đáo thành công!",
+        "createdBy": "client.test",
+        "createdAt": "2026-08-22T08:06:11.500Z"
+      },
+      {
+        "id": "0dbd454b-10f9-459e-83db-1febc8a9301d",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": 3000,
+        "note": "LOYALTY_REDEEM_LUCKY_ENVELOPE: -10 diem doi li xi",
+        "createdBy": "client.loyalty.lucky_envelope",
+        "createdAt": "2026-08-22T08:22:54.805Z"
+      },
+      {
+        "id": "bb8c73cb-47c6-49a5-a675-007c3f60f77a",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": 20100,
+        "note": "TET_LUCKY_ENVELOPE_REWARD: +335 phut - Năm mới phát tài - Chơi game bất bại!",
+        "createdBy": "client.loyalty.lucky_envelope",
+        "createdAt": "2026-08-22T08:22:54.810Z"
+      },
+      {
+        "id": "da0df6a4-d0b5-46d4-8e39-c5b136394477",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": -39960,
+        "note": "Đổi 666 phút KM (VIP cấn trừ 666 phút đã chơi)",
+        "createdBy": "client.session",
+        "createdAt": "2026-08-22T08:32:27.524Z"
+      },
+      {
+        "id": "ce7fc5bb-dfa7-4143-862e-fc47d6e14a2c",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": -2220,
+        "note": "Đổi 37 phút KM (VIP cấn trừ 37 phút đã chơi)",
+        "createdBy": "client.session",
+        "createdAt": "2026-08-22T09:09:25.376Z"
+      },
+      {
+        "id": "e5c6a426-cd39-45e5-888b-fb8b0cc7d656",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": -60,
+        "note": "Đổi 1 phút KM (VIP cấn trừ 1 phút đã chơi)",
+        "createdBy": "client.session",
+        "createdAt": "2026-08-22T09:10:25.554Z"
+      },
+      {
+        "id": "2d911a35-b66c-46e2-92c9-faa59372d6b3",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": -120,
+        "note": "Đổi 2 phút KM (VIP cấn trừ 2 phút đã chơi)",
+        "createdBy": "client.session",
+        "createdAt": "2026-08-22T09:12:12.559Z"
+      },
+      {
+        "id": "bbff3d83-fe74-4fbe-b72f-39c7cdd79262",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": 1200,
+        "note": "LOYALTY_DAILY_CHECKIN:2026-08-22",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-22T09:14:06.526Z"
+      },
+      {
+        "id": "9832a9c1-ce34-4935-a0cd-b5c810ad4b79",
+        "memberId": "3a0a785b-9518-47b4-b54c-322a88a4548b",
+        "type": "ADJUSTMENT",
+        "amountDelta": "-225",
+        "playSecondsDelta": -135,
+        "note": "SESSION_USAGE:PERIODIC:CASH_CHARGE",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-27T11:43:10.306Z"
+      },
+      {
+        "id": "635af4a0-37a8-4db4-b874-33a6b70bb4de",
+        "memberId": "3a0a785b-9518-47b4-b54c-322a88a4548b",
+        "type": "TOPUP",
+        "amountDelta": "22000",
+        "playSecondsDelta": 0,
+        "note": "Hội viên yêu cầu nạp tiền (được duyệt) (+2,000 KM)",
+        "createdBy": "admin.desktop",
+        "createdAt": "2026-08-27T11:45:18.804Z"
+      },
+      {
+        "id": "a3173905-f93d-4ab7-b58c-49a284ae4ad0",
+        "memberId": "3a0a785b-9518-47b4-b54c-322a88a4548b",
+        "type": "ADJUSTMENT",
+        "amountDelta": "-1400",
+        "playSecondsDelta": -840,
+        "note": "SESSION_USAGE:PERIODIC:CASH_CHARGE",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-27T11:45:25.303Z"
+      },
+      {
+        "id": "98e69ee6-8e3b-45d0-84d7-b088b199c862",
+        "memberId": "3a0a785b-9518-47b4-b54c-322a88a4548b",
+        "type": "TOPUP",
+        "amountDelta": "22000",
+        "playSecondsDelta": 0,
+        "note": "Hội viên yêu cầu nạp tiền (được duyệt) (+2,000 KM)",
+        "createdBy": "admin.web",
+        "createdAt": "2026-08-27T11:59:11.298Z"
+      },
+      {
+        "id": "20c5c93e-0500-48bd-a426-7b8415afb04e",
+        "memberId": "3a0a785b-9518-47b4-b54c-322a88a4548b",
+        "type": "ADJUSTMENT",
+        "amountDelta": "-6826.67",
+        "playSecondsDelta": -4096,
+        "note": "SESSION_USAGE:PERIODIC:CASH_CHARGE",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-08-27T11:59:25.315Z"
+      },
+      {
+        "id": "7f595c3a-da6c-4dbc-9827-f8beeee6ddfd",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": -420,
+        "note": "Đổi 7 phút KM (VIP cấn trừ 7 phút đã chơi)",
+        "createdBy": "client.session",
+        "createdAt": "2026-10-21T03:14:13.290Z"
+      },
+      {
+        "id": "36884949-7e68-43fc-8420-5fa76d58f739",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": -1860,
+        "note": "Đổi 31 phút KM (VIP cấn trừ 31 phút đã chơi)",
+        "createdBy": "client.session",
+        "createdAt": "2026-10-21T03:44:45.063Z"
+      },
+      {
+        "id": "9b05f939-f3aa-4627-8086-9031b92edc58",
+        "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "type": "TOPUP",
+        "amountDelta": "5000",
+        "playSecondsDelta": 0,
+        "note": "Test nạp không KM",
+        "createdBy": "test.runner",
+        "createdAt": "2026-10-21T03:50:14.771Z"
+      },
+      {
+        "id": "04eef18a-57f5-4f13-9e96-6e1b9c64afcf",
+        "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "type": "TOPUP",
+        "amountDelta": "10500",
+        "playSecondsDelta": 0,
+        "note": "Test nạp bậc 1 (+500 KM)",
+        "createdBy": "test.runner",
+        "createdAt": "2026-10-21T03:50:14.798Z"
+      },
+      {
+        "id": "010e76fa-b744-4979-a9f0-1e3b904489c2",
+        "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "type": "TOPUP",
+        "amountDelta": "22000",
+        "playSecondsDelta": 0,
+        "note": "Test nạp bậc 2 (+2,000 KM)",
+        "createdBy": "test.runner",
+        "createdAt": "2026-10-21T03:50:14.817Z"
+      },
+      {
+        "id": "ca2c05bc-8f60-4858-a3b2-afadc5f66725",
+        "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "type": "TOPUP",
+        "amountDelta": "5000",
+        "playSecondsDelta": 0,
+        "note": "Test nạp không KM",
+        "createdBy": "test.runner",
+        "createdAt": "2026-10-21T03:50:31.349Z"
+      },
+      {
+        "id": "f659a4aa-da03-4903-91fd-9d9496188248",
+        "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "type": "TOPUP",
+        "amountDelta": "10500",
+        "playSecondsDelta": 0,
+        "note": "Test nạp bậc 1 (+500 KM)",
+        "createdBy": "test.runner",
+        "createdAt": "2026-10-21T03:50:31.369Z"
+      },
+      {
+        "id": "a4a61f96-9815-461e-a6c6-61768f0efa25",
+        "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "type": "TOPUP",
+        "amountDelta": "22000",
+        "playSecondsDelta": 0,
+        "note": "Test nạp bậc 2 (+2,000 KM)",
+        "createdBy": "test.runner",
+        "createdAt": "2026-10-21T03:50:31.390Z"
+      },
+      {
+        "id": "055b0ab7-acee-4adc-b55a-f3540a4ef362",
+        "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "type": "TOPUP",
+        "amountDelta": "15750",
+        "playSecondsDelta": 0,
+        "note": "Yêu cầu nạp tiền từ máy 01 (+750 KM)",
+        "createdBy": "admin.desktop",
+        "createdAt": "2026-10-21T03:50:36.153Z"
+      },
+      {
+        "id": "39a837ca-0434-473c-a6f8-d18d51c0d648",
+        "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "type": "TOPUP",
+        "amountDelta": "5000",
+        "playSecondsDelta": 0,
+        "note": "Test nạp không KM",
+        "createdBy": "test.runner",
+        "createdAt": "2026-10-21T03:50:58.403Z"
+      },
+      {
+        "id": "4084648e-8e75-473a-9ce5-75023725323b",
+        "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "type": "TOPUP",
+        "amountDelta": "10500",
+        "playSecondsDelta": 0,
+        "note": "Test nạp bậc 1 (+500 KM)",
+        "createdBy": "test.runner",
+        "createdAt": "2026-10-21T03:50:58.434Z"
+      },
+      {
+        "id": "3c6abf4f-738c-4a2d-941b-a45966397f48",
+        "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "type": "TOPUP",
+        "amountDelta": "22000",
+        "playSecondsDelta": 0,
+        "note": "Test nạp bậc 2 (+2,000 KM)",
+        "createdBy": "test.runner",
+        "createdAt": "2026-10-21T03:50:58.458Z"
+      },
+      {
+        "id": "72926e6c-e7c2-49af-848c-e7b2c57c98df",
+        "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "type": "TOPUP",
+        "amountDelta": "5000",
+        "playSecondsDelta": 0,
+        "note": "Test nạp không KM",
+        "createdBy": "test.runner",
+        "createdAt": "2026-10-21T03:51:37.463Z"
+      },
+      {
+        "id": "067f3a5f-4c2e-4d77-b7f4-e3f9f55d408f",
+        "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "type": "TOPUP",
+        "amountDelta": "10500",
+        "playSecondsDelta": 0,
+        "note": "Test nạp bậc 1 (+500 KM)",
+        "createdBy": "test.runner",
+        "createdAt": "2026-10-21T03:51:37.486Z"
+      },
+      {
+        "id": "9afe9b6b-b061-4854-9919-9e69c5dfb193",
+        "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "type": "TOPUP",
+        "amountDelta": "22000",
+        "playSecondsDelta": 0,
+        "note": "Test nạp bậc 2 (+2,000 KM)",
+        "createdBy": "test.runner",
+        "createdAt": "2026-10-21T03:51:37.506Z"
+      },
+      {
+        "id": "4a19b2ac-0fdd-4584-bee1-1d1ebd5dbfb0",
+        "memberId": "9a64a64b-e330-4044-9251-0ea9742b932d",
+        "type": "TOPUP",
+        "amountDelta": "15750",
+        "playSecondsDelta": 0,
+        "note": "Yêu cầu nạp tiền từ máy 01 (+750 KM)",
+        "createdBy": "admin.desktop",
+        "createdAt": "2026-10-21T03:51:40.005Z"
+      },
+      {
+        "id": "ec21d3f9-602d-4d02-9415-6383f049d1c4",
+        "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "type": "TOPUP",
+        "amountDelta": "5000",
+        "playSecondsDelta": 0,
+        "note": "Test nạp không KM",
+        "createdBy": "test.runner",
+        "createdAt": "2026-10-21T03:52:25.227Z"
+      },
+      {
+        "id": "94713712-e534-4fc1-ad96-ea10f5d805c6",
+        "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "type": "TOPUP",
+        "amountDelta": "10500",
+        "playSecondsDelta": 0,
+        "note": "Test nạp bậc 1 (+500 KM)",
+        "createdBy": "test.runner",
+        "createdAt": "2026-10-21T03:52:25.257Z"
+      },
+      {
+        "id": "f11763d9-d5df-422a-9c24-3bc893be2d53",
+        "memberId": "13f94f4e-f369-421e-866b-cfb286de4145",
+        "type": "TOPUP",
+        "amountDelta": "22000",
+        "playSecondsDelta": 0,
+        "note": "Test nạp bậc 2 (+2,000 KM)",
+        "createdBy": "test.runner",
+        "createdAt": "2026-10-21T03:52:25.281Z"
+      },
+      {
+        "id": "88da2373-409c-4078-946c-4ca18b3f39ac",
+        "memberId": "100d8f4a-098a-48eb-baa9-184338db534a",
+        "type": "TOPUP",
+        "amountDelta": "15750",
+        "playSecondsDelta": 0,
+        "note": "Yêu cầu nạp tiền từ máy 01 (+750 KM)",
+        "createdBy": "admin.desktop",
+        "createdAt": "2026-10-21T03:52:25.417Z"
+      },
+      {
+        "id": "e9401ccc-6cb0-4edd-a951-722e4b2ba736",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": -7860,
+        "note": "Đổi 131 phút KM (VIP cấn trừ 131 phút đã chơi)",
+        "createdBy": "client.session",
+        "createdAt": "2026-10-21T12:23:03.900Z"
+      },
+      {
+        "id": "1ec1bca0-e34b-4f52-aec5-6ac66c9f02ea",
+        "memberId": "8a37e1f5-d853-4c47-aed3-21ca512f3691",
+        "type": "ADJUSTMENT",
+        "amountDelta": "0",
+        "playSecondsDelta": 1200,
+        "note": "LOYALTY_DAILY_CHECKIN:2026-10-21",
+        "createdBy": "client.session.loyalty",
+        "createdAt": "2026-10-21T12:55:36.443Z"
       }
     ],
     "pcServiceOrders": [

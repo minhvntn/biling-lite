@@ -15,6 +15,7 @@
         MinWidth="1240"
         PreviewMouseDown="Window_PreviewMouseDown"
         WindowStartupLocation="CenterScreen"
+        KeyDown="MainWindow_KeyDown"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display"
@@ -488,10 +489,17 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
                     <Menu Grid.Column="0" Background="Transparent" FontSize="13.5" Margin="4,2">
                         <MenuItem Header="Công cụ" Style="{StaticResource TopLevelMenuItemStyle}" Padding="12,5" Height="32" VerticalContentAlignment="Center" Foreground="White">
+                            <MenuItem Header="Tải lại toàn bộ dữ liệu (F5)" InputGestureText="F5" Click="ReloadAllData_Click" Foreground="Black" FontSize="15" Padding="12,8">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="🔄" Foreground="Black" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator />
                             <MenuItem Header="Mở máy trạm" Click="OpenWakeUpMachinesDialog_Click" Foreground="Black" FontSize="15" Padding="12,8">
                                 <MenuItem.Icon>
                                     <TextBlock Text="" />
@@ -528,6 +536,18 @@
                     </Menu>
 
                     <Button Grid.Column="1"
+                            x:Name="ReloadAllDataButton" 
+                            Style="{StaticResource HeaderButtonStyle}"
+                            Margin="0,0,8,0" 
+                            Click="ReloadAllData_Click" 
+                            ToolTip="Tải lại toàn bộ dữ liệu và kết nối lại máy chủ (Phím tắt: F5)">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔄" Foreground="White" FontSize="13" VerticalAlignment="Center" />
+                            <TextBlock x:Name="ReloadAllDataButtonText" Text="Tải lại (F5)" Foreground="White" VerticalAlignment="Center" Margin="5,0,0,0" FontSize="13" FontWeight="Medium" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button Grid.Column="2"
                             x:Name="LogoutButton" 
                             Style="{StaticResource HeaderButtonStyle}"
                             Margin="0,0,8,0" 
@@ -540,7 +560,7 @@
                     </Button>
 
                     <Ellipse x:Name="HealthIndicator" 
-                             Grid.Column="2" 
+                             Grid.Column="3" 
                              Width="10" 
                              Height="10" 
                              Fill="#94A3B8" 
@@ -4690,6 +4710,10 @@
                                                  <RowDefinition Height="Auto" />
                                                  <RowDefinition Height="Auto" />
                                                  <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
+                                                 <RowDefinition Height="Auto" />
                                              </Grid.RowDefinitions>
 
                                             <TextBlock Grid.Row="0" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B" Text="Cài đặt máy trạm" />
@@ -4811,6 +4835,48 @@
                                                        Margin="0,8,0,0"
                                                        Foreground="#64748B"
                                                        Text="Đang tải cấu hình Menu Game..." />
+
+                                            <CheckBox x:Name="VpnEnabledCheckBox"
+                                                      Grid.Row="12"
+                                                      Margin="0,12,0,0"
+                                                      IsChecked="True"
+                                                      Content="Kích hoạt tính năng VPN (Cloudflare WARP) trên máy trạm" />
+
+                                            <Grid Grid.Row="13" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="260" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Đường dẫn file cài VPN cục bộ (máy trạm):" />
+                                                <TextBox x:Name="VpnLocalInstallerPathTextBox"
+                                                         Grid.Column="1"
+                                                         Height="30"
+                                                         Width="800"
+                                                         HorizontalAlignment="Left"
+                                                         VerticalContentAlignment="Center"
+                                                         Text="D:\Games\Tools\Cloudflare_WARP_Release-x64.msi" />
+                                            </Grid>
+
+                                            <Grid Grid.Row="14" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="260" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Đường dẫn tải VPN (URL dự phòng):" />
+                                                <TextBox x:Name="VpnDownloadUrlTextBox"
+                                                         Grid.Column="1"
+                                                         Height="30"
+                                                         Width="800"
+                                                         HorizontalAlignment="Left"
+                                                         VerticalContentAlignment="Center"
+                                                         Text="https://1111-releases.cloudflareclient.com/windows/Cloudflare_WARP_Release-x64.msi" />
+                                            </Grid>
+
+                                            <TextBlock x:Name="VpnSettingsStatusTextBlock"
+                                                       Grid.Row="15"
+                                                       Margin="0,8,0,0"
+                                                       Foreground="#64748B"
+                                                       Text="Đang tải cấu hình VPN..." />
 
                                         </Grid>
                                     </Border>
@@ -5511,6 +5577,315 @@
                                                        Margin="0,8,0,0"
                                                        Foreground="#64748B"
                                                        Text="Đang tải cài đặt ngân hàng..." />
+                                        </Grid>
+                                    </Border>
+                                </TabItem>
+
+                                <TabItem Header="Máy trạm ảo" x:Name="VirtualPcsSettingsTabItem">
+                                    <Border Margin="0,8,0,0"
+                                            Background="White"
+                                            BorderBrush="#E2E8F0"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="16,14">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <!-- Row 0: Header title & desc -->
+                                                <RowDefinition Height="Auto" />
+                                                <!-- Row 1: Controls & Config -->
+                                                <RowDefinition Height="Auto" />
+                                                <!-- Row 2: Status Summary Badges -->
+                                                <RowDefinition Height="Auto" />
+                                                <!-- Row 3: Preview DataGrid Header -->
+                                                <RowDefinition Height="Auto" />
+                                                <!-- Row 4: Preview DataGrid -->
+                                                <RowDefinition Height="*" MinHeight="200" MaxHeight="300" />
+                                                <!-- Row 5: Footer Status Message -->
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Row 0: Header title -->
+                                            <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                                                <TextBlock FontSize="18"
+                                                           FontWeight="Bold"
+                                                           Foreground="#0F172A"
+                                                           Text="Quản lý và Khởi tạo Máy trạm Ảo (Giả lập / Demo)" />
+                                                <TextBlock FontSize="13"
+                                                           Margin="0,4,0,0"
+                                                           Foreground="#64748B"
+                                                           Text="Khởi tạo danh sách máy trạm giả lập để kiểm tra hiển thị giao diện, màu sắc trạng thái, bố cục phòng máy (20, 30, 50 máy) mà không cần bật máy thật." />
+                                            </StackPanel>
+
+                                            <!-- Row 1: Controls card -->
+                                            <Border Grid.Row="1"
+                                                    Background="#F8FAFC"
+                                                    BorderBrush="#E2E8F0"
+                                                    BorderThickness="1"
+                                                    CornerRadius="8"
+                                                    Padding="14,12"
+                                                    Margin="0,0,0,12">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="Auto" />
+                                                    </Grid.RowDefinitions>
+
+                                                    <!-- SubRow 0: So luong may -->
+                                                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="180" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0"
+                                                                   FontWeight="SemiBold"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="#334155"
+                                                                   Text="Số lượng máy trạm:" />
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <Button Content="20 máy" Tag="20" Click="VirtualPcQuickCount_Click"
+                                                                    Padding="10,4" Margin="0,0,6,0" Background="#EFF6FF" Foreground="#1D4ED8" BorderBrush="#BFDBFE" FontWeight="SemiBold" Cursor="Hand">
+                                                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="5"/></Style></Button.Resources>
+                                                            </Button>
+                                                            <Button Content="30 máy" Tag="30" Click="VirtualPcQuickCount_Click"
+                                                                    Padding="10,4" Margin="0,0,6,0" Background="#EFF6FF" Foreground="#1D4ED8" BorderBrush="#BFDBFE" FontWeight="SemiBold" Cursor="Hand">
+                                                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="5"/></Style></Button.Resources>
+                                                            </Button>
+                                                            <Button Content="50 máy" Tag="50" Click="VirtualPcQuickCount_Click"
+                                                                    Padding="10,4" Margin="0,0,6,0" Background="#EFF6FF" Foreground="#1D4ED8" BorderBrush="#BFDBFE" FontWeight="SemiBold" Cursor="Hand">
+                                                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="5"/></Style></Button.Resources>
+                                                            </Button>
+                                                            <Button Content="80 máy" Tag="80" Click="VirtualPcQuickCount_Click"
+                                                                    Padding="10,4" Margin="0,0,10,0" Background="#EFF6FF" Foreground="#1D4ED8" BorderBrush="#BFDBFE" FontWeight="SemiBold" Cursor="Hand">
+                                                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="5"/></Style></Button.Resources>
+                                                            </Button>
+                                                            <TextBlock Text="Hoặc tự nhập:" VerticalAlignment="Center" Foreground="#64748B" Margin="0,0,6,0" FontSize="12" />
+                                                            <TextBox x:Name="VirtualPcCountTextBox"
+                                                                     Text="30"
+                                                                     Width="70"
+                                                                     Height="28"
+                                                                     VerticalContentAlignment="Center"
+                                                                     TextAlignment="Center"
+                                                                     FontWeight="Bold"
+                                                                     FontSize="13" />
+                                                            <TextBlock Text="(Tối đa 200 máy)" VerticalAlignment="Center" Foreground="#94A3B8" Margin="8,0,0,0" FontSize="11" />
+                                                        </StackPanel>
+                                                    </Grid>
+
+                                                    <!-- SubRow 1: Che do phan bo trang thai -->
+                                                    <Grid Grid.Row="1" Margin="0,0,0,10">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="180" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0"
+                                                                   FontWeight="SemiBold"
+                                                                   VerticalAlignment="Center"
+                                                                   Foreground="#334155"
+                                                                   Text="Tình trạng / Phân bổ:" />
+                                                        <ComboBox x:Name="VirtualPcDistributionComboBox"
+                                                                  Grid.Column="1"
+                                                                  Width="420"
+                                                                  Height="30"
+                                                                  HorizontalAlignment="Left"
+                                                                  SelectedIndex="0">
+                                                            <ComboBoxItem Tag="RANDOM" Content="🎲 Ngẫu nhiên thực tế (Sẵn sàng, Hội viên, VIP, Khách, Admin, Offline)" IsSelected="True" />
+                                                            <ComboBoxItem Tag="BUSY" Content="🔥 Phòng máy đông đúc (~80% máy đang chơi, 20% online)" />
+                                                            <ComboBoxItem Tag="FULL" Content="🏆 100% Đang sử dụng (Kín tất cả các máy)" />
+                                                            <ComboBoxItem Tag="ALL_ONLINE" Content="🟢 100% Sẵn sàng (Tất cả máy Online)" />
+                                                            <ComboBoxItem Tag="ALL_OFFLINE" Content="🔴 100% Mất kết nối (Offline)" />
+                                                        </ComboBox>
+                                                    </Grid>
+
+                                                    <!-- SubRow 2: Checkboxes tuy chon -->
+                                                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,12">
+                                                        <CheckBox x:Name="VirtualPcAssignGroupsCheckBox"
+                                                                  Content="Tự động phân nhóm (Phòng Thường, VIP, Thi Đấu, Stream)"
+                                                                  IsChecked="True"
+                                                                  Margin="0,0,20,0" />
+                                                        <CheckBox x:Name="VirtualPcAddServicesCheckBox"
+                                                                  Content="Giả lập tiền dịch vụ đồ ăn / nước uống"
+                                                                  IsChecked="True"
+                                                                  Margin="0,0,20,0" />
+                                                        <CheckBox x:Name="VirtualPcEnableDisplayCheckBox"
+                                                                  Content="Hiển thị máy ảo trên tab Máy trạm"
+                                                                  IsChecked="True"
+                                                                  FontWeight="Bold"
+                                                                  Foreground="#2563EB"
+                                                                  Checked="VirtualPcEnableDisplay_Changed"
+                                                                  Unchecked="VirtualPcEnableDisplay_Changed" />
+                                                    </StackPanel>
+
+                                                    <!-- SubRow 3: Action Buttons -->
+                                                    <StackPanel Grid.Row="3" Orientation="Horizontal">
+                                                        <Button x:Name="GenerateVirtualPcsButton"
+                                                                Content="🚀 Khởi tạo máy trạm ảo"
+                                                                Padding="16,8"
+                                                                Margin="0,0,8,0"
+                                                                Background="#2563EB"
+                                                                Foreground="White"
+                                                                FontWeight="Bold"
+                                                                Cursor="Hand"
+                                                                Click="GenerateVirtualPcsButton_Click">
+                                                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                                        </Button>
+
+                                                        <Button x:Name="ShuffleVirtualPcsButton"
+                                                                Content="🎲 Đổi ngẫu nhiên trạng thái"
+                                                                Padding="14,8"
+                                                                Margin="0,0,8,0"
+                                                                Background="#10B981"
+                                                                Foreground="White"
+                                                                FontWeight="SemiBold"
+                                                                Cursor="Hand"
+                                                                Click="ShuffleVirtualPcsButton_Click">
+                                                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                                        </Button>
+
+                                                        <Button x:Name="ClearVirtualPcsButton"
+                                                                Content="🧹 Xóa toàn bộ máy ảo"
+                                                                Padding="14,8"
+                                                                Margin="0,0,8,0"
+                                                                Background="#EF4444"
+                                                                Foreground="White"
+                                                                FontWeight="SemiBold"
+                                                                Cursor="Hand"
+                                                                Click="ClearVirtualPcsButton_Click">
+                                                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                                        </Button>
+
+                                                        <Button x:Name="JumpToMachinesTabButton"
+                                                                Content="Xem tab Máy trạm ➜"
+                                                                Padding="14,8"
+                                                                Background="#F1F5F9"
+                                                                Foreground="#1E293B"
+                                                                BorderBrush="#CBD5E1"
+                                                                BorderThickness="1"
+                                                                FontWeight="SemiBold"
+                                                                Cursor="Hand"
+                                                                Click="JumpToMachinesTabButton_Click">
+                                                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+
+                                            <!-- Row 2: Status Summary Badges -->
+                                            <WrapPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10" VerticalAlignment="Center">
+                                                <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,6,4">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="Tổng máy ảo: " FontSize="12" Foreground="#475569" FontWeight="SemiBold" />
+                                                        <TextBlock x:Name="VpBadgeTotalTextBlock" Text="0" FontSize="12" FontWeight="Bold" Foreground="#0F172A" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,6,4">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="🟢 Sẵn sàng: " FontSize="12" Foreground="#065F46" />
+                                                        <TextBlock x:Name="VpBadgeOnlineTextBlock" Text="0" FontSize="12" FontWeight="Bold" Foreground="#059669" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,6,4">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="🔵 Hội viên: " FontSize="12" Foreground="#1E40AF" />
+                                                        <TextBlock x:Name="VpBadgeMemberTextBlock" Text="0" FontSize="12" FontWeight="Bold" Foreground="#2563EB" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Background="#FEFCE8" BorderBrush="#FEF08A" BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,6,4">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="🟡 VIP: " FontSize="12" Foreground="#854D0E" />
+                                                        <TextBlock x:Name="VpBadgeVipTextBlock" Text="0" FontSize="12" FontWeight="Bold" Foreground="#CA8A04" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Background="#FFF7ED" BorderBrush="#FED7AA" BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,6,4">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="🟠 Khách: " FontSize="12" Foreground="#9A3412" />
+                                                        <TextBlock x:Name="VpBadgeGuestTextBlock" Text="0" FontSize="12" FontWeight="Bold" Foreground="#EA580C" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Background="#FEF9C3" BorderBrush="#FDE047" BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,6,4">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="👑 Admin: " FontSize="12" Foreground="#713F12" />
+                                                        <TextBlock x:Name="VpBadgeAdminTextBlock" Text="0" FontSize="12" FontWeight="Bold" Foreground="#A16207" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,6,4">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="🔴 Offline: " FontSize="12" Foreground="#991B1B" />
+                                                        <TextBlock x:Name="VpBadgeOffTextBlock" Text="0" FontSize="12" FontWeight="Bold" Foreground="#DC2626" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,6,4">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="💰 Tiền giờ: " FontSize="12" Foreground="#475569" />
+                                                        <TextBlock x:Name="VpBadgeMoneyTextBlock" Text="0 đ" FontSize="12" FontWeight="Bold" Foreground="#0284C7" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="8,4">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="🍜 Tiền DV: " FontSize="12" Foreground="#475569" />
+                                                        <TextBlock x:Name="VpBadgeServicesTextBlock" Text="0 đ" FontSize="12" FontWeight="Bold" Foreground="#16A34A" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </WrapPanel>
+
+                                            <!-- Row 3: Preview Header -->
+                                            <TextBlock Grid.Row="3"
+                                                       Text="Danh sách xem trước máy trạm ảo:"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#334155"
+                                                       Margin="0,4,0,6" />
+
+                                            <!-- Row 4: Preview DataGrid -->
+                                            <DataGrid x:Name="VirtualPcsPreviewDataGrid"
+                                                      Grid.Row="4"
+                                                      AutoGenerateColumns="False"
+                                                      CanUserAddRows="False"
+                                                      IsReadOnly="True"
+                                                      SelectionMode="Single"
+                                                      HeadersVisibility="Column"
+                                                      Background="White"
+                                                      RowHeight="34"
+                                                      FontSize="12"
+                                                      BorderBrush="#E2E8F0"
+                                                      BorderThickness="1"
+                                                      GridLinesVisibility="Horizontal"
+                                                      HorizontalGridLinesBrush="#F1F5F9">
+                                                <DataGrid.Columns>
+                                                    <DataGridTemplateColumn Header="Tên máy" Width="130">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <svgc:SvgViewbox Source="{Binding StatusIconPath}"
+                                                                                     Width="22"
+                                                                                     Height="22"
+                                                                                     Margin="2,0,6,0"
+                                                                                     VerticalAlignment="Center" />
+                                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                    <DataGridTextColumn Header="Tình trạng" Binding="{Binding StatusText}" Width="120" FontWeight="SemiBold" />
+                                                    <DataGridTextColumn Header="Người dùng" Binding="{Binding UserName}" Width="130" />
+                                                    <DataGridTextColumn Header="Bắt đầu" Binding="{Binding StartedAtText}" Width="80" />
+                                                    <DataGridTextColumn Header="Đã dùng" Binding="{Binding UsedText}" Width="80" />
+                                                    <DataGridTextColumn Header="Còn lại" Binding="{Binding RemainingText}" Width="80" />
+                                                    <DataGridTextColumn Header="Tiền giờ" Binding="{Binding MoneyText}" Width="90" />
+                                                    <DataGridTextColumn Header="Tiền DV" Binding="{Binding ServiceAmountText}" Width="80" />
+                                                    <DataGridTextColumn Header="Nhóm máy" Binding="{Binding GroupName}" Width="120" />
+                                                    <DataGridTextColumn Header="Địa chỉ IP" Binding="{Binding IpAddress}" Width="110" />
+                                                </DataGrid.Columns>
+                                            </DataGrid>
+
+                                            <!-- Row 5: Footer Status Message -->
+                                            <TextBlock x:Name="VirtualPcStatusMessageTextBlock"
+                                                       Grid.Row="5"
+                                                       Margin="0,8,0,0"
+                                                       Foreground="#64748B"
+                                                       FontSize="12"
+                                                       Text="Sẵn sàng khởi tạo máy trạm ảo." />
                                         </Grid>
                                     </Border>
                                 </TabItem>

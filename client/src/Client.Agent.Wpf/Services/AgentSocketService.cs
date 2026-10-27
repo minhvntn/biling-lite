@@ -35,6 +35,8 @@ public sealed class AgentSocketService : IAsyncDisposable
     public Action<string, string, string, string?, string, int, decimal, string>? ResumeMemberSessionHandler { get; set; }
     public Action<List<(string Name, decimal Discount)>>? PromotionChangedHandler { get; set; }
     public Action<string, string, string>? SupportReplyHandler { get; set; }
+    public Action? SupportClearedHandler { get; set; }
+    public Action<int, decimal?>? SessionBillingHandler { get; set; }
 
     public AgentSocketService(
         AgentSettings settings,
@@ -204,9 +206,28 @@ public sealed class AgentSocketService : IAsyncDisposable
                 _guestLoginEnabledHandler?.Invoke(guestEnabled.GetBoolean());
             }
 
+            decimal? estimatedAmount = null;
+            if (element.TryGetProperty("estimatedAmount", out var estProp) && estProp.ValueKind != JsonValueKind.Null)
+            {
+                if (estProp.ValueKind == JsonValueKind.Number && estProp.TryGetDecimal(out var parsedNum))
+                {
+                    estimatedAmount = parsedNum;
+                }
+                else if (estProp.ValueKind == JsonValueKind.String && decimal.TryParse(estProp.GetString(), out var parsedStr))
+                {
+                    estimatedAmount = parsedStr;
+                }
+            }
+
             if (element.TryGetProperty("elapsedSeconds", out var elapsed))
             {
-                _elapsedSecondsHandler?.Invoke(elapsed.GetInt32());
+                var el = elapsed.GetInt32();
+                _elapsedSecondsHandler?.Invoke(el);
+                SessionBillingHandler?.Invoke(el, estimatedAmount);
+            }
+            else if (estimatedAmount.HasValue)
+            {
+                SessionBillingHandler?.Invoke(-1, estimatedAmount);
             }
 
             if (element.TryGetProperty("resumeGuestSession", out var resumeGuest))
@@ -298,9 +319,28 @@ public sealed class AgentSocketService : IAsyncDisposable
                 _guestLoginEnabledHandler?.Invoke(guestEnabled.GetBoolean());
             }
 
+            decimal? estimatedAmount = null;
+            if (element.TryGetProperty("estimatedAmount", out var estProp) && estProp.ValueKind != JsonValueKind.Null)
+            {
+                if (estProp.ValueKind == JsonValueKind.Number && estProp.TryGetDecimal(out var parsedNum))
+                {
+                    estimatedAmount = parsedNum;
+                }
+                else if (estProp.ValueKind == JsonValueKind.String && decimal.TryParse(estProp.GetString(), out var parsedStr))
+                {
+                    estimatedAmount = parsedStr;
+                }
+            }
+
             if (element.TryGetProperty("elapsedSeconds", out var elapsed))
             {
-                _elapsedSecondsHandler?.Invoke(elapsed.GetInt32());
+                var el = elapsed.GetInt32();
+                _elapsedSecondsHandler?.Invoke(el);
+                SessionBillingHandler?.Invoke(el, estimatedAmount);
+            }
+            else if (estimatedAmount.HasValue)
+            {
+                SessionBillingHandler?.Invoke(-1, estimatedAmount);
             }
 
             var promosList2 = new List<(string Name, decimal Discount)>();
@@ -332,6 +372,44 @@ public sealed class AgentSocketService : IAsyncDisposable
                 }
             }
             PromotionChangedHandler?.Invoke(promosList2);
+        });
+
+        _socket.On("session.billing.updated", async response =>
+        {
+            try
+            {
+                var element = response.GetValue<System.Text.Json.JsonElement>();
+                int elapsedSeconds = -1;
+                if (element.TryGetProperty("elapsedSeconds", out var elProp) && elProp.ValueKind == JsonValueKind.Number)
+                {
+                    elapsedSeconds = elProp.GetInt32();
+                    _elapsedSecondsHandler?.Invoke(elapsedSeconds);
+                }
+
+                decimal? estimatedAmount = null;
+                if (element.TryGetProperty("estimatedAmount", out var estProp) && estProp.ValueKind != JsonValueKind.Null)
+                {
+                    if (estProp.ValueKind == JsonValueKind.Number && estProp.TryGetDecimal(out var parsedNum))
+                    {
+                        estimatedAmount = parsedNum;
+                    }
+                    else if (estProp.ValueKind == JsonValueKind.String && decimal.TryParse(estProp.GetString(), out var val))
+                    {
+                        estimatedAmount = val;
+                    }
+                }
+
+                if (element.TryGetProperty("hourlyRate", out var rateProp) && rateProp.ValueKind == JsonValueKind.Number)
+                {
+                    _hourlyRateHandler?.Invoke(rateProp.GetDecimal());
+                }
+
+                SessionBillingHandler?.Invoke(elapsedSeconds, estimatedAmount);
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync("Failed to handle session.billing.updated", ex);
+            }
         });
 
         _socket.On("member.account.changed", async response =>
@@ -412,6 +490,18 @@ public sealed class AgentSocketService : IAsyncDisposable
             catch (Exception ex)
             {
                 await _logger.ErrorAsync("Failed to parse admin.reply_support", ex);
+            }
+        });
+
+        _socket.On("admin.support_cleared", async _ =>
+        {
+            try
+            {
+                SupportClearedHandler?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync("Failed to handle admin.support_cleared", ex);
             }
         });
 

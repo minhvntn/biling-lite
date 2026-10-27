@@ -363,6 +363,9 @@ public partial class MainWindow : Window
             _lockScreenBackgroundMode = NormalizeLockScreenBackgroundMode(response.LockScreenBackgroundMode);
             _lockScreenBackgroundUrl = (response.LockScreenBackgroundUrl ?? string.Empty).Trim();
             _gameLauncherPath = (response.GameLauncherPath ?? string.Empty).Trim();
+            _vpnEnabled = response.VpnEnabled;
+            _vpnLocalInstallerPath = (response.VpnLocalInstallerPath ?? @"D:\Games\Tools\Cloudflare_WARP_Release-x64.msi").Trim();
+            _vpnDownloadUrl = (response.VpnDownloadUrl ?? "https://1111-releases.cloudflareclient.com/windows/Cloudflare_WARP_Release-x64.msi").Trim();
             MemberWithdrawEnabledCheckBox.IsChecked = response.AllowMemberWithdraw;
             MemberTopupRequestEnabledCheckBox.IsChecked = response.AllowMemberTopupRequest;
 
@@ -371,6 +374,9 @@ public partial class MainWindow : Window
             SetLockScreenBackgroundModeUi(_lockScreenBackgroundMode);
             LockScreenBackgroundUrlTextBox.Text = _lockScreenBackgroundUrl;
             GameLauncherPathTextBox.Text = _gameLauncherPath;
+            VpnEnabledCheckBox.IsChecked = _vpnEnabled;
+            VpnLocalInstallerPathTextBox.Text = _vpnLocalInstallerPath;
+            VpnDownloadUrlTextBox.Text = _vpnDownloadUrl;
             VietQrBankIdTextBox.Text = (response.VietQrBankId ?? string.Empty).Trim();
             VietQrAccountNoTextBox.Text = (response.VietQrAccountNo ?? string.Empty).Trim();
             VietQrAccountNameTextBox.Text = (response.VietQrAccountName ?? string.Empty).Trim();
@@ -392,6 +398,11 @@ public partial class MainWindow : Window
                 AutoCollapseStatusTextBlock.Foreground = Brushes.Gray;
             }
 
+            VpnSettingsStatusTextBlock.Text = _vpnEnabled
+                ? $"Đang bật VPN máy trạm. File cài: {(_vpnLocalInstallerPath.Length > 0 ? _vpnLocalInstallerPath : "Tải từ Internet")}"
+                : "Đang tắt tính năng VPN trên máy trạm.";
+            VpnSettingsStatusTextBlock.Foreground = _vpnEnabled ? Brushes.DarkGreen : Brushes.Gray;
+
             LockScreenBackgroundStatusTextBlock.Text =
                 DescribeLockScreenBackground(_lockScreenBackgroundMode, _lockScreenBackgroundUrl);
             LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGreen;
@@ -402,11 +413,12 @@ public partial class MainWindow : Window
             ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.Firebrick;
             LockScreenBackgroundStatusTextBlock.Text = "Khong ket noi duoc backend de doc cai dat nen lock screen.";
             LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
-            LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
             AutoCollapseStatusTextBlock.Text = "Không kết nối được backend để đọc cài đặt tự động thu gọn.";
             AutoCollapseStatusTextBlock.Foreground = Brushes.Firebrick;
             GameLauncherPathStatusTextBlock.Text = "Không kết nối được backend để tải đường dẫn Menu Game.";
             GameLauncherPathStatusTextBlock.Foreground = Brushes.Firebrick;
+            VpnSettingsStatusTextBlock.Text = "Không kết nối được backend để tải cấu hình VPN.";
+            VpnSettingsStatusTextBlock.Foreground = Brushes.Firebrick;
         }
         finally
         {
@@ -477,6 +489,9 @@ public partial class MainWindow : Window
                     allowMemberTopupRequest = MemberTopupRequestEnabledCheckBox.IsChecked == true,
                     autoCollapseIntervalSeconds = collapseSeconds,
                     gameLauncherPath = GameLauncherPathTextBox.Text.Trim(),
+                    vpnEnabled = VpnEnabledCheckBox.IsChecked == true,
+                    vpnLocalInstallerPath = VpnLocalInstallerPathTextBox.Text.Trim(),
+                    vpnDownloadUrl = VpnDownloadUrlTextBox.Text.Trim(),
                     vietQrBankId = VietQrBankIdTextBox.Text.Trim(),
                     vietQrAccountNo = VietQrAccountNoTextBox.Text.Trim(),
                     vietQrAccountName = VietQrAccountNameTextBox.Text.Trim(),
@@ -493,6 +508,9 @@ public partial class MainWindow : Window
                 AutoCollapseStatusTextBlock.Text =
                     $"Lưu cấu hình tự động thu gọn thất bại ({(int)response.StatusCode}).";
                 AutoCollapseStatusTextBlock.Foreground = Brushes.Firebrick;
+                VpnSettingsStatusTextBlock.Text =
+                    $"Lưu cấu hình VPN thất bại ({(int)response.StatusCode}).";
+                VpnSettingsStatusTextBlock.Foreground = Brushes.Firebrick;
                 AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Luu cai dat runtime client that bai");
                 return;
             }
@@ -503,6 +521,9 @@ public partial class MainWindow : Window
             _lockScreenBackgroundMode = NormalizeLockScreenBackgroundMode(payload?.LockScreenBackgroundMode ?? mode);
             _lockScreenBackgroundUrl = (payload?.LockScreenBackgroundUrl ?? effectiveUrl).Trim();
             _gameLauncherPath = (payload?.GameLauncherPath ?? GameLauncherPathTextBox.Text.Trim()).Trim();
+            _vpnEnabled = payload?.VpnEnabled ?? (VpnEnabledCheckBox.IsChecked == true);
+            _vpnLocalInstallerPath = (payload?.VpnLocalInstallerPath ?? VpnLocalInstallerPathTextBox.Text.Trim()).Trim();
+            _vpnDownloadUrl = (payload?.VpnDownloadUrl ?? VpnDownloadUrlTextBox.Text.Trim()).Trim();
             MemberWithdrawEnabledCheckBox.IsChecked = payload?.AllowMemberWithdraw ?? (MemberWithdrawEnabledCheckBox.IsChecked == true);
             MemberTopupRequestEnabledCheckBox.IsChecked = payload?.AllowMemberTopupRequest ?? (MemberTopupRequestEnabledCheckBox.IsChecked == true);
 
@@ -511,6 +532,9 @@ public partial class MainWindow : Window
             SetLockScreenBackgroundModeUi(_lockScreenBackgroundMode);
             LockScreenBackgroundUrlTextBox.Text = _lockScreenBackgroundUrl;
             GameLauncherPathTextBox.Text = _gameLauncherPath;
+            VpnEnabledCheckBox.IsChecked = _vpnEnabled;
+            VpnLocalInstallerPathTextBox.Text = _vpnLocalInstallerPath;
+            VpnDownloadUrlTextBox.Text = _vpnDownloadUrl;
             VietQrBankIdTextBox.Text = (payload?.VietQrBankId ?? string.Empty).Trim();
             VietQrAccountNoTextBox.Text = (payload?.VietQrAccountNo ?? string.Empty).Trim();
             VietQrAccountNameTextBox.Text = (payload?.VietQrAccountName ?? string.Empty).Trim();
@@ -536,6 +560,9 @@ public partial class MainWindow : Window
             
             GameLauncherPathStatusTextBlock.Text = "Đã lưu đường dẫn Menu Game.";
             GameLauncherPathStatusTextBlock.Foreground = Brushes.DarkGreen;
+
+            VpnSettingsStatusTextBlock.Text = "Đã lưu cấu hình VPN máy trạm.";
+            VpnSettingsStatusTextBlock.Foreground = Brushes.DarkGreen;
             
             if (VietQrStatusTextBlock != null)
             {
@@ -544,7 +571,7 @@ public partial class MainWindow : Window
             }
 
             AppendServiceLog(
-                $"[{DateTime.Now:HH:mm:ss}] Da luu runtime client: auto-shutdown={_readyAutoShutdownMinutes}m, auto-collapse={_autoCollapseIntervalSeconds}s, lockscreen={_lockScreenBackgroundMode}, member-withdraw={(MemberWithdrawEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}, member-topup-request={(MemberTopupRequestEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}");
+                $"[{DateTime.Now:HH:mm:ss}] Da luu runtime client: auto-shutdown={_readyAutoShutdownMinutes}m, auto-collapse={_autoCollapseIntervalSeconds}s, lockscreen={_lockScreenBackgroundMode}, vpn={(_vpnEnabled ? "ON" : "OFF")}, member-withdraw={(MemberWithdrawEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}, member-topup-request={(MemberTopupRequestEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}");
         }
         catch
         {
@@ -552,11 +579,12 @@ public partial class MainWindow : Window
             ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.Firebrick;
             LockScreenBackgroundStatusTextBlock.Text = "Khong ket noi duoc backend khi luu nen lock screen.";
             LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
-            LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
             AutoCollapseStatusTextBlock.Text = "Không kết nối được backend khi lưu cài đặt tự động thu gọn.";
             AutoCollapseStatusTextBlock.Foreground = Brushes.Firebrick;
             GameLauncherPathStatusTextBlock.Text = "Không kết nối được backend khi lưu đường dẫn Menu Game.";
             GameLauncherPathStatusTextBlock.Foreground = Brushes.Firebrick;
+            VpnSettingsStatusTextBlock.Text = "Không kết nối được backend khi lưu cấu hình VPN.";
+            VpnSettingsStatusTextBlock.Foreground = Brushes.Firebrick;
             AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Loi ket noi khi luu runtime client");
         }
     }

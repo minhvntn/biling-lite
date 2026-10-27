@@ -68,7 +68,7 @@
             <!-- Main Content Area (2 columns if expanded) -->
             <Grid Grid.Row="1" Margin="20">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="380"/> <!-- Left Column -->
+                    <ColumnDefinition Width="420"/> <!-- Left Column -->
                     <ColumnDefinition Width="Auto" /> <!-- Right Column (Collapses) -->
                 </Grid.ColumnDefinitions>
 
@@ -163,7 +163,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <svgc:SvgViewbox Grid.Column="0" Source="/Assets/payment/money.svg" Width="18" Height="18" Margin="0,0,12,0"/>
-                                <TextBlock Grid.Column="1" Style="{StaticResource LabelStyle}" Text="Tiền giờ chơi (theo phiên):"/>
+                                <TextBlock Grid.Column="1" Style="{StaticResource LabelStyle}" Text="Tiền giờ chơi:"/>
                                 <TextBlock Grid.Column="2" Style="{StaticResource ValueStyle}" Foreground="#EA580C" Text="{Binding PlayAmountText}"/>
                             </Grid>
 
@@ -223,7 +223,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <svgc:SvgViewbox Grid.Column="0" Source="/Assets/payment/money.svg" Width="16" Height="16" Margin="0,0,12,0"/>
-                                    <TextBlock Grid.Column="1" Style="{StaticResource LabelStyle}" FontSize="13" Text="Tiền giờ chơi theo giá hiện tại (tham khảo):"/>
+                                    <TextBlock Grid.Column="1" Style="{StaticResource LabelStyle}" FontSize="13" Text="Tiền giờ (theo giá hiện tại):"/>
                                     <TextBlock Grid.Column="2" Style="{StaticResource ValueStyle}" FontSize="13" Foreground="#EA580C" Text="{Binding CurrentRatePlayAmountText}"/>
                                 </Grid>
                                 

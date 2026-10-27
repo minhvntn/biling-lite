@@ -253,6 +253,9 @@ public sealed class MachineRow : ObservableObject
 
     private bool _isUsingPromoPlayTime;
     public bool IsUsingPromoPlayTime { get => _isUsingPromoPlayTime; set => SetProperty(ref _isUsingPromoPlayTime, value); }
+
+    private bool _isVirtual;
+    public bool IsVirtual { get => _isVirtual; set => SetProperty(ref _isVirtual, value); }
 }
 
 public sealed class MemberListResponse
@@ -342,6 +345,9 @@ public sealed class ClientRuntimeSettingsResponse
     public string? VietQrBankId { get; set; }
     public string? VietQrAccountNo { get; set; }
     public string? VietQrAccountName { get; set; }
+    public bool VpnEnabled { get; set; } = true;
+    public string? VpnLocalInstallerPath { get; set; }
+    public string? VpnDownloadUrl { get; set; }
     public string ServerTime { get; set; } = string.Empty;
 }
 

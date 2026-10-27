@@ -431,16 +431,18 @@ public partial class LockScreenWindow : Window
             return;
         }
 
-        if (_manualUnlockMode)
+        var username = UsernameTextBox.Text.Trim();
+        var password = PasswordBox.Password;
+
+        bool isAdministrator = username.Equals("administrator", StringComparison.OrdinalIgnoreCase);
+
+        if (_manualUnlockMode && !isAdministrator)
         {
             SubmitManualUnlock();
             return;
         }
 
-        var username = UsernameTextBox.Text.Trim();
-        var password = PasswordBox.Password;
-
-        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
+        if (!isAdministrator && (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password)))
         {
             ErrorTextBlock.Text = "Vui l\u00f2ng nh\u1eadp t\u00ean \u0111\u0103ng nh\u1eadp v\u00e0 m\u1eadt kh\u1ea9u.";
             return;

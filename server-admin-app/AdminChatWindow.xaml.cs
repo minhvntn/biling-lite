@@ -12,6 +12,7 @@ public partial class AdminChatWindow : Window
 {
     private readonly MainWindow _parent;
     private readonly string _pcId;
+    public string PcId => _pcId;
     private readonly string _pcName;
     private readonly ObservableCollection<Models.SupportMessageDto> _messages = new();
     private readonly DispatcherTimer _pollTimer;
@@ -143,6 +144,46 @@ public partial class AdminChatWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show(this, $"Lỗi gửi tin: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    public void ClearMessages()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            _messages.Clear();
+        });
+    }
+
+    private async void ResetChatButton_Click(object sender, RoutedEventArgs e)
+    {
+        var result = MessageBox.Show(
+            this,
+            $"Bạn có chắc muốn xóa toàn bộ tin nhắn hỗ trợ của {_pcName} và bắt đầu phiên chat mới?",
+            "Xác nhận phiên mới",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            var res = await _parent._httpClient.DeleteAsync(_parent.BuildApiUrl($"/pcs/{_pcId}/support-messages"));
+            if (res.IsSuccessStatusCode)
+            {
+                ClearMessages();
+            }
+            else
+            {
+                MessageBox.Show(this, "Không thể xóa lịch sử chat.", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Lỗi xóa lịch sử chat: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

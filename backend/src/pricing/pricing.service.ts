@@ -32,6 +32,12 @@ const DEFAULT_MEMBER_TOPUP_REQUEST_ENABLED = true;
 const CLIENT_AUTO_COLLAPSE_INTERVAL_SECONDS_KEY = '__CLIENT_AUTO_COLLAPSE_INTERVAL_SECONDS__';
 const DEFAULT_AUTO_COLLAPSE_INTERVAL_SECONDS = 0;
 const CLIENT_GAME_LAUNCHER_PATH_KEY = '__CLIENT_GAME_LAUNCHER_PATH__';
+const CLIENT_VPN_ENABLED_KEY = '__CLIENT_VPN_ENABLED__';
+const CLIENT_VPN_LOCAL_INSTALLER_PATH_KEY = '__CLIENT_VPN_LOCAL_INSTALLER_PATH__';
+const CLIENT_VPN_DOWNLOAD_URL_KEY = '__CLIENT_VPN_DOWNLOAD_URL__';
+const DEFAULT_VPN_ENABLED = true;
+const DEFAULT_VPN_LOCAL_INSTALLER_PATH = 'D:\\Games\\Tools\\Cloudflare_WARP_Release-x64.msi';
+const DEFAULT_VPN_DOWNLOAD_URL = 'https://1111-releases.cloudflareclient.com/windows/Cloudflare_WARP_Release-x64.msi';
 const VIETQR_BANK_ID_KEY = '__VIETQR_BANK_ID__';
 const VIETQR_ACCOUNT_NO_KEY = '__VIETQR_ACCOUNT_NO__';
 const VIETQR_ACCOUNT_NAME_KEY = '__VIETQR_ACCOUNT_NAME__';
@@ -95,6 +101,9 @@ export class PricingService {
       vietQrAccountNameSetting,
       topupPromoEnabledSetting,
       topupPromoTiersSetting,
+      vpnEnabledSetting,
+      vpnLocalInstallerPathSetting,
+      vpnDownloadUrlSetting,
     ] = await Promise.all([
       this.ensureClientRuntimeSettings(),
       this.prisma.appSetting.findUnique({
@@ -135,6 +144,15 @@ export class PricingService {
       this.prisma.appSetting.findUnique({
         where: { key: 'TOPUP_PROMO_TIERS' },
       }),
+      this.prisma.appSetting.findUnique({
+        where: { key: CLIENT_VPN_ENABLED_KEY },
+      }),
+      this.prisma.appSetting.findUnique({
+        where: { key: CLIENT_VPN_LOCAL_INSTALLER_PATH_KEY },
+      }),
+      this.prisma.appSetting.findUnique({
+        where: { key: CLIENT_VPN_DOWNLOAD_URL_KEY },
+      }),
     ]);
 
     return {
@@ -170,6 +188,12 @@ export class PricingService {
       vietQrAccountName: vietQrAccountNameSetting?.value || null,
       topupPromoEnabled: topupPromoEnabledSetting?.value === 'true',
       topupPromoTiers: topupPromoTiersSetting?.value || '[]',
+      vpnEnabled: this.parseBooleanSetting(
+        vpnEnabledSetting?.value,
+        DEFAULT_VPN_ENABLED,
+      ),
+      vpnLocalInstallerPath: (vpnLocalInstallerPathSetting?.value ?? DEFAULT_VPN_LOCAL_INSTALLER_PATH).trim(),
+      vpnDownloadUrl: (vpnDownloadUrlSetting?.value ?? DEFAULT_VPN_DOWNLOAD_URL).trim(),
       adminOnline: this.realtime.hasAdminSocket(),
       serverTime: new Date().toISOString(),
     };
@@ -187,6 +211,9 @@ export class PricingService {
     const hasVietQrBankId = payload.vietQrBankId !== undefined;
     const hasVietQrAccountNo = payload.vietQrAccountNo !== undefined;
     const hasVietQrAccountName = payload.vietQrAccountName !== undefined;
+    const hasVpnEnabled = payload.vpnEnabled !== undefined;
+    const hasVpnLocalInstallerPath = payload.vpnLocalInstallerPath !== undefined;
+    const hasVpnDownloadUrl = payload.vpnDownloadUrl !== undefined;
 
     if (
       !hasReadyMinutes &&
@@ -199,7 +226,10 @@ export class PricingService {
       !hasGameLauncherPath &&
       !hasVietQrBankId &&
       !hasVietQrAccountNo &&
-      !hasVietQrAccountName
+      !hasVietQrAccountName &&
+      !hasVpnEnabled &&
+      !hasVpnLocalInstallerPath &&
+      !hasVpnDownloadUrl
     ) {
       throw new BadRequestException('Khong co du lieu cai dat de cap nhat');
     }
@@ -318,6 +348,36 @@ export class PricingService {
         where: { key: VIETQR_ACCOUNT_NAME_KEY },
         update: { value: val },
         create: { key: VIETQR_ACCOUNT_NAME_KEY, value: val },
+      });
+    }
+
+    if (hasVpnEnabled) {
+      const vpnEnabled = payload.vpnEnabled === true;
+      await this.prisma.appSetting.upsert({
+        where: { key: CLIENT_VPN_ENABLED_KEY },
+        update: { value: vpnEnabled ? 'true' : 'false' },
+        create: {
+          key: CLIENT_VPN_ENABLED_KEY,
+          value: vpnEnabled ? 'true' : 'false',
+        },
+      });
+    }
+
+    if (hasVpnLocalInstallerPath) {
+      const pathValue = (payload.vpnLocalInstallerPath ?? '').trim().slice(0, 2048);
+      await this.prisma.appSetting.upsert({
+        where: { key: CLIENT_VPN_LOCAL_INSTALLER_PATH_KEY },
+        update: { value: pathValue },
+        create: { key: CLIENT_VPN_LOCAL_INSTALLER_PATH_KEY, value: pathValue },
+      });
+    }
+
+    if (hasVpnDownloadUrl) {
+      const urlValue = (payload.vpnDownloadUrl ?? '').trim().slice(0, 2048);
+      await this.prisma.appSetting.upsert({
+        where: { key: CLIENT_VPN_DOWNLOAD_URL_KEY },
+        update: { value: urlValue },
+        create: { key: CLIENT_VPN_DOWNLOAD_URL_KEY, value: urlValue },
       });
     }
 

@@ -82,6 +82,9 @@ public partial class MainWindow : Window
     private int _readyAutoShutdownMinutes = 3;
     private int _autoCollapseIntervalSeconds = 0;
     private string _gameLauncherPath = string.Empty;
+    private bool _vpnEnabled = true;
+    private string _vpnLocalInstallerPath = @"D:\Games\Tools\Cloudflare_WARP_Release-x64.msi";
+    private string _vpnDownloadUrl = "https://1111-releases.cloudflareclient.com/windows/Cloudflare_WARP_Release-x64.msi";
     private string _lockScreenBackgroundMode = "none";
     private string _lockScreenBackgroundUrl = string.Empty;
     private bool _webFilterSettingsInitialized;
@@ -203,6 +206,7 @@ public partial class MainWindow : Window
             InitializeMiniGameTab();
             InitializeAppBlockTab();
             InitializeWakeLanProfilesUi();
+            InitializeVirtualPcsTab();
 
             _memberModalAutoCloseTimer.Interval = TimeSpan.FromMinutes(2);
             _memberModalAutoCloseTimer.Tick += MemberModalAutoCloseTimer_Tick;
@@ -440,7 +444,7 @@ public partial class MainWindow : Window
     private async Task RefreshAllDataAsync()
     {
         await RefreshMachinesAsync();
-        await RefreshMembersAsync();
+        await RefreshMembersAsync(forceRefresh: true);
         await RefreshSystemLogsAsync();
         await RefreshTransactionLogsAsync();
         await RefreshGroupsAsync(forceReloadPricing: true);
@@ -458,6 +462,90 @@ public partial class MainWindow : Window
         await RefreshStatisticsAsync();
         await RefreshAppBlockSettingsAsync();
         _appBlockSettingsInitialized = true;
+    }
+
+    private async void MainWindow_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.F5)
+        {
+            e.Handled = true;
+            await ReloadAllSystemDataAsync(isUserInitiated: true);
+        }
+    }
+
+    private async void ReloadAllData_Click(object sender, RoutedEventArgs e)
+    {
+        await ReloadAllSystemDataAsync(isUserInitiated: true);
+    }
+
+    private bool _isReloadingAllData;
+
+    public async Task ReloadAllSystemDataAsync(bool isUserInitiated = true)
+    {
+        if (_isReloadingAllData) return;
+        _isReloadingAllData = true;
+
+        var originalText = ReloadAllDataButtonText?.Text ?? "Tải lại (F5)";
+        if (ReloadAllDataButtonText != null) ReloadAllDataButtonText.Text = "Đang tải...";
+        if (ReloadAllDataButton != null) ReloadAllDataButton.IsEnabled = false;
+
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] 🔄 Đang tải lại toàn bộ dữ liệu và kết nối lại máy chủ...");
+
+        try
+        {
+            // 1. Kiểm tra lại kết nối Backend
+            await CheckBackendHealthAsync();
+
+            // 2. Kết nối lại Realtime Socket
+            await ConnectRealtimeMachineRefreshAsync();
+
+            // 3. Tải lại toàn bộ dữ liệu nghiệp vụ
+            await RefreshAllDataAsync();
+
+            // 4. Đánh dấu đã khởi tạo các cài đặt
+            _loyaltySettingsInitialized = true;
+            _readyShutdownSettingsInitialized = true;
+            _webFilterSettingsInitialized = true;
+            _websiteLogSettingsInitialized = true;
+            _websiteLogFiltersInitialized = true;
+            _loyaltySpinSettingsInitialized = true;
+            _backupSettingsInitialized = true;
+
+            // 5. Tải thêm người dùng server, storage stats, yêu cầu rút/nạp tiền
+            _ = LoadServerUsersAsync();
+            _ = LoadDatabaseStorageStatsAsync();
+            _ = LoadPendingMemberWithdrawRequestsAsync();
+            _ = LoadPendingMemberTopupRequestsAsync();
+
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] ✅ Tải lại toàn bộ dữ liệu từ server thành công.");
+
+            if (isUserInitiated && HealthTextBlock != null && (HealthTextBlock.Text.Contains(I18n.BackendOffline) || HealthTextBlock.Text.Contains("offline", StringComparison.OrdinalIgnoreCase)))
+            {
+                MessageBox.Show(
+                    "Hiện vẫn chưa kết nối được tới Backend / Database.\nVui lòng kiểm tra lại dịch vụ Backend trên máy chủ.",
+                    "Chưa kết nối được máy chủ",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] ❌ Tải lại dữ liệu lỗi: {ex.Message}");
+            if (isUserInitiated)
+            {
+                MessageBox.Show(
+                    $"Tải lại dữ liệu thất bại:\n{ex.Message}\n\nVui lòng kiểm tra xem Backend / Database đã hoạt động chưa.",
+                    "Lỗi kết nối máy chủ",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+        finally
+        {
+            if (ReloadAllDataButtonText != null) ReloadAllDataButtonText.Text = originalText;
+            if (ReloadAllDataButton != null) ReloadAllDataButton.IsEnabled = true;
+            _isReloadingAllData = false;
+        }
     }
 
     private bool IsMembersTabActive()

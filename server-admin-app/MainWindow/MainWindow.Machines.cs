@@ -44,6 +44,19 @@ public partial class MainWindow : Window
 
             var dedupedItems = DeduplicatePcItemsByIp(response.Items);
             var allRows = dedupedItems.Select(ToMachineRow).OrderBy(r => r.Name).ToList();
+
+            if (_isVirtualPcEnabled && _virtualMachineRows.Count > 0)
+            {
+                var realIds = new HashSet<string>(allRows.Select(r => r.Id), StringComparer.OrdinalIgnoreCase);
+                foreach (var vRow in _virtualMachineRows)
+                {
+                    if (!realIds.Contains(vRow.Id))
+                    {
+                        allRows.Add(vRow);
+                    }
+                }
+                allRows = allRows.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            }
             await PopulateMachineServiceAmountsAsync(allRows);
             TrackGuestSessionNotifications(allRows);
             TrackVipSessionNotifications(allRows);
@@ -618,6 +631,12 @@ public partial class MainWindow : Window
         if (selected is null)
         {
             MessageBox.Show(I18n.PleaseSelectPc, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (selected.IsVirtual)
+        {
+            HandleVirtualMachineCommand(selected, action);
             return;
         }
 
@@ -4623,6 +4642,7 @@ public partial class MainWindow
         target.ActiveGuestPrepaidAmount = source.ActiveGuestPrepaidAmount;
         target.IsVipSession = source.IsVipSession;
         target.IsUsingPromoPlayTime = source.IsUsingPromoPlayTime;
+        target.IsVirtual = source.IsVirtual;
     }
 
     private static void UpdateMachineRowsInPlace(IList<MachineRow> targetList, IList<MachineRow> sourceList)

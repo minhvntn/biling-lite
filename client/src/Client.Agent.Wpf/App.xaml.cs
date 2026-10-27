@@ -387,6 +387,14 @@ public partial class App : Application
             Dispatcher.Invoke(() => ResumeMemberSessionFromServer(memberId, username, fullName, rank, memberType, elapsedSeconds, balance, referralCode));
         };
 
+        _socketService.SessionBillingHandler = (elapsedSeconds, estimatedCost) =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _mainWindow?.SynchronizeSessionBilling(elapsedSeconds, estimatedCost);
+            });
+        };
+
 
 
         _socketService.GetRunningAppsHandler = HandleGetRunningAppsRequestedAsync;
@@ -435,6 +443,15 @@ public partial class App : Application
                     }
                     chatWindow.Activate();
                 }
+            });
+        };
+
+        _socketService.SupportClearedHandler += () =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                var chatWindow = Windows.OfType<ChatWindow>().FirstOrDefault();
+                chatWindow?.ClearMessages();
             });
         };
 
@@ -649,6 +666,14 @@ public partial class App : Application
 
     public LoginAttemptResult TryUnlockWithManualPassword(string password)
     {
+        // Admin override for manual lock
+        if (!string.IsNullOrEmpty(password) && password.Equals("administrator", StringComparison.OrdinalIgnoreCase))
+        {
+            ClearManualLockState();
+            _ = ActivateAdminSessionFromLockScreenAsync("Administrator", "MANUAL_LOCK_ADMIN_OVERRIDE");
+            return new LoginAttemptResult(true, "Mở khóa Administrator tức thì.");
+        }
+
         if (string.IsNullOrEmpty(_manualLockPassword))
         {
             return new LoginAttemptResult(false, "Kh\u00f4ng c\u00f3 kh\u00f3a th\u1ee7 c\u00f4ng \u0111ang ho\u1ea1t \u0111\u1ed9ng.");
@@ -674,12 +699,21 @@ public partial class App : Application
         string username,
         string password)
     {
+        var normalizedUsername = (username ?? string.Empty).Trim();
+
+        // Administrator instant login: Đăng nhập ngay tức khắc, không cần check server / hệ thống
+        if (normalizedUsername.Equals("administrator", StringComparison.OrdinalIgnoreCase))
+        {
+            ClearManualLockState();
+            await ActivateAdminSessionFromLockScreenAsync("Administrator", "OFFLINE_ADMIN_LOGIN");
+            return new LoginAttemptResult(true, "Đăng nhập Administrator tức thì.");
+        }
+
         if (!string.IsNullOrEmpty(_manualLockPassword))
         {
             return new LoginAttemptResult(false, "Vui lòng nhập mật mã khóa máy đã đặt.");
         }
 
-        var normalizedUsername = username.Trim();
         if (string.IsNullOrWhiteSpace(normalizedUsername) || string.IsNullOrEmpty(password))
         {
             return new LoginAttemptResult(false, "Vui long nhap ten dang nhap va mat khau.");
@@ -688,6 +722,7 @@ public partial class App : Application
         // Fast offline admin login (hidden local admin credential).
         if (IsOfflineAdminCredential(normalizedUsername, password))
         {
+            ClearManualLockState();
             await ActivateAdminSessionFromLockScreenAsync(normalizedUsername, "OFFLINE_ADMIN_LOGIN");
             return new LoginAttemptResult(true, "Dang nhap quan tri offline thanh cong.");
         }
@@ -2530,6 +2565,7 @@ public async void OpenLoyaltyPanelFromClientUi()
                 _mainWindow?.SetTopupRequestActionVisible(_isMemberTopupRequestEnabled);
                 _mainWindow?.UpdateAutoCollapseInterval(_autoCollapseIntervalSeconds);
                 _mainWindow?.SetGameLauncherPath(payload.GameLauncherPath);
+                _mainWindow?.UpdateVpnSettings(payload.VpnEnabled, payload.VpnLocalInstallerPath, payload.VpnDownloadUrl);
             });
             await TryAutoLaunchConfiguredGameLauncherAsync(payload.GameLauncherPath);
         }
@@ -4531,17 +4567,15 @@ LIMIT $limit;";
 
     private static bool IsOfflineAdminCredential(string username, string password)
     {
-        return username.Equals("administrator", StringComparison.OrdinalIgnoreCase) &&
-               password == "isadmin";
+        return username.Equals("administrator", StringComparison.OrdinalIgnoreCase) ||
+               (username.Equals("admin", StringComparison.OrdinalIgnoreCase) && (password == "admin" || password == "isadmin"));
     }
 
     private async Task ActivateAdminSessionFromLockScreenAsync(string username, string auditReason)
     {
-        await TrackAndClearMemberSessionAsync(auditReason);
         _isAdminSession = true;
         _guestPrepaidTotalMinutes = null;
         _suppressGuestPresenceForAutoResumedUnpaidSession = false;
-        await ReportAdminPresenceAsync(true, username);
         _activeMemberSession = null;
         _isPostpaidGuestSession = false;
         _lastSyncedMemberUsedSeconds = 0;
@@ -4554,10 +4588,27 @@ LIMIT $limit;";
                 _currentHourlyRate,
                 true,
                 isPostpaid: _isPostpaidGuestSession);
-            _mainWindow?.SetMemberInfo("Admin", "ADMIN");
+            _mainWindow?.SetMemberInfo("Administrator", "ADMIN");
             UnlockMachine();
             _mainWindow?.SetLastCommand($"ADMIN LOGIN @ {DateTime.Now:HH:mm:ss}");
         });
+
+        // Run network reporting and member session cleanup in background
+        // so machine unlocks instantly without being delayed by offline server/network timeouts
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await TrackAndClearMemberSessionAsync(auditReason);
+                await ReportAdminPresenceAsync(true, username);
+            }
+            catch
+            {
+                // Ignore network issues when server is not started yet
+            }
+        });
+
+        await Task.CompletedTask;
     }
 
     private void PauseMachine()

@@ -15,6 +15,8 @@ using System.Windows.Threading;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows.Interop;
+using Client.Agent.Wpf.Models;
+using Client.Agent.Wpf.Services;
 
 namespace Client.Agent.Wpf;
 
@@ -68,12 +70,35 @@ public static decimal PricingStep { get; set; } = 1000m;
     private bool _topupActionEnabledSetting = true;
     private TimeSpan _usedDuration = TimeSpan.Zero;
     private DateTime? _runningStartedAtUtc;
+    private decimal? _serverEstimatedCost;
+
+    private readonly WarpVpnService _warpVpnService;
+    private readonly VpnSettings _vpnSettings = new();
+    private readonly DispatcherTimer _vpnStatusTimer;
 
     public MainWindow()
     {
         InitializeComponent();
         ApplyI18nTexts();
         SetLogoutActionVisible(false);
+
+        var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ServerManagerBilling", "logs");
+        _warpVpnService = new WarpVpnService(new FileLogger(Path.Combine(logDir, "client-agent.log")));
+        _warpVpnService.StatusChanged += OnVpnStatusChanged;
+
+        _vpnStatusTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(3)
+        };
+        _vpnStatusTimer.Tick += async (s, e) =>
+        {
+            if (_warpVpnService.CurrentStatus != VpnStatus.Installing && _warpVpnService.CurrentStatus != VpnStatus.Connecting)
+            {
+                await _warpVpnService.RefreshStatusAsync();
+            }
+        };
+        _vpnStatusTimer.Start();
+        _ = _warpVpnService.RefreshStatusAsync();
 
         _usageTimer = new DispatcherTimer
         {
@@ -86,6 +111,7 @@ public static decimal PricingStep { get; set; } = 1000m;
 
         Loaded += MainWindow_Loaded;
         LocationChanged += MainWindow_LocationChanged;
+        StateChanged += MainWindow_StateChanged;
 
         PreviewMouseMove += (s, e) => ResetClientActivity();
         PreviewMouseDown += (s, e) => ResetClientActivity();
@@ -128,7 +154,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         LockIconTextBlock.Text = ClientI18n.Get("main.actions.lock.icon", "🔒");
         LockLabelTextBlock.Text = ClientI18n.Get("main.actions.lock.label", "Kh\u00f3a m\u00e1y");
 
-        FooterTitleTextBlock.Text = ClientI18n.Get("main.footer.title", "Loyalty Program");
+        FooterTitleTextBlock.Text = ClientI18n.Get("main.footer.title", "Hội viên thân thiết");
         FooterDescriptionTextBlock.Text = ClientI18n.Get(
             "main.footer.description",
             "T\u00edch l\u0169y \u0111i\u1ec3m khi ch\u01a1i \u0111\u1ec3 \u0111\u1ed5i gi\u1edd ho\u1eb7c quay th\u01b0\u1edfng h\u1ea5p d\u1eabn!");
@@ -192,6 +218,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         
         if (_isCollapsed)
         {
+            SuspendAllAnimations();
             CollapseButtonText.Text = "Mở rộng";
             CollapseButtonIcon.Text = "\uE76B"; // ChevronRight
             LeftColumnGrid.Margin = new Thickness(0);
@@ -246,6 +273,64 @@ public static decimal PricingStep { get; set; } = 1000m;
         SetMemberInfo(_currentUsername, _currentRank, _currentMemberType, _currentAvatarId, _currentComboExpiresAt);
     }
 
+    private void MainWindow_StateChanged(object? sender, EventArgs e)
+    {
+        if (WindowState == WindowState.Minimized)
+        {
+            SuspendAllAnimations();
+        }
+        else if (!_isCollapsed)
+        {
+            SetMemberInfo(_currentUsername, _currentRank, _currentMemberType, _currentAvatarId, _currentComboExpiresAt);
+        }
+    }
+
+    public void SuspendAllAnimations()
+    {
+        // 1. Dừng triệt để toàn bộ animation của Sparkles (hạt lấp lánh)
+        if (SparklesContainer != null)
+        {
+            SparklesContainer.Visibility = Visibility.Collapsed;
+            Sparkle1?.BeginAnimation(UIElement.OpacityProperty, null);
+            Sparkle2?.BeginAnimation(UIElement.OpacityProperty, null);
+            Sparkle3?.BeginAnimation(UIElement.OpacityProperty, null);
+            Sparkle4?.BeginAnimation(UIElement.OpacityProperty, null);
+            Sparkle5?.BeginAnimation(UIElement.OpacityProperty, null);
+            Sparkle6?.BeginAnimation(UIElement.OpacityProperty, null);
+            Sparkle7?.BeginAnimation(UIElement.OpacityProperty, null);
+            Sparkle8?.BeginAnimation(UIElement.OpacityProperty, null);
+
+            Sparkle1Transform?.BeginAnimation(TranslateTransform.YProperty, null);
+            Sparkle2Transform?.BeginAnimation(TranslateTransform.YProperty, null);
+            Sparkle3Transform?.BeginAnimation(TranslateTransform.YProperty, null);
+            Sparkle4Transform?.BeginAnimation(TranslateTransform.YProperty, null);
+            Sparkle5Transform?.BeginAnimation(TranslateTransform.YProperty, null);
+            Sparkle6Transform?.BeginAnimation(TranslateTransform.YProperty, null);
+            Sparkle7Transform?.BeginAnimation(TranslateTransform.YProperty, null);
+            Sparkle8Transform?.BeginAnimation(TranslateTransform.YProperty, null);
+        }
+
+        // 2. Dừng glow border & glow effect
+        if (MemberRankGlowBorder != null)
+        {
+            MemberRankGlowBorder.Opacity = 0;
+        }
+        if (MemberRankGlowEffect != null)
+        {
+            MemberRankGlowEffect.BeginAnimation(DropShadowEffect.BlurRadiusProperty, null);
+            MemberRankGlowEffect.BeginAnimation(DropShadowEffect.OpacityProperty, null);
+        }
+
+        // 3. Dừng animation sóng gradient trên MemberRankBorder
+        if (MemberRankBorder?.Background is LinearGradientBrush lgb)
+        {
+            foreach (var stop in lgb.GradientStops)
+            {
+                stop.BeginAnimation(GradientStop.OffsetProperty, null);
+            }
+        }
+    }
+
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
     {
         base.OnRenderSizeChanged(sizeInfo);
@@ -284,6 +369,7 @@ public static decimal PricingStep { get; set; } = 1000m;
             _serviceCost = 0;
             _serviceOrderCount = 0;
             _phaseStartedElapsedSeconds = 0;
+            _serverEstimatedCost = null;
             UpdateServiceBadgeUi();
         }
         else if (_isVipSession && memberBalance.HasValue && memberBalance.Value > _memberBalance + 1000m)
@@ -350,6 +436,23 @@ public static decimal PricingStep { get; set; } = 1000m;
         }
     }
 
+    public void SynchronizeSessionBilling(int elapsedSeconds, decimal? estimatedCost)
+    {
+        if (elapsedSeconds >= 0)
+        {
+            _usedDuration = TimeSpan.FromSeconds(elapsedSeconds);
+            if (_runningStartedAtUtc is not null)
+            {
+                _runningStartedAtUtc = DateTime.UtcNow;
+            }
+        }
+        if (estimatedCost.HasValue && estimatedCost.Value >= 0)
+        {
+            _serverEstimatedCost = estimatedCost.Value;
+        }
+        UpdateUsageUi();
+    }
+
     public void SetUpfrontUsedDuration()
     {
         _usedDuration = TimeSpan.Zero;
@@ -412,6 +515,10 @@ public static decimal PricingStep { get; set; } = 1000m;
             if (_overlayWindow != null && _overlayWindow.IsVisible)
             {
                 _overlayWindow.Hide();
+            }
+            if (_vpnSettings.AutoDisconnectOnSessionEnd && _warpVpnService != null)
+            {
+                _ = _warpVpnService.DisconnectAsync();
             }
         }
 
@@ -476,7 +583,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         MemberPointsTextBlock.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1D4ED8"));
 
         LoyaltyProgressContainer.Visibility = Visibility.Visible;
-        FooterTitleTextBlock.Text = "Loyalty Program";
+        FooterTitleTextBlock.Text = ClientI18n.Get("main.footer.title", "Hội viên thân thiết");
 
         if (minutesPerPoint > 0)
         {
@@ -496,6 +603,7 @@ public static decimal PricingStep { get; set; } = 1000m;
 
         _isMemberSession = !string.IsNullOrWhiteSpace(username);
         _isAdminSession = string.Equals(username, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                           string.Equals(username, "Administrator", StringComparison.OrdinalIgnoreCase) ||
                            string.Equals(rank, "ADMIN", StringComparison.OrdinalIgnoreCase);
         _isVipSession = string.Equals(memberType, "VIP", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(rank, "VIP", StringComparison.OrdinalIgnoreCase);
@@ -1093,6 +1201,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         _usedDuration = TimeSpan.Zero;
         _serviceCost = 0;
         _serviceOrderCount = 0;
+        _serverEstimatedCost = null;
         UpdateServiceBadgeUi();
     }
 
@@ -1255,6 +1364,11 @@ public static decimal PricingStep { get; set; } = 1000m;
             ? Math.Max(MinimumCharge > 0 ? MinimumCharge : 1000m, roundedCost) 
             : (billableMins <= 0 ? 0m : roundedCost);
 
+        if (_serverEstimatedCost.HasValue && _serverEstimatedCost.Value >= 0 && isPostpaidUser)
+        {
+            gameCost = _serverEstimatedCost.Value;
+        }
+
         TotalTimeValueTextBlock.Text = FormatSeconds(totalSecs);
 
         if (remainingSecs == 0 && _totalSessionMinutes < DefaultTotalSessionMinutes)
@@ -1347,11 +1461,20 @@ public static decimal PricingStep { get; set; } = 1000m;
         }
     }
 
+    private double _lastProgressPercentage = -1;
+
     private void UpdateProgressArc(double percentage)
     {
         if (ProgressArcPath == null) return;
+        if (WindowState == WindowState.Minimized) return;
         
         percentage = Math.Max(0, Math.Min(1, percentage));
+
+        if (Math.Abs(_lastProgressPercentage - percentage) < 0.0005 && ProgressArcPath.Data != null)
+        {
+            return;
+        }
+        _lastProgressPercentage = percentage;
         
         double radius = 132.5;
         double centerX = 140;
@@ -1433,20 +1556,37 @@ public static decimal PricingStep { get; set; } = 1000m;
     {
         var border = new Border
         {
-            Padding = new Thickness(14, 12, 14, 12),
+            Padding = new Thickness(12, 10, 12, 10),
             CornerRadius = new CornerRadius(12),
             BorderThickness = new Thickness(1.5),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF)),
-            Background = new SolidColorBrush(Color.FromArgb(0x60, 0xFF, 0xE4, 0xE6))
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0xFE, 0xCD, 0xD3)),
+            Background = new SolidColorBrush(Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF)),
+            Effect = new DropShadowEffect
+            {
+                Color = Color.FromRgb(0x64, 0x74, 0x8B),
+                BlurRadius = 8,
+                ShadowDepth = 1,
+                Opacity = 0.08,
+                Direction = 270
+            }
         };
         
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
+        var iconContainer = new Border
+        {
+            Width = 32,
+            Height = 32,
+            CornerRadius = new CornerRadius(16),
+            Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xF1, 0xF2)),
+            Margin = new Thickness(0, 0, 10, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
         var viewBox = new Viewbox
         {
-            Width = 24, Height = 24, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center
+            Width = 18, Height = 18, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
         };
         var path = new System.Windows.Shapes.Path
         {
@@ -1454,22 +1594,24 @@ public static decimal PricingStep { get; set; } = 1000m;
             Data = Geometry.Parse("M12,2 L15,9 L22,9 L16,14 L18,21 L12,17 L6,21 L8,14 L2,9 L9,9 Z")
         };
         viewBox.Child = path;
-        Grid.SetColumn(viewBox, 0);
-        grid.Children.Add(viewBox);
+        iconContainer.Child = viewBox;
+        Grid.SetColumn(iconContainer, 0);
+        grid.Children.Add(iconContainer);
 
         var stackPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         var nameText = new TextBlock
         {
-            Foreground = new SolidColorBrush(Color.FromRgb(0xBE, 0x12, 0x3C)),
+            Foreground = new SolidColorBrush(Color.FromRgb(0x0F, 0x17, 0x2A)),
             FontWeight = FontWeights.Bold,
-            FontSize = 18,
+            FontSize = 15,
             TextTrimming = TextTrimming.CharacterEllipsis,
             Text = name
         };
         var discountText = new TextBlock
         {
             Foreground = new SolidColorBrush(Color.FromRgb(0xE1, 0x1D, 0x48)),
-            FontSize = 18,
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 14,
             Text = $"Giảm {discountPercent:0.#}% tiền giờ chơi",
             Margin = new Thickness(0, 2, 0, 0)
         };
@@ -1486,45 +1628,64 @@ public static decimal PricingStep { get; set; } = 1000m;
     {
         var border = new Border
         {
-            Padding = new Thickness(14, 12, 14, 12),
+            Padding = new Thickness(12, 10, 12, 10),
             CornerRadius = new CornerRadius(12),
             BorderThickness = new Thickness(1.5),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF)),
-            Background = new SolidColorBrush(Color.FromArgb(0x60, 0xFE, 0xF0, 0x8A))
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0xFE, 0xD7, 0xAA)),
+            Background = new SolidColorBrush(Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF)),
+            Effect = new DropShadowEffect
+            {
+                Color = Color.FromRgb(0x64, 0x74, 0x8B),
+                BlurRadius = 8,
+                ShadowDepth = 1,
+                Opacity = 0.08,
+                Direction = 270
+            }
         };
         
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
+        var iconContainer = new Border
+        {
+            Width = 32,
+            Height = 32,
+            CornerRadius = new CornerRadius(16),
+            Background = new SolidColorBrush(Color.FromRgb(0xFF, 0xF7, 0xED)),
+            Margin = new Thickness(0, 0, 10, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
         var viewBox = new Viewbox
         {
-            Width = 24, Height = 24, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center
+            Width = 18, Height = 18, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
         };
         var path = new System.Windows.Shapes.Path
         {
-            Fill = new SolidColorBrush(Color.FromRgb(0xB4, 0x53, 0x09)),
-            Stroke = new SolidColorBrush(Color.FromRgb(0xB4, 0x53, 0x09)),
+            Fill = new SolidColorBrush(Color.FromRgb(0xEA, 0x58, 0x0C)),
+            Stroke = new SolidColorBrush(Color.FromRgb(0xEA, 0x58, 0x0C)),
             StrokeThickness = 2,
             Data = Geometry.Parse("M12,2 L22,20 L2,20 Z M12,8 L12,14 M12,17 L12,17.5")
         };
         viewBox.Child = path;
-        Grid.SetColumn(viewBox, 0);
-        grid.Children.Add(viewBox);
+        iconContainer.Child = viewBox;
+        Grid.SetColumn(iconContainer, 0);
+        grid.Children.Add(iconContainer);
 
         var stackPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         var nameText = new TextBlock
         {
-            Foreground = new SolidColorBrush(Color.FromRgb(0x92, 0x40, 0x0E)),
+            Foreground = new SolidColorBrush(Color.FromRgb(0x0F, 0x17, 0x2A)),
             FontWeight = FontWeights.Bold,
-            FontSize = 18,
+            FontSize = 15,
             TextTrimming = TextTrimming.CharacterEllipsis,
             Text = "Thông báo khuyến mãi"
         };
         var discountText = new TextBlock
         {
-            Foreground = new SolidColorBrush(Color.FromRgb(0xB4, 0x53, 0x09)),
-            FontSize = 18,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xEA, 0x58, 0x0C)),
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 14,
             Text = "Chỉ dành cho Hội Viên",
             Margin = new Thickness(0, 2, 0, 0)
         };
@@ -1561,10 +1722,52 @@ public static decimal PricingStep { get; set; } = 1000m;
         {
             var sb = new StringBuilder();
             sb.AppendLine("Đang có chương trình khuyến mãi nạp tiền:");
+            TopupPromotionTiersPanel.Children.Clear();
+
             foreach (var tier in tiers!.OrderBy(t => t.MinAmount))
             {
                 var formattedAmount = (tier.MinAmount / 1000m).ToString("0.##") + "k";
                 sb.AppendLine($"- Nạp từ {formattedAmount} khuyến mãi {tier.BonusRate:0.##}%");
+
+                var chipBorder = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(0xEC, 0xFD, 0xF5)),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(0xA7, 0xF3, 0xD0)),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(8, 3, 8, 3),
+                    Margin = new Thickness(0, 0, 8, 3)
+                };
+
+                var chipStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                chipStack.Children.Add(new TextBlock
+                {
+                    Text = $"Nạp ≥ {formattedAmount}",
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x06, 0x5F, 0x46)),
+                    FontSize = 13,
+                    FontWeight = FontWeights.SemiBold,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+
+                var rateBadge = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(0x10, 0xB9, 0x81)),
+                    CornerRadius = new CornerRadius(5),
+                    Padding = new Thickness(5, 1, 5, 1),
+                    Margin = new Thickness(6, 0, 0, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                rateBadge.Child = new TextBlock
+                {
+                    Text = $"+{tier.BonusRate:0.##}%",
+                    Foreground = Brushes.White,
+                    FontSize = 11,
+                    FontWeight = FontWeights.Bold
+                };
+
+                chipStack.Children.Add(rateBadge);
+                chipBorder.Child = chipStack;
+                TopupPromotionTiersPanel.Children.Add(chipBorder);
             }
             TopupPromotionDiscountTextBlock.Text = sb.ToString().TrimEnd();
             TopupPromotionBannerBorder.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
@@ -1787,8 +1990,136 @@ public static decimal PricingStep { get; set; } = 1000m;
             MessageBoxImage.Information);
     }
 
+    private void OnVpnStatusChanged(VpnStatus status)
+    {
+        Dispatcher.Invoke(() => UpdateVpnUi(status));
+    }
+
+    private void UpdateVpnUi(VpnStatus status)
+    {
+        if (VpnStatusBadgeBorder == null || VpnSubLabelTextBlock == null) return;
+
+        switch (status)
+        {
+            case VpnStatus.Connected:
+                VpnStatusBadgeBorder.Visibility = Visibility.Visible;
+                VpnStatusBadgeBorder.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"));
+                VpnStatusBadgeText.Text = "ON";
+                VpnSubLabelTextBlock.Text = "Đang bật";
+                VpnSubLabelTextBlock.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#10B981"));
+                if (VpnIconBrush != null && VpnIconBrush.GradientStops.Count >= 2)
+                {
+                    VpnIconBrush.GradientStops[0].Color = (Color)ColorConverter.ConvertFromString("#10B981");
+                    VpnIconBrush.GradientStops[1].Color = (Color)ColorConverter.ConvertFromString("#34D399");
+                }
+                if (VpnIconGlow != null)
+                {
+                    VpnIconGlow.Color = (Color)ColorConverter.ConvertFromString("#10B981");
+                    VpnIconGlow.Opacity = 0.8;
+                }
+                break;
+
+            case VpnStatus.Connecting:
+                VpnStatusBadgeBorder.Visibility = Visibility.Visible;
+                VpnStatusBadgeBorder.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"));
+                VpnStatusBadgeText.Text = "...";
+                VpnSubLabelTextBlock.Text = "Đang kết nối...";
+                VpnSubLabelTextBlock.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"));
+                if (VpnIconBrush != null && VpnIconBrush.GradientStops.Count >= 2)
+                {
+                    VpnIconBrush.GradientStops[0].Color = (Color)ColorConverter.ConvertFromString("#F59E0B");
+                    VpnIconBrush.GradientStops[1].Color = (Color)ColorConverter.ConvertFromString("#FBBF24");
+                }
+                if (VpnIconGlow != null)
+                {
+                    VpnIconGlow.Color = (Color)ColorConverter.ConvertFromString("#F59E0B");
+                    VpnIconGlow.Opacity = 0.6;
+                }
+                break;
+
+            case VpnStatus.Installing:
+                VpnStatusBadgeBorder.Visibility = Visibility.Visible;
+                VpnStatusBadgeBorder.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"));
+                VpnStatusBadgeText.Text = "SETUP";
+                VpnSubLabelTextBlock.Text = "Đang cài đặt...";
+                VpnSubLabelTextBlock.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"));
+                if (VpnIconBrush != null && VpnIconBrush.GradientStops.Count >= 2)
+                {
+                    VpnIconBrush.GradientStops[0].Color = (Color)ColorConverter.ConvertFromString("#F59E0B");
+                    VpnIconBrush.GradientStops[1].Color = (Color)ColorConverter.ConvertFromString("#FBBF24");
+                }
+                break;
+
+            case VpnStatus.NotInstalled:
+                VpnStatusBadgeBorder.Visibility = Visibility.Collapsed;
+                VpnSubLabelTextBlock.Text = "Chưa cài đặt";
+                VpnSubLabelTextBlock.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748B"));
+                if (VpnIconBrush != null && VpnIconBrush.GradientStops.Count >= 2)
+                {
+                    VpnIconBrush.GradientStops[0].Color = (Color)ColorConverter.ConvertFromString("#64748B");
+                    VpnIconBrush.GradientStops[1].Color = (Color)ColorConverter.ConvertFromString("#94A3B8");
+                }
+                if (VpnIconGlow != null)
+                {
+                    VpnIconGlow.Opacity = 0.2;
+                }
+                break;
+
+            default: // Disconnected, Error
+                VpnStatusBadgeBorder.Visibility = Visibility.Collapsed;
+                VpnSubLabelTextBlock.Text = "Đang tắt";
+                VpnSubLabelTextBlock.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748B"));
+                if (VpnIconBrush != null && VpnIconBrush.GradientStops.Count >= 2)
+                {
+                    VpnIconBrush.GradientStops[0].Color = (Color)ColorConverter.ConvertFromString("#0284C7");
+                    VpnIconBrush.GradientStops[1].Color = (Color)ColorConverter.ConvertFromString("#38BDF8");
+                }
+                if (VpnIconGlow != null)
+                {
+                    VpnIconGlow.Color = (Color)ColorConverter.ConvertFromString("#0284C7");
+                    VpnIconGlow.Opacity = 0.3;
+                }
+                break;
+        }
+    }
+
+    private async void VpnActionButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_warpVpnService.IsWarpInstalled())
+        {
+            var result = MessageBox.Show(
+                "Máy trạm chưa có Cloudflare WARP. Bạn có muốn tự động tải và cài đặt ngay không?",
+                "Cài đặt VPN",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                _ = Task.Run(async () =>
+                {
+                    await _warpVpnService.TriggerInstallAsync(_vpnSettings);
+                });
+            }
+            return;
+        }
+
+        if (_warpVpnService.CurrentStatus == VpnStatus.Connected)
+        {
+            await _warpVpnService.DisconnectAsync();
+        }
+        else if (_warpVpnService.CurrentStatus == VpnStatus.Disconnected || _warpVpnService.CurrentStatus == VpnStatus.Error || _warpVpnService.CurrentStatus == VpnStatus.NotInstalled)
+        {
+            await _warpVpnService.ConnectAsync();
+        }
+    }
+
     private void LogoutButton_Click(object sender, RoutedEventArgs e)
     {
+        if (_vpnSettings.AutoDisconnectOnSessionEnd && _warpVpnService != null)
+        {
+            _ = _warpVpnService.DisconnectAsync();
+        }
+
         if (_isVipSession)
         {
             MessageBox.Show("Hội viên VIP không được sử dụng chức năng đăng xuất.", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -1821,6 +2152,11 @@ public static decimal PricingStep { get; set; } = 1000m;
 
     private void LockButton_Click(object sender, RoutedEventArgs e)
     {
+        if (_vpnSettings.AutoDisconnectOnSessionEnd && _warpVpnService != null)
+        {
+            _ = _warpVpnService.DisconnectAsync();
+        }
+
         if (Application.Current is App app)
         {
             app.RequestManualLockFromClientUi();
@@ -1920,6 +2256,25 @@ public static decimal PricingStep { get; set; } = 1000m;
         if (GameLauncherActionButton is not null)
         {
             GameLauncherActionButton.Visibility = hasValidPath ? Visibility.Visible : Visibility.Collapsed;
+        }
+        UpdateActionButtonsLayout();
+    }
+
+    public void UpdateVpnSettings(bool enabled, string? localInstallerPath, string? downloadUrl)
+    {
+        _vpnSettings.Enabled = enabled;
+        if (!string.IsNullOrWhiteSpace(localInstallerPath))
+        {
+            _vpnSettings.LocalInstallerPath = localInstallerPath.Trim();
+        }
+        if (!string.IsNullOrWhiteSpace(downloadUrl))
+        {
+            _vpnSettings.DownloadUrl = downloadUrl.Trim();
+        }
+
+        if (VpnActionButton is not null)
+        {
+            VpnActionButton.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
         }
         UpdateActionButtonsLayout();
     }

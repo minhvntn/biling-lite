@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Client.Watchdog.Service.Models;
 using Client.Watchdog.Service.Services;
 using Microsoft.Extensions.Configuration;
@@ -35,6 +35,7 @@ public class Worker : BackgroundService
             try
             {
                 await MonitorAndRecoverAsync(stoppingToken);
+                await ProcessPendingCommandsAsync(stoppingToken);
             }
             catch (Exception ex)
             {
@@ -149,6 +150,72 @@ public class Worker : BackgroundService
         {
             await _fileLogger.WriteErrorAsync("Failed to run scheduled task", ex);
             return false;
+        }
+    }
+
+    private async Task ProcessPendingCommandsAsync(CancellationToken cancellationToken)
+    {
+        var root = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+        var commandsDir = Path.Combine(root, "ServerManagerBilling", "commands");
+        if (!Directory.Exists(commandsDir))
+        {
+            return;
+        }
+
+        var commandFiles = Directory.GetFiles(commandsDir, "*.json");
+        foreach (var file in commandFiles)
+        {
+            try
+            {
+                var fileName = Path.GetFileName(file);
+                if (fileName.StartsWith("install-warp", StringComparison.OrdinalIgnoreCase))
+                {
+                    var json = await File.ReadAllTextAsync(file, cancellationToken);
+                    using var doc = System.Text.Json.JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("installerPath", out var pathElem))
+                    {
+                        var msiPath = pathElem.GetString();
+                        if (!string.IsNullOrWhiteSpace(msiPath) && File.Exists(msiPath))
+                        {
+                            await _fileLogger.WriteInfoAsync($"[Watchdog] Starting silent install for: {msiPath}");
+                            var psi = new ProcessStartInfo
+                            {
+                                FileName = "msiexec.exe",
+                                Arguments = $"/qn /i \"{msiPath}\" /norestart",
+                                CreateNoWindow = true,
+                                UseShellExecute = false,
+                            };
+                            using var p = Process.Start(psi);
+                            if (p != null)
+                            {
+                                await p.WaitForExitAsync(cancellationToken);
+                                await _fileLogger.WriteInfoAsync($"[Watchdog] Install completed with exit code: {p.ExitCode}");
+                            }
+                        }
+                        else
+                        {
+                            await _fileLogger.WriteErrorAsync($"[Watchdog] Installer path not found: {msiPath}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                await _fileLogger.WriteErrorAsync($"[Watchdog] Command processing error for {file}", ex);
+            }
+            finally
+            {
+                try
+                {
+                    if (File.Exists(file))
+                    {
+                        File.Delete(file);
+                    }
+                }
+                catch
+                {
+                }
+            }
         }
     }
 }
