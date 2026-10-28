@@ -394,4 +394,13 @@ export class MembersController {
   async rebuildRanks(@Body() payload: { maxThreshold: number }) {
     return this.membersService.rebuildRanks(payload.maxThreshold);
   }
+
+  @Post('import-gcafe')
+  @UseInterceptors(FileInterceptor('file'))
+  async importGcafe(
+    @UploadedFile() file?: any,
+    @Body('filePath') filePath?: string,
+  ) {
+    return this.membersService.importGcafe(file, filePath);
+  }
 }

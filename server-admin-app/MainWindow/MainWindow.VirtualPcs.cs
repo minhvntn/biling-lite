@@ -13,7 +13,7 @@ namespace Server.Admin.App;
 public partial class MainWindow : Window
 {
     private readonly ObservableCollection<MachineRow> _virtualMachineRows = new();
-    private bool _isVirtualPcEnabled = true;
+    private bool _isVirtualPcEnabled = false;
     private int _virtualPcCount = 30;
     private string _virtualPcDistributionMode = "RANDOM";
     private bool _virtualPcAssignGroups = true;
@@ -42,6 +42,7 @@ public partial class MainWindow : Window
         }
 
         LoadVirtualPcSettings();
+        UpdateVirtualPcToggleVisuals();
 
         // Nếu chưa có máy ảo nào, tạo mặc định 30 máy
         if (_virtualMachineRows.Count == 0)
@@ -116,9 +117,81 @@ public partial class MainWindow : Window
 
     private void VirtualPcEnableDisplay_Changed(object sender, RoutedEventArgs e)
     {
-        _isVirtualPcEnabled = VirtualPcEnableDisplayCheckBox?.IsChecked ?? true;
+        _isVirtualPcEnabled = VirtualPcEnableDisplayCheckBox?.IsChecked ?? false;
+        UpdateVirtualPcToggleVisuals();
         SaveVirtualPcSettings();
         _ = RefreshMachinesAsync();
+
+        if (VirtualPcStatusMessageTextBlock != null)
+        {
+            VirtualPcStatusMessageTextBlock.Text = _isVirtualPcEnabled
+                ? "Đã BẬT hiển thị máy trạm ảo trên tab Máy trạm."
+                : "Đã TẮT hiển thị máy trạm ảo. Tab Máy trạm hiện chỉ hiển thị các máy tính thật.";
+        }
+    }
+
+    private void UpdateVirtualPcToggleVisuals()
+    {
+        var isEnabled = _isVirtualPcEnabled;
+        if (VirtualPcEnableDisplayCheckBox != null && VirtualPcEnableDisplayCheckBox.IsChecked != isEnabled)
+        {
+            VirtualPcEnableDisplayCheckBox.IsChecked = isEnabled;
+        }
+
+        if (isEnabled)
+        {
+            if (VirtualPcToggleContainerBorder != null)
+            {
+                VirtualPcToggleContainerBorder.Background = new SolidColorBrush(Color.FromRgb(239, 246, 255)); // #EFF6FF
+                VirtualPcToggleContainerBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(147, 197, 253)); // #93C5FD
+            }
+            if (VirtualPcStatusBadgeBorder != null)
+            {
+                VirtualPcStatusBadgeBorder.Background = new SolidColorBrush(Color.FromRgb(220, 252, 231)); // #DCFCE7
+                VirtualPcStatusBadgeBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(134, 239, 172)); // #86EFAC
+            }
+            if (VirtualPcStatusBadgeText != null)
+            {
+                VirtualPcStatusBadgeText.Text = "ĐANG BẬT";
+                VirtualPcStatusBadgeText.Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74)); // #16A34A
+            }
+            if (VirtualPcToggleStateText != null)
+            {
+                VirtualPcToggleStateText.Text = "Đang BẬT";
+                VirtualPcToggleStateText.Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)); // #2563EB
+            }
+            if (VirtualPcToggleDescTextBlock != null)
+            {
+                VirtualPcToggleDescTextBlock.Text = "Máy trạm ảo đang được gộp và hiển thị trên tab Máy trạm cùng với máy thật để bạn kiểm tra giao diện.";
+            }
+        }
+        else
+        {
+            if (VirtualPcToggleContainerBorder != null)
+            {
+                VirtualPcToggleContainerBorder.Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)); // #F8FAFC
+                VirtualPcToggleContainerBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)); // #CBD5E1
+            }
+            if (VirtualPcStatusBadgeBorder != null)
+            {
+                VirtualPcStatusBadgeBorder.Background = new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
+                VirtualPcStatusBadgeBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)); // #CBD5E1
+            }
+            if (VirtualPcStatusBadgeText != null)
+            {
+                VirtualPcStatusBadgeText.Text = "MẶC ĐỊNH: ĐANG TẮT";
+                VirtualPcStatusBadgeText.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748B
+            }
+            if (VirtualPcToggleStateText != null)
+            {
+                VirtualPcToggleStateText.Text = "Đang TẮT";
+                VirtualPcToggleStateText.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139)); // #64748B
+            }
+            if (VirtualPcToggleDescTextBlock != null)
+            {
+                VirtualPcToggleDescTextBlock.Text = "Khi TẮT: Tab Máy trạm chỉ hiển thị các máy tính thật trong phòng máy. Bật toggle này nếu bạn muốn gộp máy ảo vào để xem bố cục / demo.";
+            }
+        }
     }
 
     private string GetCurrentVirtualDistributionMode()
@@ -156,7 +229,8 @@ public partial class MainWindow : Window
 
         if (VirtualPcStatusMessageTextBlock != null)
         {
-            VirtualPcStatusMessageTextBlock.Text = $"Đã tạo thành công {count} máy trạm ảo ({GetModeDisplayName(mode)}) lúc {now:HH:mm:ss}.";
+            var displayNote = _isVirtualPcEnabled ? " (Đang hiển thị trên tab Máy trạm)" : " (Đang TẮT hiển thị trên tab Máy trạm)";
+            VirtualPcStatusMessageTextBlock.Text = $"Đã tạo thành công {count} máy trạm ảo ({GetModeDisplayName(mode)}) lúc {now:HH:mm:ss}{displayNote}.";
         }
     }
 
@@ -177,7 +251,8 @@ public partial class MainWindow : Window
 
         if (VirtualPcStatusMessageTextBlock != null)
         {
-            VirtualPcStatusMessageTextBlock.Text = $"Đã tạo ngẫu nhiên lại trạng thái cho {_virtualMachineRows.Count} máy ảo lúc {now:HH:mm:ss}.";
+            var displayNote = _isVirtualPcEnabled ? " (Đang hiển thị trên tab Máy trạm)" : " (Đang TẮT hiển thị trên tab Máy trạm)";
+            VirtualPcStatusMessageTextBlock.Text = $"Đã tạo ngẫu nhiên lại trạng thái cho {_virtualMachineRows.Count} máy ảo lúc {now:HH:mm:ss}{displayNote}.";
         }
     }
 
@@ -622,6 +697,7 @@ public partial class MainWindow : Window
             if (VirtualPcCountTextBox != null) VirtualPcCountTextBox.Text = _virtualPcCount.ToString();
             if (VirtualPcAssignGroupsCheckBox != null) VirtualPcAssignGroupsCheckBox.IsChecked = _virtualPcAssignGroups;
             if (VirtualPcAddServicesCheckBox != null) VirtualPcAddServicesCheckBox.IsChecked = _virtualPcAddServices;
+            UpdateVirtualPcToggleVisuals();
 
             if (VirtualPcDistributionComboBox != null)
             {
@@ -745,7 +821,7 @@ public partial class MainWindow : Window
 
 public sealed class VirtualPcConfigModel
 {
-    public bool IsEnabled { get; set; } = true;
+    public bool IsEnabled { get; set; } = false;
     public int Count { get; set; } = 30;
     public string Mode { get; set; } = "RANDOM";
     public bool AssignGroups { get; set; } = true;

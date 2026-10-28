@@ -1,7 +1,8 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   createMember,
   fetchMembers,
+  importGcafeMembers,
   topupMember,
   withdrawMemberBalance,
 } from '../api/members';
@@ -22,6 +23,8 @@ export function MembersPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [importingGcafe, setImportingGcafe] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [newUsername, setNewUsername] = useState('');
   const [newFullName, setNewFullName] = useState('');
@@ -164,37 +167,98 @@ export function MembersPage() {
     }
   };
 
+  const handleGcafeFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Reset input value so user can re-select if needed
+    event.target.value = '';
+
+    // Validate đuôi tệp phải là .gbsdat
+    if (!file.name.toLowerCase().endsWith('.gbsdat')) {
+      setError('Định dạng tệp không hợp lệ! Hệ thống chỉ chấp nhận tệp sao lưu GCafe có đuôi mở rộng là .gbsdat (Ví dụ: Main.gbsdat).');
+      return;
+    }
+
+    setImportingGcafe(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const res = await importGcafeMembers(file);
+      setMessage(
+        `✅ Nhập GCafe thành công! Tổng: ${res.processed} tài khoản (Thêm mới: ${res.imported}, Cập nhật: ${res.updated}, Thất bại: ${res.failed}). Tổng tiền nạp vào: ${formatMoney(res.totalMoney)} đ.`
+      );
+      await loadMembers(search);
+    } catch (importErr) {
+      setError(importErr instanceof Error ? importErr.message : 'Nhập hội viên từ GCafe thất bại');
+    } finally {
+      setImportingGcafe(false);
+    }
+  };
+
   return (
     <main className="layout" style={{ maxWidth: '800px', margin: '0 auto' }}>
       <TopNav />
 
       {/* Hero / Header Row */}
       <section className="hero" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.75rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '0.5rem' }}>
           <h1 style={{ margin: 0, fontSize: '1.25rem' }}>Hội viên</h1>
-          <button
-            onClick={() => {
-              setError(null);
-              setMessage(null);
-              setShowCreateModal(true);
-            }}
-            style={{
-              background: '#0066cc',
-              color: '#fff',
-              padding: '0.4rem 0.8rem',
-              borderRadius: '6px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              border: 'none',
-              fontSize: '0.8rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-              boxShadow: '0 2px 4px rgba(0,102,204,0.15)'
-            }}
-          >
-            <span style={{ fontSize: '1rem', fontWeight: 'bold', lineHeight: 0.9 }}>+</span> Thêm hội viên
-          </button>
+          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".gbsdat"
+              style={{ display: 'none' }}
+              onChange={handleGcafeFileSelected}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importingGcafe}
+              style={{
+                background: '#10B981',
+                color: '#fff',
+                padding: '0.4rem 0.8rem',
+                borderRadius: '6px',
+                fontWeight: 600,
+                cursor: importingGcafe ? 'not-allowed' : 'pointer',
+                border: 'none',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                boxShadow: '0 2px 4px rgba(16,185,129,0.15)',
+                opacity: importingGcafe ? 0.7 : 1,
+              }}
+              title="Chọn file Main.gbsdat từ bản sao lưu GCafe"
+            >
+              <span>📥</span> {importingGcafe ? 'Đang nhập...' : 'Nhập từ GCafe'}
+            </button>
+            <button
+              onClick={() => {
+                setError(null);
+                setMessage(null);
+                setShowCreateModal(true);
+              }}
+              style={{
+                background: '#0066cc',
+                color: '#fff',
+                padding: '0.4rem 0.8rem',
+                borderRadius: '6px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                border: 'none',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                boxShadow: '0 2px 4px rgba(0,102,204,0.15)'
+              }}
+            >
+              <span style={{ fontSize: '1rem', fontWeight: 'bold', lineHeight: 0.9 }}>+</span> Thêm hội viên
+            </button>
+          </div>
         </div>
         <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--muted)' }}>Tạo tài khoản, nạp tiền và quy đổi tiền thành giờ chơi</p>
       </section>

@@ -25,8 +25,8 @@ export function PushNotificationManager() {
         title="Cài đặt thông báo đẩy (Web Push)"
         style={{
           position: 'fixed',
-          bottom: '20px',
-          left: '20px',
+          bottom: 'max(16px, env(safe-area-inset-bottom, 16px))',
+          left: 'max(16px, env(safe-area-inset-left, 16px))',
           backgroundColor: isSubscribed ? '#16a34a' : '#2563eb',
           color: '#ffffff',
           border: 'none',
@@ -40,6 +40,7 @@ export function PushNotificationManager() {
           cursor: 'pointer',
           zIndex: 9990,
           fontSize: '20px',
+          transition: 'transform 0.15s ease, box-shadow 0.15s ease',
         }}
       >
         {isSubscribed ? '🔔' : '🔕'}

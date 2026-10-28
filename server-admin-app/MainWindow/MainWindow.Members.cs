@@ -143,6 +143,51 @@ public partial class MainWindow : Window
         if (_allMappedMembers == null) return;
         
         int totalItems = _allMappedMembers.Count;
+        bool isPaginationEnabled = _settings.EnableMembersPagination;
+
+        // Cập nhật giao diện nút Toggle
+        if (MembersPaginationToggleButton != null)
+        {
+            if (isPaginationEnabled)
+            {
+                MembersPaginationToggleButton.Background = new SolidColorBrush(Color.FromRgb(239, 246, 255)); // #EFF6FF
+                MembersPaginationToggleButton.BorderBrush = new SolidColorBrush(Color.FromRgb(37, 99, 235)); // #2563EB
+                MembersPaginationToggleButton.Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235));
+                if (MembersPaginationToggleIcon != null) MembersPaginationToggleIcon.Text = "🟢";
+                if (MembersPaginationToggleText != null) MembersPaginationToggleText.Text = "Phân trang: BẬT";
+                MembersPaginationToggleButton.ToolTip = "Bấm để TẮT phân trang (hiển thị toàn bộ hội viên)";
+            }
+            else
+            {
+                MembersPaginationToggleButton.Background = new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
+                MembersPaginationToggleButton.BorderBrush = new SolidColorBrush(Color.FromRgb(203, 213, 225)); // #CBD5E1
+                MembersPaginationToggleButton.Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)); // #475569
+                if (MembersPaginationToggleIcon != null) MembersPaginationToggleIcon.Text = "⚪";
+                if (MembersPaginationToggleText != null) MembersPaginationToggleText.Text = "Phân trang: TẮT (Tất cả)";
+                MembersPaginationToggleButton.ToolTip = "Bấm để BẬT tính năng phân trang hội viên";
+            }
+        }
+
+        if (MembersPaginationControlsPanel != null)
+        {
+            MembersPaginationControlsPanel.Visibility = isPaginationEnabled ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        if (!isPaginationEnabled)
+        {
+            _memberRows.Clear();
+            foreach (var row in _allMappedMembers)
+            {
+                _memberRows.Add(row);
+            }
+
+            if (PaginationInfoTextBlock != null)
+            {
+                PaginationInfoTextBlock.Text = $"Hiển thị toàn bộ {totalItems:N0} hội viên (Không phân trang)";
+            }
+            return;
+        }
+
         int totalPages = (int)Math.Ceiling(totalItems / (double)_membersPageSize);
         if (totalPages == 0) totalPages = 1;
         if (_membersCurrentPage > totalPages) _membersCurrentPage = totalPages;
@@ -158,12 +203,26 @@ public partial class MainWindow : Window
 
         int startIndex = totalItems == 0 ? 0 : (_membersCurrentPage - 1) * _membersPageSize + 1;
         int endIndex = Math.Min(_membersCurrentPage * _membersPageSize, totalItems);
-        PaginationInfoTextBlock.Text = $"Hiển thị {startIndex} - {endIndex} của {totalItems} hội viên";
+        if (PaginationInfoTextBlock != null)
+        {
+            PaginationInfoTextBlock.Text = $"Hiển thị {startIndex} - {endIndex} của {totalItems:N0} hội viên";
+        }
         
-        MembersPageNumberTextBlock.Text = $"{_membersCurrentPage} / {totalPages}";
+        if (MembersPageNumberTextBlock != null)
+        {
+            MembersPageNumberTextBlock.Text = $"{_membersCurrentPage} / {totalPages}";
+        }
         
-        MembersPrevPageButton.IsEnabled = _membersCurrentPage > 1;
-        MembersNextPageButton.IsEnabled = _membersCurrentPage < totalPages;
+        if (MembersPrevPageButton != null) MembersPrevPageButton.IsEnabled = _membersCurrentPage > 1;
+        if (MembersNextPageButton != null) MembersNextPageButton.IsEnabled = _membersCurrentPage < totalPages;
+    }
+
+    private void MembersPaginationToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.EnableMembersPagination = !_settings.EnableMembersPagination;
+        SaveSettings();
+        _membersCurrentPage = 1;
+        UpdateMembersPagination();
     }
 
     private void MembersPrevPageButton_Click(object sender, RoutedEventArgs e)
@@ -259,8 +318,6 @@ public partial class MainWindow : Window
 
         double vipPercent = totalMembers > 0 ? (double)vipMembers / totalMembers * 100 : 0;
         StatVipPercentTextBlock.Text = $"{vipPercent:0.##}% tổng số";
-
-        PaginationInfoTextBlock.Text = $"Hiển thị 1 - {Math.Min(10, totalMembers)} của {totalMembers:N0} hội viên";
     }
 
     private async Task RefreshMemberTransactionsAsync(string memberId)
@@ -1378,6 +1435,90 @@ public partial class MainWindow : Window
     private async void RefreshMembersButton_Click(object sender, RoutedEventArgs e) => await RefreshMembersAsync(forceRefresh: true);
 
     private void AddMemberButton_Click(object sender, RoutedEventArgs e) => ShowAddMemberModal();
+
+    private async void ImportGcafeButton_Click(object sender, RoutedEventArgs e)
+    {
+        var openFileDialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Chọn file dữ liệu GCafe (*.gbsdat)",
+            Filter = "GCafe Database (*.gbsdat)|*.gbsdat",
+            DefaultExt = ".gbsdat",
+            Multiselect = false
+        };
+
+        if (openFileDialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        var filePath = openFileDialog.FileName;
+        if (!File.Exists(filePath))
+        {
+            MessageBox.Show("File đã chọn không tồn tại.", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Validate đuôi tệp phải là .gbsdat
+        var ext = Path.GetExtension(filePath);
+        if (!string.Equals(ext, ".gbsdat", StringComparison.OrdinalIgnoreCase))
+        {
+            MessageBox.Show(
+                "Định dạng tệp không hợp lệ!\n\nHệ thống chỉ chấp nhận tệp sao lưu GCafe có đuôi mở rộng là .gbsdat (Ví dụ: Main.gbsdat).\nVui lòng kiểm tra lại tệp đã chọn.",
+                "Lỗi định dạng tệp",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            $"Bạn có chắc chắn muốn nhập danh sách hội viên từ file:\n{filePath}\n\n- Các tài khoản trùng sẽ được cộng dồn số dư.\n- Mật khẩu sẽ được tạo ngẫu nhiên để khách liên hệ thu ngân khi chơi lại.",
+            "Xác nhận nhập GCafe",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            Mouse.OverrideCursor = Cursors.Wait;
+
+            using var form = new MultipartFormDataContent();
+            using var fileStream = File.OpenRead(filePath);
+            using var streamContent = new StreamContent(fileStream);
+            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+            form.Add(streamContent, "file", Path.GetFileName(filePath));
+            form.Add(new StringContent(filePath), "filePath");
+
+            var url = BuildApiUrl("/members/import-gcafe");
+            var response = await _httpClient.PostAsync(url, form);
+            var json = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                MessageBox.Show($"Nhập dữ liệu thất bại (Mã {(int)response.StatusCode}):\n{json}", "Lỗi Import GCafe", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var message = root.TryGetProperty("message", out var msgProp) ? msgProp.GetString() : "Đã nhập thành công!";
+
+            MessageBox.Show(message, "Nhập GCafe thành công", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            await RefreshMembersAsync(forceRefresh: true);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Có lỗi xảy ra trong quá trình nhập GCafe:\n{ex.Message}", "Lỗi ngoại lệ", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
+    }
 
     private async void TopupMemberButton_Click(object sender, RoutedEventArgs e) => await TopupMemberAsync();
     private async void ViewMemberTransactionsButton_Click(object sender, RoutedEventArgs e)

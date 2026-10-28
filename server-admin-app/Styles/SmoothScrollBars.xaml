@@ -1,0 +1,220 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- CÁC MÀU SẮC CHỦ ĐẠO CHO THANH CUỘN MƯỢT MÀ HIỆN ĐẠI -->
+    <SolidColorBrush x:Key="ScrollBarNormalThumbBrush" Color="#94A3B8" Opacity="0.45"/>
+    <SolidColorBrush x:Key="ScrollBarHoverThumbBrush" Color="#2563EB" Opacity="0.85"/>
+    <SolidColorBrush x:Key="ScrollBarDraggingThumbBrush" Color="#1D4ED8" Opacity="1.0"/>
+    <SolidColorBrush x:Key="ScrollBarTrackBrush" Color="Transparent"/>
+    <SolidColorBrush x:Key="ScrollBarHoverTrackBrush" Color="#F1F5F9" Opacity="0.5"/>
+
+    <!-- Nút tàng hình cho Track PageUp/PageDown -->
+    <Style x:Key="ModernScrollBarPageButton" TargetType="{x:Type RepeatButton}">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type RepeatButton}">
+                    <Rectangle Fill="Transparent" Width="{TemplateBinding Width}" Height="{TemplateBinding Height}"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Thumb Style Dọc (Vertical) -->
+    <Style x:Key="ModernScrollBarThumbVertical" TargetType="{x:Type Thumb}">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Thumb}">
+                    <Border x:Name="thumbBorder"
+                            Background="{StaticResource ScrollBarNormalThumbBrush}"
+                            CornerRadius="4"
+                            Margin="1.5,0,1.5,0"
+                            SnapsToDevicePixels="True">
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="thumbBorder" Property="Background" Value="{StaticResource ScrollBarHoverThumbBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="thumbBorder" Property="Background" Value="{StaticResource ScrollBarDraggingThumbBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Thumb Style Ngang (Horizontal) -->
+    <Style x:Key="ModernScrollBarThumbHorizontal" TargetType="{x:Type Thumb}">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="IsTabStop" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Thumb}">
+                    <Border x:Name="thumbBorder"
+                            Background="{StaticResource ScrollBarNormalThumbBrush}"
+                            CornerRadius="4"
+                            Margin="0,1.5,0,1.5"
+                            SnapsToDevicePixels="True">
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="thumbBorder" Property="Background" Value="{StaticResource ScrollBarHoverThumbBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="thumbBorder" Property="Background" Value="{StaticResource ScrollBarDraggingThumbBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Style Toàn Cục cho ScrollBar -->
+    <Style TargetType="{x:Type ScrollBar}">
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Style.Triggers>
+            <Trigger Property="Orientation" Value="Vertical">
+                <Setter Property="Width" Value="8"/>
+                <Setter Property="MinWidth" Value="8"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type ScrollBar}">
+                            <Grid x:Name="Bg" Background="{StaticResource ScrollBarTrackBrush}" SnapsToDevicePixels="True">
+                                <Track x:Name="PART_Track" IsDirectionReversed="True" HorizontalAlignment="Stretch">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageUpCommand" Style="{StaticResource ModernScrollBarPageButton}"/>
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageDownCommand" Style="{StaticResource ModernScrollBarPageButton}"/>
+                                    </Track.IncreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb Style="{StaticResource ModernScrollBarThumbVertical}"/>
+                                    </Track.Thumb>
+                                </Track>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bg" Property="Background" Value="{StaticResource ScrollBarHoverTrackBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+            <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Height" Value="8"/>
+                <Setter Property="MinHeight" Value="8"/>
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type ScrollBar}">
+                            <Grid x:Name="Bg" Background="{StaticResource ScrollBarTrackBrush}" SnapsToDevicePixels="True">
+                                <Track x:Name="PART_Track" VerticalAlignment="Stretch">
+                                    <Track.DecreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageLeftCommand" Style="{StaticResource ModernScrollBarPageButton}"/>
+                                    </Track.DecreaseRepeatButton>
+                                    <Track.IncreaseRepeatButton>
+                                        <RepeatButton Command="ScrollBar.PageRightCommand" Style="{StaticResource ModernScrollBarPageButton}"/>
+                                    </Track.IncreaseRepeatButton>
+                                    <Track.Thumb>
+                                        <Thumb Style="{StaticResource ModernScrollBarThumbHorizontal}"/>
+                                    </Track.Thumb>
+                                </Track>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bg" Property="Background" Value="{StaticResource ScrollBarHoverTrackBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Style Toàn Cục cho ScrollViewer -->
+    <Style TargetType="{x:Type ScrollViewer}">
+        <Setter Property="OverridesDefaultStyle" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ScrollViewer}">
+                    <Grid x:Name="Grid" Background="{TemplateBinding Background}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <ScrollContentPresenter x:Name="PART_ScrollContentPresenter"
+                                                CanContentScroll="{TemplateBinding CanContentScroll}"
+                                                CanHorizontallyScroll="False"
+                                                CanVerticallyScroll="False"
+                                                ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                Content="{TemplateBinding Content}"
+                                                Grid.Column="0"
+                                                Grid.Row="0"
+                                                Margin="{TemplateBinding Padding}"/>
+
+                        <ScrollBar x:Name="PART_VerticalScrollBar"
+                                   AutomationProperties.AutomationId="VerticalScrollBar"
+                                   Cursor="Arrow"
+                                   Grid.Column="1"
+                                   Maximum="{TemplateBinding ScrollableHeight}"
+                                   Minimum="0"
+                                   Orientation="Vertical"
+                                   Grid.Row="0"
+                                   Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
+                                   Value="{Binding VerticalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                   ViewportSize="{TemplateBinding ViewportHeight}"/>
+
+                        <ScrollBar x:Name="PART_HorizontalScrollBar"
+                                   AutomationProperties.AutomationId="HorizontalScrollBar"
+                                   Cursor="Arrow"
+                                   Grid.Column="0"
+                                   Maximum="{TemplateBinding ScrollableWidth}"
+                                   Minimum="0"
+                                   Orientation="Horizontal"
+                                   Grid.Row="1"
+                                   Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"
+                                   Value="{Binding HorizontalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                   ViewportSize="{TemplateBinding ViewportWidth}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- KÍCH HOẠT SMOOTH PIXEL SCROLLING CHO CÁC BẢNG DỮ LIỆU & DANH SÁCH TOÀN ỨNG DỤNG -->
+    <Style TargetType="{x:Type DataGrid}">
+        <Setter Property="EnableRowVirtualization" Value="True"/>
+        <Setter Property="EnableColumnVirtualization" Value="True"/>
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+        <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel"/>
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+    </Style>
+
+    <Style TargetType="{x:Type ListBox}">
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+        <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel"/>
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+    </Style>
+
+    <Style TargetType="{x:Type ListView}">
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+        <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel"/>
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+    </Style>
+</ResourceDictionary>

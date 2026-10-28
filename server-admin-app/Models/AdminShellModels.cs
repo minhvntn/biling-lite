@@ -23,6 +23,8 @@ public sealed class AdminShellSettings
     public Dictionary<string, WakeLanProfile> WakeLanProfiles { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
 
+    public bool EnableMembersPagination { get; set; } = false;
+
     public string ColorInUseBg { get; set; } = "#EFF6FF";
     public string ColorInUseFg { get; set; } = "#2563EB";
     public string ColorAdminBg { get; set; } = "#FEF9C3";
@@ -483,11 +485,67 @@ public sealed class MemberRow
     public string LastLoginText { get; set; } = "-";
 
     // BADGE COLORS
-    public string RankBackground => Rank.ToLower().Contains("thách đấu") ? "#9333EA" :
-                                     Rank.ToLower().Contains("đại cao thủ") ? "#EA580C" :
-                                     Rank.ToLower().Contains("kim cương") ? "#2563EB" :
-                                     Rank.ToLower().Contains("vàng") ? "#F59E0B" : "#F1F5F9";
-    public string RankForeground => Rank.ToLower().Contains("sắt") ? "#475569" : "White";
+    private static string NormalizeRank(string? rank)
+    {
+        if (string.IsNullOrWhiteSpace(rank)) return string.Empty;
+        var lower = rank.ToLowerInvariant();
+        return lower
+            .Replace("đ", "d")
+            .Replace("á", "a").Replace("à", "a").Replace("ả", "a").Replace("ã", "a").Replace("ạ", "a")
+            .Replace("ă", "a").Replace("ắ", "a").Replace("ằ", "a").Replace("ẳ", "a").Replace("ẵ", "a").Replace("ặ", "a")
+            .Replace("â", "a").Replace("ấ", "a").Replace("ầ", "a").Replace("ẩ", "a").Replace("ẫ", "a").Replace("ậ", "a")
+            .Replace("é", "e").Replace("è", "e").Replace("ẻ", "e").Replace("ẽ", "e").Replace("ẹ", "e")
+            .Replace("ê", "e").Replace("ế", "e").Replace("ề", "e").Replace("ể", "e").Replace("ễ", "e").Replace("ệ", "e")
+            .Replace("í", "i").Replace("ì", "i").Replace("ỉ", "i").Replace("ĩ", "i").Replace("ị", "i")
+            .Replace("ó", "o").Replace("ò", "o").Replace("ỏ", "o").Replace("õ", "o").Replace("ọ", "o")
+            .Replace("ô", "o").Replace("ố", "o").Replace("ồ", "o").Replace("ổ", "o").Replace("ỗ", "o").Replace("ộ", "o")
+            .Replace("ơ", "o").Replace("ớ", "o").Replace("ờ", "o").Replace("ở", "o").Replace("ỡ", "o").Replace("ợ", "o")
+            .Replace("ú", "u").Replace("ù", "u").Replace("ủ", "u").Replace("ũ", "u").Replace("ụ", "u")
+            .Replace("ư", "u").Replace("ứ", "u").Replace("ừ", "u").Replace("ử", "u").Replace("ữ", "u").Replace("ự", "u")
+            .Replace("ý", "y").Replace("ỳ", "y").Replace("ỷ", "y").Replace("ỹ", "y").Replace("ỵ", "y");
+    }
+
+    public string RankBackground
+    {
+        get
+        {
+            var r = NormalizeRank(Rank);
+            if (r.Contains("thach dau") || r.Contains("challenger")) return "#9333EA"; // Tím rực rỡ
+            if (r.Contains("dai cao thu") || r.Contains("grandmaster")) return "#DC2626"; // Đỏ thẫm
+            if (r.Contains("cao thu") || r.Contains("master")) return "#C026D3"; // Tím cánh sen
+            if (r.Contains("kim cuong") || r.Contains("diamond")) return "#2563EB"; // Xanh hoàng gia
+            if (r.Contains("tinh anh") || r.Contains("emerald")) return "#059669"; // Xanh lục bảo
+            if (r.Contains("bach kim") || r.Contains("platinum")) return "#0D9488"; // Xanh mòng két
+            if (r.Contains("vang") || r.Contains("gold")) return "#F59E0B"; // Vàng hổ phách
+            if (r.Contains("bac") || r.Contains("silver")) return "#64748B"; // Bạc ánh kim slate
+            if (r.Contains("dong") || r.Contains("bronze")) return "#B45309"; // Đồng ánh cam đậm
+            if (r.Contains("sat") || r.Contains("iron")) return "#F1F5F9"; // Sắt xám nhạt
+            return "#F1F5F9";
+        }
+    }
+
+    public string RankForeground
+    {
+        get
+        {
+            var r = NormalizeRank(Rank);
+            if (r.Contains("sat") || r.Contains("iron"))
+                return "#334155"; // Xám đậm rõ nét trên nền #F1F5F9
+            if (r.Contains("thach dau") || r.Contains("challenger") ||
+                r.Contains("dai cao thu") || r.Contains("grandmaster") ||
+                r.Contains("cao thu") || r.Contains("master") ||
+                r.Contains("kim cuong") || r.Contains("diamond") ||
+                r.Contains("tinh anh") || r.Contains("emerald") ||
+                r.Contains("bach kim") || r.Contains("platinum") ||
+                r.Contains("vang") || r.Contains("gold") ||
+                r.Contains("bac") || r.Contains("silver") ||
+                r.Contains("dong") || r.Contains("bronze"))
+            {
+                return "#FFFFFF"; // Chữ trắng tương phản cao trên nền màu
+            }
+            return "#334155"; // Mặc định an toàn: luôn rõ nét, không bao giờ bị trắng mờ
+        }
+    }
 
     public string TypeBackground => MemberType.ToUpper() == "VIP" ? "#E0E7FF" : "#F0FDF4";
     public string TypeForeground => MemberType.ToUpper() == "VIP" ? "#4F46E5" : "#16A34A";

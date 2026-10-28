@@ -147,6 +147,50 @@ public partial class AdminChatWindow : Window
         }
     }
 
+    public async Task ReloadMessagesAsync()
+    {
+        await LoadMessagesAsync();
+    }
+
+    public void ReceiveIncomingMessage(string? id, string text, string? createdAtStr)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            if (!string.IsNullOrEmpty(id))
+            {
+                foreach (var existing in _messages)
+                {
+                    if (existing.Id == id)
+                    {
+                        return; // Already added
+                    }
+                }
+            }
+
+            var createdAt = DateTime.UtcNow;
+            if (!string.IsNullOrEmpty(createdAtStr) && DateTime.TryParse(createdAtStr, out var parsed))
+            {
+                createdAt = parsed.ToUniversalTime();
+            }
+
+            _messages.Add(new Models.SupportMessageDto
+            {
+                Id = id ?? string.Empty,
+                PcId = _pcId,
+                PcName = _pcName,
+                Direction = "CLIENT",
+                Message = text,
+                SentBy = _pcName,
+                CreatedAt = createdAt
+            });
+
+            MessagesScrollViewer.ScrollToEnd();
+        });
+
+        // Background sync to ensure all messages are in sync
+        _ = LoadMessagesAsync();
+    }
+
     public void ClearMessages()
     {
         Dispatcher.Invoke(() =>
@@ -190,5 +234,9 @@ public partial class AdminChatWindow : Window
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
     {
         _pollTimer.Stop();
+        if (string.Equals(_parent._lastChatNotificationPcId, _pcId, StringComparison.OrdinalIgnoreCase))
+        {
+            _parent.ChatNotificationPopupBorder.Visibility = Visibility.Collapsed;
+        }
     }
 }

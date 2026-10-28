@@ -367,6 +367,7 @@
             <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
             <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
             <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+            <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel" />
         </Style>
     </Window.Resources>
 
@@ -497,6 +498,16 @@
                             <MenuItem Header="Tải lại toàn bộ dữ liệu (F5)" InputGestureText="F5" Click="ReloadAllData_Click" Foreground="Black" FontSize="15" Padding="12,8">
                                 <MenuItem.Icon>
                                     <TextBlock Text="🔄" Foreground="Black" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Kiểm tra hệ thống &amp; Database" Click="CheckSystemAndDatabaseHealth_Click" Foreground="Black" FontSize="15" Padding="12,8">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="🩺" Foreground="Black" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Tự động sửa chữa sự cố (1-Click)" Click="QuickAutoRepair_Click" Foreground="#6D28D9" FontWeight="SemiBold" FontSize="15" Padding="12,8">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="⚡" Foreground="#7C3AED" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                 </MenuItem.Icon>
                             </MenuItem>
                             <Separator />
@@ -1317,6 +1328,9 @@
                                 <Button Background="#3B82F6" BorderThickness="0" Foreground="White" Padding="16,6" Margin="0,0,8,0" Click="AddMemberButton_Click" Content="+ Thêm hội viên">
                                     <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
                                 </Button>
+                                <Button Background="#8B5CF6" BorderThickness="0" Foreground="White" Padding="16,6" Margin="0,0,8,0" Click="ImportGcafeButton_Click" Content="&#x1F4E5; Nhập từ GCafe">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                </Button>
                                 <Button Background="#10B981" BorderThickness="0" Foreground="White" Padding="16,6" Margin="0,0,0,0" Click="ContextTopupMemberMenuItem_Click" Content="&#x1F4B5; Nạp tiền">
                                     <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
                                 </Button>
@@ -1609,23 +1623,50 @@
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" x:Name="PaginationInfoTextBlock" Text="Hiển thị 1 - 10 của 5,241 hội viên" Foreground="#64748B" VerticalAlignment="Center" FontSize="13"/>
+                                            <TextBlock Grid.Column="0" x:Name="PaginationInfoTextBlock" Text="Hiển thị toàn bộ hội viên" Foreground="#64748B" VerticalAlignment="Center" FontSize="13"/>
                                             
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <Button x:Name="MembersPrevPageButton" Content="&lt;" Width="32" Height="32" Background="White" Foreground="#0F172A" BorderBrush="#E2E8F0" BorderThickness="1" Margin="0,0,4,0" Click="MembersPrevPageButton_Click"/>
-                                                
-                                                <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" Height="32" Padding="12,0" Margin="0,0,4,0">
-                                                    <TextBlock x:Name="MembersPageNumberTextBlock" Text="1 / 1" VerticalAlignment="Center" Foreground="#0F172A"/>
-                                                </Border>
+                                                <!-- Toggle Button: Phân trang (Mặc định: TẮT) -->
+                                                <Button x:Name="MembersPaginationToggleButton"
+                                                        Height="32"
+                                                        Padding="10,0"
+                                                        Margin="0,0,10,0"
+                                                        Background="#F1F5F9"
+                                                        BorderBrush="#CBD5E1"
+                                                        BorderThickness="1"
+                                                        Foreground="#475569"
+                                                        FontSize="12"
+                                                        FontWeight="SemiBold"
+                                                        Cursor="Hand"
+                                                        Click="MembersPaginationToggleButton_Click">
+                                                    <Button.Resources>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="CornerRadius" Value="6"/>
+                                                        </Style>
+                                                    </Button.Resources>
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock x:Name="MembersPaginationToggleIcon" Text="⚪" Margin="0,0,6,0" FontSize="11" VerticalAlignment="Center"/>
+                                                        <TextBlock x:Name="MembersPaginationToggleText" Text="Phân trang: TẮT" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Button>
 
-                                                <Button x:Name="MembersNextPageButton" Content="&gt;" Width="32" Height="32" Background="White" Foreground="#0F172A" BorderBrush="#E2E8F0" BorderThickness="1" Margin="0,0,16,0" Click="MembersNextPageButton_Click"/>
-                                                
-                                                <ComboBox x:Name="MembersPageSizeComboBox" Width="100" SelectedIndex="2" SelectionChanged="MembersPageSizeComboBox_SelectionChanged">
-                                                    <ComboBoxItem Content="10 / trang" Tag="10"/>
-                                                    <ComboBoxItem Content="20 / trang" Tag="20"/>
-                                                    <ComboBoxItem Content="50 / trang" Tag="50"/>
-                                                    <ComboBoxItem Content="100 / trang" Tag="100"/>
-                                                </ComboBox>
+                                                <!-- Pagination Navigation (Chỉ hiện khi BẬT phân trang) -->
+                                                <StackPanel x:Name="MembersPaginationControlsPanel" Orientation="Horizontal" VerticalAlignment="Center" Visibility="Collapsed">
+                                                    <Button x:Name="MembersPrevPageButton" Content="&lt;" Width="32" Height="32" Background="White" Foreground="#0F172A" BorderBrush="#E2E8F0" BorderThickness="1" Margin="0,0,4,0" Click="MembersPrevPageButton_Click"/>
+                                                    
+                                                    <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" Height="32" Padding="12,0" Margin="0,0,4,0">
+                                                        <TextBlock x:Name="MembersPageNumberTextBlock" Text="1 / 1" VerticalAlignment="Center" Foreground="#0F172A"/>
+                                                    </Border>
+
+                                                    <Button x:Name="MembersNextPageButton" Content="&gt;" Width="32" Height="32" Background="White" Foreground="#0F172A" BorderBrush="#E2E8F0" BorderThickness="1" Margin="0,0,12,0" Click="MembersNextPageButton_Click"/>
+                                                    
+                                                    <ComboBox x:Name="MembersPageSizeComboBox" Width="100" SelectedIndex="2" SelectionChanged="MembersPageSizeComboBox_SelectionChanged">
+                                                        <ComboBoxItem Content="10 / trang" Tag="10"/>
+                                                        <ComboBoxItem Content="20 / trang" Tag="20"/>
+                                                        <ComboBoxItem Content="50 / trang" Tag="50"/>
+                                                        <ComboBoxItem Content="100 / trang" Tag="100"/>
+                                                    </ComboBox>
+                                                </StackPanel>
                                             </StackPanel>
                                         </Grid>
                                     </Border>
@@ -5592,15 +5633,17 @@
                                             <Grid.RowDefinitions>
                                                 <!-- Row 0: Header title & desc -->
                                                 <RowDefinition Height="Auto" />
-                                                <!-- Row 1: Controls & Config -->
+                                                <!-- Row 1: Toggle Switch Bật/Tắt Hiển thị Máy trạm Ảo -->
                                                 <RowDefinition Height="Auto" />
-                                                <!-- Row 2: Status Summary Badges -->
+                                                <!-- Row 2: Controls & Config -->
                                                 <RowDefinition Height="Auto" />
-                                                <!-- Row 3: Preview DataGrid Header -->
+                                                <!-- Row 3: Status Summary Badges -->
                                                 <RowDefinition Height="Auto" />
-                                                <!-- Row 4: Preview DataGrid -->
+                                                <!-- Row 4: Preview DataGrid Header -->
+                                                <RowDefinition Height="Auto" />
+                                                <!-- Row 5: Preview DataGrid -->
                                                 <RowDefinition Height="*" MinHeight="200" MaxHeight="300" />
-                                                <!-- Row 5: Footer Status Message -->
+                                                <!-- Row 6: Footer Status Message -->
                                                 <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
 
@@ -5616,8 +5659,76 @@
                                                            Text="Khởi tạo danh sách máy trạm giả lập để kiểm tra hiển thị giao diện, màu sắc trạng thái, bố cục phòng máy (20, 30, 50 máy) mà không cần bật máy thật." />
                                             </StackPanel>
 
-                                            <!-- Row 1: Controls card -->
-                                            <Border Grid.Row="1"
+                                            <!-- Row 1: Toggle Switch Bật/Tắt Hiển thị Máy trạm Ảo -->
+                                            <Border x:Name="VirtualPcToggleContainerBorder"
+                                                    Grid.Row="1"
+                                                    Background="#F8FAFC"
+                                                    BorderBrush="#CBD5E1"
+                                                    BorderThickness="1"
+                                                    CornerRadius="8"
+                                                    Padding="16,12"
+                                                    Margin="0,0,0,12">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <TextBlock Text="🖥️" FontSize="18" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                                            <TextBlock Text="Hiển thị máy trạm ảo trên tab Máy trạm"
+                                                                       FontSize="14.5"
+                                                                       FontWeight="Bold"
+                                                                       Foreground="#0F172A"
+                                                                       VerticalAlignment="Center" />
+                                                            <Border x:Name="VirtualPcStatusBadgeBorder"
+                                                                    Margin="12,0,0,0"
+                                                                    Padding="8,2"
+                                                                    CornerRadius="10"
+                                                                    Background="#F1F5F9"
+                                                                    BorderBrush="#CBD5E1"
+                                                                    BorderThickness="1"
+                                                                    VerticalAlignment="Center">
+                                                                <TextBlock x:Name="VirtualPcStatusBadgeText"
+                                                                           Text="MẶC ĐỊNH: ĐANG TẮT"
+                                                                           FontSize="11"
+                                                                           FontWeight="Bold"
+                                                                           Foreground="#64748B" />
+                                                            </Border>
+                                                        </StackPanel>
+                                                        <TextBlock x:Name="VirtualPcToggleDescTextBlock"
+                                                                   Margin="26,4,0,0"
+                                                                   FontSize="12"
+                                                                   Foreground="#64748B"
+                                                                   TextWrapping="Wrap"
+                                                                   Text="Khi TẮT: Tab Máy trạm chỉ hiển thị các máy tính thật trong phòng máy. Bật toggle này nếu bạn muốn gộp máy ảo vào để xem bố cục / demo." />
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+                                                        <TextBlock x:Name="VirtualPcToggleStateText"
+                                                                   Text="Đang TẮT"
+                                                                   FontWeight="Bold"
+                                                                   FontSize="13"
+                                                                   Foreground="#64748B"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="0,0,10,0" />
+                                                        <CheckBox x:Name="VirtualPcEnableDisplayCheckBox"
+                                                                  IsChecked="False"
+                                                                  Checked="VirtualPcEnableDisplay_Changed"
+                                                                  Unchecked="VirtualPcEnableDisplay_Changed"
+                                                                  VerticalAlignment="Center"
+                                                                  Cursor="Hand">
+                                                            <CheckBox.LayoutTransform>
+                                                                <ScaleTransform ScaleX="1.3" ScaleY="1.3" />
+                                                            </CheckBox.LayoutTransform>
+                                                        </CheckBox>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+
+                                            <!-- Row 2: Controls card -->
+                                            <Border Grid.Row="2"
                                                     Background="#F8FAFC"
                                                     BorderBrush="#E2E8F0"
                                                     BorderThickness="1"
@@ -5703,18 +5814,11 @@
                                                         <CheckBox x:Name="VirtualPcAssignGroupsCheckBox"
                                                                   Content="Tự động phân nhóm (Phòng Thường, VIP, Thi Đấu, Stream)"
                                                                   IsChecked="True"
-                                                                  Margin="0,0,20,0" />
+                                                                  Margin="0,0,24,0" />
                                                         <CheckBox x:Name="VirtualPcAddServicesCheckBox"
                                                                   Content="Giả lập tiền dịch vụ đồ ăn / nước uống"
                                                                   IsChecked="True"
-                                                                  Margin="0,0,20,0" />
-                                                        <CheckBox x:Name="VirtualPcEnableDisplayCheckBox"
-                                                                  Content="Hiển thị máy ảo trên tab Máy trạm"
-                                                                  IsChecked="True"
-                                                                  FontWeight="Bold"
-                                                                  Foreground="#2563EB"
-                                                                  Checked="VirtualPcEnableDisplay_Changed"
-                                                                  Unchecked="VirtualPcEnableDisplay_Changed" />
+                                                                  Margin="0,0,24,0" />
                                                     </StackPanel>
 
                                                     <!-- SubRow 3: Action Buttons -->
@@ -5771,8 +5875,8 @@
                                                 </Grid>
                                             </Border>
 
-                                            <!-- Row 2: Status Summary Badges -->
-                                            <WrapPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10" VerticalAlignment="Center">
+                                            <!-- Row 3: Status Summary Badges -->
+                                            <WrapPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,10" VerticalAlignment="Center">
                                                 <Border Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,6,4">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="Tổng máy ảo: " FontSize="12" Foreground="#475569" FontWeight="SemiBold" />
@@ -5829,17 +5933,17 @@
                                                 </Border>
                                             </WrapPanel>
 
-                                            <!-- Row 3: Preview Header -->
-                                            <TextBlock Grid.Row="3"
+                                            <!-- Row 4: Preview Header -->
+                                            <TextBlock Grid.Row="4"
                                                        Text="Danh sách xem trước máy trạm ảo:"
                                                        FontSize="13"
                                                        FontWeight="SemiBold"
                                                        Foreground="#334155"
                                                        Margin="0,4,0,6" />
 
-                                            <!-- Row 4: Preview DataGrid -->
+                                            <!-- Row 5: Preview DataGrid -->
                                             <DataGrid x:Name="VirtualPcsPreviewDataGrid"
-                                                      Grid.Row="4"
+                                                      Grid.Row="5"
                                                       AutoGenerateColumns="False"
                                                       CanUserAddRows="False"
                                                       IsReadOnly="True"
@@ -5879,14 +5983,337 @@
                                                 </DataGrid.Columns>
                                             </DataGrid>
 
-                                            <!-- Row 5: Footer Status Message -->
+                                            <!-- Row 6: Footer Status Message -->
                                             <TextBlock x:Name="VirtualPcStatusMessageTextBlock"
-                                                       Grid.Row="5"
+                                                       Grid.Row="6"
                                                        Margin="0,8,0,0"
                                                        Foreground="#64748B"
                                                        FontSize="12"
                                                        Text="Sẵn sàng khởi tạo máy trạm ảo." />
                                         </Grid>
+                                    </Border>
+                                </TabItem>
+
+                                <TabItem Header="Chatbot AI" x:Name="ChatbotSettingsTabItem">
+                                    <Border Margin="0,8,0,0"
+                                            Background="White"
+                                            BorderBrush="#E2E8F0"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="20,18">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                            <StackPanel>
+                                                <!-- Header Title -->
+                                                <StackPanel Margin="0,0,0,16">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="🌸" FontSize="22" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Cấu hình Trợ lý AI (Ami) &amp; Google Gemini API"
+                                                                   FontSize="18"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="#0F172A"
+                                                                   VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <TextBlock Margin="30,4,0,0"
+                                                               Text="Trợ lý ảo thông minh giúp chủ quán kiểm tra nhanh số máy đang chơi, theo dõi doanh thu, soi máy trạm và trò chuyện giải trí trực tiếp trên app."
+                                                               Foreground="#64748B"
+                                                               FontSize="13"/>
+                                                </StackPanel>
+
+                                                <!-- Grid 2 Cột: Bên trái cấu hình, bên phải preview -->
+                                                <Grid Margin="0,0,0,16">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="3*"/>
+                                                        <ColumnDefinition Width="20"/>
+                                                        <ColumnDefinition Width="2*"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- CỘT TRÁI: FORM CẤU HÌNH -->
+                                                    <StackPanel Grid.Column="0">
+                                                        <!-- Card 1: Bật/Tắt -->
+                                                        <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,12">
+                                                            <DockPanel LastChildFill="True">
+                                                                <StackPanel DockPanel.Dock="Left">
+                                                                    <CheckBox x:Name="ChatbotEnableCheckBox"
+                                                                              Content="Bật Trợ lý AI (Ami) ở góc phải ứng dụng"
+                                                                              FontSize="14"
+                                                                              FontWeight="SemiBold"
+                                                                              Foreground="#0F172A"
+                                                                              IsChecked="True"
+                                                                              Checked="ChatbotEnableCheckBox_Changed"
+                                                                              Unchecked="ChatbotEnableCheckBox_Changed"/>
+                                                                    <TextBlock Margin="24,4,0,0"
+                                                                               Text="Khi bật, biểu tượng Ami sẽ hiển thị nổi ở góc phải dưới của Server App."
+                                                                               Foreground="#64748B"
+                                                                               FontSize="12"/>
+                                                                </StackPanel>
+                                                                <Button DockPanel.Dock="Right"
+                                                                        Content="Trải nghiệm Chat ngay 🚀"
+                                                                        Padding="12,6"
+                                                                        Background="#2563EB"
+                                                                        Foreground="White"
+                                                                        FontWeight="SemiBold"
+                                                                        BorderThickness="0"
+                                                                        Cursor="Hand"
+                                                                        Click="OpenChatbotFromSettings_Click"/>
+                                                            </DockPanel>
+                                                        </Border>
+
+                                                        <!-- Card 2: Gemini API Key & Model -->
+                                                        <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,12">
+                                                            <StackPanel>
+                                                                <TextBlock Text="🔑 Google Gemini API Key" FontWeight="Bold" Foreground="#0F172A" FontSize="13.5"/>
+                                                                <TextBlock Margin="0,2,0,8"
+                                                                           Text="Dùng để kết nối trực tiếp với trí tuệ nhân tạo Google Gemini (Hoàn toàn miễn phí)."
+                                                                           Foreground="#64748B"
+                                                                           FontSize="12"/>
+
+                                                                <Grid Margin="0,0,0,6">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <TextBox x:Name="ChatbotApiKeyTextBox"
+                                                                             Grid.Column="0"
+                                                                             Padding="10,8"
+                                                                             FontSize="13"
+                                                                             Background="White"
+                                                                             BorderBrush="#CBD5E1"
+                                                                             FontFamily="Consolas, monospace"
+                                                                             TextWrapping="NoWrap"/>
+                                                                    <Button x:Name="TestGeminiApiKeyButton"
+                                                                            Grid.Column="1"
+                                                                            Content="Kiểm tra kết nối ⚡"
+                                                                            Margin="8,0,0,0"
+                                                                            Padding="12,6"
+                                                                            Background="#0F172A"
+                                                                            Foreground="White"
+                                                                            FontWeight="SemiBold"
+                                                                            BorderThickness="0"
+                                                                            Cursor="Hand"
+                                                                            Click="TestGeminiApiKeyButton_Click"/>
+                                                                </Grid>
+
+                                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                                                                    <TextBlock Text="Chưa có API Key? " Foreground="#64748B" FontSize="12"/>
+                                                                    <TextBlock Text="Nhận miễn phí tại Google AI Studio (Click để mở)"
+                                                                               Foreground="#2563EB"
+                                                                               FontSize="12"
+                                                                               Cursor="Hand"
+                                                                               TextDecorations="Underline"
+                                                                               MouseLeftButtonUp="OpenGeminiAiStudioLink_Click"/>
+                                                                </StackPanel>
+
+                                                                <!-- Model Selector & Thẩm định Model -->
+                                                                <Grid Margin="0,6,0,0">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <TextBlock Grid.Column="0" Text="Mô hình AI:" FontWeight="SemiBold" Foreground="#334155" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                                    <ComboBox x:Name="ChatbotModelComboBox"
+                                                                              Grid.Column="1"
+                                                                              Padding="8,6"
+                                                                              SelectedIndex="0"
+                                                                              IsEditable="True"
+                                                                              FontFamily="Consolas, Segoe UI, monospace"
+                                                                              FontSize="13">
+                                                                        <ComboBoxItem Content="gemini-3.8-flash (Tốc độ cao &amp; Thông minh vượt trội)" Tag="gemini-3.8-flash"/>
+                                                                        <ComboBoxItem Content="gemini-4-argon (Thế hệ 4 thử nghiệm)" Tag="gemini-4-argon"/>
+                                                                        <ComboBoxItem Content="gemini-2.5-flash (Mô hình thế hệ 2.5 tối ưu)" Tag="gemini-2.5-flash"/>
+                                                                        <ComboBoxItem Content="gemini-2.5-pro (Mô hình thế hệ 2.5 chuyên sâu)" Tag="gemini-2.5-pro"/>
+                                                                        <ComboBoxItem Content="gemini-2.0-flash (Mô hình thế hệ 2.0 mới)" Tag="gemini-2.0-flash"/>
+                                                                        <ComboBoxItem Content="gemini-1.5-flash (Khuyên dùng: Ổn định &amp; phổ biến)" Tag="gemini-1.5-flash"/>
+                                                                        <ComboBoxItem Content="gemini-1.5-pro (Hiểu sâu, phân tích chi tiết)" Tag="gemini-1.5-pro"/>
+                                                                    </ComboBox>
+                                                                    <Button x:Name="ScanGeminiModelsButton"
+                                                                            Grid.Column="2"
+                                                                            Content="🔄 Quét Model Trên Key"
+                                                                            ToolTip="Tự động quét toàn bộ model Google Gemini được hỗ trợ trên API Key của bạn"
+                                                                            Margin="8,0,0,0"
+                                                                            Padding="12,6"
+                                                                            Background="#0F172A"
+                                                                            Foreground="#38BDF8"
+                                                                            FontWeight="SemiBold"
+                                                                            BorderThickness="0"
+                                                                            Cursor="Hand"
+                                                                            Click="ScanGeminiModelsButton_Click"/>
+                                                                </Grid>
+
+                                                                <!-- CHIP PHÍM TẮT CHỌN NHANH MODEL THẨM ĐỊNH (GIỐNG TOOL THẨM ĐỊNH) -->
+                                                                <Border Margin="0,8,0,0"
+                                                                        Background="#0F172A"
+                                                                        BorderBrush="#1E293B"
+                                                                        BorderThickness="1"
+                                                                        CornerRadius="8"
+                                                                        Padding="10,8">
+                                                                    <StackPanel>
+                                                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                                            <TextBlock Text="🧠" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                                            <TextBlock Text="Model Thẩm Định Nhanh:" FontWeight="Bold" FontSize="12" Foreground="#F8FAFC" VerticalAlignment="Center"/>
+                                                                            <TextBlock Text=" (Bấm để chọn trực tiếp)" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                                                                        </StackPanel>
+                                                                        <WrapPanel>
+                                                                            <Button Content="gemini-3.8-flash"
+                                                                                    Tag="gemini-3.8-flash"
+                                                                                    Background="#1E1B4B"
+                                                                                    Foreground="#C084FC"
+                                                                                    BorderBrush="#8B5CF6"
+                                                                                    BorderThickness="1"
+                                                                                    FontSize="11.5"
+                                                                                    FontFamily="Consolas, monospace"
+                                                                                    FontWeight="SemiBold"
+                                                                                    Padding="10,4"
+                                                                                    Margin="0,0,6,4"
+                                                                                    Cursor="Hand"
+                                                                                    Click="QuickSelectModelChip_Click"/>
+                                                                            <Button Content="gemini-4-argon"
+                                                                                    Tag="gemini-4-argon"
+                                                                                    Background="#082F49"
+                                                                                    Foreground="#38BDF8"
+                                                                                    BorderBrush="#0284C7"
+                                                                                    BorderThickness="1"
+                                                                                    FontSize="11.5"
+                                                                                    FontFamily="Consolas, monospace"
+                                                                                    FontWeight="SemiBold"
+                                                                                    Padding="10,4"
+                                                                                    Margin="0,0,6,4"
+                                                                                    Cursor="Hand"
+                                                                                    Click="QuickSelectModelChip_Click"/>
+                                                                            <Button Content="gemini-2.5-flash"
+                                                                                    Tag="gemini-2.5-flash"
+                                                                                    Background="#1E293B"
+                                                                                    Foreground="#F1F5F9"
+                                                                                    BorderBrush="#475569"
+                                                                                    BorderThickness="1"
+                                                                                    FontSize="11.5"
+                                                                                    FontFamily="Consolas, monospace"
+                                                                                    FontWeight="SemiBold"
+                                                                                    Padding="10,4"
+                                                                                    Margin="0,0,6,4"
+                                                                                    Cursor="Hand"
+                                                                                    Click="QuickSelectModelChip_Click"/>
+                                                                            <Button Content="gemini-2.5-pro"
+                                                                                    Tag="gemini-2.5-pro"
+                                                                                    Background="#1E293B"
+                                                                                    Foreground="#F1F5F9"
+                                                                                    BorderBrush="#475569"
+                                                                                    BorderThickness="1"
+                                                                                    FontSize="11.5"
+                                                                                    FontFamily="Consolas, monospace"
+                                                                                    FontWeight="SemiBold"
+                                                                                    Padding="10,4"
+                                                                                    Margin="0,0,6,4"
+                                                                                    Cursor="Hand"
+                                                                                    Click="QuickSelectModelChip_Click"/>
+                                                                            <Button Content="gemini-2.0-flash"
+                                                                                    Tag="gemini-2.0-flash"
+                                                                                    Background="#1E293B"
+                                                                                    Foreground="#34D399"
+                                                                                    BorderBrush="#059669"
+                                                                                    BorderThickness="1"
+                                                                                    FontSize="11.5"
+                                                                                    FontFamily="Consolas, monospace"
+                                                                                    FontWeight="SemiBold"
+                                                                                    Padding="10,4"
+                                                                                    Margin="0,0,6,4"
+                                                                                    Cursor="Hand"
+                                                                                    Click="QuickSelectModelChip_Click"/>
+                                                                            <Button Content="gemini-1.5-flash"
+                                                                                    Tag="gemini-1.5-flash"
+                                                                                    Background="#1E293B"
+                                                                                    Foreground="#FBBF24"
+                                                                                    BorderBrush="#D97706"
+                                                                                    BorderThickness="1"
+                                                                                    FontSize="11.5"
+                                                                                    FontFamily="Consolas, monospace"
+                                                                                    FontWeight="SemiBold"
+                                                                                    Padding="10,4"
+                                                                                    Margin="0,0,6,4"
+                                                                                    Cursor="Hand"
+                                                                                    Click="QuickSelectModelChip_Click"/>
+                                                                        </WrapPanel>
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </StackPanel>
+                                                        </Border>
+
+                                                        <!-- Card 3: Tùy chỉnh vai trò & Ngữ cảnh -->
+                                                        <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,0,14">
+                                                            <StackPanel>
+                                                                <TextBlock Text="⚙️ Tùy chọn trợ lý &amp; Tích hợp phòng máy" FontWeight="Bold" Foreground="#0F172A" FontSize="13.5" Margin="0,0,0,8"/>
+                                                                
+                                                                <Grid Margin="0,0,0,8">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <TextBlock Grid.Column="0" Text="Tên trợ lý:" Foreground="#334155" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                                    <TextBox x:Name="ChatbotAssistantNameTextBox" Grid.Column="1" Text="Ami" Padding="8,5" MaxLength="20"/>
+                                                                </Grid>
+
+                                                                <CheckBox x:Name="ChatbotAllowPcContextCheckBox"
+                                                                          IsChecked="True"
+                                                                          Content="Cho phép trợ lý đọc dữ liệu máy trạm thời gian thực"
+                                                                          FontWeight="SemiBold"
+                                                                          Foreground="#334155"
+                                                                          Margin="0,4,0,0"/>
+                                                                <TextBlock Margin="24,2,0,0"
+                                                                           Text="Khi bật, Ami có thể trả lời chính xác: 'Hiện có bao nhiêu máy đang chơi?', 'Máy nào nợ tiền đồ ăn?', 'Doanh thu hôm nay thế nào?'..."
+                                                                           Foreground="#64748B"
+                                                                           FontSize="12"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </StackPanel>
+
+                                                    <!-- CỘT PHẢI: PREVIEW & HƯỚNG DẪN -->
+                                                    <Border Grid.Column="2" Background="#0F172A" CornerRadius="12" Padding="16" BorderBrush="#1E293B" BorderThickness="1">
+                                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                            <!-- Avatar Chibi Ami to -->
+                                                            <Border Width="80" Height="80" CornerRadius="40" Background="#1E1B4B" BorderBrush="#00F090" BorderThickness="2" Margin="0,0,0,10" HorizontalAlignment="Center">
+                                                                <TextBlock Text="🌸" FontSize="42" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                            <TextBlock Text="Ami 🌸 (Trợ Lý AI)" FontWeight="Bold" FontSize="15" Foreground="White" HorizontalAlignment="Center"/>
+                                                            <TextBlock Text="&quot;Anh ơi, có Ami ở đây nè! ✨&quot;" FontStyle="Italic" FontSize="12.5" Foreground="#38BDF8" HorizontalAlignment="Center" Margin="0,4,0,12"/>
+                                                            <Border Background="#1E293B" CornerRadius="8" Padding="12,10" Margin="0,4,0,0">
+                                                                <TextBlock Text="💡 Mẹo hay: Bạn có thể click vào icon Ami ở góc phải để mở cửa sổ chat bất cứ lúc nào, hỏi đáp tình hình phòng máy hoặc tâm sự giải trí."
+                                                                           Foreground="#94A3B8"
+                                                                           FontSize="12"
+                                                                           TextWrapping="Wrap"
+                                                                           LineHeight="18"/>
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </Grid>
+
+                                                <!-- NÚT LƯU CÀI ĐẶT -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                    <Button Content="Lưu cài đặt Chatbot"
+                                                            Padding="18,8"
+                                                            Background="#2563EB"
+                                                            Foreground="White"
+                                                            FontWeight="Bold"
+                                                            BorderThickness="0"
+                                                            Cursor="Hand"
+                                                            Click="SaveChatbotSettingsButton_Click"
+                                                            Margin="0,0,8,0"/>
+                                                    <Button Content="Khôi phục mặc định"
+                                                            Padding="14,8"
+                                                            Background="#F1F5F9"
+                                                            Foreground="#475569"
+                                                            BorderBrush="#CBD5E1"
+                                                            BorderThickness="1"
+                                                            Cursor="Hand"
+                                                            Click="ResetChatbotSettingsButton_Click"/>
+                                                </StackPanel>
+
+                                                <TextBlock x:Name="ChatbotSettingsStatusTextBlock"
+                                                           Margin="0,8,0,0"
+                                                           Foreground="#64748B"
+                                                           FontSize="12.5"
+                                                           Text="Sẵn sàng cấu hình Trợ lý AI."/>
+                                            </StackPanel>
+                                        </ScrollViewer>
                                     </Border>
                                 </TabItem>
                             </TabControl>
@@ -6554,6 +6981,284 @@
                 <ProgressBar x:Name="GuestLoginToastProgressBar" Height="4" Margin="0,8,0,0" Background="#DBEAFE" Foreground="#2563EB" BorderThickness="0" Minimum="0" />
             </StackPanel>
         </Border>
+        <!-- ========================================== -->
+        <!-- FLOATING CYBER WAIFU AI CHATBOT (AMI)      -->
+        <!-- ========================================== -->
+        <!-- LAUNCHER CONTAINER (GÓC PHẢI DƯỚI - NÂNG CAO ĐỂ KHÔNG ĐÈ FOOTER THỐNG KÊ) -->
+        <Border x:Name="ChatbotLauncherContainer"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                Margin="0,0,18,96"
+                Panel.ZIndex="5000"
+                Cursor="Hand"
+                MouseLeftButtonUp="ChatbotLauncher_Click">
+            <Grid>
+                <!-- NÚT TRÒN THEO TÔNG MÀU SÁNG & XANH DƯƠNG CỦA APP -->
+                <Border Width="56"
+                        Height="56"
+                        CornerRadius="28"
+                        Background="#FFFFFF"
+                        BorderBrush="#2563EB"
+                        BorderThickness="2.5">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="14" ShadowDepth="3" Color="#2563EB" Opacity="0.3" />
+                    </Border.Effect>
+                    <!-- AMI AVATAR CANVAS VỚI NỀN XANH DƯƠNG NHẠT SÁNG SỦA -->
+                    <Viewbox Width="44" Height="44" Stretch="Uniform">
+                        <Canvas Width="64" Height="64">
+                            <!-- Background gradient sáng hài hòa -->
+                            <Ellipse Width="64" Height="64">
+                                <Ellipse.Fill>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#EFF6FF" Offset="0"/>
+                                        <GradientStop Color="#DBEAFE" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Ellipse.Fill>
+                            </Ellipse>
+                            <!-- Tóc sau & ombre -->
+                            <Path Data="M14,26 C14,16 22,10 32,10 C42,10 50,16 50,26 C50,38 46,48 46,48 C46,48 42,42 40,38 C38,34 38,30 38,30 C38,30 36,34 32,34 C28,34 26,30 26,30 C26,30 26,34 24,38 C22,42 18,48 18,48 C18,48 14,38 14,26 Z">
+                                <Path.Fill>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#06B6D4" Offset="0"/>
+                                        <GradientStop Color="#8B5CF6" Offset="0.5"/>
+                                        <GradientStop Color="#EC4899" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Path.Fill>
+                            </Path>
+                            <!-- Khuôn mặt chibi -->
+                            <Ellipse Canvas.Left="19" Canvas.Top="22" Width="26" Height="24" Fill="#FFE0BD"/>
+                            <!-- Mắt trái ngọc bích -->
+                            <Ellipse Canvas.Left="24.5" Canvas.Top="29.5" Width="5" Height="7" Fill="#00F090"/>
+                            <Ellipse Canvas.Left="25" Canvas.Top="31" Width="2" Height="2" Fill="#FFFFFF"/>
+                            <!-- Mắt phải ngọc bích -->
+                            <Ellipse Canvas.Left="34.5" Canvas.Top="29.5" Width="5" Height="7" Fill="#00F090"/>
+                            <Ellipse Canvas.Left="35" Canvas.Top="31" Width="2" Height="2" Fill="#FFFFFF"/>
+                            <!-- Má hồng -->
+                            <Ellipse Canvas.Left="22" Canvas.Top="37" Width="4" Height="2" Fill="#FF8BA7" Opacity="0.6"/>
+                            <Ellipse Canvas.Left="38" Canvas.Top="37" Width="4" Height="2" Fill="#FF8BA7" Opacity="0.6"/>
+                            <!-- Miệng cười -->
+                            <Path Canvas.Left="30" Canvas.Top="38" Data="M0,0 C1,1.5 3,1.5 4,0" Stroke="#D97706" StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                            <!-- Mái tóc sáng -->
+                            <Path Data="M19,25 C22,22 26,21 32,21 C38,21 42,22 45,25 C44,28 42,30 40,28 C38,26 35,28 32,27 C29,28 26,26 24,28 C22,30 20,28 19,25 Z">
+                                <Path.Fill>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#38BDF8" Offset="0"/>
+                                        <GradientStop Color="#C084FC" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Path.Fill>
+                            </Path>
+                            <!-- Headphone neon phát sáng -->
+                            <Rectangle Canvas.Left="15" Canvas.Top="28" Width="4" Height="10" RadiusX="2" RadiusY="2" Fill="#2563EB"/>
+                            <Rectangle Canvas.Left="45" Canvas.Top="28" Width="4" Height="10" RadiusX="2" RadiusY="2" Fill="#2563EB"/>
+                            <Path Data="M17,28 C17,19 23,15 32,15 C41,15 47,19 47,28" Stroke="#2563EB" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                            <!-- Ngôi sao vàng kẹp tóc -->
+                            <Polygon Points="39,18 40.5,21.5 44,22 41.5,24.5 42,28 39,26 36,28 36.5,24.5 34,22 37.5,21.5" Fill="#FBBF24"/>
+                        </Canvas>
+                    </Viewbox>
+                </Border>
+                <!-- Online Green Dot với viền trắng nổi bật -->
+                <Border Width="14"
+                        Height="14"
+                        CornerRadius="7"
+                        Background="#16A34A"
+                        BorderBrush="#FFFFFF"
+                        BorderThickness="2"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Margin="0,-2,-2,0"/>
+            </Grid>
+        </Border>
+
+        <!-- CHATBOT POPUP MODAL (THEME SÁNG THEO APP - KÍCH THƯỚC NHỎ GỌN) -->
+        <Border x:Name="ChatbotModalBorder"
+                Width="350"
+                Height="480"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                Margin="0,0,18,162"
+                Panel.ZIndex="5001"
+                Visibility="Collapsed"
+                Background="#FFFFFF"
+                BorderBrush="#CBD5E1"
+                BorderThickness="1"
+                CornerRadius="16">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="25" ShadowDepth="6" Color="#64748B" Opacity="0.25"/>
+            </Border.Effect>
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <!-- Header -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Quick prompts -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- Messages list -->
+                    <RowDefinition Height="*"/>
+                    <!-- Footer input -->
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- HEADER THEO TÔNG XANH DƯƠNG CỦA APP -->
+                <Border Grid.Row="0"
+                        Background="#2563EB"
+                        BorderBrush="#1D4ED8"
+                        BorderThickness="0,0,0,1"
+                        CornerRadius="16,16,0,0"
+                        Padding="14,12">
+                    <DockPanel LastChildFill="True">
+                        <!-- Actions bên phải -->
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Content="🧹"
+                                    ToolTip="Xóa lịch sử trò chuyện"
+                                    Padding="8,4"
+                                    Background="Transparent"
+                                    Foreground="#DBEAFE"
+                                    BorderThickness="0"
+                                    FontSize="13"
+                                    Cursor="Hand"
+                                    Click="ChatbotClearHistoryButton_Click"
+                                    Margin="0,0,4,0"/>
+                            <Button Content="✕"
+                                    ToolTip="Thu nhỏ cửa sổ"
+                                    Padding="8,4"
+                                    Background="Transparent"
+                                    Foreground="#DBEAFE"
+                                    BorderThickness="0"
+                                    FontSize="13"
+                                    FontWeight="Bold"
+                                    Cursor="Hand"
+                                    Click="ChatbotCloseButton_Click"/>
+                        </StackPanel>
+
+                        <!-- Profile bên trái -->
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Width="36" Height="36" CornerRadius="18" Background="#EFF6FF" BorderBrush="#93C5FD" BorderThickness="1.5" Margin="0,0,10,0">
+                                <TextBlock Text="🌸" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="ChatbotHeaderNameText" Text="Ami 🌸" FontWeight="Bold" FontSize="14" Foreground="#FFFFFF"/>
+                                    <TextBlock Text=" (Trợ Lý AI)" FontSize="12" Foreground="#DBEAFE" Margin="4,1,0,0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                    <Border Width="6" Height="6" CornerRadius="3" Background="#22C55E" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Đang trực cùng Quản trị viên" FontSize="11" Foreground="#BFDBFE"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <!-- QUICK PROMPTS (TÔNG SÁNG) -->
+                <Border Grid.Row="1" Background="#F8FAFC" Padding="10,8" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="📊 Tình hình phòng máy"
+                                    Tag="Tình hình phòng máy hôm nay thế nào em ơi?"
+                                    Background="#FFFFFF"
+                                    Foreground="#334155"
+                                    FontSize="11.5"
+                                    Padding="10,5"
+                                    Margin="0,0,6,0"
+                                    BorderBrush="#CBD5E1"
+                                    BorderThickness="1"
+                                    Cursor="Hand"
+                                    Click="ChatbotQuickPrompt_Click"/>
+                            <Button Content="🔍 Máy cần chú ý"
+                                    Tag="Kiểm tra giúp anh xem có máy nào đang nợ dịch vụ hoặc cần chú ý không em?"
+                                    Background="#FFFFFF"
+                                    Foreground="#334155"
+                                    FontSize="11.5"
+                                    Padding="10,5"
+                                    Margin="0,0,6,0"
+                                    BorderBrush="#CBD5E1"
+                                    BorderThickness="1"
+                                    Cursor="Hand"
+                                    Click="ChatbotQuickPrompt_Click"/>
+                            <Button Content="💰 Doanh thu hôm nay"
+                                    Tag="Tạm tính tổng tiền giờ và doanh thu hiện tại bao nhiêu rồi em?"
+                                    Background="#FFFFFF"
+                                    Foreground="#334155"
+                                    FontSize="11.5"
+                                    Padding="10,5"
+                                    Margin="0,0,6,0"
+                                    BorderBrush="#CBD5E1"
+                                    BorderThickness="1"
+                                    Cursor="Hand"
+                                    Click="ChatbotQuickPrompt_Click"/>
+                            <Button Content="💖 Động viên em ơi"
+                                    Tag="Động viên anh một câu tiếp năng lượng đi em ơi! ✨"
+                                    Background="#FFFFFF"
+                                    Foreground="#334155"
+                                    FontSize="11.5"
+                                    Padding="10,5"
+                                    Margin="0,0,6,0"
+                                    BorderBrush="#CBD5E1"
+                                    BorderThickness="1"
+                                    Cursor="Hand"
+                                    Click="ChatbotQuickPrompt_Click"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+
+                <!-- MESSAGES LIST -->
+                <ScrollViewer x:Name="ChatbotScrollViewer" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="12,10" Background="#F8FAFC">
+                    <StackPanel>
+                        <!-- Danh sách các bong bóng chat được nạp động từ C# -->
+                        <StackPanel x:Name="ChatbotMessagesPanel"/>
+
+                        <!-- Thinking Indicator -->
+                        <Grid x:Name="ChatbotThinkingRow" Margin="0,4,0,8" Visibility="Collapsed" HorizontalAlignment="Left">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Width="28" Height="28" CornerRadius="14" Background="#EFF6FF" BorderBrush="#2563EB" BorderThickness="1" Margin="0,0,8,0">
+                                <TextBlock Text="🌸" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Grid.Column="1" Background="#EFF6FF" BorderBrush="#DBEAFE" BorderThickness="1" CornerRadius="4,14,14,14" Padding="12,8">
+                                <TextBlock Text="Ami đang suy nghĩ... ✨" FontSize="12.5" Foreground="#2563EB" FontStyle="Italic"/>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- FOOTER INPUT -->
+                <Border Grid.Row="3" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" CornerRadius="0,0,16,16" Padding="10,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="ChatbotInputTextBox"
+                                 Grid.Column="0"
+                                 Background="#F8FAFC"
+                                 Foreground="#0F172A"
+                                 BorderBrush="#CBD5E1"
+                                 BorderThickness="1"
+                                 Padding="10,8"
+                                 FontSize="13"
+                                 TextWrapping="NoWrap"
+                                 KeyDown="ChatbotInputTextBox_KeyDown"
+                                 CaretBrush="#2563EB"/>
+                        <Button x:Name="ChatbotSendButton"
+                                Grid.Column="1"
+                                Content="🚀"
+                                ToolTip="Gửi tin nhắn (Enter)"
+                                Width="40"
+                                Height="36"
+                                Margin="8,0,0,0"
+                                Background="#2563EB"
+                                Foreground="White"
+                                FontSize="15"
+                                BorderThickness="0"
+                                Cursor="Hand"
+                                Click="ChatbotSendButton_Click"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+
         <Grid x:Name="GlobalModalOverlay" Background="#80000000" Visibility="Collapsed" Panel.ZIndex="9999" />
     </Grid>
 </Window>

@@ -207,6 +207,7 @@ public partial class MainWindow : Window
             InitializeAppBlockTab();
             InitializeWakeLanProfilesUi();
             InitializeVirtualPcsTab();
+            InitializeChatbot();
 
             _memberModalAutoCloseTimer.Interval = TimeSpan.FromMinutes(2);
             _memberModalAutoCloseTimer.Tick += MemberModalAutoCloseTimer_Tick;
@@ -473,9 +474,29 @@ public partial class MainWindow : Window
         }
     }
 
+    public bool IsRealtimeSocketConnected => _billingSocket?.Connected == true;
+
     private async void ReloadAllData_Click(object sender, RoutedEventArgs e)
     {
         await ReloadAllSystemDataAsync(isUserInitiated: true);
+    }
+
+    private void CheckSystemAndDatabaseHealth_Click(object sender, RoutedEventArgs e)
+    {
+        var diagWindow = new SystemHealthCheckWindow(this, autoStartRepair: false)
+        {
+            Owner = this
+        };
+        diagWindow.ShowDialog();
+    }
+
+    private void QuickAutoRepair_Click(object sender, RoutedEventArgs e)
+    {
+        var diagWindow = new SystemHealthCheckWindow(this, autoStartRepair: true)
+        {
+            Owner = this
+        };
+        diagWindow.ShowDialog();
     }
 
     private bool _isReloadingAllData;
@@ -694,6 +715,43 @@ public partial class MainWindow : Window
         }
     }
 
+    public AdminChatWindow OpenOrActivateAdminChatWindow(string pcId, string pcName, bool isUserAction = true)
+    {
+        if (string.IsNullOrWhiteSpace(pcId)) return null!;
+
+        // 1. Kiểm tra xem đã có cửa sổ AdminChatWindow nào đang mở cho máy này chưa
+        foreach (Window w in Application.Current.Windows)
+        {
+            if (w is AdminChatWindow existing && string.Equals(existing.PcId, pcId, StringComparison.OrdinalIgnoreCase))
+            {
+                if (existing.WindowState == WindowState.Minimized)
+                {
+                    existing.WindowState = WindowState.Normal;
+                }
+                if (isUserAction)
+                {
+                    existing.Activate();
+                    existing.Focus();
+                }
+                _ = existing.ReloadMessagesAsync();
+                return existing;
+            }
+        }
+
+        // 2. Chưa có thì mới tạo 1 cửa sổ mới duy nhất
+        var window = new AdminChatWindow(this, pcId, pcName)
+        {
+            Owner = this
+        };
+        window.Show();
+        if (isUserAction)
+        {
+            window.Activate();
+            window.Focus();
+        }
+        return window;
+    }
+
     private void ContextChatMenuItem_Click(object sender, RoutedEventArgs e)
     {
         var selectedItem = MachinesDataGrid.SelectedItem;
@@ -703,11 +761,7 @@ public partial class MainWindow : Window
             string pcId = pc.Id;
             string pcName = pc.Name;
 
-            var window = new AdminChatWindow(this, pcId, pcName)
-            {
-                Owner = this
-            };
-            window.Show(); // Non-blocking
+            OpenOrActivateAdminChatWindow(pcId, pcName, isUserAction: true);
         }
     }
 
@@ -716,15 +770,12 @@ public partial class MainWindow : Window
 
     private void ChatNotificationPopupBorder_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
+        e.Handled = true;
         ChatNotificationPopupBorder.Visibility = Visibility.Collapsed;
         
         if (!string.IsNullOrEmpty(_lastChatNotificationPcId))
         {
-            var window = new AdminChatWindow(this, _lastChatNotificationPcId, _lastChatNotificationPcName ?? "PC")
-            {
-                Owner = this
-            };
-            window.Show();
+            OpenOrActivateAdminChatWindow(_lastChatNotificationPcId, _lastChatNotificationPcName ?? "PC", isUserAction: true);
         }
     }
 }

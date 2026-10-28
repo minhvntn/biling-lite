@@ -51,52 +51,81 @@ export function PWAPrompt() {
   if (!isVisible) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: '20px',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      backgroundColor: '#2563eb', // A professional blue
-      color: 'white',
-      padding: '12px 24px',
-      borderRadius: '8px',
-      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '16px',
-      zIndex: 9999,
-      fontFamily: 'system-ui, -apple-system, sans-serif'
-    }}>
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <span style={{ fontWeight: 'bold', fontSize: '14px' }}>Cài đặt ứng dụng</span>
-        <span style={{ fontSize: '12px', opacity: 0.9 }}>Thêm Server Admin vào màn hình chính</span>
+    <div
+      className="pwa-install-banner"
+      style={{
+        position: 'fixed',
+        bottom: 'max(74px, calc(env(safe-area-inset-bottom, 0px) + 68px))',
+        left: '16px',
+        right: '16px',
+        maxWidth: '460px',
+        margin: '0 auto',
+        backgroundColor: '#1d4ed8',
+        color: '#ffffff',
+        padding: '12px 16px',
+        borderRadius: '16px',
+        boxShadow: '0 10px 25px -5px rgba(29, 78, 216, 0.4), 0 6px 12px -4px rgba(0, 0, 0, 0.12)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px',
+        zIndex: 9999,
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+        <div
+          style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '10px',
+            background: 'rgba(255, 255, 255, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '18px',
+            flexShrink: 0,
+          }}
+        >
+          📲
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+          <span style={{ fontWeight: '700', fontSize: '13.5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            Cài đặt ứng dụng
+          </span>
+          <span style={{ fontSize: '11.5px', opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            Thêm Server Admin vào màn hình chính
+          </span>
+        </div>
       </div>
-      <div style={{ display: 'flex', gap: '8px' }}>
-        <button 
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+        <button
           onClick={() => setIsVisible(false)}
           style={{
             background: 'transparent',
             border: 'none',
-            color: 'white',
+            color: 'rgba(255, 255, 255, 0.85)',
             cursor: 'pointer',
-            padding: '8px',
-            fontSize: '14px',
-            opacity: 0.8
+            padding: '6px 10px',
+            fontSize: '13px',
+            fontWeight: 600,
+            borderRadius: '8px',
           }}
         >
           Để sau
         </button>
-        <button 
+        <button
           onClick={handleInstallClick}
           style={{
-            background: 'white',
-            color: '#2563eb',
+            background: '#ffffff',
+            color: '#1d4ed8',
             border: 'none',
-            borderRadius: '4px',
-            padding: '8px 16px',
-            fontWeight: 'bold',
+            borderRadius: '8px',
+            padding: '7px 14px',
+            fontWeight: '700',
             cursor: 'pointer',
-            fontSize: '14px'
+            fontSize: '13px',
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
           }}
         >
           Cài đặt

@@ -1,5 +1,23 @@
-﻿<Application x:Class="Client.Agent.Wpf.App"
+<Application x:Class="Client.Agent.Wpf.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Application.Resources />
+    <Application.Resources>
+        <!-- Application-wide Crisp Text and Rendering Styles -->
+        <Style TargetType="Window">
+            <Setter Property="UseLayoutRounding" Value="True" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+            <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
+            <Setter Property="RenderOptions.ClearTypeHint" Value="Enabled" />
+            <Setter Property="RenderOptions.BitmapScalingMode" Value="HighQuality" />
+        </Style>
+
+        <Style TargetType="TextBlock">
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+            <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
+            <Setter Property="RenderOptions.ClearTypeHint" Value="Enabled" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="UseLayoutRounding" Value="True" />
+        </Style>
+    </Application.Resources>
 </Application>

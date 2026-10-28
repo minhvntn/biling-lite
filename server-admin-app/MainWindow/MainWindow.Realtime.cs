@@ -178,11 +178,47 @@ public partial class MainWindow : Window
                     var json = response.GetValue<System.Text.Json.JsonElement>();
                     var pcId = json.GetProperty("pcId").GetString();
                     var pcName = json.GetProperty("pcName").GetString();
+                    var messageText = json.TryGetProperty("message", out var m) ? m.GetString() : null;
+                    var createdAtStr = json.TryGetProperty("createdAt", out var c) ? c.GetString() : null;
+                    var messageId = json.TryGetProperty("id", out var i) ? i.GetString() : null;
 
                     QueueRealtimeUi(() => 
                     {
-                        if (pcId != null && pcName != null)
+                        if (string.IsNullOrEmpty(pcId) || string.IsNullOrEmpty(pcName)) return;
+
+                        // Kiểm tra xem đã có cửa sổ AdminChatWindow nào đang mở cho máy này không
+                        AdminChatWindow? activeChatWindow = null;
+                        foreach (Window w in Application.Current.Windows)
                         {
+                            if (w is AdminChatWindow chatWindow && string.Equals(chatWindow.PcId, pcId, StringComparison.OrdinalIgnoreCase))
+                            {
+                                activeChatWindow = chatWindow;
+                                break;
+                            }
+                        }
+
+                        if (activeChatWindow != null)
+                        {
+                            // Cửa sổ chat cho máy này ĐÃ ĐƯỢC MỞ:
+                            // Cập nhật ngay tin nhắn vào cửa sổ đang mở, KHÔNG mở thêm cửa sổ mới và KHÔNG hiện popup đè!
+                            if (!string.IsNullOrEmpty(messageText))
+                            {
+                                activeChatWindow.ReceiveIncomingMessage(messageId, messageText, createdAtStr);
+                            }
+                            else
+                            {
+                                _ = activeChatWindow.ReloadMessagesAsync();
+                            }
+
+                            if (activeChatWindow.WindowState == WindowState.Minimized)
+                            {
+                                activeChatWindow.WindowState = WindowState.Normal;
+                            }
+                            activeChatWindow.Activate();
+                        }
+                        else
+                        {
+                            // Chưa có cửa sổ chat mở -> Hiện popup thông báo ở góc
                             _lastChatNotificationPcId = pcId;
                             _lastChatNotificationPcName = pcName;
                             ChatNotificationTextBlock.Text = $"Tin nhắn - {pcName}";
@@ -205,6 +241,11 @@ public partial class MainWindow : Window
 
                     QueueRealtimeUi(() =>
                     {
+                        if (string.IsNullOrEmpty(pcId) || string.Equals(_lastChatNotificationPcId, pcId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            ChatNotificationPopupBorder.Visibility = Visibility.Collapsed;
+                        }
+
                         foreach (Window w in Application.Current.Windows)
                         {
                             if (w is AdminChatWindow chatWindow && (string.IsNullOrEmpty(pcId) || string.Equals(chatWindow.PcId, pcId, StringComparison.OrdinalIgnoreCase)))

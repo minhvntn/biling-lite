@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
+import { execSync } from 'child_process';
 import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -18,7 +20,7 @@ import {
   Prisma,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { BuyPlaytimeDto } from './dto/buy-playtime.dto';
@@ -5082,6 +5084,297 @@ export class MembersService {
         loyalty,
       };
     });
+  }
+
+  async importGcafe(
+    file?: { buffer: Buffer; originalname: string },
+    filePath?: string,
+  ) {
+    let sourcePath = filePath?.trim() || '';
+
+    // Validate file extension strictly (.gbsdat only)
+    if (file && file.originalname) {
+      const ext = path.extname(file.originalname).toLowerCase();
+      if (ext !== '.gbsdat') {
+        throw new BadRequestException(
+          'Định dạng tệp không hợp lệ! Hệ thống chỉ chấp nhận tệp sao lưu GCafe có đuôi mở rộng là .gbsdat (Ví dụ: Main.gbsdat).'
+        );
+      }
+    } else if (sourcePath) {
+      const ext = path.extname(sourcePath).toLowerCase();
+      if (ext !== '.gbsdat') {
+        throw new BadRequestException(
+          'Định dạng tệp không hợp lệ! Hệ thống chỉ chấp nhận tệp sao lưu GCafe có đuôi mở rộng là .gbsdat (Ví dụ: Main.gbsdat).'
+        );
+      }
+    } else {
+      throw new BadRequestException('Vui lòng chọn tệp Main.gbsdat để tải lên.');
+    }
+
+    // Check dumper tools directory
+    const candidates = [
+      path.resolve(process.cwd(), 'tools/gcafe-dumper'),
+      path.resolve(__dirname, '../../tools/gcafe-dumper'),
+      path.resolve(__dirname, '../../../tools/gcafe-dumper'),
+      'I:\\servermanagerbilling\\backend\\tools\\gcafe-dumper',
+      'I:\\servermanagerbilling\\release\\backend\\tools\\gcafe-dumper',
+    ];
+    let dumperDir = candidates.find((d) => fs.existsSync(path.join(d, 'console.exe')));
+    if (!dumperDir) {
+      throw new BadRequestException('Không tìm thấy bộ công cụ giải mã GCafe (console.exe)');
+    }
+
+    // Prepare temp work dir
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gcafe-import-'));
+    const dbDir = path.join(workDir, 'Database');
+    fs.mkdirSync(dbDir, { recursive: true });
+    const targetGbsdat = path.join(dbDir, 'Main.gbsdat');
+
+    try {
+      if (file && file.buffer) {
+        fs.writeFileSync(targetGbsdat, file.buffer);
+      } else if (sourcePath) {
+        if (!fs.existsSync(sourcePath)) {
+          throw new BadRequestException(`Tệp không tồn tại: ${sourcePath}`);
+        }
+        fs.copyFileSync(sourcePath, targetGbsdat);
+      }
+
+      // Configure server.ini for dumper
+      const iniContent = `[General]\nNation=VN\nDataFolder=${workDir.replace(/\\/g, '/')}\nPcDisplayMode=3\n`;
+      fs.writeFileSync(path.join(dumperDir, 'server.ini'), iniContent, 'utf8');
+
+      // Export members CSV
+      const outFile = `members_${Date.now()}.csv`;
+      const sql = `SELECT u.id, u.name as username, u.firstName, u.money, u.freeMoney, u.topupAmount, u.usedAmount, u.usedMinutes, u.mrLoginTime, u.enabled, ud.phone, ud.NRIC, ud.bonusPoint FROM Users u LEFT JOIN UserDetails ud ON u.id = ud.accId WHERE u.groupid = 2 ORDER BY u.id ASC`.replace(/\s+/g, ' ').trim();
+
+      try {
+        execSync(`console.exe -n Main.gbsdat -c "${sql}" -f ${outFile}`, {
+          cwd: dumperDir,
+          stdio: 'pipe',
+        });
+      } catch {
+        // console.exe returns code 1 even on success
+      }
+
+      const outCsvPath = path.join(dumperDir, outFile);
+      if (!fs.existsSync(outCsvPath)) {
+        throw new BadRequestException('Không thể đọc dữ liệu từ file GCafe (có thể file bị lỗi hoặc sai định dạng Main.gbsdat).');
+      }
+
+      const rawCsv = fs.readFileSync(outCsvPath, 'utf8');
+      try { fs.unlinkSync(outCsvPath); } catch {}
+
+      // Parse CSV
+      const lines = rawCsv.split(/\r?\n/).filter((l) => l.trim().length > 0);
+      if (lines.length < 2) {
+        throw new BadRequestException('File không chứa dữ liệu hội viên nào.');
+      }
+
+      const headers = lines[0].split(',').map((h) => h.replace(/^"|"$/g, '').trim());
+      const rawRows: Record<string, string>[] = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
+        const values: string[] = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (let c = 0; c < line.length; c++) {
+          const char = line[c];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            values.push(current.replace(/^"|"$/g, '').trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        values.push(current.replace(/^"|"$/g, '').trim());
+
+        if (values.length >= headers.length) {
+          const row: Record<string, string> = {};
+          headers.forEach((h, idx) => {
+            row[h] = values[idx] || '';
+          });
+          rawRows.push(row);
+        }
+      }
+
+      // Aggregate & Deduplicate
+      const memberMap = new Map<string, {
+        username: string;
+        fullName: string;
+        phone: string | null;
+        identityNumber: string | null;
+        totalMoney: number;
+        totalTopup: number;
+        totalUsedMinutes: number;
+        lastLoginTime: number;
+      }>();
+
+      for (const r of rawRows) {
+        const rawUsername = (r.username || '').trim();
+        if (!rawUsername) continue;
+        const lowerKey = rawUsername.toLowerCase();
+        const money = parseFloat(r.money) || 0;
+        const topupAmount = parseFloat(r.topupAmount) || 0;
+        const usedMinutes = parseInt(r.usedMinutes, 10) || 0;
+        const mrLoginTime = parseInt(r.mrLoginTime, 10) || 0;
+        const phone = (r.phone || '').trim() || null;
+        const nric = (r.NRIC || '').trim() || null;
+        const fullName = (r.firstName || '').trim() || rawUsername;
+
+        if (!memberMap.has(lowerKey)) {
+          memberMap.set(lowerKey, {
+            username: rawUsername,
+            fullName,
+            phone,
+            identityNumber: nric,
+            totalMoney: money,
+            totalTopup: topupAmount,
+            totalUsedMinutes: usedMinutes,
+            lastLoginTime: mrLoginTime,
+          });
+        } else {
+          const existing = memberMap.get(lowerKey)!;
+          existing.totalMoney += money;
+          existing.totalTopup += topupAmount;
+          existing.totalUsedMinutes += usedMinutes;
+          if (mrLoginTime > existing.lastLoginTime) existing.lastLoginTime = mrLoginTime;
+          if (phone && !existing.phone) existing.phone = phone;
+          if (nric && !existing.identityNumber) existing.identityNumber = nric;
+          if (fullName && fullName !== rawUsername && existing.fullName === existing.username) {
+            existing.fullName = fullName;
+          }
+        }
+      }
+
+      // Check existing members in DB
+      const currentDbMembers = await this.prisma.member.findMany({
+        select: {
+          id: true,
+          username: true,
+          balance: true,
+          totalTopup: true,
+          totalUsageSeconds: true,
+          phone: true,
+          identityNumber: true,
+        },
+      });
+      const dbMap = new Map(currentDbMembers.map((m) => [m.username.toLowerCase(), m]));
+
+      // Get referral codes
+      const existingCodes = await this.prisma.member.findMany({ select: { referralCode: true } });
+      const usedReferralCodes = new Set(existingCodes.map((c) => c.referralCode).filter(Boolean));
+
+      const getUniqueCode = (): string => {
+        while (true) {
+          const code = randomBytes(4).toString('hex').toUpperCase();
+          if (!usedReferralCodes.has(code)) {
+            usedReferralCodes.add(code);
+            return code;
+          }
+        }
+      };
+
+      let createdCount = 0;
+      let mergedCount = 0;
+      let totalBalanceImported = 0;
+
+      for (const item of memberMap.values()) {
+        const cleanBalance = item.totalMoney >= 1 ? Math.round(item.totalMoney) : 0;
+        const cleanTopup = Math.round(item.totalTopup);
+        const cleanUsageSeconds = item.totalUsedMinutes * 60;
+        totalBalanceImported += cleanBalance;
+
+        const lower = item.username.toLowerCase();
+        if (dbMap.has(lower)) {
+          // Merge
+          const existing = dbMap.get(lower)!;
+          const newBalance = Number(existing.balance) + cleanBalance;
+          const newTopup = Number(existing.totalTopup) + cleanTopup;
+          const newUsage = Number(existing.totalUsageSeconds) + cleanUsageSeconds;
+
+          await this.prisma.member.update({
+            where: { id: existing.id },
+            data: {
+              balance: newBalance,
+              totalTopup: newTopup,
+              totalUsageSeconds: newUsage,
+              phone: existing.phone || item.phone,
+              identityNumber: existing.identityNumber || item.identityNumber,
+            },
+          });
+
+          if (cleanBalance > 0) {
+            await this.prisma.memberTransaction.create({
+              data: {
+                memberId: existing.id,
+                type: MemberTransactionType.ADJUSTMENT,
+                amountDelta: cleanBalance,
+                note: `Cộng dồn số dư chuyển đổi từ GCafe (${cleanBalance.toLocaleString('vi-VN')} đ)`,
+                createdBy: 'GCafe Migration',
+              },
+            });
+          }
+          mergedCount++;
+        } else {
+          // Create new
+          const randomPass = randomBytes(8).toString('hex');
+          const passwordHash = await bcrypt.hash(randomPass, 10);
+          const referralCode = getUniqueCode();
+          const createdAt = item.lastLoginTime > 0 ? new Date(item.lastLoginTime * 1000) : new Date();
+
+          const created = await this.prisma.member.create({
+            data: {
+              username: item.username,
+              fullName: item.fullName,
+              phone: item.phone,
+              identityNumber: item.identityNumber,
+              balance: cleanBalance,
+              totalTopup: cleanTopup,
+              totalUsageSeconds: cleanUsageSeconds,
+              passwordHash,
+              plainPassword: null,
+              isActive: true,
+              memberType: 'REGULAR',
+              referralCode,
+              createdAt,
+            },
+          });
+
+          if (cleanBalance > 0) {
+            await this.prisma.memberTransaction.create({
+              data: {
+                memberId: created.id,
+                type: MemberTransactionType.ADJUSTMENT,
+                amountDelta: cleanBalance,
+                note: `Số dư ban đầu chuyển đổi từ GCafe (${cleanBalance.toLocaleString('vi-VN')} đ)`,
+                createdBy: 'GCafe Migration',
+              },
+            });
+          }
+          createdCount++;
+        }
+      }
+
+      return {
+        success: true,
+        totalParsed: rawRows.length,
+        uniqueCount: memberMap.size,
+        createdCount,
+        mergedCount,
+        totalBalance: totalBalanceImported,
+        message: `Đã nhập thành công ${createdCount.toLocaleString('vi-VN')} hội viên mới và cộng dồn ${mergedCount.toLocaleString('vi-VN')} hội viên cũ. Tổng số dư bảo lưu: ${totalBalanceImported.toLocaleString('vi-VN')} VNĐ.`,
+      };
+    } finally {
+      // Clean up workDir
+      try {
+        fs.rmSync(workDir, { recursive: true, force: true });
+      } catch {}
+    }
   }
 }
 

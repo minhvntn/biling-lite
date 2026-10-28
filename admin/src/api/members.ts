@@ -129,3 +129,26 @@ export async function rejectTopupRequest(requestId: string, payload?: { rejected
   return handleResponse<any>(response);
 }
 
+export interface ImportGcafeResult {
+  message: string;
+  processed: number;
+  imported: number;
+  updated: number;
+  failed: number;
+  totalMoney: number;
+  totalSpent: number;
+  totalUsedMinutes: number;
+}
+
+export async function importGcafeMembers(file: File): Promise<ImportGcafeResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetchWithAuth(`${API_BASE_URL}/members/import-gcafe`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  return handleResponse<ImportGcafeResult>(response);
+}
+

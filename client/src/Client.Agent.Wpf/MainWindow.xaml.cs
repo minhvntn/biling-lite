@@ -1561,14 +1561,8 @@ public static decimal PricingStep { get; set; } = 1000m;
             BorderThickness = new Thickness(1.5),
             BorderBrush = new SolidColorBrush(Color.FromRgb(0xFE, 0xCD, 0xD3)),
             Background = new SolidColorBrush(Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF)),
-            Effect = new DropShadowEffect
-            {
-                Color = Color.FromRgb(0x64, 0x74, 0x8B),
-                BlurRadius = 8,
-                ShadowDepth = 1,
-                Opacity = 0.08,
-                Direction = 270
-            }
+            SnapsToDevicePixels = true,
+            UseLayoutRounding = true
         };
         
         var grid = new Grid();
@@ -1610,7 +1604,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         var discountText = new TextBlock
         {
             Foreground = new SolidColorBrush(Color.FromRgb(0xE1, 0x1D, 0x48)),
-            FontWeight = FontWeights.SemiBold,
+            FontWeight = FontWeights.Bold,
             FontSize = 14,
             Text = $"Giảm {discountPercent:0.#}% tiền giờ chơi",
             Margin = new Thickness(0, 2, 0, 0)
@@ -1633,14 +1627,8 @@ public static decimal PricingStep { get; set; } = 1000m;
             BorderThickness = new Thickness(1.5),
             BorderBrush = new SolidColorBrush(Color.FromRgb(0xFE, 0xD7, 0xAA)),
             Background = new SolidColorBrush(Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF)),
-            Effect = new DropShadowEffect
-            {
-                Color = Color.FromRgb(0x64, 0x74, 0x8B),
-                BlurRadius = 8,
-                ShadowDepth = 1,
-                Opacity = 0.08,
-                Direction = 270
-            }
+            SnapsToDevicePixels = true,
+            UseLayoutRounding = true
         };
         
         var grid = new Grid();

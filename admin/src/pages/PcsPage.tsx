@@ -91,8 +91,8 @@ export function PcsPage() {
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
   const [pendingPcActions, setPendingPcActions] = useState<Record<string, boolean>>({});
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'IN_USE' | 'LOCKED' | 'ONLINE' | 'OFFLINE' | 'BOOTING'>('ALL');
-  const [search, setSearch] = useState('');
+  const [statusFilter] = useState<'ALL' | 'IN_USE' | 'LOCKED' | 'ONLINE' | 'OFFLINE' | 'BOOTING'>('ALL');
+  const [search] = useState('');
 
   // Service items & Unpaid orders
   const [serviceItems, setServiceItems] = useState<ServiceItem[]>([]);
@@ -511,55 +511,27 @@ export function PcsPage() {
 
   return (
     <main className="layout">
-      <TopNav />
+      <TopNav
+        rightAction={
+          <div className="pc-toolbar-actions">
+            <span className="desktop-only sync-time">
+              Đồng bộ: {formatClock(lastUpdatedAt)}
+            </span>
+            <button
+              className="btn-refresh"
+              onClick={() => void loadPcs()}
+              disabled={loading}
+              title="Làm mới danh sách máy"
+            >
+              <span className={`refresh-icon ${loading ? 'spinning' : ''}`}>↻</span>
+              <span>{loading ? '...' : 'Làm mới'}</span>
+            </button>
+          </div>
+        }
+      />
       {error && <p className="error">{error}</p>}
       {actionMessage && <p className="info">{actionMessage}</p>}
 
-      <section className="toolbar-row">
-        {/* Hiding filters temporarily as requested */}
-        {false && (
-          <>
-            <div className="toolbar-item">
-              <label htmlFor="status-filter">Trạng thái:</label>
-              <select
-                id="status-filter"
-                value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(
-                    event.target.value as any
-                  )
-                }
-              >
-                <option value="ALL">Tất cả</option>
-                <option value="IN_USE">Đang sử dụng</option>
-                <option value="LOCKED">Đang khóa</option>
-                <option value="ONLINE">Sẵn sàng</option>
-                <option value="BOOTING">Đang khởi động</option>
-                <option value="OFFLINE">Offline</option>
-              </select>
-            </div>
-
-            <div className="toolbar-item toolbar-search">
-              <label htmlFor="search-pc">Tìm máy:</label>
-              <input
-                id="search-pc"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Nhập tên máy / agent id"
-              />
-            </div>
-          </>
-        )}
-
-        <div className="toolbar-item" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.5rem', alignSelf: 'flex-end', marginLeft: 'auto' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }} className="desktop-only">
-            Đồng bộ: {formatClock(lastUpdatedAt)}
-          </span>
-          <button onClick={() => void loadPcs()} disabled={loading} style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}>
-            {loading ? '...' : 'Làm mới'}
-          </button>
-        </div>
-      </section>
 
       {loading && <p className="info">Đang tải danh sách máy...</p>}
 
@@ -647,21 +619,25 @@ export function PcsPage() {
             ? Math.max(0, getEffectiveElapsedSeconds(pc, tick))
             : 0;
           const userName = getUserName(pc);
+          const isInUse = pc.status === 'IN_USE' || userName !== '-';
 
           return (
             <div key={pc.id} className="pc-card-item" onClick={() => handleOpenDrawer(pc)}>
-              <div className="pc-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <img src={getPcIconPath(pc)} alt="" style={{ width: '28px', height: '28px' }} />
+              <div className="pc-card-header">
+                <div className="pc-card-identity">
+                  <img src={getPcIconPath(pc)} alt="" className="pc-card-avatar" />
                   <span className="pc-card-title">{pc.name}</span>
                 </div>
-                <span className={statusClass(pc.status)} style={{ fontSize: '0.68rem', padding: '0.15rem 0.4rem' }}>{statusText(pc.status)}</span>
+                <span className={`pc-card-status ${statusClass(pc.status)}`}>
+                  {statusText(pc.status)}
+                </span>
               </div>
-              {userName !== '-' && (
-                <div className="pc-card-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginTop: '0.4rem' }}>
+
+              {isInUse ? (
+                <div className="pc-card-body-grid">
                   <div className="pc-card-row">
                     <span className="pc-card-icon">{getUserIcon(pc)}</span>
-                    <span className="pc-card-value" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</span>
+                    <span className="pc-card-value">{userName}</span>
                   </div>
                   {pc.activeSession ? (
                     <div className="pc-card-row">
@@ -681,9 +657,57 @@ export function PcsPage() {
                   {pc.hasUnpaidServices ? (
                     <div className="pc-card-row">
                       <span className="pc-card-icon" style={{ color: '#0284c7' }}>🍔</span>
-                      <span className="pc-card-value" style={{ color: '#0284c7', fontWeight: 500 }}>Có dịch vụ</span>
+                      <span className="pc-card-value" style={{ color: '#0284c7', fontWeight: 600 }}>Có dịch vụ</span>
                     </div>
                   ) : <div />}
+                </div>
+              ) : (
+                <div className="pc-card-body-empty">
+                  {pc.status === 'ONLINE' ? (
+                    <>
+                      <div className="pc-card-row pc-card-empty-sub" style={{ color: '#16a34a' }}>
+                        <span className="pc-card-icon">⚡</span>
+                        <span className="pc-card-value">Sẵn sàng mở</span>
+                      </div>
+                      <div className="pc-card-row pc-card-empty-hint">
+                        <span className="pc-card-icon">👉</span>
+                        <span className="pc-card-value">Chạm để mở</span>
+                      </div>
+                    </>
+                  ) : pc.status === 'LOCKED' ? (
+                    <>
+                      <div className="pc-card-row pc-card-empty-sub" style={{ color: '#0284c7' }}>
+                        <span className="pc-card-icon">🔒</span>
+                        <span className="pc-card-value">Đang khóa máy</span>
+                      </div>
+                      <div className="pc-card-row pc-card-empty-hint">
+                        <span className="pc-card-icon">👉</span>
+                        <span className="pc-card-value">Chạm để xử lý</span>
+                      </div>
+                    </>
+                  ) : pc.status === 'BOOTING' ? (
+                    <>
+                      <div className="pc-card-row pc-card-empty-sub" style={{ color: '#b45309' }}>
+                        <span className="pc-card-icon">⏳</span>
+                        <span className="pc-card-value">Đang khởi động</span>
+                      </div>
+                      <div className="pc-card-row pc-card-empty-hint">
+                        <span className="pc-card-icon">⋯</span>
+                        <span className="pc-card-value">Vui lòng đợi</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="pc-card-row pc-card-empty-sub">
+                        <span className="pc-card-icon">🔌</span>
+                        <span className="pc-card-value">Tắt nguồn</span>
+                      </div>
+                      <div className="pc-card-row pc-card-empty-hint">
+                        <span className="pc-card-icon">👉</span>
+                        <span className="pc-card-value">Chạm bật WOL</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
