@@ -121,7 +121,7 @@
 
                             <!-- Username -->
                             <StackPanel Grid.Row="0" Grid.Column="0">
-                                <TextBlock Text="Username" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextMain}" />
+                                <TextBlock Text="Tên đăng nhập" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextMain}" />
                                 <Border Style="{StaticResource InputBorderStyle}" Background="{StaticResource ReadOnlyInputBg}">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -129,7 +129,7 @@
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="👤" Grid.Column="0" Foreground="{StaticResource PrimaryColor}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16"/>
-                                        <TextBox x:Name="UsernameBox" Grid.Column="1" Style="{StaticResource IconTextBoxStyle}" IsReadOnly="True" />
+                                        <TextBox x:Name="UsernameBox" CharacterCasing="Upper" Grid.Column="1" Style="{StaticResource IconTextBoxStyle}" IsReadOnly="True" />
                                     </Grid>
                                 </Border>
                             </StackPanel>

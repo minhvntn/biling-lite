@@ -27,6 +27,7 @@ import { BuyPlaytimeDto } from './dto/buy-playtime.dto';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { TopupMemberDto } from './dto/topup-member.dto';
 import { AdjustBalanceDto } from './dto/adjust-balance.dto';
+import { GiftMemberDto } from './dto/gift-member.dto';
 import { MemberLoginDto } from './dto/member-login.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { TransferBalanceDto } from './dto/transfer-balance.dto';
@@ -214,6 +215,8 @@ const DAILY_MISSIONS_CONFIG = [
 @Injectable()
 
 export class MembersService {
+  private static readonly spinLockByMemberId = new Map<string, number>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
@@ -222,7 +225,12 @@ export class MembersService {
     private readonly pcsService: PcsService,
   ) { }
 
-  async getMembers(search?: string, memberType?: string) {
+  async getMembers(
+    search?: string,
+    memberType?: string,
+    limit?: number,
+    hideInactive = true,
+  ) {
     const keyword = search?.trim();
     let where: Prisma.MemberWhereInput = {};
 
@@ -233,6 +241,29 @@ export class MembersService {
         { phone: { contains: keyword, mode: 'insensitive' } },
         { identityNumber: { contains: keyword, mode: 'insensitive' } },
       ];
+    } else if (hideInactive) {
+      // Auto-hide members with no login activity in the last 30 days (1 month)
+      const oneMonthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const recentPresenceEvents = await this.prisma.eventLog.findMany({
+        where: {
+          eventType: 'member.pc.presence',
+          createdAt: { gte: oneMonthAgo },
+        },
+        select: { payload: true },
+        take: 5000,
+      });
+      const recentActiveMemberIds: string[] = [];
+      for (const ev of recentPresenceEvents) {
+        const p = ev.payload as any;
+        if (p?.memberId && typeof p.memberId === 'string') {
+          recentActiveMemberIds.push(p.memberId);
+        }
+      }
+
+      where.OR = [
+        { createdAt: { gte: oneMonthAgo } },
+        ...(recentActiveMemberIds.length > 0 ? [{ id: { in: recentActiveMemberIds } }] : []),
+      ];
     }
 
     if (memberType) {
@@ -241,36 +272,72 @@ export class MembersService {
       where.memberType = { not: 'COMBO' };
     }
 
-    const [members, total, rankConfigs] = await Promise.all([
+    const maxLimit = limit && limit > 0 ? limit : 10000;
+
+    const [members, total, totalAll, rankConfigs] = await Promise.all([
       this.prisma.member.findMany({
         where,
         orderBy: [{ createdAt: 'desc' }],
-        take: 200,
+        take: maxLimit,
       }),
       this.prisma.member.count({
         where,
+      }),
+      this.prisma.member.count({
+        where: { memberType: { not: 'COMBO' } },
       }),
       this.prisma.loyaltyRankConfig.findMany({
         orderBy: { minTopup: 'desc' },
       }),
     ]);
 
+    // Batch optimize loyalty & last login events to avoid N+1 queries when loading thousands of members
+    const memberIds = members.map((m) => m.id);
+    const membersWithTx = new Set<string>();
+    if (memberIds.length > 0) {
+      const distinctTx = await this.prisma.memberTransaction.findMany({
+        where: { memberId: { in: memberIds } },
+        select: { memberId: true },
+        distinct: ['memberId'],
+      });
+      distinctTx.forEach((x) => membersWithTx.add(x.memberId));
+    }
+
+    const presenceEvents = await this.prisma.eventLog.findMany({
+      where: { eventType: 'member.pc.presence' },
+      orderBy: { createdAt: 'desc' },
+      take: 2000,
+    });
+    const lastLoginByMember = new Map<string, string>();
+    for (const ev of presenceEvents) {
+      const payload = ev.payload as any;
+      const mId = payload?.memberId;
+      if (mId && !lastLoginByMember.has(mId)) {
+        lastLoginByMember.set(mId, ev.createdAt.toISOString());
+      }
+    }
+
     const items = await Promise.all(
       members.map(async (member) => {
         const rank = this.calculateRankName(Number(member.totalTopup), rankConfigs);
-        const loyalty = await this.buildLoyaltySnapshot(member.id, this.prisma);
+        let availablePoints = 0;
+        if (membersWithTx.has(member.id)) {
+          try {
+            const loyalty = await this.buildLoyaltySnapshot(member.id, this.prisma);
+            availablePoints = loyalty.availablePoints;
+          } catch {
+            availablePoints = 0;
+          }
+        }
 
-        const lastLoginEvent = await this.prisma.eventLog.findFirst({
-          where: {
-            eventType: 'member.pc.presence',
-            payload: { path: ['memberId'], equals: member.id },
-          },
-          orderBy: { createdAt: 'desc' }
-        });
+        const lastLoginAt =
+          lastLoginByMember.get(member.id) ||
+          member.createdAt?.toISOString() ||
+          null;
 
         return {
-          ...this.toMemberItem(member, rank, loyalty.availablePoints),
-          lastLoginAt: lastLoginEvent?.createdAt.toISOString() || null
+          ...this.toMemberItem(member, rank, availablePoints),
+          lastLoginAt,
         };
       }),
     );
@@ -278,14 +345,15 @@ export class MembersService {
     return {
       items,
       total,
+      totalAll,
       serverTime: new Date().toISOString(),
     };
   }
 
   async createMember(payload: CreateMemberDto) {
-    const normalizedUsername = payload.username?.trim() ?? '';
+    const normalizedUsername = payload.username?.trim().toUpperCase() ?? '';
     if (normalizedUsername.length < 1) {
-      throw new BadRequestException('Username phai co it nhat 1 ky tu');
+      throw new BadRequestException('Tên đăng nhập phải có ít nhất 1 ký tự');
     }
 
     const existingMember = await this.prisma.member.findFirst({
@@ -298,7 +366,7 @@ export class MembersService {
       select: { id: true },
     });
     if (existingMember) {
-      throw new ConflictException('Username da ton tai');
+      throw new ConflictException('Tên đăng nhập đã tồn tại');
     }
 
     try {
@@ -380,7 +448,7 @@ export class MembersService {
   }
 
   async login(payload: MemberLoginDto) {
-    const username = payload.username.trim();
+    const username = payload.username.trim().toUpperCase();
     const password = payload.password;
 
     const member = await this.prisma.member.findFirst({
@@ -1704,7 +1772,14 @@ export class MembersService {
       throw new BadRequestException('Tính năng điểm tích lũy đang tắt');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const now = Date.now();
+    const lastSpinAt = MembersService.spinLockByMemberId.get(memberId) ?? 0;
+    if (now - lastSpinAt < 2500) {
+      throw new BadRequestException('Vòng quay đang quay, vui lòng chờ trong giây lát!');
+    }
+    MembersService.spinLockByMemberId.set(memberId, now);
+
+    const result = await this.prisma.$transaction(async (tx) => {
       const member = await tx.member.findUnique({ where: { id: memberId } });
       if (!member) {
         throw new NotFoundException('Không tìm thấy hội viên');
@@ -1722,21 +1797,17 @@ export class MembersService {
       const secondsToSpend = betPoints * spendSecondsPerPoint;
       const spendNote = payload.note?.trim() || `LUCKY_SPIN: spend ${betPoints} points`;
 
-      if (member.memberType === 'VIP') {
-        await this.applyVipTimeDiscount(tx, memberId, -secondsToSpend, spendNote, createdBy);
-      } else {
-        // Do not decrement playSeconds from member table
-        await tx.memberTransaction.create({
-          data: {
-            memberId,
-            type: MemberTransactionType.ADJUSTMENT,
-            amountDelta: 0,
-            playSecondsDelta: -secondsToSpend,
-            note: spendNote,
-            createdBy,
-          },
-        });
-      }
+      // Do not decrement playSeconds from member table (spending loyalty points, not promo hours)
+      await tx.memberTransaction.create({
+        data: {
+          memberId,
+          type: MemberTransactionType.ADJUSTMENT,
+          amountDelta: 0,
+          playSecondsDelta: -secondsToSpend,
+          note: spendNote,
+          createdBy,
+        },
+      });
 
       // Pseudo-redemption transaction to deduct Loyalty Points
       await tx.memberTransaction.create({
@@ -1821,6 +1892,9 @@ export class MembersService {
         ),
       };
     });
+
+    await this.emitMemberAccountChanged(result.member, 'LUCKY_SPIN', createdBy);
+    return result;
   }
 
   async runHorseRace(memberId: string, payload: HorseRaceDto) {
@@ -1836,7 +1910,7 @@ export class MembersService {
       throw new BadRequestException('Tính năng điểm tích lũy đang tắt');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const member = await tx.member.findUnique({ where: { id: memberId } });
       if (!member) {
         throw new NotFoundException('Không tìm thấy hội viên');
@@ -1859,21 +1933,17 @@ export class MembersService {
       const secondsToSpend = betPoints * spendSecondsPerPoint;
       const spendNote = `HORSE_RACE_BET: bet ${betPoints} points on horse #${selectedHorse + 1}`;
 
-      if (member.memberType === 'VIP') {
-        await this.applyVipTimeDiscount(tx, memberId, -secondsToSpend, spendNote, createdBy);
-      } else {
-        // Do not decrement playSeconds from member table
-        await tx.memberTransaction.create({
-          data: {
-            memberId,
-            type: MemberTransactionType.ADJUSTMENT,
-            amountDelta: 0,
-            playSecondsDelta: -secondsToSpend,
-            note: spendNote,
-            createdBy,
-          },
-        });
-      }
+      // Do not decrement playSeconds from member table (spending loyalty points, not promo hours)
+      await tx.memberTransaction.create({
+        data: {
+          memberId,
+          type: MemberTransactionType.ADJUSTMENT,
+          amountDelta: 0,
+          playSecondsDelta: -secondsToSpend,
+          note: spendNote,
+          createdBy,
+        },
+      });
 
       // Pseudo-redemption transaction to deduct Loyalty Points
       await tx.memberTransaction.create({
@@ -1954,6 +2024,19 @@ export class MembersService {
         playedAt: new Date().toISOString(),
       };
     });
+
+    const updatedMember = await this.prisma.member.findUnique({ where: { id: memberId } });
+    if (updatedMember) {
+      const rankConfigs = await this.prisma.loyaltyRankConfig.findMany({ orderBy: { minTopup: 'desc' } });
+      const memberItem = this.toMemberItem(
+        updatedMember,
+        this.calculateRankName(Number(updatedMember.totalTopup), rankConfigs),
+        result.loyalty.availablePoints,
+      );
+      await this.emitMemberAccountChanged(memberItem, 'HORSE_RACE', createdBy);
+    }
+
+    return result;
   }
 
   async applyPetLoyaltyPoints(memberId: string, payload: PetLoyaltyPointsDto) {
@@ -2126,13 +2209,28 @@ export class MembersService {
         throw new NotFoundException('Khong tim thay hoi vien');
       }
 
-      let finalAmount = amount;
+      let bonusSeconds = 0;
       let finalNote = payload.note ?? 'Nap tien';
       if (amount > 0) {
         const bonus = await this.calculateTopupBonus(amount, tx);
         if (bonus > 0) {
-          finalAmount += bonus;
-          finalNote += ' (+' + bonus.toLocaleString('en-US') + ' KM)';
+          let ratePerHour = payload.ratePerHour && payload.ratePerHour > 0 ? payload.ratePerHour : 0;
+          if (ratePerHour <= 0) {
+            const defaultGroup = await tx.pcGroup.findFirst({
+              where: { isDefault: true },
+            });
+            const baseRate = Number(
+              defaultGroup?.memberHourlyRate ||
+              defaultGroup?.hourlyRate ||
+              7000,
+            );
+            ratePerHour = await this.getEffectiveHourlyRate(baseRate);
+            if (ratePerHour <= 0) ratePerHour = 7000;
+          }
+
+          bonusSeconds = Math.round((bonus / ratePerHour) * 3600);
+          const bonusMinutes = Math.floor(bonusSeconds / 60);
+          finalNote += ` (+${bonus.toLocaleString('en-US')} KM ~ ${bonusMinutes >= 60 ? (bonusSeconds / 3600).toFixed(1) + 'h' : bonusMinutes + 'p'})`;
         }
       }
 
@@ -2140,11 +2238,18 @@ export class MembersService {
         where: { id: member.id },
         data: {
           balance: {
-            increment: finalAmount,
+            increment: amount,
           },
           totalTopup: {
             increment: amount, // Only count original amount toward rank, not bonus
           },
+          ...(bonusSeconds > 0
+            ? {
+                playSeconds: {
+                  increment: bonusSeconds,
+                },
+              }
+            : {}),
         },
       });
 
@@ -2152,7 +2257,8 @@ export class MembersService {
         data: {
           memberId: member.id,
           type: MemberTransactionType.TOPUP,
-          amountDelta: finalAmount,
+          amountDelta: amount,
+          playSecondsDelta: bonusSeconds,
           note: finalNote,
           createdBy,
         },
@@ -2166,7 +2272,8 @@ export class MembersService {
           payload: {
             memberId: member.id,
             username: member.username,
-            amount: finalAmount,
+            amount,
+            bonusSeconds,
             note: finalNote,
             createdBy,
             at: new Date().toISOString(),
@@ -2186,6 +2293,98 @@ export class MembersService {
       this.calculateRankName(Number(result.updatedMember.totalTopup), rankConfigs),
     );
     await this.emitMemberAccountChanged(member, 'TOPUP', createdBy);
+
+    return {
+      member,
+      transaction: this.toTransactionItem(result.transaction),
+    };
+  }
+
+  async giftMember(memberId: string, payload: GiftMemberDto) {
+    const amount = this.roundMoney(payload.amount);
+    const createdBy = payload.createdBy?.trim() || 'admin.desktop';
+
+    const [result, rankConfigs] = await this.prisma.$transaction(async (tx) => {
+      const member = await tx.member.findUnique({ where: { id: memberId } });
+      if (!member) {
+        throw new NotFoundException('Khong tim thay hoi vien');
+      }
+
+      // Resolve effective rate per hour to convert gift money into promo seconds
+      let ratePerHour = payload.ratePerHour && payload.ratePerHour > 0 ? payload.ratePerHour : 0;
+      if (ratePerHour <= 0) {
+        const defaultGroup = await tx.pcGroup.findFirst({
+          where: { isDefault: true },
+        });
+        const baseRate = Number(
+          defaultGroup?.memberHourlyRate ||
+          defaultGroup?.hourlyRate ||
+          7000,
+        );
+        ratePerHour = await this.getEffectiveHourlyRate(baseRate);
+        if (ratePerHour <= 0) ratePerHour = 7000;
+      }
+
+      const grantSeconds = Math.round((amount / ratePerHour) * 3600);
+      const grantMinutes = Math.floor(grantSeconds / 60);
+      const grantHours = grantMinutes / 60;
+      const timeStr = grantHours >= 1
+        ? `${Math.floor(grantHours)}h${grantMinutes % 60 ? (grantMinutes % 60) + 'p' : ''}`
+        : `${grantMinutes}p`;
+      const finalNote = payload.note
+        ? `${payload.note} (+${timeStr} KM ~ ${amount.toLocaleString('en-US')}đ)`
+        : `Tặng tiền miễn phí (+${timeStr} KM ~ ${amount.toLocaleString('en-US')}đ)`;
+
+      // Increment playSeconds only. Balance and totalTopup remain untouched!
+      const updatedMember = await tx.member.update({
+        where: { id: member.id },
+        data: {
+          playSeconds: {
+            increment: grantSeconds,
+          },
+        },
+      });
+
+      const transaction = await tx.memberTransaction.create({
+        data: {
+          memberId: member.id,
+          type: MemberTransactionType.ADJUSTMENT,
+          amountDelta: 0,
+          playSecondsDelta: grantSeconds,
+          note: finalNote,
+          createdBy,
+        },
+      });
+
+      await tx.eventLog.create({
+        data: {
+          source: EventSource.SERVER,
+          eventType: 'member.gift.playtime',
+          pcId: null,
+          payload: {
+            memberId: member.id,
+            username: member.username,
+            amount,
+            grantSeconds,
+            note: finalNote,
+            createdBy,
+            at: new Date().toISOString(),
+          },
+        },
+      });
+
+      const configs = await tx.loyaltyRankConfig.findMany({
+        orderBy: { minTopup: 'desc' },
+      });
+
+      return [{ updatedMember, transaction }, configs] as const;
+    });
+
+    const member = this.toMemberItem(
+      result.updatedMember,
+      this.calculateRankName(Number(result.updatedMember.totalTopup), rankConfigs),
+    );
+    await this.emitMemberAccountChanged(member, 'ADJUSTMENT', createdBy);
 
     return {
       member,
@@ -2287,6 +2486,16 @@ export class MembersService {
   async adjustBalance(memberId: string, payload: AdjustBalanceDto) {
     const amountDelta = this.roundMoneyAllowNegative(payload.amountDelta);
     const createdBy = payload.createdBy?.trim() || 'admin.desktop';
+
+    // If requested as gift or note specifies gift, grant as promo playtime (playSeconds) without promo bonus!
+    if (payload.isGift || (payload.note && (payload.note.toLowerCase().includes('tang tien') || payload.note.toLowerCase().includes('tặng tiền')))) {
+      return this.giftMember(memberId, {
+        amount: Math.abs(amountDelta),
+        ratePerHour: payload.ratePerHour,
+        note: payload.note,
+        createdBy,
+      });
+    }
 
     const [result, rankConfigs] = await this.prisma.$transaction(async (tx) => {
       const member = await tx.member.findUnique({ where: { id: memberId } });
@@ -2506,7 +2715,7 @@ export class MembersService {
   async transferBalance(memberId: string, payload: TransferBalanceDto) {
     const amount = this.roundMoney(payload.amount);
     const createdBy = payload.createdBy?.trim() || 'admin.desktop';
-    const targetUsername = payload.targetUsername.trim();
+    const targetUsername = payload.targetUsername.trim().toUpperCase();
     const [result, rankConfigs] = await this.prisma.$transaction(async (tx) => {
       const source = await tx.member.findUnique({ where: { id: memberId } });
       if (!source) {
@@ -2811,13 +3020,25 @@ export class MembersService {
         throw new BadRequestException('Tài khoản hội viên không hoạt động');
       }
 
-      let finalAmount = requestPayload.amount;
+      let bonusSeconds = 0;
       let finalNote = requestPayload.note || 'Hội viên yêu cầu nạp tiền (được duyệt)';
       if (requestPayload.amount > 0) {
         const bonus = await this.calculateTopupBonus(requestPayload.amount, tx);
         if (bonus > 0) {
-          finalAmount += bonus;
-          finalNote += ' (+' + bonus.toLocaleString('en-US') + ' KM)';
+          const defaultGroup = await tx.pcGroup.findFirst({
+            where: { isDefault: true },
+          });
+          const baseRate = Number(
+            defaultGroup?.memberHourlyRate ||
+            defaultGroup?.hourlyRate ||
+            7000,
+          );
+          let ratePerHour = await this.getEffectiveHourlyRate(baseRate);
+          if (ratePerHour <= 0) ratePerHour = 7000;
+
+          bonusSeconds = Math.round((bonus / ratePerHour) * 3600);
+          const bonusMinutes = Math.floor(bonusSeconds / 60);
+          finalNote += ` (+${bonus.toLocaleString('en-US')} KM ~ ${bonusMinutes >= 60 ? (bonusSeconds / 3600).toFixed(1) + 'h' : bonusMinutes + 'p'})`;
         }
       }
 
@@ -2825,11 +3046,18 @@ export class MembersService {
         where: { id: member.id },
         data: {
           balance: {
-            increment: finalAmount,
+            increment: requestPayload.amount,
           },
           totalTopup: {
             increment: requestPayload.amount, // Only count original amount toward rank, not bonus
           },
+          ...(bonusSeconds > 0
+            ? {
+                playSeconds: {
+                  increment: bonusSeconds,
+                },
+              }
+            : {}),
         },
       });
 
@@ -2837,7 +3065,8 @@ export class MembersService {
         data: {
           memberId: member.id,
           type: MemberTransactionType.TOPUP,
-          amountDelta: finalAmount,
+          amountDelta: requestPayload.amount,
+          playSecondsDelta: bonusSeconds,
           note: finalNote,
           createdBy: approvedBy,
         },
@@ -2848,7 +3077,7 @@ export class MembersService {
         status: 'APPROVED',
         approvedAt: new Date().toISOString(),
         approvedBy,
-        processedAmount: finalAmount,
+        processedAmount: requestPayload.amount,
         balanceAfterTopup: Number(updatedMember.balance),
         transactionId: transaction.id,
       };
@@ -3202,7 +3431,7 @@ export class MembersService {
 
     return {
       id: member.id,
-      username: member.username,
+      username: (member.username || '').toUpperCase(),
       fullName: member.fullName,
       phone: member.phone,
       identityNumber: member.identityNumber,
@@ -4828,7 +5057,7 @@ export class MembersService {
 
         memberStats.push({
           memberId: m.id,
-          username: m.username,
+          username: (m.username || '').toUpperCase(),
           avatarId: m.avatarId,
           rankName,
           points,
@@ -4844,7 +5073,7 @@ export class MembersService {
             const snapshot = await this.buildLoyaltySnapshot(m.id, this.prisma);
             return {
               memberId: m.id,
-              username: m.username,
+              username: (m.username || '').toUpperCase(),
               avatarId: m.avatarId,
               rankName,
               points: snapshot.earnedPoints,
@@ -4853,7 +5082,7 @@ export class MembersService {
           } catch {
             return {
               memberId: m.id,
-              username: m.username,
+              username: (m.username || '').toUpperCase(),
               avatarId: m.avatarId,
               rankName,
               points: 0,
@@ -5089,6 +5318,7 @@ export class MembersService {
   async importGcafe(
     file?: { buffer: Buffer; originalname: string },
     filePath?: string,
+    mode: 'merge' | 'replace' = 'merge',
   ) {
     let sourcePath = filePath?.trim() || '';
 
@@ -5251,8 +5481,18 @@ export class MembersService {
         }
       }
 
+      // If replace mode is requested: completely clean existing members & related records
+      if (mode === 'replace') {
+        await this.prisma.member.updateMany({
+          data: { referredById: null },
+        });
+        await this.prisma.memberDailyCheckin.deleteMany({});
+        await this.prisma.memberTransaction.deleteMany({});
+        await this.prisma.member.deleteMany({});
+      }
+
       // Check existing members in DB
-      const currentDbMembers = await this.prisma.member.findMany({
+      const currentDbMembers = mode === 'replace' ? [] : await this.prisma.member.findMany({
         select: {
           id: true,
           username: true,
@@ -5281,12 +5521,26 @@ export class MembersService {
 
       let createdCount = 0;
       let mergedCount = 0;
+      let skippedPurgedCount = 0;
       let totalBalanceImported = 0;
+
+      const sixMonthsAgoMs = Date.now() - 180 * 24 * 60 * 60 * 1000;
 
       for (const item of memberMap.values()) {
         const cleanBalance = item.totalMoney >= 1 ? Math.round(item.totalMoney) : 0;
         const cleanTopup = Math.round(item.totalTopup);
         const cleanUsageSeconds = item.totalUsedMinutes * 60;
+
+        // Tầng check: Hội viên không đăng nhập trong vòng 6 tháng VÀ có số dư < 500 VÀ tổng nạp < 100.000 -> loại bỏ khỏi hệ thống
+        const isInactive6Months = item.lastLoginTime <= 0 || (item.lastLoginTime * 1000) < sixMonthsAgoMs;
+        const isLowBalance = cleanBalance < 500;
+        const isLowTopup = cleanTopup < 100000;
+
+        if (isInactive6Months && isLowBalance && isLowTopup) {
+          skippedPurgedCount++;
+          continue;
+        }
+
         totalBalanceImported += cleanBalance;
 
         const lower = item.username.toLowerCase();
@@ -5360,14 +5614,20 @@ export class MembersService {
         }
       }
 
+      const message = mode === 'replace'
+        ? `Đã xóa toàn bộ hội viên cũ và nhập mới thành công ${createdCount.toLocaleString('vi-VN')} hội viên từ GCafe (đã lọc bỏ ${skippedPurgedCount.toLocaleString('vi-VN')} tài khoản không HĐ >6 tháng, số dư <500đ). Tổng số dư: ${totalBalanceImported.toLocaleString('vi-VN')} VNĐ.`
+        : `Đã nhập thành công ${createdCount.toLocaleString('vi-VN')} hội viên mới và cộng dồn ${mergedCount.toLocaleString('vi-VN')} hội viên cũ (đã lọc bỏ ${skippedPurgedCount.toLocaleString('vi-VN')} tài khoản không HĐ >6 tháng, số dư <500đ). Tổng số dư bảo lưu: ${totalBalanceImported.toLocaleString('vi-VN')} VNĐ.`;
+
       return {
         success: true,
+        mode,
         totalParsed: rawRows.length,
         uniqueCount: memberMap.size,
         createdCount,
         mergedCount,
+        skippedPurgedCount,
         totalBalance: totalBalanceImported,
-        message: `Đã nhập thành công ${createdCount.toLocaleString('vi-VN')} hội viên mới và cộng dồn ${mergedCount.toLocaleString('vi-VN')} hội viên cũ. Tổng số dư bảo lưu: ${totalBalanceImported.toLocaleString('vi-VN')} VNĐ.`,
+        message,
       };
     } finally {
       // Clean up workDir
@@ -5375,6 +5635,67 @@ export class MembersService {
         fs.rmSync(workDir, { recursive: true, force: true });
       } catch {}
     }
+  }
+
+  async purgeInactiveMembers() {
+    const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
+
+    const recentEvents = await this.prisma.eventLog.findMany({
+      where: { eventType: 'member.pc.presence', createdAt: { gte: sixMonthsAgo } },
+      select: { payload: true },
+      take: 10000,
+    });
+    const recentMemberIds = new Set<string>();
+    for (const ev of recentEvents) {
+      const p = ev.payload as any;
+      if (p?.memberId && typeof p.memberId === 'string') {
+        recentMemberIds.add(p.memberId);
+      }
+    }
+
+    const allMembers = await this.prisma.member.findMany({
+      where: { memberType: { not: 'COMBO' } },
+      select: {
+        id: true,
+        username: true,
+        balance: true,
+        totalTopup: true,
+        createdAt: true,
+      },
+    });
+
+    const toRemoveIds: string[] = [];
+    for (const m of allMembers) {
+      const hasRecentLogin = recentMemberIds.has(m.id) || (m.createdAt && m.createdAt >= sixMonthsAgo);
+      const lowBalance = Number(m.balance) < 500;
+      const lowTopup = Number(m.totalTopup) < 100000;
+
+      if (!hasRecentLogin && lowBalance && lowTopup) {
+        toRemoveIds.push(m.id);
+      }
+    }
+
+    if (toRemoveIds.length > 0) {
+      await this.prisma.member.updateMany({
+        where: { referredById: { in: toRemoveIds } },
+        data: { referredById: null },
+      });
+
+      await this.prisma.member.deleteMany({
+        where: { id: { in: toRemoveIds } },
+      });
+    }
+
+    const remainingCount = await this.prisma.member.count({
+      where: { memberType: { not: 'COMBO' } },
+    });
+
+    return {
+      success: true,
+      purgedCount: toRemoveIds.length,
+      remainingCount,
+      message: `Đã dọn dẹp thành công ${toRemoveIds.length} hội viên không đăng nhập trong 6 tháng, số dư < 500đ và tổng nạp < 100.000đ. Hệ thống hiện còn lại ${remainingCount} hội viên.`,
+    };
   }
 }
 

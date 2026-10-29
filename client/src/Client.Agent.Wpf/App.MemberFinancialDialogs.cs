@@ -1,4 +1,10 @@
 using System.Globalization;
+using System.IO;
+using System.Net.Http;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Media.Imaging;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Windows;
@@ -65,7 +71,7 @@ public partial class App : Application
 
         var sourceBlock = new TextBlock
         {
-            Text = $"Tài khoản gửi: {sourceMember.Username}",
+            Text = $"Tên đăng nhập gửi: {sourceMember.Username.ToUpperInvariant()}",
             Foreground = Brushes.DimGray,
             Margin = new Thickness(0, 0, 0, 4),
         };
@@ -83,7 +89,7 @@ public partial class App : Application
 
         var targetLabel = new TextBlock
         {
-            Text = "Tài khoản nhận:",
+            Text = "Tên đăng nhập nhận:",
             Margin = new Thickness(0, 0, 0, 4),
         };
         Grid.SetRow(targetLabel, 3);
@@ -92,6 +98,7 @@ public partial class App : Application
         var targetUsernameBox = new TextBox
         {
             Height = 32,
+            CharacterCasing = CharacterCasing.Upper,
             VerticalContentAlignment = VerticalAlignment.Center,
         };
         Grid.SetRow(targetUsernameBox, 4);
@@ -176,10 +183,10 @@ public partial class App : Application
         transferButton.Click += async (_, _) =>
         {
             errorTextBlock.Text = string.Empty;
-            var targetUsername = targetUsernameBox.Text.Trim();
+            var targetUsername = targetUsernameBox.Text.Trim().ToUpperInvariant();
             if (string.IsNullOrWhiteSpace(targetUsername))
             {
-                errorTextBlock.Text = "Vui lòng nhập tài khoản nhận.";
+                errorTextBlock.Text = "Vui lòng nhập tên đăng nhập nhận.";
                 return;
             }
 
@@ -698,8 +705,19 @@ public partial class App : Application
         qrPanel.Children.Add(qrTitleStack);
 
         var qrImageBorder = new Border { Background = Brushes.White, Padding = new Thickness(10), CornerRadius = new CornerRadius(8), Margin = new Thickness(0, 0, 0, 16) };
+        var qrContainer = new Grid { Width = 200, Height = 200 };
+        var qrLoadingText = new TextBlock
+        {
+            Text = "Đang tải mã QR...",
+            Foreground = textGray,
+            FontSize = 13,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
         var qrImage = new Image { Width = 200, Height = 200, Stretch = Stretch.Uniform };
-        qrImageBorder.Child = qrImage;
+        qrContainer.Children.Add(qrLoadingText);
+        qrContainer.Children.Add(qrImage);
+        qrImageBorder.Child = qrContainer;
         qrPanel.Children.Add(qrImageBorder);
 
         qrPanel.Children.Add(new TextBlock { Text = _vietQrAccountName, FontSize = 16, FontWeight = FontWeights.Bold, Foreground = textDark, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 4) });
@@ -763,21 +781,18 @@ public partial class App : Application
         }
 
         // --- Logic ---
+        CancellationTokenSource? qrCts = null;
+
         Action updateQrImage = () =>
         {
+            qrCts?.Cancel();
+            qrCts = new CancellationTokenSource();
+            var token = qrCts.Token;
+
             var cleanText = amountBox.Text.Replace(",", "").Replace(".", "").Trim();
             if (TryParsePositiveMoney(cleanText, out var amount) && amount >= 1000)
             {
                 var memo = $"NAP {sourceMember.Username}";
-                var url = $"https://img.vietqr.io/image/{_vietQrBankId}-{_vietQrAccountNo}-qr_only.png?amount={(int)amount}&addInfo={Uri.EscapeDataString(memo)}&accountName={Uri.EscapeDataString(_vietQrAccountName)}";
-                
-                var bitmap = new System.Windows.Media.Imaging.BitmapImage();
-                bitmap.BeginInit();
-                bitmap.UriSource = new Uri(url, UriKind.Absolute);
-                bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
-                bitmap.EndInit();
-                qrImage.Source = bitmap;
-
                 qrAmountBlock.Text = $"{amount:N0} VND";
 
                 var bonus = CalculateBonus(amount);
@@ -787,12 +802,87 @@ public partial class App : Application
                 } else {
                     promoBonusText.Visibility = Visibility.Collapsed;
                 }
+
+                qrLoadingText.Text = "Đang tải mã QR...";
+                qrLoadingText.Visibility = Visibility.Visible;
+                qrImage.Source = null;
+
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var url = $"https://img.vietqr.io/image/{_vietQrBankId}-{_vietQrAccountNo}-qr_only.png?amount={(int)amount}&addInfo={Uri.EscapeDataString(memo)}&accountName={Uri.EscapeDataString(_vietQrAccountName)}";
+
+                        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                        request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                        request.Headers.TryAddWithoutValidation("Accept", "image/png,image/svg+xml,image/*,*/*");
+
+                        using var response = await _httpClient.SendAsync(request, token);
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var contentBytes = await response.Content.ReadAsByteArrayAsync(token);
+                            byte[] pngBytes = contentBytes;
+
+                            // VietQR trả về file SVG bọc chuỗi Base64 PNG: href="data:image/png;base64,..."
+                            var textContent = System.Text.Encoding.UTF8.GetString(contentBytes);
+                            var match = Regex.Match(textContent, @"data:image/png;base64,([A-Za-z0-9+/=]+)");
+                            if (match.Success)
+                            {
+                                pngBytes = Convert.FromBase64String(match.Groups[1].Value);
+                            }
+
+                            if (token.IsCancellationRequested) return;
+
+                            await Dispatcher.InvokeAsync(() =>
+                            {
+                                if (token.IsCancellationRequested) return;
+                                try
+                                {
+                                    var bitmap = new BitmapImage();
+                                    bitmap.BeginInit();
+                                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                                    bitmap.StreamSource = new MemoryStream(pngBytes);
+                                    bitmap.EndInit();
+                                    bitmap.Freeze();
+
+                                    qrImage.Source = bitmap;
+                                    qrLoadingText.Visibility = Visibility.Collapsed;
+                                }
+                                catch
+                                {
+                                    qrLoadingText.Text = "Lỗi giải mã ảnh QR";
+                                }
+                            });
+                        }
+                        else
+                        {
+                            await Dispatcher.InvokeAsync(() =>
+                            {
+                                qrLoadingText.Text = "Không tải được mã QR";
+                            });
+                        }
+                    }
+                    catch (OperationCanceledException) { }
+                    catch (Exception ex)
+                    {
+                        if (!token.IsCancellationRequested)
+                        {
+                            await Dispatcher.InvokeAsync(() =>
+                            {
+                                qrLoadingText.Text = "Không thể tải mã QR";
+                            });
+                        }
+                        if (_logger != null) await _logger.ErrorAsync("Failed to load VietQR image", ex);
+                    }
+                }, token);
             }
             else
             {
                 qrImage.Source = null;
                 qrAmountBlock.Text = "0 VND";
                 promoBonusText.Visibility = Visibility.Collapsed;
+                qrLoadingText.Text = "Vui lòng nhập số tiền hợp lệ";
+                qrLoadingText.Visibility = Visibility.Visible;
             }
         };
 
@@ -900,6 +990,8 @@ public partial class App : Application
             amountBox.SelectAll();
             updateQrImage();
         };
+
+        dialog.Closed += (_, _) => { qrCts?.Cancel(); };
 
         headerBorder.MouseLeftButtonDown += (s, e) => { dialog.DragMove(); };
 

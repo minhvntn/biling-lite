@@ -72,8 +72,10 @@ public partial class MainWindow : Window
                 var selected = _serviceItemRows.FirstOrDefault(x => x.Id == selectedId);
                 if (selected is not null)
                 {
-                    ServiceItemsDataGrid.SelectedItem = selected;
-                    ServiceItemsDataGrid.ScrollIntoView(selected);
+                    if (!ReferenceEquals(ServiceItemsDataGrid.SelectedItem, selected))
+                    {
+                        ServiceItemsDataGrid.SelectedItem = selected;
+                    }
                     _selectedServiceItemId = selected.Id;
                 }
             }
@@ -1316,6 +1318,22 @@ public partial class MainWindow : Window
         IReadOnlyList<string>? orderIds,
         string? note = null)
     {
+        if (machine.IsVirtual)
+        {
+            machine.ServiceAmountRaw = 0;
+            machine.ServiceAmountText = "0";
+            machine.HasPendingClientServiceOrderHighlight = false;
+            machine.HasServiceDebtHighlight = false;
+            return new PayPcServiceOrdersResponse
+            {
+                PcId = machine.Id,
+                SessionId = machine.ActiveSessionId,
+                PaidOrderCount = 1,
+                PaidAmount = 0,
+                UnpaidAmount = 0,
+            };
+        }
+
         var payload = new
         {
             requestedBy = "admin.desktop",

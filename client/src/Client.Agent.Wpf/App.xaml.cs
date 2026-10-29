@@ -699,7 +699,7 @@ public partial class App : Application
         string username,
         string password)
     {
-        var normalizedUsername = (username ?? string.Empty).Trim();
+        var normalizedUsername = (username ?? string.Empty).Trim().ToUpperInvariant();
 
         // Administrator instant login: Đăng nhập ngay tức khắc, không cần check server / hệ thống
         if (normalizedUsername.Equals("administrator", StringComparison.OrdinalIgnoreCase))
@@ -840,7 +840,7 @@ public partial class App : Application
             _activeMemberSession = new ActiveMemberSession
             {
                 MemberId = member.Id,
-                Username = member.Username,
+                Username = (member.Username ?? string.Empty).ToUpperInvariant(),
                 FullName = member.FullName,
                 Rank = member.Rank,
                 MemberType = member.MemberType ?? "REGULAR",
@@ -4515,7 +4515,7 @@ LIMIT $limit;";
         _activeMemberSession = new ActiveMemberSession
         {
             MemberId = memberId,
-            Username = username,
+            Username = (username ?? string.Empty).ToUpperInvariant(),
             FullName = fullName,
             Rank = rank,
             MemberType = memberType,

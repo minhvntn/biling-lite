@@ -93,8 +93,10 @@ public partial class MainWindow : Window
                 string.Equals(x.GroupId, selectedGroupId, StringComparison.OrdinalIgnoreCase));
             if (selectedGroupRow is not null)
             {
-                GroupSummaryDataGrid.SelectedItem = selectedGroupRow;
-                GroupSummaryDataGrid.ScrollIntoView(selectedGroupRow);
+                if (!ReferenceEquals(GroupSummaryDataGrid.SelectedItem, selectedGroupRow))
+                {
+                    GroupSummaryDataGrid.SelectedItem = selectedGroupRow;
+                }
                 _selectedGroupSummaryId = selectedGroupRow.GroupId;
             }
         }
@@ -125,8 +127,10 @@ public partial class MainWindow : Window
                 string.Equals(x.PcId, selectedGroupMachinePcId, StringComparison.OrdinalIgnoreCase));
             if (selectedMachineRow is not null)
             {
-                GroupMachinesDataGrid.SelectedItem = selectedMachineRow;
-                GroupMachinesDataGrid.ScrollIntoView(selectedMachineRow);
+                if (!ReferenceEquals(GroupMachinesDataGrid.SelectedItem, selectedMachineRow))
+                {
+                    GroupMachinesDataGrid.SelectedItem = selectedMachineRow;
+                }
                 _selectedGroupMachinePcId = selectedMachineRow.PcId;
             }
         }

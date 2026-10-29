@@ -89,7 +89,10 @@ namespace Server.Admin.App.Windows.Controls
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Lỗi tải danh sách Combo: " + ex.Message, "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+                ConnectionErrorDialog.Show(Window.GetWindow(this), "Lỗi tải danh sách Combo", ex, async () =>
+                {
+                    await LoadCombosAsync();
+                });
             }
         }
 

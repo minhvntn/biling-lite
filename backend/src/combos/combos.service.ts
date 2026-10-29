@@ -67,11 +67,11 @@ export class CombosService {
     let currentIdx = await this.prisma.member.count({ where: { memberType: 'COMBO' } }) + 1;
 
     for (let i = 0; i < quantityToGenerate; i++) {
-      let username = `combo${currentIdx}`;
+      let username = `COMBO${currentIdx}`;
       let exists = await this.prisma.member.findUnique({ where: { username } });
       while (exists) {
         currentIdx++;
-        username = `combo${currentIdx}`;
+        username = `COMBO${currentIdx}`;
         exists = await this.prisma.member.findUnique({ where: { username } });
       }
 

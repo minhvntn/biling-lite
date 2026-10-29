@@ -29,7 +29,7 @@ namespace Server.Admin.App.Windows
             _apiUrlBase = apiUrlBase.TrimEnd('/');
             _member = member;
 
-            UsernameBox.Text = member.Username;
+            UsernameBox.Text = member.Username?.ToUpperInvariant() ?? string.Empty;
             FullNameBox.Text = member.FullName;
             PhoneBox.Text = member.Phone == "-" ? string.Empty : member.Phone;
             IdentityBox.Text = member.IdentityNumber == "-" ? string.Empty : member.IdentityNumber;

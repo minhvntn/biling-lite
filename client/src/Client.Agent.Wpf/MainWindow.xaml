@@ -37,9 +37,9 @@
             <Setter Property="Background" Value="#D9FFFFFF" />
             <Setter Property="BorderBrush" Value="#CBD5E1" />
             <Setter Property="BorderThickness" Value="1.5" />
-            <Setter Property="Margin" Value="5" />
+            <Setter Property="Margin" Value="2" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Height" Value="92" />
+            <Setter Property="Height" Value="88" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -47,7 +47,7 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="14"
+                                CornerRadius="12"
                                 SnapsToDevicePixels="True"
                                 UseLayoutRounding="True">
                             <Grid>
@@ -64,7 +64,7 @@
                                 <Setter TargetName="ButtonRoot" Property="Background" Value="#F1F5F9" />
                                 <Setter Property="RenderTransform">
                                     <Setter.Value>
-                                        <ScaleTransform ScaleX="0.96" ScaleY="0.96" CenterX="46" CenterY="46" />
+                                        <ScaleTransform ScaleX="0.96" ScaleY="0.96" CenterX="44" CenterY="44" />
                                     </Setter.Value>
                                 </Setter>
                             </Trigger>
@@ -84,7 +84,7 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="14"
+                                CornerRadius="12"
                                 SnapsToDevicePixels="True"
                                 UseLayoutRounding="True">
                             <Grid><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" /></Grid>
@@ -99,7 +99,7 @@
                                 <Setter TargetName="ButtonRoot" Property="Background" Value="#FFE4E6" />
                                 <Setter Property="RenderTransform">
                                     <Setter.Value>
-                                        <ScaleTransform ScaleX="0.96" ScaleY="0.96" CenterX="46" CenterY="46" />
+                                        <ScaleTransform ScaleX="0.96" ScaleY="0.96" CenterX="44" CenterY="44" />
                                     </Setter.Value>
                                 </Setter>
                             </Trigger>
@@ -214,7 +214,7 @@
                     </Grid.ColumnDefinitions>
 
                     <!-- LEFT COLUMN: Huge Circular Progress -->
-                    <Grid x:Name="LeftColumnGrid" Grid.Column="0" Margin="0,0,15,0">
+                    <Grid x:Name="LeftColumnGrid" Grid.Column="0" Margin="0,0,10,0">
                         <StackPanel VerticalAlignment="Center">
                             <StackPanel x:Name="LeftColumnRankPanel" HorizontalAlignment="Center" Margin="0,0,0,16"/>
 
@@ -278,7 +278,7 @@
                              </Grid>
 
                              <!-- External Info -->
-                             <StackPanel x:Name="ExternalInfoPanel" Margin="0,20,0,0" HorizontalAlignment="Stretch">
+                             <StackPanel x:Name="ExternalInfoPanel" Margin="0,12,0,0" HorizontalAlignment="Stretch">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                     
                                     <!-- Game Cost Pill -->
@@ -303,7 +303,7 @@
                              </StackPanel>
 
                              <!-- Promo Play Time Bar & Toggle -->
-                             <Border x:Name="PromoPlayTimeCard" Visibility="Collapsed" Background="#F0FDF4" BorderBrush="#86EFAC" BorderThickness="1.5" CornerRadius="14" Padding="12,8" Margin="15,12,15,0" HorizontalAlignment="Center" MinWidth="280" SnapsToDevicePixels="True">
+                             <Border x:Name="PromoPlayTimeCard" Visibility="Collapsed" Background="#F0FDF4" BorderBrush="#86EFAC" BorderThickness="1.5" CornerRadius="14" Padding="12,8" Margin="10,8,10,0" HorizontalAlignment="Center" MinWidth="280" SnapsToDevicePixels="True">
                                  <Grid>
                                      <Grid.ColumnDefinitions>
                                          <ColumnDefinition Width="*"/>
@@ -341,9 +341,9 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <StackPanel x:Name="RightColumnRankPanel" Grid.Row="0" Margin="6,0,6,0">
+                        <StackPanel x:Name="RightColumnRankPanel" Grid.Row="0" Margin="2,0,2,0">
                             <!-- VIP Card -->
-                            <Grid x:Name="MemberRankContainer" Visibility="Collapsed" Margin="0,0,0,8" Height="80" HorizontalAlignment="Stretch">
+                            <Grid x:Name="MemberRankContainer" Visibility="Collapsed" Margin="0,0,0,4" Height="80" HorizontalAlignment="Stretch">
                                 <Border x:Name="MemberRankGlowBorder" CornerRadius="16" Opacity="0" Background="White" BorderThickness="0">
                                     <Border.Effect>
                                         <DropShadowEffect x:Name="MemberRankGlowEffect" BlurRadius="0" ShadowDepth="0" Color="#FF4500" Opacity="0" RenderingBias="Performance"/>
@@ -435,7 +435,7 @@
                         <UniformGrid x:Name="ActionButtonsGrid" Grid.Row="1" Columns="4" VerticalAlignment="Center">
                             <Button x:Name="MessagesActionButton" Style="{StaticResource ActionButtonStyle}" Click="MessagesButton_Click">
                                 <StackPanel>
-                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,5">
                                         <Path Style="{StaticResource NeonIconStyle}" Data="M3,7 C3,5 5,3 8,3 L16,3 C19,3 21,5 21,7 L21,15 C21,17 19,19 16,19 L10,19 L5,22 L5,19 C4,18 3,16 3,15 Z">
                                             <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#3B82F6" Offset="0"/><GradientStop Color="#06B6D4" Offset="1"/></LinearGradientBrush></Path.Stroke>
                                         </Path>
@@ -448,7 +448,7 @@
 
                             <Button x:Name="ServicesActionButton" Style="{StaticResource ActionButtonStyle}" Click="ServicesButton_Click">
                                 <StackPanel>
-                                    <Grid Width="40" Height="34" HorizontalAlignment="Center" Margin="0,0,0,6">
+                                    <Grid Width="40" Height="34" HorizontalAlignment="Center" Margin="0,0,0,4">
                                         <Viewbox Width="26" Height="26" HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <Path Style="{StaticResource NeonIconStyle}" Data="M2,3 L5,3 L7.5,15 A2,2 0 0,0 9.5,17 L18,17 A2,2 0 0,0 20,15 L21,7 L6,7 M9,21 A1.5,1.5 0 1,1 9,20.9 M18,21 A1.5,1.5 0 1,1 18,20.9">
                                                 <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#F59E0B" Offset="0"/><GradientStop Color="#FBBF24" Offset="1"/></LinearGradientBrush></Path.Stroke>
@@ -466,7 +466,7 @@
 
                             <Button x:Name="LoyaltyActionButton" Style="{StaticResource ActionButtonStyle}" Click="LoyaltyButton_Click">
                                 <StackPanel>
-                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,5">
                                         <Path Style="{StaticResource NeonIconStyle}" Data="M12,2 L15,9 L22,9 L16,14 L18,21 L12,17 L6,21 L8,14 L2,9 L9,9 Z">
                                             <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#10B981" Offset="0"/><GradientStop Color="#34D399" Offset="1"/></LinearGradientBrush></Path.Stroke>
                                         </Path>
@@ -479,7 +479,7 @@
 
                             <Button x:Name="LeaderboardActionButton" Style="{StaticResource ActionButtonStyle}" Click="LeaderboardButton_Click">
                                 <StackPanel>
-                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,5">
                                         <Path Style="{StaticResource NeonIconStyle}" Data="M19,5 L18,5 C18,3 16,2 14,2 L10,2 C8,2 6,3 6,5 L5,5 C3,5 2,7 2,9 C2,11 3.5,12.5 5,13 C6,15 8,16 10,16.5 L10,19 L7,19 L7,21 L17,21 L17,19 L14,19 L14,16.5 C16,16 18,15 19,13 C20.5,12.5 22,11 22,9 C22,7 21,5 19,5 Z M5,11 C4,11 4,9 4,7 L6,7 L6,11 C5.5,11 5,11 5,11 Z M19,11 C19,11 18.5,11 18,11 L18,7 L20,7 C20,9 20,11 19,11 Z">
                                             <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#F59E0B" Offset="0"/><GradientStop Color="#FBBF24" Offset="1"/></LinearGradientBrush></Path.Stroke>
                                         </Path>
@@ -490,7 +490,7 @@
 
                             <Button x:Name="DailyMissionsActionButton" Style="{StaticResource ActionButtonStyle}" Click="DailyMissionsButton_Click">
                                 <StackPanel>
-                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,5">
                                         <Path Style="{StaticResource NeonIconStyle}" Data="M12,2 A10,10 0 1,1 12,22 A10,10 0 1,1 12,2 Z M12,6 A6,6 0 1,1 12,18 A6,6 0 1,1 12,6 Z M12,10 A2,2 0 1,1 12,14 A2,2 0 1,1 12,10 Z">
                                             <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#EF4444" Offset="0"/><GradientStop Color="#F97316" Offset="1"/></LinearGradientBrush></Path.Stroke>
                                         </Path>
@@ -501,7 +501,7 @@
 
                             <Button x:Name="TransferActionButton" Style="{StaticResource ActionButtonStyle}" Click="TransferBalanceButton_Click">
                                 <StackPanel>
-                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,5">
                                         <Path Style="{StaticResource NeonIconStyle}" Data="M4,8 L20,8 M16,4 L20,8 L16,12 M20,16 L4,16 M8,12 L4,16 L8,20">
                                             <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#8B5CF6" Offset="0"/><GradientStop Color="#D946EF" Offset="1"/></LinearGradientBrush></Path.Stroke>
                                         </Path>
@@ -514,7 +514,7 @@
 
                             <Button x:Name="WithdrawActionButton" Style="{StaticResource ActionButtonStyle}" Click="WithdrawBalanceButton_Click">
                                 <StackPanel>
-                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,5">
                                         <Path Style="{StaticResource NeonIconStyle}" Data="M12,4 L12,16 M8,12 L12,16 L16,12 M4,20 L20,20">
                                             <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#EA580C" Offset="0"/><GradientStop Color="#F97316" Offset="1"/></LinearGradientBrush></Path.Stroke>
                                         </Path>
@@ -527,7 +527,7 @@
 
                             <Button x:Name="TopupRequestActionButton" Style="{StaticResource ActionButtonStyle}" Click="TopupRequestButton_Click">
                                 <StackPanel>
-                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,5">
                                         <Path Style="{StaticResource NeonIconStyle}" Data="M3,7 C3,6 4,5 5,5 L19,5 C20,5 21,6 21,7 L21,17 C21,18 20,19 19,19 L5,19 C4,19 3,18 3,17 Z M3,10 L21,10">
                                             <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#0891B2" Offset="0"/><GradientStop Color="#2DD4BF" Offset="1"/></LinearGradientBrush></Path.Stroke>
                                         </Path>
@@ -540,7 +540,7 @@
 
                             <Button x:Name="ComboPackagesActionButton" Style="{StaticResource ActionButtonStyle}" Click="ComboPackagesButton_Click">
                                 <StackPanel>
-                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,5">
                                         <Path Style="{StaticResource NeonIconStyle}" Data="M20,6 L12,2 L4,6 L4,18 L12,22 L20,18 L20,6 Z M12,2 L12,12 M4,6 L12,12 M20,6 L12,12">
                                             <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#10B981" Offset="0"/><GradientStop Color="#059669" Offset="1"/></LinearGradientBrush></Path.Stroke>
                                         </Path>
@@ -553,7 +553,7 @@
 
                             <Button x:Name="PasswordActionButton" Style="{StaticResource ActionButtonStyle}" Click="PasswordButton_Click">
                                 <StackPanel>
-                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,5">
                                         <Path Style="{StaticResource NeonIconStyle}" Data="M15,5 A4.5,4.5 0 1,1 15,14 A4.5,4.5 0 0,1 15,5 M11.5,10.5 L3,19 L3,22 L6,22 L6,19 L9,19 L9,16 L11.5,13.5">
                                             <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#4338CA" Offset="0"/><GradientStop Color="#818CF8" Offset="1"/></LinearGradientBrush></Path.Stroke>
                                         </Path>
@@ -566,7 +566,7 @@
 
                             <Button x:Name="ChangeWallpaperButton" Style="{StaticResource ActionButtonStyle}" Click="ChangeWallpaperButton_Click" Visibility="Collapsed">
                                 <StackPanel>
-                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,5">
                                         <Path Style="{StaticResource NeonIconStyle}" Data="M4,4 L20,4 C21,4 22,5 22,6 L22,18 C22,19 21,20 20,20 L4,20 C3,20 2,19 2,18 L2,6 C2,5 3,4 4,4 M4,18 L20,18 L20,6 L4,6 M8,12 L11,15 L16,10">
                                             <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#8B5CF6" Offset="0"/><GradientStop Color="#C4B5FD" Offset="1"/></LinearGradientBrush></Path.Stroke>
                                         </Path>
@@ -577,7 +577,7 @@
 
                             <Button x:Name="VpnActionButton" Style="{StaticResource ActionButtonStyle}" Click="VpnActionButton_Click">
                                 <StackPanel>
-                                    <Grid Width="40" Height="34" HorizontalAlignment="Center" Margin="0,0,0,6">
+                                    <Grid Width="40" Height="34" HorizontalAlignment="Center" Margin="0,0,0,4">
                                         <Viewbox Width="26" Height="26" HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <Path x:Name="VpnIconPath" Style="{StaticResource NeonIconStyle}" Data="M12,2 L3,6 L3,12 C3,17.5 7,21.5 12,23 C17,21.5 21,17.5 21,12 L21,6 L12,2 Z M12,7 C13.7,7 15,8.3 15,10 C15,11.7 13.7,13 12,13 C10.3,13 9,11.7 9,10 C9,8.3 10.3,7 12,7 Z">
                                                 <Path.Stroke>
@@ -602,7 +602,7 @@
 
                             <Button x:Name="LogoutActionButton" Style="{StaticResource ActionButtonStyle}" Click="LogoutButton_Click">
                                 <StackPanel>
-                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,5">
                                         <Path Style="{StaticResource NeonIconStyle}" Data="M10,4 L6,4 C5,4 4,5 4,6 L4,18 C4,19 5,20 6,20 L10,20 M14,8 L18,12 L14,16 M18,12 L8,12">
                                             <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#E11D48" Offset="0"/><GradientStop Color="#FB7185" Offset="1"/></LinearGradientBrush></Path.Stroke>
                                         </Path>
@@ -615,7 +615,7 @@
 
                             <Button x:Name="GameLauncherActionButton" Style="{StaticResource ActionButtonStyle}" Click="GameLauncherButton_Click" Visibility="Collapsed">
                                 <StackPanel>
-                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,5">
                                         <Path Style="{StaticResource NeonIconStyle}" Data="M21,10 C21,6 17,4 12,4 C7,4 3,6 3,10 C3,14 5,17 7,17 C8,17 9,16 9,15 L10,14 L14,14 L15,15 C15,16 16,17 17,17 C19,17 21,14 21,10 Z M6,10 L8,10 M7,9 L7,11 M16,11 L16,11 M18,9 L18,9">
                                             <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#A855F7" Offset="0"/><GradientStop Color="#D946EF" Offset="1"/></LinearGradientBrush></Path.Stroke>
                                         </Path>
@@ -627,7 +627,7 @@
 
                             <Button Style="{StaticResource LockButtonStyle}" Click="LockButton_Click">
                                 <StackPanel>
-                                    <Viewbox Width="26" Height="26" Margin="0,0,0,8">
+                                    <Viewbox Width="26" Height="26" Margin="0,0,0,5">
                                         <Path Style="{StaticResource NeonIconStyle}" Data="M7,11 L17,11 C18,11 19,12 19,13 L19,20 C19,21 18,22 17,22 L7,22 C6,22 5,21 5,20 L5,13 C5,12 6,11 7,11 Z M9,11 L9,7 C9,4.5 15,4.5 15,7 L15,11 M12,15 L12,18">
                                             <Path.Stroke><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#DC2626" Offset="0"/><GradientStop Color="#F87171" Offset="1"/></LinearGradientBrush></Path.Stroke>
                                         </Path>
@@ -642,7 +642,7 @@
                 </Grid>
 
                 <!-- FULL WIDTH TOPUP PROMO -->
-                <Grid x:Name="TopupPromotionBannerBorder" Grid.Row="3" Margin="0,8,0,0" Visibility="Collapsed">
+                <Grid x:Name="TopupPromotionBannerBorder" Grid.Row="3" Margin="0,4,0,0" Visibility="Collapsed">
                     <Border CornerRadius="16" Background="#E6FFFFFF" BorderBrush="#86EFAC" BorderThickness="1.5" Padding="16,10" SnapsToDevicePixels="True">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -676,7 +676,7 @@
                 </Grid>
 
                 <!-- FOOTER -->
-                <Grid x:Name="FooterContainer" Grid.Row="4" Margin="0,8,0,0">
+                <Grid x:Name="FooterContainer" Grid.Row="4" Margin="0,4,0,0">
                     <Border CornerRadius="16" Background="#E6FFFFFF" BorderThickness="1.5" BorderBrush="#CBD5E1" Padding="16,10" SnapsToDevicePixels="True">
                         <Grid>
                             <Grid.RowDefinitions>
@@ -720,17 +720,17 @@
                                              </Border.Background>
                                          </Border>
                                      </Grid>
-                                </Grid>
-                            </StackPanel>
-                            <!-- Keep hidden textblock to preserve x:Name binding -->
-                            <TextBlock x:Name="FooterIconTextBlock" Visibility="Collapsed" />
+                                 </Grid>
+                             </StackPanel>
+                             <!-- Keep hidden textblock to preserve x:Name binding -->
+                             <TextBlock x:Name="FooterIconTextBlock" Visibility="Collapsed" />
                         </Grid>
                     </Border>
                 </Grid>
 
                 <!-- PROMOTIONS -->
                 <UniformGrid x:Name="PromotionsContainer" Grid.Row="2" Columns="1">
-                    <Border x:Name="GuestPromotionBannerBorder" Visibility="Collapsed" Margin="0,0,0,8" Padding="12,10" CornerRadius="12" BorderThickness="1.5" BorderBrush="#FDBA74" Background="#E6FFFFFF" SnapsToDevicePixels="True">
+                    <Border x:Name="GuestPromotionBannerBorder" Visibility="Collapsed" Margin="0,0,0,4" Padding="12,10" CornerRadius="12" BorderThickness="1.5" BorderBrush="#FDBA74" Background="#E6FFFFFF" SnapsToDevicePixels="True">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
@@ -748,7 +748,7 @@
                         </Grid>
                     </Border>
 
-                    <Border x:Name="PromotionBannerBorder" Visibility="Collapsed" Margin="0,0,0,8" Padding="12,10" CornerRadius="12" BorderThickness="1.5" BorderBrush="#FDA4AF" Background="#E6FFFFFF" SnapsToDevicePixels="True">
+                    <Border x:Name="PromotionBannerBorder" Visibility="Collapsed" Margin="0,0,0,4" Padding="12,10" CornerRadius="12" BorderThickness="1.5" BorderBrush="#FDA4AF" Background="#E6FFFFFF" SnapsToDevicePixels="True">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
@@ -766,7 +766,7 @@
                         </Grid>
                     </Border>
 
-                    <Border x:Name="LoyaltyPromotionBannerBorder" Visibility="Collapsed" Margin="0,0,0,8" Padding="12,10" CornerRadius="12" BorderThickness="1.5" BorderBrush="#C4B5FD" Background="#E6FFFFFF" SnapsToDevicePixels="True">
+                    <Border x:Name="LoyaltyPromotionBannerBorder" Visibility="Collapsed" Margin="0,0,0,4" Padding="12,10" CornerRadius="12" BorderThickness="1.5" BorderBrush="#C4B5FD" Background="#E6FFFFFF" SnapsToDevicePixels="True">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />

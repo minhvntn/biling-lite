@@ -32,8 +32,8 @@
                 <ControlTemplate TargetType="{x:Type Thumb}">
                     <Border x:Name="thumbBorder"
                             Background="{StaticResource ScrollBarNormalThumbBrush}"
-                            CornerRadius="4"
-                            Margin="1.5,0,1.5,0"
+                            CornerRadius="5"
+                            Margin="2,0,2,0"
                             SnapsToDevicePixels="True">
                     </Border>
                     <ControlTemplate.Triggers>
@@ -58,8 +58,8 @@
                 <ControlTemplate TargetType="{x:Type Thumb}">
                     <Border x:Name="thumbBorder"
                             Background="{StaticResource ScrollBarNormalThumbBrush}"
-                            CornerRadius="4"
-                            Margin="0,1.5,0,1.5"
+                            CornerRadius="5"
+                            Margin="0,2,0,2"
                             SnapsToDevicePixels="True">
                     </Border>
                     <ControlTemplate.Triggers>
@@ -81,8 +81,8 @@
         <Setter Property="OverridesDefaultStyle" Value="True"/>
         <Style.Triggers>
             <Trigger Property="Orientation" Value="Vertical">
-                <Setter Property="Width" Value="8"/>
-                <Setter Property="MinWidth" Value="8"/>
+                <Setter Property="Width" Value="14"/>
+                <Setter Property="MinWidth" Value="14"/>
                 <Setter Property="Background" Value="Transparent"/>
                 <Setter Property="Template">
                     <Setter.Value>
@@ -110,8 +110,8 @@
                 </Setter>
             </Trigger>
             <Trigger Property="Orientation" Value="Horizontal">
-                <Setter Property="Height" Value="8"/>
-                <Setter Property="MinHeight" Value="8"/>
+                <Setter Property="Height" Value="14"/>
+                <Setter Property="MinHeight" Value="14"/>
                 <Setter Property="Background" Value="Transparent"/>
                 <Setter Property="Template">
                     <Setter.Value>

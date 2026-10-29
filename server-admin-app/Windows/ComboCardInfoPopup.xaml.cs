@@ -9,7 +9,7 @@ namespace Server.Admin.App.Windows
         {
             InitializeComponent();
             TxtComboName.Text = $"Gói: {comboName}";
-            TxtUsername.Text = username;
+            TxtUsername.Text = username?.ToUpperInvariant() ?? string.Empty;
             TxtPassword.Text = password;
             TxtExpiresAt.Text = expiresAt.ToString("dd/MM/yyyy HH:mm");
         }

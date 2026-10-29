@@ -6,7 +6,7 @@ export class CreateMemberDto {
   @MinLength(1)
   @MaxLength(50)
   @Matches(/^[a-zA-Z0-9_.-]+$/)
-  @Transform(({ value }: { value: string }) => value?.trim())
+  @Transform(({ value }: { value: string }) => value?.trim().toUpperCase())
   username!: string;
 
   @IsOptional()

@@ -21,6 +21,7 @@ public partial class LuckySpinWindow : Window
     private MemberLoyaltyResponse _loyaltyResponse;
 
     private RotateTransform _wheelRotation = new RotateTransform();
+    private bool _isSpinning = false;
 
     public LuckySpinWindow(
         App app,
@@ -50,7 +51,8 @@ public partial class LuckySpinWindow : Window
     private void RefreshUi()
     {
         AvailablePointsText.Text = _loyaltyResponse.Loyalty.AvailablePoints.ToString("N0");
-        SpinButton.IsEnabled = _loyaltyResponse.Loyalty.AvailablePoints >= 5;
+        SpinButton.IsEnabled = !_isSpinning && _loyaltyResponse.Loyalty.AvailablePoints >= 5;
+        SpinButton.Content = _isSpinning ? "ĐANG QUAY..." : "QUAY NGAY!";
     }
 
     private void BuildWheel()
@@ -229,7 +231,12 @@ public partial class LuckySpinWindow : Window
 
     private async void SpinButton_Click(object sender, RoutedEventArgs e)
     {
+        if (_isSpinning) return;
+        if (_loyaltyResponse.Loyalty.AvailablePoints < 5) return;
+
+        _isSpinning = true;
         SpinButton.IsEnabled = false;
+        SpinButton.Content = "ĐANG QUAY...";
         CloseActionButton.IsEnabled = false;
         StatusText.Text = "Đang quay...";
         StatusText.Foreground = Brushes.DimGray;
@@ -337,6 +344,7 @@ public partial class LuckySpinWindow : Window
         }
         finally
         {
+            _isSpinning = false;
             CloseActionButton.IsEnabled = true;
             RefreshUi();
         }

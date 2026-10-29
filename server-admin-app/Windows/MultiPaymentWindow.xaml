@@ -1,0 +1,297 @@
+<Window x:Class="Server.Admin.App.Windows.MultiPaymentWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svgc="clr-namespace:SharpVectors.Converters;assembly=SharpVectors.Converters.Wpf"
+        Title="Tổng hợp thanh toán nhóm"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Width="1080"
+        Height="700"
+        MinWidth="960"
+        MinHeight="600"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterOwner"
+        FontFamily="Segoe UI"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True">
+    <Window.Resources>
+        <SolidColorBrush x:Key="BorderColor" Color="#E2E8F0"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#0F172A"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#475569"/>
+        <SolidColorBrush x:Key="BrandGreen" Color="#10B981"/>
+
+        <!-- Header style for DataGrid -->
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#475569"/>
+            <Setter Property="Background" Value="#F8FAFC"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="10,10"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="SeparatorVisibility" Value="Collapsed"/>
+        </Style>
+
+        <Style TargetType="DataGridRow">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#F1F5F9"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="MinHeight" Value="40"/>
+            <Style.Triggers>
+                <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                    <Setter Property="Background" Value="#F8FAFC"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#EFF6FF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="DataGridCell">
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="White" CornerRadius="16" BorderBrush="#CBD5E1" BorderThickness="1.5">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="25" ShadowDepth="6" Opacity="0.18" Color="#0F172A"/>
+        </Border.Effect>
+
+        <Grid Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- Header -->
+                <RowDefinition Height="*"/>    <!-- DataGrid -->
+                <RowDefinition Height="Auto"/> <!-- Summary Cards -->
+                <RowDefinition Height="Auto"/> <!-- Footer Note & Actions -->
+            </Grid.RowDefinitions>
+
+            <!-- 1. HEADER -->
+            <Grid Grid.Row="0" Margin="0,0,0,16" MouseDown="Header_MouseDown">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Icon Box -->
+                <Border Grid.Column="0" Width="44" Height="44" CornerRadius="12" Background="#DCFCE7" Margin="0,0,14,0" VerticalAlignment="Center">
+                    <svgc:SvgViewbox Source="/Assets/payment/money.svg" Width="24" Height="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+
+                <!-- Title & Subtitle -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Tổng hợp thanh toán nhóm" FontSize="19" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center"/>
+                        <Border x:Name="MachineCountBadge" Background="#0284C7" CornerRadius="10" Padding="8,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="MachineCountBadgeText" Text="3 máy" Foreground="White" FontSize="12" FontWeight="Bold"/>
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Text="Tính tiền gộp giờ chơi và toàn bộ dịch vụ cho nhiều máy cùng lúc" FontSize="13" Foreground="#64748B" Margin="0,3,0,0"/>
+                </StackPanel>
+
+                <!-- Close Button -->
+                <Button Grid.Column="2" Width="34" Height="34" Background="#F1F5F9" BorderThickness="0" Cursor="Hand" Click="CloseButton_Click" VerticalAlignment="Top">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="17"/>
+                        </Style>
+                    </Button.Resources>
+                    <TextBlock Text="✕" FontSize="15" FontWeight="Bold" Foreground="#64748B" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Button>
+            </Grid>
+
+            <!-- 2. DATAGRID OF MACHINES -->
+            <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" ClipToBounds="True">
+                <DataGrid x:Name="MachinesBillingDataGrid"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          IsReadOnly="True"
+                          HeadersVisibility="Column"
+                          GridLinesVisibility="Horizontal"
+                          RowHeaderWidth="0"
+                          AlternationCount="2"
+                          SelectionMode="Single"
+                          HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Auto">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="Máy trạm" Width="1.2*" MinWidth="120">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Width="8" Height="8" CornerRadius="4" Background="#10B981" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding MachineName}" FontWeight="Bold" FontSize="14" Foreground="#0F172A" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+
+                        <DataGridTextColumn Header="Khách / Phiên" Binding="{Binding CustomerName}" Width="1.3*" MinWidth="120">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Foreground" Value="#334155"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Trạng thái" Binding="{Binding StatusText}" Width="1*" MinWidth="100">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Foreground" Value="#64748B"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Thời gian" Binding="{Binding PlayDurationText}" Width="0.9*" MinWidth="90">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                    <Setter Property="Foreground" Value="#6D28D9"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Đơn giá/h" Binding="{Binding HourlyRateText}" Width="0.9*" MinWidth="90">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Foreground" Value="#64748B"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Tiền giờ" Binding="{Binding PlayAmountText}" Width="1.1*" MinWidth="100">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Foreground" Value="#EA580C"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Tiền dịch vụ" Binding="{Binding ServiceAmountText}" Width="1.1*" MinWidth="100">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="Foreground" Value="#059669"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Tổng cộng" Binding="{Binding TotalAmountText}" Width="1.2*" MinWidth="110">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                    <Setter Property="FontSize" Value="14"/>
+                                    <Setter Property="Foreground" Value="#2563EB"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <DataGridTextColumn Header="Ghi chú" Binding="{Binding NoteText}" Width="1.4*" MinWidth="130">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                    <Setter Property="Foreground" Value="#64748B"/>
+                                    <Setter Property="FontSize" Value="12"/>
+                                    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+
+            <!-- 3. SUMMARY CARDS -->
+            <Grid Grid.Row="2" Margin="0,14,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1*"/>
+                    <ColumnDefinition Width="1*"/>
+                    <ColumnDefinition Width="1.5*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Play Time Card -->
+                <Border Grid.Column="0" Background="#FFF7ED" BorderBrush="#FDBA74" BorderThickness="1.5" CornerRadius="10" Padding="14,10" Margin="0,0,10,0">
+                    <StackPanel>
+                        <TextBlock Text="TỔNG TIỀN GIỜ CHƠI" FontSize="11" FontWeight="Bold" Foreground="#C2410C"/>
+                        <TextBlock x:Name="TotalPlayAmountTextBlock" Text="0 VND" FontSize="18" FontWeight="Bold" Foreground="#EA580C" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Service Card -->
+                <Border Grid.Column="1" Background="#ECFDF5" BorderBrush="#6EE7B7" BorderThickness="1.5" CornerRadius="10" Padding="14,10" Margin="0,0,10,0">
+                    <StackPanel>
+                        <TextBlock Text="TỔNG TIỀN DỊCH VỤ" FontSize="11" FontWeight="Bold" Foreground="#047857"/>
+                        <TextBlock x:Name="TotalServiceAmountTextBlock" Text="0 VND" FontSize="18" FontWeight="Bold" Foreground="#059669" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Grand Total Card -->
+                <Border Grid.Column="2" Background="#EEF2FF" BorderBrush="#93C5FD" BorderThickness="2" CornerRadius="10" Padding="16,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Text="TỔNG CỘNG CẦN THU" FontSize="12" FontWeight="Bold" Foreground="#1E40AF"/>
+                            <TextBlock x:Name="GrandTotalAmountTextBlock" Text="0 VND" FontSize="22" FontWeight="Bold" Foreground="#1D4ED8" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <Border Grid.Column="1" Width="38" Height="38" CornerRadius="19" Background="#DBEAFE" VerticalAlignment="Center">
+                            <svgc:SvgViewbox Source="/Assets/payment/wallet.svg" Width="20" Height="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- 4. FOOTER ACTIONS -->
+            <Grid Grid.Row="3" Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Helper note -->
+                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <TextBlock Text="💡 Khi bấm thanh toán, hệ thống sẽ tự động thanh toán toàn bộ dịch vụ và chuyển các máy về trạng thái Sẵn sàng (Available)." FontSize="12" Foreground="#64748B" TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <!-- Close Button -->
+                <Button Grid.Column="1" Content="✕ Đóng" FontSize="14" FontWeight="SemiBold" Width="105" Height="42" Background="White" BorderBrush="#CBD5E1" BorderThickness="1.5" Foreground="#475569" Cursor="Hand" Margin="0,0,12,0" Click="CloseButton_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="8"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+
+                <!-- Checkout Button -->
+                <Button x:Name="CheckoutGroupButton" Grid.Column="2" MinWidth="220" Height="42" Background="#10B981" BorderThickness="0" Cursor="Hand" Padding="18,0" Click="CheckoutGroupButton_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="8"/>
+                        </Style>
+                    </Button.Resources>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <svgc:SvgViewbox Source="/Assets/payment/payment_lock.svg" Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="CheckoutButtonText" Text="Thanh toán &amp; Hoàn tất 3 máy" Foreground="White" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+        </Grid>
+    </Border>
+</Window>

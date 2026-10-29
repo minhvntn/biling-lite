@@ -10,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
 namespace Server.Admin.App;
@@ -29,7 +30,8 @@ public partial class MainWindow : Window
         {
             var selectedMemberId = _selectedMemberId ?? (MembersDataGrid.SelectedItem as MemberRow)?.Id;
             var search = _memberSearchKeyword.Trim();
-            var cacheKey = search.ToLowerInvariant();
+            var hideInactive = HideInactiveMembersCheckBox?.IsChecked ?? true;
+            var cacheKey = $"{search.ToLowerInvariant()}_hide_{hideInactive}";
             MemberListResponse? response;
 
             if (!forceRefresh &&
@@ -41,10 +43,20 @@ public partial class MainWindow : Window
             }
             else
             {
-                var url = BuildApiUrl("/members");
+                var queryParams = new List<string>();
                 if (!string.IsNullOrWhiteSpace(search))
                 {
-                    url += $"?search={Uri.EscapeDataString(search)}";
+                    queryParams.Add($"search={Uri.EscapeDataString(search)}");
+                }
+                if (!hideInactive)
+                {
+                    queryParams.Add("hideInactive=false");
+                }
+
+                var url = BuildApiUrl("/members");
+                if (queryParams.Count > 0)
+                {
+                    url += "?" + string.Join("&", queryParams);
                 }
 
                 response = await _httpClient.GetFromJsonAsync<MemberListResponse>(url, JsonOptions());
@@ -66,7 +78,7 @@ public partial class MainWindow : Window
             if (string.IsNullOrWhiteSpace(search))
             {
                 _cachedMachineSummaryMemberCount =
-                    response.Total > 0 ? response.Total : response.Items.Count;
+                    response.TotalAll ?? (response.Total > 0 ? response.Total : response.Items.Count);
                 _cachedMachineSummaryMemberCountAtUtc = DateTime.UtcNow;
                 UpdateMachineSummary(_machineRows);
             }
@@ -77,33 +89,45 @@ public partial class MainWindow : Window
                 _membersCurrentPage = 1;
             }
             UpdateMembersPagination();
-            UpdateMemberDashboardStats(mapped);
+            UpdateMemberDashboardStats(mapped, response.Total, response.TotalAll);
 
-            if (!string.IsNullOrWhiteSpace(selectedMemberId))
+            if (!string.IsNullOrWhiteSpace(selectedMemberId) && _isMemberDetailSidebarOpen)
             {
                 var current = mapped.FirstOrDefault(x => x.Id == selectedMemberId);
-                if (current is null && mapped.Count > 0)
+                if (current is not null)
+                {
+                    _selectedMemberId = current.Id;
+                }
+                else if (mapped.Count > 0)
                 {
                     _selectedMemberId = mapped[0].Id;
                 }
                 else
                 {
-                    _selectedMemberId = current?.Id;
+                    _selectedMemberId = null;
                 }
             }
-            else if (mapped.Count > 0)
+            else if (!_isMemberDetailSidebarOpen)
             {
-                _selectedMemberId = mapped[0].Id;
+                _selectedMemberId = null;
             }
 
-            if (!string.IsNullOrWhiteSpace(_selectedMemberId))
+            if (!string.IsNullOrWhiteSpace(_selectedMemberId) && _isMemberDetailSidebarOpen)
             {
-                var selectedRow = mapped.FirstOrDefault(x => x.Id == _selectedMemberId);
+                var selectedRow = _memberRows.FirstOrDefault(x => x.Id == _selectedMemberId)
+                               ?? mapped.FirstOrDefault(x => x.Id == _selectedMemberId);
                 if (selectedRow is not null)
                 {
-                    MembersDataGrid.SelectedItem = selectedRow;
-                    MembersDataGrid.ScrollIntoView(selectedRow);
+                    if (_memberRows.Contains(selectedRow) && !ReferenceEquals(MembersDataGrid.SelectedItem, selectedRow))
+                    {
+                        MembersDataGrid.SelectedItem = selectedRow;
+                    }
+                    UpdateMemberSidebar(selectedRow, forceAnimate: false);
                 }
+            }
+            else if (!_isMemberDetailSidebarOpen)
+            {
+                MembersDataGrid.SelectedItem = null;
             }
 
             if (!string.IsNullOrWhiteSpace(_selectedMemberId))
@@ -183,7 +207,16 @@ public partial class MainWindow : Window
 
             if (PaginationInfoTextBlock != null)
             {
-                PaginationInfoTextBlock.Text = $"Hiển thị toàn bộ {totalItems:N0} hội viên (Không phân trang)";
+                var isHiding = (HideInactiveMembersCheckBox?.IsChecked ?? true) && string.IsNullOrWhiteSpace(_memberSearchKeyword);
+                if (isHiding && _membersCacheResponse?.TotalAll != null && _membersCacheResponse.TotalAll > totalItems)
+                {
+                    int hiddenCount = _membersCacheResponse.TotalAll.Value - totalItems;
+                    PaginationInfoTextBlock.Text = $"Hiển thị {totalItems:N0} hội viên hoạt động (Đang ẩn {hiddenCount:N0} hội viên >30 ngày)";
+                }
+                else
+                {
+                    PaginationInfoTextBlock.Text = $"Hiển thị toàn bộ {totalItems:N0} hội viên (Không phân trang)";
+                }
             }
             return;
         }
@@ -205,7 +238,16 @@ public partial class MainWindow : Window
         int endIndex = Math.Min(_membersCurrentPage * _membersPageSize, totalItems);
         if (PaginationInfoTextBlock != null)
         {
-            PaginationInfoTextBlock.Text = $"Hiển thị {startIndex} - {endIndex} của {totalItems:N0} hội viên";
+            var isHiding = (HideInactiveMembersCheckBox?.IsChecked ?? true) && string.IsNullOrWhiteSpace(_memberSearchKeyword);
+            if (isHiding && _membersCacheResponse?.TotalAll != null && _membersCacheResponse.TotalAll > totalItems)
+            {
+                int hiddenCount = _membersCacheResponse.TotalAll.Value - totalItems;
+                PaginationInfoTextBlock.Text = $"Hiển thị {startIndex} - {endIndex} của {totalItems:N0} hội viên hoạt động (Ẩn {hiddenCount:N0} >30 ngày)";
+            }
+            else
+            {
+                PaginationInfoTextBlock.Text = $"Hiển thị {startIndex} - {endIndex} của {totalItems:N0} hội viên";
+            }
         }
         
         if (MembersPageNumberTextBlock != null)
@@ -264,7 +306,7 @@ public partial class MainWindow : Window
         return new MemberRow
         {
             Id = item.Id,
-            Username = item.Username,
+            Username = (item.Username ?? string.Empty).ToUpperInvariant(),
             AvatarId = item.AvatarId,
             FullName = item.FullName,
             Phone = string.IsNullOrWhiteSpace(item.Phone) ? "-" : item.Phone,
@@ -284,10 +326,12 @@ public partial class MainWindow : Window
             MemberType = item.MemberType ?? "REGULAR",
             MemberTypeText = string.Equals(item.MemberType, "VIP", StringComparison.OrdinalIgnoreCase) ? "VIP" : "Thường",
             CreatedAtText = FormatDateTime(item.CreatedAt),
-            Email = $"{item.Username.ToLower()}@gmail.com",
+            Email = $"{item.Username?.ToLower() ?? "user"}@gmail.com",
             Address = "Thành phố Hồ Chí Minh",
             BirthdayText = $"{random.Next(1, 28):D2}-{random.Next(1, 12):D2}-{random.Next(1990, 2005)}",
-            LastLoginText = DateTime.Now.AddDays(-random.Next(0, 5)).AddHours(-random.Next(1, 12)).ToString("dd-MM-yyyy HH:mm:ss")
+            LastLoginText = !string.IsNullOrWhiteSpace(item.LastLoginAt)
+                ? FormatDateTime(item.LastLoginAt)
+                : (!string.IsNullOrWhiteSpace(item.CreatedAt) ? FormatDateTime(item.CreatedAt) : "-")
         };
     }
 
@@ -302,22 +346,127 @@ public partial class MainWindow : Window
         return $"{minutes} phút";
     }
 
-    private void UpdateMemberDashboardStats(List<MemberRow> members)
+    private decimal _lastCalculatedTotalTopup = 0m;
+    private bool _isTotalTopupRevealed = false;
+
+    private void UpdateMemberDashboardStats(List<MemberRow> members, int totalFromDb = 0, int? totalAllFromDb = null)
     {
-        int totalMembers = members.Count;
+        int totalMembers = totalFromDb > 0 ? totalFromDb : members.Count;
         int vipMembers = members.Count(x => string.Equals(x.MemberType, "VIP", StringComparison.OrdinalIgnoreCase));
         decimal totalBalance = members.Sum(x => x.BalanceRaw);
         double totalHours = members.Sum(x => x.PlayHoursRaw);
         decimal totalTopup = members.Sum(x => x.TotalTopupRaw);
 
-        StatTotalMembersTextBlock.Text = totalMembers.ToString("N0");
+        if (totalAllFromDb.HasValue && totalAllFromDb.Value > totalMembers)
+        {
+            StatTotalMembersTextBlock.Text = $"{totalMembers:N0} / {totalAllFromDb.Value:N0}";
+            StatTotalMembersTextBlock.ToolTip = $"Đang hiển thị {totalMembers:N0} hội viên hoạt động gần đây trên tổng số {totalAllFromDb.Value:N0} hội viên.";
+        }
+        else
+        {
+            StatTotalMembersTextBlock.Text = totalMembers.ToString("N0");
+            StatTotalMembersTextBlock.ToolTip = null;
+        }
+
         StatVipMembersTextBlock.Text = vipMembers.ToString("N0");
         StatTotalBalanceTextBlock.Text = totalBalance.ToString("N0");
         StatTotalHoursTextBlock.Text = totalHours.ToString("0.#") + "h";
-        StatTotalTopupTextBlock.Text = totalTopup.ToString("N0");
 
         double vipPercent = totalMembers > 0 ? (double)vipMembers / totalMembers * 100 : 0;
-        StatVipPercentTextBlock.Text = $"{vipPercent:0.##}% tổng số";
+        if (StatVipPercentTextBlock != null)
+        {
+            StatVipPercentTextBlock.Text = $" ({vipPercent:0.#}%)";
+        }
+
+        _lastCalculatedTotalTopup = totalTopup;
+        UpdateTotalTopupDisplay();
+    }
+
+    private void UpdateTotalTopupDisplay()
+    {
+        if (StatTotalTopupTextBlock == null) return;
+
+        if (_isTotalTopupRevealed)
+        {
+            StatTotalTopupTextBlock.Text = _lastCalculatedTotalTopup.ToString("N0");
+            if (TotalTopupEyeIcon != null)
+            {
+                TotalTopupEyeIcon.Text = "\U0001F441";
+                TotalTopupEyeIcon.Opacity = 1.0;
+            }
+            if (ToggleTotalTopupEyeButton != null)
+            {
+                ToggleTotalTopupEyeButton.ToolTip = "Bấm để ẩn số tiền (chuyển sang *****)";
+            }
+        }
+        else
+        {
+            StatTotalTopupTextBlock.Text = "*****";
+            if (TotalTopupEyeIcon != null)
+            {
+                TotalTopupEyeIcon.Text = "\U0001F441";
+                TotalTopupEyeIcon.Opacity = 0.55;
+            }
+            if (ToggleTotalTopupEyeButton != null)
+            {
+                ToggleTotalTopupEyeButton.ToolTip = "Bấm để hiển thị số tiền tổng nạp";
+            }
+        }
+    }
+
+    private void ToggleTotalTopupEyeButton_Click(object sender, RoutedEventArgs e)
+    {
+        _isTotalTopupRevealed = !_isTotalTopupRevealed;
+        UpdateTotalTopupDisplay();
+    }
+
+    private async void HideInactiveMembersCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        _membersCurrentPage = 1;
+        await RefreshMembersAsync(forceRefresh: true);
+    }
+
+    private async void PurgeInactiveMembersButton_Click(object sender, RoutedEventArgs e)
+    {
+        var confirm = MessageBox.Show(
+            "⚠️ XÁC NHẬN DỌN RÁC HỘI VIÊN:\n\n" +
+            "Hệ thống sẽ kiểm tra và xóa vĩnh viễn các hội viên thỏa mãn TẤT CẢ các điều kiện sau:\n" +
+            "1. Không đăng nhập trong vòng 6 tháng qua.\n" +
+            "2. Số dư tài khoản dưới 500 VNĐ.\n" +
+            "3. Tổng tiền đã nạp dưới 100.000 VNĐ.\n\n" +
+            "Các hội viên có tiền (>=500đ) hoặc nạp nhiều (>=100.000đ) hoặc mới chơi sẽ được giữ nguyên an toàn.\n\n" +
+            "Bạn có chắc chắn muốn tiến hành dọn dẹp?",
+            "Dọn rác hội viên không hoạt động",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
+        try
+        {
+            var url = BuildApiUrl("/members/cleanup-inactive");
+            var response = await _httpClient.PostAsync(url, null);
+            var json = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                MessageBox.Show($"Dọn dẹp thất bại (Mã {(int)response.StatusCode}):\n{json}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var message = root.TryGetProperty("message", out var msgProp) ? msgProp.GetString() : "Đã hoàn thành dọn dẹp!";
+
+            MessageBox.Show(message, "Dọn dẹp hội viên thành công", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            _membersCurrentPage = 1;
+            await RefreshMembersAsync(forceRefresh: true);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Đã xảy ra lỗi: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private async Task RefreshMemberTransactionsAsync(string memberId)
@@ -510,7 +659,7 @@ public partial class MainWindow : Window
 
     private async Task CreateMemberAsync()
     {
-        var username = MemberUsernameTextBox.Text.Trim();
+        var username = MemberUsernameTextBox.Text.Trim().ToUpperInvariant();
         var password = MemberPasswordBox.Password;
         var phone = MemberPhoneTextBox.Text.Trim();
         var identityNumber = MemberIdentityTextBox.Text.Trim();
@@ -678,7 +827,12 @@ public partial class MainWindow : Window
         {
             response = await _httpClient.PostAsJsonAsync(
                 BuildApiUrl($"/members/{_selectedMemberId}/topups"),
-                new { amount = Convert.ToDouble(amount.Value), createdBy = "admin.desktop" });
+                new
+                {
+                    amount = Convert.ToDouble(amount.Value),
+                    createdBy = "admin.desktop",
+                    ratePerHour = Convert.ToDouble(_topupModalRatePerHour),
+                });
         }
         else
         {
@@ -729,7 +883,8 @@ public partial class MainWindow : Window
         string? memberPrompt = null,
         string? currentBalanceText = null,
         bool allowDeduct = true,
-        decimal? ratePerHour = null)
+        decimal? ratePerHour = null,
+        bool isGift = false)
     {
         if (_topupModalTcs is not null)
         {
@@ -740,6 +895,7 @@ public partial class MainWindow : Window
         _topupModalHistory.Clear();
         _topupModalAllowDeduct = allowDeduct;
         _topupModalIsDeduct = false;
+        _topupModalIsGift = isGift;
         _topupModalRatePerHour = ResolveTopupRatePerHour(ratePerHour);
 
         TopupModalTitleTextBlock.Text =
@@ -783,55 +939,92 @@ public partial class MainWindow : Window
         var signedAmount = _topupModalIsDeduct ? -_topupModalAmount : _topupModalAmount;
         TopupModalAmountTextBlock.Text = $"{signedAmount:N0} VND";
         TopupModalAmountTextBlock.Foreground = _topupModalIsDeduct
-            ? new SolidColorBrush(Color.FromRgb(185, 28, 28))
-            : new SolidColorBrush(Color.FromRgb(9, 36, 140));
+            ? new SolidColorBrush(Color.FromRgb(220, 38, 38))
+            : new SolidColorBrush(Color.FromRgb(15, 23, 42));
 
-        var bonus = CalculatePromotionBonus(_topupModalAmount);
-        if (!_topupModalIsDeduct && bonus > 0)
+        if (_topupModalIsGift)
         {
-            TopupModalBonusTextBlock.Text = $"+ Khuyến mãi: {bonus:N0} VND";
-            TopupModalBonusTextBlock.Visibility = Visibility.Visible;
-        }
-        else
-        {
-            TopupModalBonusTextBlock.Visibility = Visibility.Collapsed;
-        }
+            TopupModeSubtractButton.Visibility = Visibility.Collapsed;
+            TopupModeAddButton.Visibility = Visibility.Visible;
+            TopupModeAddButton.Content = "Tặng tiền (+)";
+            TopupModeAddButton.Background = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+            TopupModeAddButton.BorderBrush = new SolidColorBrush(Color.FromRgb(5, 150, 105));
+            TopupModeAddButton.Foreground = Brushes.White;
 
-        TopupModeAddButton.Visibility = _topupModalAllowDeduct ? Visibility.Visible : Visibility.Collapsed;
-        TopupModeSubtractButton.Visibility = _topupModalAllowDeduct ? Visibility.Visible : Visibility.Collapsed;
-
-        if (_topupModalIsDeduct && _topupModalAllowDeduct)
-        {
-            TopupModeSubtractButton.Background = new SolidColorBrush(Color.FromRgb(239, 68, 68));
-            TopupModeSubtractButton.BorderBrush = new SolidColorBrush(Color.FromRgb(185, 28, 28));
-            TopupModeSubtractButton.Foreground = Brushes.White;
-
-            TopupModeAddButton.Background = new SolidColorBrush(Color.FromRgb(248, 250, 252));
-            TopupModeAddButton.BorderBrush = new SolidColorBrush(Color.FromRgb(148, 163, 184));
-            TopupModeAddButton.Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105));
-
-            TopupSubmitButton.Content = "Trừ";
-            TopupSubmitButton.Background = new SolidColorBrush(Color.FromRgb(220, 38, 38));
-            TopupSubmitButton.BorderBrush = new SolidColorBrush(Color.FromRgb(153, 27, 27));
+            TopupSubmitButton.Content = "Tặng tiền";
+            TopupSubmitButton.Background = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+            TopupSubmitButton.BorderBrush = new SolidColorBrush(Color.FromRgb(5, 150, 105));
             TopupSubmitButton.Foreground = Brushes.White;
+
+            if (_topupModalAmount > 0)
+            {
+                var grantMinutes = _topupModalRatePerHour > 0 ? (_topupModalAmount / _topupModalRatePerHour) * 60m : 0m;
+                var grantHours = grantMinutes / 60m;
+                var timeText = grantHours >= 1m
+                    ? $"{Math.Floor(grantHours)}h{Math.Round(grantMinutes % 60):00}p"
+                    : $"{grantMinutes:0.#} phút";
+
+                TopupModalBonusTextBlock.Text = $"Quy đổi: ~{timeText} vào TK Giờ KM (không tính KM)";
+                TopupModalBonusTextBlock.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                TopupModalBonusTextBlock.Visibility = Visibility.Collapsed;
+            }
         }
         else
         {
-            if (_topupModalAllowDeduct)
-            {
-                TopupModeAddButton.Background = new SolidColorBrush(Color.FromRgb(34, 197, 94));
-                TopupModeAddButton.BorderBrush = new SolidColorBrush(Color.FromRgb(21, 128, 61));
-                TopupModeAddButton.Foreground = Brushes.White;
+            TopupModeAddButton.Content = "Nạp tiền (+)";
+            TopupModeAddButton.Visibility = _topupModalAllowDeduct ? Visibility.Visible : Visibility.Collapsed;
+            TopupModeSubtractButton.Visibility = _topupModalAllowDeduct ? Visibility.Visible : Visibility.Collapsed;
 
-                TopupModeSubtractButton.Background = new SolidColorBrush(Color.FromRgb(248, 250, 252));
-                TopupModeSubtractButton.BorderBrush = new SolidColorBrush(Color.FromRgb(148, 163, 184));
-                TopupModeSubtractButton.Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105));
+            var bonus = CalculatePromotionBonus(_topupModalAmount);
+            if (!_topupModalIsDeduct && bonus > 0)
+            {
+                var bonusMinutes = _topupModalRatePerHour > 0 ? (bonus / _topupModalRatePerHour) * 60m : 0m;
+                TopupModalBonusTextBlock.Text = bonusMinutes > 0
+                    ? $"+ Khuyến mãi: {bonus:N0} VND (~{bonusMinutes:0.#} phút vào TK KM)"
+                    : $"+ Khuyến mãi: {bonus:N0} VND (vào TK KM)";
+                TopupModalBonusTextBlock.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                TopupModalBonusTextBlock.Visibility = Visibility.Collapsed;
             }
 
-            TopupSubmitButton.Content = "Nạp";
-            TopupSubmitButton.Background = new SolidColorBrush(Color.FromRgb(121, 201, 89));
-            TopupSubmitButton.BorderBrush = new SolidColorBrush(Color.FromRgb(63, 138, 46));
-            TopupSubmitButton.Foreground = Brushes.Black;
+            if (_topupModalIsDeduct && _topupModalAllowDeduct)
+            {
+                TopupModeSubtractButton.Background = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+                TopupModeSubtractButton.BorderBrush = new SolidColorBrush(Color.FromRgb(220, 38, 38));
+                TopupModeSubtractButton.Foreground = Brushes.White;
+
+                TopupModeAddButton.Background = new SolidColorBrush(Color.FromRgb(241, 245, 249));
+                TopupModeAddButton.BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240));
+                TopupModeAddButton.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+
+                TopupSubmitButton.Content = "Trừ tiền";
+                TopupSubmitButton.Background = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+                TopupSubmitButton.BorderBrush = new SolidColorBrush(Color.FromRgb(220, 38, 38));
+                TopupSubmitButton.Foreground = Brushes.White;
+            }
+            else
+            {
+                if (_topupModalAllowDeduct)
+                {
+                    TopupModeAddButton.Background = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+                    TopupModeAddButton.BorderBrush = new SolidColorBrush(Color.FromRgb(5, 150, 105));
+                    TopupModeAddButton.Foreground = Brushes.White;
+
+                    TopupModeSubtractButton.Background = new SolidColorBrush(Color.FromRgb(241, 245, 249));
+                    TopupModeSubtractButton.BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240));
+                    TopupModeSubtractButton.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+                }
+
+                TopupSubmitButton.Content = "Nạp tiền";
+                TopupSubmitButton.Background = new SolidColorBrush(Color.FromRgb(16, 185, 129));
+                TopupSubmitButton.BorderBrush = new SolidColorBrush(Color.FromRgb(5, 150, 105));
+                TopupSubmitButton.Foreground = Brushes.White;
+            }
         }
 
         TopupUndoButton.IsEnabled = _topupModalHistory.Count > 0;
@@ -1174,7 +1367,8 @@ public partial class MainWindow : Window
             selectedMember,
             title: "T\u1eb7ng ti\u1ec1n mi\u1ec5n ph\u00ed",
             memberPrompt: $"H\u1ed9i vi\u00ean: {selectedMember.Username} - ch\u1ecdn s\u1ed1 ti\u1ec1n t\u1eb7ng:",
-            allowDeduct: false);
+            allowDeduct: false,
+            isGift: true);
 
         if (!amount.HasValue || amount.Value <= 0)
         {
@@ -1182,12 +1376,13 @@ public partial class MainWindow : Window
         }
 
         using var response = await _httpClient.PostAsJsonAsync(
-            BuildApiUrl($"/members/{_selectedMemberId}/adjust"),
+            BuildApiUrl($"/members/{_selectedMemberId}/gift"),
             new
             {
-                amountDelta = Convert.ToDouble(amount.Value),
+                amount = Convert.ToDouble(amount.Value),
+                ratePerHour = Convert.ToDouble(_topupModalRatePerHour),
                 createdBy = "admin.desktop",
-                note = "Tang tien mien phi"
+                note = "Tặng tiền miễn phí"
             });
 
         if (!response.IsSuccessStatusCode)
@@ -1470,53 +1665,13 @@ public partial class MainWindow : Window
             return;
         }
 
-        var confirm = MessageBox.Show(
-            $"Bạn có chắc chắn muốn nhập danh sách hội viên từ file:\n{filePath}\n\n- Các tài khoản trùng sẽ được cộng dồn số dư.\n- Mật khẩu sẽ được tạo ngẫu nhiên để khách liên hệ thu ngân khi chơi lại.",
-            "Xác nhận nhập GCafe",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
-
-        if (confirm != MessageBoxResult.Yes)
+        // Mở hộp thoại tùy chọn chế độ nhập & xử lý nạp dữ liệu với thanh tiến trình Loading
+        var optionsWindow = new Windows.ImportGcafeWindow(this, filePath) { Owner = this };
+        if (optionsWindow.ShowDialog() == true && optionsWindow.IsSuccess)
         {
-            return;
-        }
-
-        try
-        {
-            Mouse.OverrideCursor = Cursors.Wait;
-
-            using var form = new MultipartFormDataContent();
-            using var fileStream = File.OpenRead(filePath);
-            using var streamContent = new StreamContent(fileStream);
-            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
-            form.Add(streamContent, "file", Path.GetFileName(filePath));
-            form.Add(new StringContent(filePath), "filePath");
-
-            var url = BuildApiUrl("/members/import-gcafe");
-            var response = await _httpClient.PostAsync(url, form);
-            var json = await response.Content.ReadAsStringAsync();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                MessageBox.Show($"Nhập dữ liệu thất bại (Mã {(int)response.StatusCode}):\n{json}", "Lỗi Import GCafe", MessageBoxButton.OK, MessageBoxImage.Error);
-                return;
-            }
-
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-            var message = root.TryGetProperty("message", out var msgProp) ? msgProp.GetString() : "Đã nhập thành công!";
-
-            MessageBox.Show(message, "Nhập GCafe thành công", MessageBoxButton.OK, MessageBoxImage.Information);
-
+            // Tải lại danh sách hội viên sau khi import thành công
             await RefreshMembersAsync(forceRefresh: true);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Có lỗi xảy ra trong quá trình nhập GCafe:\n{ex.Message}", "Lỗi ngoại lệ", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        finally
-        {
-            Mouse.OverrideCursor = null;
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] 📥 Đã hoàn tất nhập dữ liệu từ file GCafe: {Path.GetFileName(filePath)} (Chế độ: {optionsWindow.SelectedMode})");
         }
     }
 
@@ -1526,9 +1681,42 @@ public partial class MainWindow : Window
 
     private void MembersSearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
+        var hasText = !string.IsNullOrEmpty(MembersSearchTextBox.Text);
+        if (ClearMembersSearchButton != null)
+        {
+            ClearMembersSearchButton.Visibility = hasText ? Visibility.Visible : Visibility.Collapsed;
+        }
+        if (MembersSearchPlaceholderTextBlock != null)
+        {
+            MembersSearchPlaceholderTextBlock.Visibility = hasText ? Visibility.Collapsed : Visibility.Visible;
+        }
+
         _memberSearchKeyword = MembersSearchTextBox.Text.Trim();
         _memberSearchDebounceTimer.Stop();
         _memberSearchDebounceTimer.Start();
+    }
+
+    private void ClearMembersSearchButton_Click(object sender, RoutedEventArgs e)
+    {
+        MembersSearchTextBox.Text = string.Empty;
+        if (MembersSearchPlaceholderTextBlock != null)
+        {
+            MembersSearchPlaceholderTextBlock.Visibility = Visibility.Visible;
+        }
+        MembersSearchTextBox.Focus();
+    }
+
+    private void MembersSearchTextBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && !string.IsNullOrEmpty(MembersSearchTextBox.Text))
+        {
+            MembersSearchTextBox.Text = string.Empty;
+            if (MembersSearchPlaceholderTextBlock != null)
+            {
+                MembersSearchPlaceholderTextBlock.Visibility = Visibility.Visible;
+            }
+            e.Handled = true;
+        }
     }
 
     private async void MemberSearchDebounceTimer_Tick(object? sender, EventArgs e)
@@ -1568,7 +1756,25 @@ public partial class MainWindow : Window
         }
 
         _selectedMemberId = row.Id;
+        UpdateMemberSidebar(row);
         await RefreshMemberTransactionsAsync(row.Id);
+    }
+
+    private void MembersDataGridRow_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not DataGridRow row)
+        {
+            return;
+        }
+
+        if (row.Item is MemberRow member)
+        {
+            if (!_isMemberDetailSidebarOpen)
+            {
+                _selectedMemberId = member.Id;
+                UpdateMemberSidebar(member, forceAnimate: true);
+            }
+        }
     }
 
     private void MembersDataGridRow_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
@@ -1583,6 +1789,118 @@ public partial class MainWindow : Window
         if (row.Item is MemberRow member)
         {
             _selectedMemberId = member.Id;
+            UpdateMemberSidebar(member);
+        }
+    }
+
+    private bool _isMemberDetailSidebarOpen = false;
+    private int _sidebarAnimToken = 0;
+
+    private void UpdateMemberSidebar(MemberRow row, bool forceAnimate = false)
+    {
+        if (MemberDetailSidebarBorder == null) return;
+
+        MemberDetailSidebarContentGrid.DataContext = row;
+
+        if (!_isMemberDetailSidebarOpen || MemberDetailSidebarBorder.Visibility != Visibility.Visible || forceAnimate)
+        {
+            OpenMemberDetailSidebar(animate: true);
+        }
+        else
+        {
+            // Sidebar is already open; smoothly crossfade the content
+            var fade = new DoubleAnimation(0.45, 1.0, TimeSpan.FromMilliseconds(160))
+            {
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+            MemberDetailSidebarContentGrid.BeginAnimation(UIElement.OpacityProperty, fade);
+        }
+    }
+
+    private void OpenMemberDetailSidebar(bool animate = true)
+    {
+        if (MemberDetailSidebarBorder == null) return;
+
+        _isMemberDetailSidebarOpen = true;
+        int token = ++_sidebarAnimToken;
+
+        MemberDetailSidebarBorder.Visibility = Visibility.Visible;
+
+        if (animate)
+        {
+            var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+            var opacityAnim = new DoubleAnimation(0.0, 1.0, TimeSpan.FromMilliseconds(280))
+            {
+                EasingFunction = ease
+            };
+            var slideAnim = new DoubleAnimation(45.0, 0.0, TimeSpan.FromMilliseconds(280))
+            {
+                EasingFunction = ease
+            };
+
+            MemberDetailSidebarBorder.BeginAnimation(UIElement.OpacityProperty, opacityAnim);
+            MemberSidebarTranslate.BeginAnimation(TranslateTransform.XProperty, slideAnim);
+        }
+        else
+        {
+            MemberDetailSidebarBorder.BeginAnimation(UIElement.OpacityProperty, null);
+            MemberSidebarTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+            MemberDetailSidebarBorder.Opacity = 1.0;
+            MemberSidebarTranslate.X = 0;
+        }
+    }
+
+    private void CloseMemberSidebarButton_Click(object sender, RoutedEventArgs e)
+    {
+        CloseMemberDetailSidebar(animate: true);
+    }
+
+    private void CloseMemberDetailSidebar(bool animate = true)
+    {
+        if (MemberDetailSidebarBorder == null || !_isMemberDetailSidebarOpen) return;
+
+        int token = ++_sidebarAnimToken;
+
+        if (animate)
+        {
+            var ease = new CubicEase { EasingMode = EasingMode.EaseIn };
+            var opacityAnim = new DoubleAnimation(1.0, 0.0, TimeSpan.FromMilliseconds(200))
+            {
+                EasingFunction = ease
+            };
+            var slideAnim = new DoubleAnimation(0.0, 45.0, TimeSpan.FromMilliseconds(200))
+            {
+                EasingFunction = ease
+            };
+
+            slideAnim.Completed += (s, args) =>
+            {
+                if (token != _sidebarAnimToken) return;
+                MemberDetailSidebarBorder.Visibility = Visibility.Collapsed;
+                MemberSidebarTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+                MemberDetailSidebarBorder.BeginAnimation(UIElement.OpacityProperty, null);
+                MemberSidebarTranslate.X = 0;
+                MemberDetailSidebarBorder.Opacity = 1.0;
+                _isMemberDetailSidebarOpen = false;
+                _selectedMemberId = null;
+                MembersDataGrid.SelectedItem = null;
+                MemberDetailSidebarContentGrid.DataContext = null;
+            };
+
+            MemberDetailSidebarBorder.BeginAnimation(UIElement.OpacityProperty, opacityAnim);
+            MemberSidebarTranslate.BeginAnimation(TranslateTransform.XProperty, slideAnim);
+        }
+        else
+        {
+            MemberDetailSidebarBorder.BeginAnimation(UIElement.OpacityProperty, null);
+            MemberSidebarTranslate.BeginAnimation(TranslateTransform.XProperty, null);
+            MemberDetailSidebarBorder.Visibility = Visibility.Collapsed;
+            MemberSidebarTranslate.X = 0;
+            MemberDetailSidebarBorder.Opacity = 1.0;
+            _isMemberDetailSidebarOpen = false;
+            _selectedMemberId = null;
+            MembersDataGrid.SelectedItem = null;
+            MemberDetailSidebarContentGrid.DataContext = null;
         }
     }
 
@@ -1628,6 +1946,39 @@ public partial class MainWindow : Window
         }
 
         await OpenEditMemberDialogAsync(selected);
+    }
+
+    private void ChangeMemberPasswordButton_Click(object sender, RoutedEventArgs e)
+    {
+        var selectedMember =
+            MembersDataGrid.SelectedItem as MemberRow ??
+            _memberRows.FirstOrDefault(x => string.Equals(x.Id, _selectedMemberId, StringComparison.OrdinalIgnoreCase));
+
+        if (selectedMember is null)
+        {
+            MessageBox.Show(I18n.PleaseSelectMember, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var dialog = new Windows.ChangeMemberPasswordWindow(
+            _httpClient,
+            BuildApiUrl(""),
+            selectedMember)
+        {
+            Owner = this
+        };
+
+        var result = dialog.ShowDialog();
+        if (result == true)
+        {
+            selectedMember.PasswordState = "Đã đặt";
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] 🔑 Đã đổi mật khẩu cho hội viên {selectedMember.Username} ({selectedMember.FullName}) thành công.");
+
+            if (_isMemberDetailSidebarOpen && string.Equals(_selectedMemberId, selectedMember.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                UpdateMemberSidebar(selectedMember, forceAnimate: false);
+            }
+        }
     }
 
     private async void ContextTopupMemberMenuItem_Click(object sender, RoutedEventArgs e) => await TopupMemberAsync();

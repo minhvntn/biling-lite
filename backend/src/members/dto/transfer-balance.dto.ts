@@ -4,7 +4,7 @@ import { IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-valid
 export class TransferBalanceDto {
   @IsString()
   @MaxLength(50)
-  @Transform(({ value }: { value: string }) => value?.trim())
+  @Transform(({ value }: { value: string }) => value?.trim().toUpperCase())
   targetUsername!: string;
 
   @Type(() => Number)

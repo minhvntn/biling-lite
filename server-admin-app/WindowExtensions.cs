@@ -5,7 +5,7 @@ namespace Server.Admin.App
 {
     public static class WindowExtensions
     {
-        public static bool? ShowModal(this Window dialog, Window owner = null)
+        public static bool? ShowModal(this Window dialog, Window? owner = null)
         {
             owner ??= Application.Current.MainWindow;
             

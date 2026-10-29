@@ -491,6 +491,7 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
                     <Menu Grid.Column="0" Background="Transparent" FontSize="13.5" Margin="4,2">
@@ -559,19 +560,31 @@
                     </Button>
 
                     <Button Grid.Column="2"
+                            x:Name="ToggleAppModeButton"
+                            Style="{StaticResource HeaderButtonStyle}"
+                            Margin="0,0,8,0"
+                            Click="ToggleAppModeButton_Click"
+                            ToolTip="Chuyển đổi giao diện Bản Lite / Bản Pro">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="ModeIconTextBlock" Text="🍂" Foreground="White" FontSize="13" VerticalAlignment="Center" />
+                            <TextBlock x:Name="ModeTextLabel" Text="Bản Lite" Foreground="White" VerticalAlignment="Center" Margin="5,0,0,0" FontSize="13" FontWeight="Medium" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button Grid.Column="3"
                             x:Name="LogoutButton" 
                             Style="{StaticResource HeaderButtonStyle}"
                             Margin="0,0,8,0" 
                             Click="LogoutButton_Click" 
-                            ToolTip="{x:Static local:I18n.Logout}">
+                            ToolTip="Đăng nhập tài khoản quản trị">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="🚪" Foreground="White" FontSize="14" VerticalAlignment="Center" />
-                            <TextBlock Text="{x:Static local:I18n.Logout}" Foreground="White" VerticalAlignment="Center" Margin="4,0,0,0" FontSize="13" FontWeight="Medium" />
+                            <TextBlock x:Name="LogoutIconTextBlock" Text="🔑" Foreground="White" FontSize="14" VerticalAlignment="Center" />
+                            <TextBlock x:Name="LogoutTextLabel" Text="Đăng nhập" Foreground="White" VerticalAlignment="Center" Margin="4,0,0,0" FontSize="13" FontWeight="Medium" />
                         </StackPanel>
                     </Button>
 
                     <Ellipse x:Name="HealthIndicator" 
-                             Grid.Column="3" 
+                             Grid.Column="4" 
                              Width="10" 
                              Height="10" 
                              Fill="#94A3B8" 
@@ -701,6 +714,9 @@
                                                   Header="Chụp màn hình máy trạm"
                                                   Click="ContextCaptureScreenshotMachineMenuItem_Click" />
                                     </MenuItem>
+                                    <MenuItem x:Name="ContextControlCloseAllAppsMenuItem"
+                                              Header="Đóng tất cả ứng dụng (Taskbar)"
+                                              Click="ContextCloseAllAppsMenuItem_Click" />
                                     <Separator />
                                     <MenuItem x:Name="ContextPauseMachineMenuItem"
                                               Header="Tạm nghỉ máy trạm"
@@ -716,17 +732,11 @@
                                     </MenuItem>
                                     <Separator />
                                     <MenuItem x:Name="ContextViewMachineBillingMenuItem" Header="Thanh toán..." Click="ContextViewMachineBillingMenuItem_Click" />
-                                    <Separator />
-                                    <MenuItem x:Name="ContextSelectServiceMenuItem" Header="Chọn dịch vụ..." Click="ContextSelectServiceMenuItem_Click" />
                                     <MenuItem x:Name="ContextPayServiceMenuItem" Header="Thanh toán dịch vụ..." Click="ContextPayServiceMenuItem_Click" />
-                                    <Separator />
-                                    <MenuItem x:Name="ContextNotifyMachineMenuItem" Header="Gửi thông báo" Click="ContextNotifyMachineMenuItem_Click" />
                                     <Separator />
                                     <MenuItem Header="Làm mới danh sách" Click="ContextRefreshMachinesMenuItem_Click" />
                                     <Separator />
-                                    <MenuItem x:Name="ContextControlCloseAllAppsMenuItem"
-                                              Header="Đóng tất cả ứng dụng (Taskbar)"
-                                              Click="ContextCloseAllAppsMenuItem_Click" />
+                                    <MenuItem x:Name="ContextSelectServiceMenuItem" Header="Chọn dịch vụ..." Click="ContextSelectServiceMenuItem_Click" />
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
                             <DataGrid.ColumnHeaderStyle>
@@ -1112,7 +1122,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Ngày" Width="0.95*">
+                                <DataGridTemplateColumn x:Name="MachineDateColumn" Header="Ngày" Width="0.95*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding DateText}"
@@ -1123,7 +1133,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="IP" Width="1*">
+                                <DataGridTemplateColumn x:Name="MachineIpColumn" Header="IP" Width="1*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding IpAddress}"
@@ -1134,7 +1144,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Nhóm" Width="1*">
+                                <DataGridTemplateColumn x:Name="MachineGroupColumn" Header="Nhóm" Width="1*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding GroupName}"
@@ -1311,29 +1321,75 @@
 
                             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                                 <!-- Search -->
-                                <Border Width="240" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Background="White" Padding="8,4" Margin="0,0,16,0">
-                                    <Grid>
+                                <Border Width="270" Height="38" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="7" Background="White" Padding="12,0" Margin="0,0,8,0">
+                                    <Grid VerticalAlignment="Center">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBox x:Name="MembersSearchTextBox" BorderThickness="0" Background="Transparent" 
-                                                 VerticalContentAlignment="Center" FontSize="13" Foreground="#334155"
-                                                 TextChanged="MembersSearchTextBox_TextChanged" />
-                                        <TextBlock Text="&#x1F50D;" Grid.Column="1" VerticalAlignment="Center" Foreground="#94A3B8" FontSize="14" Margin="8,0,4,0"/>
+
+                                        <!-- Placeholder Text -->
+                                        <TextBlock x:Name="MembersSearchPlaceholderTextBlock" 
+                                                   Grid.Column="0"
+                                                   Text="Tìm kiếm hội viên" 
+                                                   Foreground="#94A3B8" 
+                                                   FontSize="13" 
+                                                   VerticalAlignment="Center" 
+                                                   IsHitTestVisible="False" 
+                                                   Margin="2,0,0,0"/>
+
+                                        <TextBox x:Name="MembersSearchTextBox" 
+                                                 Grid.Column="0"
+                                                 BorderThickness="0" 
+                                                 Background="Transparent" 
+                                                 VerticalContentAlignment="Center" 
+                                                 FontSize="13" 
+                                                 Foreground="#1E293B"
+                                                 Padding="0,1"
+                                                 TextChanged="MembersSearchTextBox_TextChanged" 
+                                                 KeyDown="MembersSearchTextBox_KeyDown" />
+
+                                        <Button x:Name="ClearMembersSearchButton" 
+                                                Grid.Column="1" 
+                                                Click="ClearMembersSearchButton_Click" 
+                                                Visibility="Collapsed" 
+                                                Background="Transparent" 
+                                                BorderThickness="0" 
+                                                Cursor="Hand" 
+                                                Padding="4,0,2,0" 
+                                                VerticalAlignment="Center" 
+                                                ToolTip="Xóa tìm kiếm (Esc)">
+                                            <Border Width="18" Height="18" CornerRadius="9" Background="#E2E8F0">
+                                                <TextBlock Text="&#x2715;" FontSize="10" FontWeight="Bold" Foreground="#64748B" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-0.5,0,0"/>
+                                            </Border>
+                                        </Button>
                                     </Grid>
                                 </Border>
 
                                 <!-- Actions -->
-                                <Button Background="#3B82F6" BorderThickness="0" Foreground="White" Padding="16,6" Margin="0,0,8,0" Click="AddMemberButton_Click" Content="+ Thêm hội viên">
+                                <Button Height="32" Background="#2563EB" BorderThickness="0" Foreground="White" Padding="12,0" Margin="0,0,6,0" Click="AddMemberButton_Click" Content="+ Thêm hội viên" FontSize="12" FontWeight="SemiBold">
                                     <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
                                 </Button>
-                                <Button Background="#8B5CF6" BorderThickness="0" Foreground="White" Padding="16,6" Margin="0,0,8,0" Click="ImportGcafeButton_Click" Content="&#x1F4E5; Nhập từ GCafe">
+                                <Button x:Name="ImportGcafeMemberButton" Height="32" Background="#7C3AED" BorderThickness="0" Foreground="White" Padding="10,0" Margin="0,0,6,0" Click="ImportGcafeButton_Click" Content="&#x1F4E5; Nhập GCafe" FontSize="12" FontWeight="SemiBold">
                                     <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
                                 </Button>
-                                <Button Background="#10B981" BorderThickness="0" Foreground="White" Padding="16,6" Margin="0,0,0,0" Click="ContextTopupMemberMenuItem_Click" Content="&#x1F4B5; Nạp tiền">
+                                <Button Height="32" Background="#059669" BorderThickness="0" Foreground="White" Padding="10,0" Margin="0,0,6,0" Click="ContextTopupMemberMenuItem_Click" Content="&#x1F4B5; Nạp tiền" FontSize="12" FontWeight="SemiBold">
                                     <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
                                 </Button>
+                                <Button x:Name="PurgeInactiveMembersButton" Height="32" Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" Foreground="#DC2626" Padding="8,0" Margin="0,0,8,0" Click="PurgeInactiveMembersButton_Click" Content="&#x1F9F9; Dọn rác" ToolTip="Xóa các tài khoản không đăng nhập > 6 tháng, số dư &lt; 500đ và tổng nạp &lt; 100.000đ" FontSize="11.5" FontWeight="SemiBold">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                </Button>
+                                <CheckBox x:Name="HideInactiveMembersCheckBox" 
+                                          Content="Ẩn >30 ngày" 
+                                          IsChecked="True" 
+                                          VerticalAlignment="Center" 
+                                          Margin="2,0,0,0" 
+                                          Foreground="#475569" 
+                                          FontSize="11.5" 
+                                          FontWeight="Medium"
+                                          Cursor="Hand"
+                                          Click="HideInactiveMembersCheckBox_Click" 
+                                          ToolTip="Tự động ẩn hội viên không hoạt động trong 30 ngày. Khi tìm kiếm tên/SĐT sẽ tự động tìm trên tất cả hội viên." />
                             </StackPanel>
 
                             <Grid Grid.Column="1" HorizontalAlignment="Right">
@@ -1346,99 +1402,105 @@
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Total Members -->
-                                <Border Grid.Column="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,8,0">
+                                <Border Grid.Column="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="7" Padding="7,4" Margin="0,0,5,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Border Width="36" Height="36" CornerRadius="8" Background="#EFF6FF" VerticalAlignment="Center">
-                                            <TextBlock Text="&#x1F465;" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <Border Width="26" Height="26" CornerRadius="6" Background="#EFF6FF" VerticalAlignment="Center">
+                                            <TextBlock Text="&#x1F465;" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
-                                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                                            <TextBlock Text="Tổng hội viên" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
-                                            <TextBlock x:Name="StatTotalMembersTextBlock" Text="0" FontWeight="Bold" FontSize="16" Foreground="#0F172A"/>
+                                        <StackPanel Grid.Column="1" Margin="6,0,2,0" VerticalAlignment="Center">
+                                            <TextBlock Text="Tổng hội viên" FontSize="10" Foreground="#64748B" Margin="0,0,0,1"/>
+                                            <TextBlock x:Name="StatTotalMembersTextBlock" Text="0" FontWeight="Bold" FontSize="13" Foreground="#0F172A"/>
                                             <TextBlock x:Name="StatTotalMembersTodayTextBlock" Visibility="Collapsed"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
 
                                 <!-- VIP Members -->
-                                <Border Grid.Column="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,8,0">
+                                <Border Grid.Column="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="7" Padding="7,4" Margin="0,0,5,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Border Width="36" Height="36" CornerRadius="8" Background="#F3E8FF" VerticalAlignment="Center">
-                                            <TextBlock Text="&#x1F451;" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <Border Width="26" Height="26" CornerRadius="6" Background="#F3E8FF" VerticalAlignment="Center">
+                                            <TextBlock Text="&#x1F451;" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
-                                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                                            <TextBlock Text="Hội viên VIP" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
-                                            <TextBlock x:Name="StatVipMembersTextBlock" Text="0" FontWeight="Bold" FontSize="16" Foreground="#0F172A"/>
-                                            <TextBlock x:Name="StatVipPercentTextBlock" Text="0%" FontSize="10" Foreground="#64748B" Margin="0,2,0,0"/>
+                                        <StackPanel Grid.Column="1" Margin="6,0,2,0" VerticalAlignment="Center">
+                                            <TextBlock Text="Hội viên VIP" FontSize="10" Foreground="#64748B" Margin="0,0,0,1"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock x:Name="StatVipMembersTextBlock" Text="0" FontWeight="Bold" FontSize="13" Foreground="#0F172A"/>
+                                                <TextBlock x:Name="StatVipPercentTextBlock" Text=" (0%)" FontSize="9.5" Foreground="#64748B" VerticalAlignment="Bottom" Margin="2,0,0,1"/>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
 
                                 <!-- Total Balance -->
-                                <Border Grid.Column="2" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,8,0">
+                                <Border x:Name="StatTotalBalanceCardBorder" Grid.Column="2" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="7" Padding="7,4" Margin="0,0,5,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Border Width="36" Height="36" CornerRadius="8" Background="#ECFDF5" VerticalAlignment="Center">
-                                            <TextBlock Text="&#x1F4B5;" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <Border Width="26" Height="26" CornerRadius="6" Background="#ECFDF5" VerticalAlignment="Center">
+                                            <TextBlock Text="&#x1F4B5;" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
-                                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                                            <TextBlock Text="Tổng số dư" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
-                                            <TextBlock x:Name="StatTotalBalanceTextBlock" Text="0" FontWeight="Bold" FontSize="16" Foreground="#0F172A"/>
+                                        <StackPanel Grid.Column="1" Margin="6,0,2,0" VerticalAlignment="Center">
+                                            <TextBlock Text="Tổng số dư" FontSize="10" Foreground="#64748B" Margin="0,0,0,1"/>
+                                            <TextBlock x:Name="StatTotalBalanceTextBlock" Text="0" FontWeight="Bold" FontSize="13" Foreground="#0F172A"/>
                                             <TextBlock x:Name="StatTotalBalanceTodayTextBlock" Visibility="Collapsed"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
 
                                 <!-- Total Play Hours -->
-                                <Border Grid.Column="3" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,8,0">
+                                <Border x:Name="StatTotalHoursCardBorder" Grid.Column="3" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="7" Padding="7,4" Margin="0,0,5,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <Border Width="36" Height="36" CornerRadius="8" Background="#FFFBEB" VerticalAlignment="Center">
-                                            <TextBlock Text="&#x23F2;" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <Border Width="26" Height="26" CornerRadius="6" Background="#FFFBEB" VerticalAlignment="Center">
+                                            <TextBlock Text="&#x23F2;" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
-                                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                                            <TextBlock Text="Tổng giờ chơi" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
-                                            <TextBlock x:Name="StatTotalHoursTextBlock" Text="0h" FontWeight="Bold" FontSize="16" Foreground="#0F172A"/>
+                                        <StackPanel Grid.Column="1" Margin="6,0,2,0" VerticalAlignment="Center">
+                                            <TextBlock Text="Tổng giờ chơi" FontSize="10" Foreground="#64748B" Margin="0,0,0,1"/>
+                                            <TextBlock x:Name="StatTotalHoursTextBlock" Text="0h" FontWeight="Bold" FontSize="13" Foreground="#0F172A"/>
                                             <TextBlock x:Name="StatTotalHoursTodayTextBlock" Visibility="Collapsed"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
 
                                 <!-- Total Topup -->
-                                <Border x:Name="StatTotalTopupCardBorder" Grid.Column="4" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,8">
+                                <Border x:Name="StatTotalTopupCardBorder" Grid.Column="4" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="7" Padding="7,4">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <Border Width="36" Height="36" CornerRadius="8" Background="#FEF2F2" VerticalAlignment="Center">
-                                            <TextBlock Text="&#x1F4CA;" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <Border Width="26" Height="26" CornerRadius="6" Background="#FEF2F2" VerticalAlignment="Center">
+                                            <TextBlock Text="&#x1F4CA;" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
-                                        <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-                                            <TextBlock Text="Tổng nạp" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
-                                            <TextBlock x:Name="StatTotalTopupTextBlock" Text="0" FontWeight="Bold" FontSize="16" Foreground="#0F172A"/>
+                                        <StackPanel Grid.Column="1" Margin="6,0,4,0" VerticalAlignment="Center">
+                                            <TextBlock Text="Tổng nạp" FontSize="10" Foreground="#64748B" Margin="0,0,0,1"/>
+                                            <TextBlock x:Name="StatTotalTopupTextBlock" Text="*****" FontWeight="Bold" FontSize="13" Foreground="#0F172A"/>
                                             <TextBlock x:Name="StatTotalTopupTodayTextBlock" Visibility="Collapsed"/>
                                         </StackPanel>
+                                        <Button Grid.Column="2" x:Name="ToggleTotalTopupEyeButton" Click="ToggleTotalTopupEyeButton_Click" Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="2,0" VerticalAlignment="Center" ToolTip="Bấm để ẩn / hiện số tiền tổng nạp">
+                                            <TextBlock x:Name="TotalTopupEyeIcon" Text="&#x1F441;" FontSize="12.5" Foreground="#64748B" Opacity="0.6"/>
+                                        </Button>
                                     </Grid>
                                 </Border>
                             </Grid>
                         </Grid>
 
                         <!-- Content Area -->
-                        <Grid Grid.Row="1" Margin="3,4,3,16">
+                        <Grid Grid.Row="1" Margin="3,4,3,16" ClipToBounds="True">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
@@ -1490,6 +1552,7 @@
                                         <DataGrid.RowStyle>
                                             <Style TargetType="DataGridRow">
                                                 <EventSetter Event="PreviewMouseRightButtonDown" Handler="MembersDataGridRow_PreviewMouseRightButtonDown" />
+                                                <EventSetter Event="PreviewMouseLeftButtonDown" Handler="MembersDataGridRow_PreviewMouseLeftButtonDown" />
                                                 <Setter Property="Background" Value="White"/>
                                                 <Setter Property="BorderThickness" Value="0,0,0,1"/>
                                                 <Setter Property="BorderBrush" Value="#F1F5F9"/>
@@ -1522,6 +1585,7 @@
                                                     </Style>
                                                 </ContextMenu.Resources>
                                                 <MenuItem Header="Xem / sửa hội viên..." Click="ContextEditMemberMenuItem_Click" />
+                                                <MenuItem Header="Đổi mật khẩu..." Click="ChangeMemberPasswordButton_Click" />
                                                 <Separator />
                                                 <MenuItem Header="Nạp tiền" Click="ContextTopupMemberMenuItem_Click" />
                                                 <MenuItem Header="Chuyển tiền cho hội viên..." Click="ContextTransferMemberMenuItem_Click" />
@@ -1538,7 +1602,7 @@
 
                                             <DataGridTemplateColumn Width="*" MinWidth="150">
                                                 <DataGridTemplateColumn.Header>
-                                                    <TextBlock Text="Username" Margin="4,0,0,0"/>
+                                                    <TextBlock Text="Tên đăng nhập" Margin="4,0,0,0"/>
                                                 </DataGridTemplateColumn.Header>
                                                 <DataGridTemplateColumn.CellTemplate>
                                                     <DataTemplate>
@@ -1674,18 +1738,20 @@
                             </Border>
 
                             <!-- Sidebar Detail -->
-                            <Border Grid.Column="1" Width="320" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1" Padding="20">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding ElementName=MembersDataGrid, Path=SelectedItem}" Value="{x:Null}">
-                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                                <Grid DataContext="{Binding ElementName=MembersDataGrid, Path=SelectedItem}">
+                            <Border x:Name="MemberDetailSidebarBorder"
+                                    Grid.Column="1"
+                                    Width="320"
+                                    Background="White"
+                                    CornerRadius="8"
+                                    BorderBrush="#E2E8F0"
+                                    BorderThickness="1"
+                                    Padding="20"
+                                    Visibility="Collapsed"
+                                    RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <TranslateTransform x:Name="MemberSidebarTranslate" X="0" Y="0"/>
+                                </Border.RenderTransform>
+                                <Grid x:Name="MemberDetailSidebarContentGrid">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
@@ -1694,13 +1760,43 @@
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <!-- Top Header (Title + Status) -->
-                                    <Grid Grid.Row="0" Margin="0,0,0,24">
-                                        <TextBlock Text="Thông tin hội viên" FontWeight="Bold" FontSize="14" Foreground="#1E293B" VerticalAlignment="Center"/>
-                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <!-- Top Header (Title + Status + Close Button) -->
+                                    <Grid Grid.Row="0" Margin="0,0,0,20">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0" Text="Thông tin hội viên" FontWeight="Bold" FontSize="14" Foreground="#1E293B" VerticalAlignment="Center"/>
+
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
                                             <Ellipse Width="8" Height="8" Fill="{Binding StatusDotColor}" Margin="0,0,6,0"/>
                                             <TextBlock Text="{Binding ActiveText}" Foreground="#059669" FontSize="12" FontWeight="Medium"/>
                                         </StackPanel>
+
+                                        <Button Grid.Column="2"
+                                                x:Name="CloseMemberSidebarButton"
+                                                Click="CloseMemberSidebarButton_Click"
+                                                Width="26" Height="26"
+                                                Background="#F1F5F9"
+                                                BorderThickness="0"
+                                                Cursor="Hand"
+                                                ToolTip="Đóng thông tin">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="btnBorder" Background="{TemplateBinding Background}" CornerRadius="13">
+                                                        <TextBlock Text="&#x2715;" FontSize="11" FontWeight="Bold" Foreground="#64748B" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-1,0,0"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="btnBorder" Property="Background" Value="#E2E8F0"/>
+                                                            <Setter Property="Foreground" Value="#0F172A"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
                                     </Grid>
 
                                     <!-- Profile Info -->
@@ -1802,7 +1898,7 @@
 
                                             <!-- Col 2 -->
                                             <StackPanel Grid.Column="1" Grid.Row="0" Margin="0,0,0,12" HorizontalAlignment="Right">
-                                                <TextBlock Text="&#x1F464; Username" FontSize="11" Foreground="#64748B" Margin="0,0,0,2" HorizontalAlignment="Right"/>
+                                                <TextBlock Text="&#x1F464; Tên đăng nhập" FontSize="11" Foreground="#64748B" Margin="0,0,0,2" HorizontalAlignment="Right"/>
                                                 <TextBlock Text="{Binding Username}" FontSize="12" Foreground="#334155" FontWeight="Medium" HorizontalAlignment="Right"/>
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" Grid.Row="1" Margin="0,0,0,12" HorizontalAlignment="Right">
@@ -1849,7 +1945,7 @@
                                         </Grid>
 
                                         <Grid Grid.Row="2">
-                                            <Button Margin="0" Background="#FAF5FF" BorderBrush="#A855F7" BorderThickness="1" Foreground="#7E22CE" Padding="0,8" Click="ContextEditMemberMenuItem_Click">
+                                            <Button Margin="0" Background="#FAF5FF" BorderBrush="#A855F7" BorderThickness="1" Foreground="#7E22CE" Padding="0,8" Click="ChangeMemberPasswordButton_Click">
                                                 <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
                                                 <TextBlock Text="&#x1F511; Đổi mật khẩu" FontSize="12" FontWeight="SemiBold"/>
                                             </Button>
@@ -3245,7 +3341,7 @@
                                             <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="📄" FontSize="14" Margin="0,0,6,0" />
-                                                <TextBlock Text="Nạp list mẫu" VerticalAlignment="Center" />
+                                                <TextBlock Text="Nạp list mẫu (240 domain)" VerticalAlignment="Center" />
                                             </StackPanel>
                                         </Button>
                                         <Button Grid.Column="4" Margin="8,0,0,0" Padding="16,0" Height="36" Background="#2563EB" Foreground="White" BorderThickness="0" Click="ClearAllWebFilterDomainsButton_Click">
@@ -3466,42 +3562,326 @@
                             <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="Hệ thống VIP" FontSize="12.5" />
                         </StackPanel>
                     </TabItem.Header>
-                    <Grid Margin="0">
+                    <TabItem.Resources>
+                        <Style x:Key="VipChipButtonStyle" TargetType="Button">
+                            <Setter Property="Height" Value="28"/>
+                            <Setter Property="Padding" Value="10,0"/>
+                            <Setter Property="Margin" Value="0,0,6,0"/>
+                            <Setter Property="Background" Value="#F1F5F9"/>
+                            <Setter Property="Foreground" Value="#475569"/>
+                            <Setter Property="BorderThickness" Value="1"/>
+                            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                            <Setter Property="FontSize" Value="11.5"/>
+                            <Setter Property="FontWeight" Value="Medium"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="14">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#E2E8F0"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TabItem.Resources>
+                    <Grid Margin="0" Background="#F8FAFC">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" /> <!-- Stat Cards -->
+                            <RowDefinition Height="Auto" /> <!-- Control Toolbar -->
+                            <RowDefinition Height="*" />    <!-- DataGrid -->
+                            <RowDefinition Height="Auto" /> <!-- Footer -->
                         </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-                            <Button Padding="10,5" Click="RefreshLoyaltyRanksButton_Click" Content="Làm mới danh sách" />
-                            <Separator Width="1" Margin="12,4" Background="#DDD" />
-                            <TextBlock VerticalAlignment="Center" Margin="0,0,6,0" Text="Thiết lập nhanh 100 cấp:" FontWeight="SemiBold" />
-                            <TextBox x:Name="RebuildMaxThresholdTextBox" Width="120" Height="28" VerticalContentAlignment="Center" Text="100,000,000" />
-                            <Button Margin="6,0,0,0" Padding="12,0" Height="28" Click="RebuildLoyaltyRanksButton_Click" Content="Tự động chia cấp" Background="#1D4ED8" Foreground="White" BorderThickness="0" />
-                            <TextBlock VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#666" Text="(Ngưỡng cao nhất)" FontSize="11" />
-                        </StackPanel>
+                        <!-- Row 0: 4 Summary Stat Cards -->
+                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                        <DataGrid x:Name="LoyaltyRanksDataGrid"
-                                  Grid.Row="1"
-                                  AutoGenerateColumns="False"
-                                  IsReadOnly="False"
-                                  CanUserAddRows="False"
-                                  HeadersVisibility="Column"
-                                  GridLinesVisibility="Horizontal"
-                                  RowHeaderWidth="0"
-                                  AlternationCount="2"
-                                  CellEditEnding="LoyaltyRanksDataGrid_CellEditEnding">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Tên bậc hạng" Binding="{Binding RankName}" Width="180" IsReadOnly="False" />
-                                <DataGridTextColumn Header="Ngưỡng tổng nạp (VNĐ)" Binding="{Binding MinTopupText}" Width="200" IsReadOnly="False" />
-                                <DataGridTextColumn Header="Khuyến mãi (%)" Binding="{Binding BonusPercent}" Width="140" IsReadOnly="False" />
-                                <DataGridTextColumn Header="Số phút / 1 điểm" Binding="{Binding MinutesPerPointText}" Width="140" IsReadOnly="True" />
-                                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="100" IsReadOnly="True" Visibility="Collapsed" />
-                            </DataGrid.Columns>
-                        </DataGrid>
+                            <!-- Card 1: Total Ranks -->
+                            <Border Grid.Column="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,8,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="34" Height="34" CornerRadius="7" Background="#F5F3FF" VerticalAlignment="Center">
+                                        <TextBlock Text="&#x1F451;" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="Tổng bậc hạng" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
+                                        <TextBlock x:Name="VipTotalRanksTextBlock" Text="100 Cấp" FontWeight="Bold" FontSize="15" Foreground="#1E293B"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
 
-                        <TextBlock Grid.Row="2" Margin="0,8,0,0" x:Name="LoyaltyRanksInfoTextBlock" Text="Dữ liệu được lưu tự động sau khi sửa ô và nhấn Enter hoặc chuyển ô." Foreground="#2563EB" FontWeight="SemiBold" />
+                            <!-- Card 2: Highest Bonus -->
+                            <Border Grid.Column="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,8,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="34" Height="34" CornerRadius="7" Background="#ECFDF5" VerticalAlignment="Center">
+                                        <TextBlock Text="&#x1F381;" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="Khuyến mãi cao nhất" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
+                                        <TextBlock x:Name="VipMaxBonusTextBlock" Text="+100%" FontWeight="Bold" FontSize="15" Foreground="#059669"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Card 3: Fastest Point Earning -->
+                            <Border Grid.Column="2" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,8,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="34" Height="34" CornerRadius="7" Background="#FFFBEB" VerticalAlignment="Center">
+                                        <TextBlock Text="&#x26A1;" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="Tích điểm nhanh nhất" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
+                                        <TextBlock x:Name="VipFastestPointTextBlock" Text="5p / điểm" FontWeight="Bold" FontSize="15" Foreground="#D97706"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Card 4: Max Topup Threshold -->
+                            <Border Grid.Column="3" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,8">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="34" Height="34" CornerRadius="7" Background="#EFF6FF" VerticalAlignment="Center">
+                                        <TextBlock Text="&#x1F4B0;" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="Ngưỡng nạp tối đa" FontSize="11" Foreground="#64748B" Margin="0,0,0,2"/>
+                                        <TextBlock x:Name="VipMaxThresholdTextBlock" Text="100.000.000 đ" FontWeight="Bold" FontSize="15" Foreground="#2563EB"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <!-- Row 1: Quick Setup & Search Toolbar -->
+                        <Border Grid.Row="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,10">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Left: Quick Rebuild Tool -->
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="&#x26A1; Thiết lập 100 cấp:" FontWeight="SemiBold" FontSize="12.5" Foreground="#1E293B" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Border Width="130" Height="32" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="6" Background="White" Padding="8,0" Margin="0,0,8,0">
+                                        <Grid VerticalAlignment="Center">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="RebuildMaxThresholdTextBox" BorderThickness="0" Background="Transparent" 
+                                                     VerticalContentAlignment="Center" FontSize="12.5" FontWeight="Bold" Foreground="#1E293B" 
+                                                     Text="100,000,000" HorizontalContentAlignment="Right" />
+                                            <TextBlock Text="đ" Grid.Column="1" VerticalAlignment="Center" Foreground="#94A3B8" FontSize="11.5" Margin="4,0,0,0"/>
+                                        </Grid>
+                                    </Border>
+                                    <Button Height="32" Padding="12,0" Click="RebuildLoyaltyRanksButton_Click" Background="#4F46E5" Foreground="White" BorderThickness="0" Cursor="Hand" FontWeight="SemiBold" FontSize="12">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></Button.Resources>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#x2728;" Margin="0,0,6,0" VerticalAlignment="Center" FontSize="11"/>
+                                            <TextBlock Text="Tự động chia cấp" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+
+                                <Border Grid.Column="1" Width="1" Background="#E2E8F0" Margin="14,2" Height="22"/>
+
+                                <!-- Middle: Tier filter chips -->
+                                <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" BorderThickness="0" PanningMode="HorizontalOnly">
+                                    <StackPanel x:Name="TierFilterPanel" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button x:Name="TierAllButton" Click="TierFilterButton_Click" Tag="ALL" Content="Tất cả" Style="{StaticResource VipChipButtonStyle}" Background="#4F46E5" Foreground="White" BorderBrush="#4F46E5"/>
+                                        <Button Click="TierFilterButton_Click" Tag="Sắt" Content="&#x1F6E1; Sắt" Style="{StaticResource VipChipButtonStyle}"/>
+                                        <Button Click="TierFilterButton_Click" Tag="Đồng" Content="&#x1F949; Đồng" Style="{StaticResource VipChipButtonStyle}"/>
+                                        <Button Click="TierFilterButton_Click" Tag="Bạc" Content="&#x1F948; Bạc" Style="{StaticResource VipChipButtonStyle}"/>
+                                        <Button Click="TierFilterButton_Click" Tag="Vàng" Content="&#x1F947; Vàng" Style="{StaticResource VipChipButtonStyle}"/>
+                                        <Button Click="TierFilterButton_Click" Tag="Bạch Kim" Content="&#x1F48E; Bạch Kim" Style="{StaticResource VipChipButtonStyle}"/>
+                                        <Button Click="TierFilterButton_Click" Tag="Tinh Anh" Content="&#x1F52E; Tinh Anh" Style="{StaticResource VipChipButtonStyle}"/>
+                                        <Button Click="TierFilterButton_Click" Tag="Kim Cương" Content="&#x1F539; Kim Cương" Style="{StaticResource VipChipButtonStyle}"/>
+                                        <Button Click="TierFilterButton_Click" Tag="Cao Thủ" Content="&#x1F451; Cao Thủ" Style="{StaticResource VipChipButtonStyle}"/>
+                                        <Button Click="TierFilterButton_Click" Tag="Đại Cao Thủ" Content="&#x1F396; Đại Cao Thủ" Style="{StaticResource VipChipButtonStyle}"/>
+                                        <Button Click="TierFilterButton_Click" Tag="Thách Đấu" Content="&#x1F525; Thách Đấu" Style="{StaticResource VipChipButtonStyle}"/>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+
+                        <!-- Row 2: DataGrid Container -->
+                        <Border Grid.Row="2" Background="White" CornerRadius="8" BorderBrush="#E2E8F0" BorderThickness="1" ClipToBounds="True">
+                            <DataGrid x:Name="LoyaltyRanksDataGrid"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="False"
+                                      CanUserAddRows="False"
+                                      HeadersVisibility="Column"
+                                      GridLinesVisibility="Horizontal"
+                                      HorizontalGridLinesBrush="#F1F5F9"
+                                      VerticalGridLinesBrush="Transparent"
+                                      BorderThickness="0"
+                                      Background="Transparent"
+                                      RowHeight="44"
+                                      RowHeaderWidth="0"
+                                      AlternationCount="2"
+                                      SelectionMode="Single"
+                                      SelectionUnit="FullRow"
+                                      CellEditEnding="LoyaltyRanksDataGrid_CellEditEnding">
+                                
+                                <DataGrid.CellStyle>
+                                    <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                                        <Setter Property="VerticalContentAlignment" Value="Center"/>
+                                        <Setter Property="Padding" Value="12,0"/>
+                                    </Style>
+                                </DataGrid.CellStyle>
+
+                                <DataGrid.ColumnHeaderStyle>
+                                    <Style TargetType="DataGridColumnHeader">
+                                        <Setter Property="Background" Value="#F8FAFC"/>
+                                        <Setter Property="Foreground" Value="#475569"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                        <Setter Property="FontSize" Value="12.5"/>
+                                        <Setter Property="Padding" Value="14,10"/>
+                                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                        <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                    </Style>
+                                </DataGrid.ColumnHeaderStyle>
+
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow">
+                                        <Setter Property="Background" Value="White"/>
+                                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                        <Setter Property="BorderBrush" Value="#F1F5F9"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                                                <Setter Property="Background" Value="#FBFBFC"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#F8FAFC"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="#EEF2FF"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.RowStyle>
+
+                                <DataGrid.Columns>
+                                    <!-- Bậc hạng Badge -->
+                                    <DataGridTemplateColumn Header="Tên bậc hạng" Width="200">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{Binding TierBgColor}" BorderBrush="{Binding TierBorderColor}" BorderThickness="1" CornerRadius="6" Padding="8,4" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding TierIcon}" FontSize="12.5" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding RankName}" FontWeight="Bold" FontSize="12.5" Foreground="{Binding TierTextColor}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                        <DataGridTemplateColumn.CellEditingTemplate>
+                                            <DataTemplate>
+                                                <TextBox Text="{Binding RankName, UpdateSourceTrigger=LostFocus}" FontSize="13" VerticalContentAlignment="Center" Padding="4,2"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellEditingTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- Ngưỡng tổng nạp -->
+                                    <DataGridTemplateColumn Header="Ngưỡng tổng nạp (VNĐ)" Width="230">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="&#x1F4B0;" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding MinTopupFormatted}" FontWeight="SemiBold" FontSize="13" Foreground="#0F172A" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                        <DataGridTemplateColumn.CellEditingTemplate>
+                                            <DataTemplate>
+                                                <TextBox Text="{Binding MinTopupText, UpdateSourceTrigger=LostFocus}" FontSize="13" VerticalContentAlignment="Center" Padding="4,2"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellEditingTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- Khuyến mãi -->
+                                    <DataGridTemplateColumn Header="Khuyến mãi nạp (%)" Width="180">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="6" Padding="8,3" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="&#x1F381;" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding BonusPercentText}" FontWeight="Bold" FontSize="12.5" Foreground="#059669" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                        <DataGridTemplateColumn.CellEditingTemplate>
+                                            <DataTemplate>
+                                                <TextBox Text="{Binding BonusPercent, UpdateSourceTrigger=LostFocus}" FontSize="13" VerticalContentAlignment="Center" Padding="4,2"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellEditingTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- Tích lũy điểm -->
+                                    <DataGridTemplateColumn Header="Tốc độ tích lũy điểm" Width="220" IsReadOnly="True">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="&#x23F2;" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding MinutesPerPointText}" FontWeight="Medium" FontSize="12.5" Foreground="#334155" VerticalAlignment="Center"/>
+                                                    <TextBlock Text=" / điểm" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- Ghi chú / Trạng thái -->
+                                    <DataGridTemplateColumn Header="Quyền lợi &amp; Ghi chú" Width="*">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="Tự động áp dụng khuyến mãi nạp tiền &amp; điểm danh hàng ngày" FontSize="11.5" Foreground="#64748B" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+
+                        <!-- Row 3: Status Footer -->
+                        <Border Grid.Row="3" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,8,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="&#x1F4A1;" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Nhấn đúp chuột vào ô để sửa Tên bậc hạng, Ngưỡng nạp hoặc Khuyến mãi %. Dữ liệu tự động đồng bộ lên máy chủ khi ấn Enter." FontSize="12" Foreground="#64748B" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" x:Name="LoyaltyRanksInfoTextBlock" Text="Đã sẵn sàng" Foreground="#059669" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
                     </Grid>
                 </TabItem>
 
@@ -6578,7 +6958,7 @@
                     <TextBlock Grid.Row="0" Text="Thêm hội viên" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,12" />
 
                     <TextBlock Grid.Row="1" Text="Tên đăng nhập" Margin="0,0,0,4" />
-                    <TextBox x:Name="MemberUsernameTextBox" Grid.Row="2" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,10" />
+                    <TextBox x:Name="MemberUsernameTextBox" CharacterCasing="Upper" Grid.Row="2" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,10" />
 
                     <TextBlock Grid.Row="3" Text="Mật khẩu" Margin="0,0,0,4" />
                     <PasswordBox x:Name="MemberPasswordBox" Grid.Row="4" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,10" />
@@ -6609,205 +6989,686 @@
             </Border>
         </Grid>
 
-        <Grid x:Name="TopupModalOverlay" Background="#80000000" Visibility="Collapsed" Panel.ZIndex="120">
-            <Border Width="520"
+        <Grid x:Name="TopupModalOverlay" Background="#75091322" Visibility="Collapsed" Panel.ZIndex="120">
+            <Grid.Resources>
+                <!-- Close Button Style -->
+                <Style x:Key="TopupCloseButtonStyle" TargetType="Button">
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Width" Value="30" />
+                    <Setter Property="Height" Value="30" />
+                    <Setter Property="Background" Value="#F1F5F9" />
+                    <Setter Property="BorderBrush" Value="#E2E8F0" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="Foreground" Value="#64748B" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="15"
+                                        SnapsToDevicePixels="True">
+                                    <TextBlock Text="✕"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="{TemplateBinding Foreground}" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#E2E8F0" />
+                                        <Setter Property="Foreground" Value="#0F172A" />
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#CBD5E1" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+
+                <!-- Mode Segmented Button Style -->
+                <Style x:Key="TopupSegmentedToggleButtonStyle" TargetType="Button">
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                    <Setter Property="FontSize" Value="12" />
+                    <Setter Property="Height" Value="30" />
+                    <Setter Property="Padding" Value="12,0" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="5"
+                                        SnapsToDevicePixels="True">
+                                    <ContentPresenter HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Opacity" Value="0.9" />
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Opacity" Value="0.75" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+
+                <!-- Input Textbox Style with Rounded Corners -->
+                <Style x:Key="TopupRoundedTextBoxStyle" TargetType="TextBox">
+                    <Setter Property="Height" Value="32" />
+                    <Setter Property="VerticalContentAlignment" Value="Center" />
+                    <Setter Property="FontSize" Value="13" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                    <Setter Property="Foreground" Value="#0F172A" />
+                    <Setter Property="Background" Value="White" />
+                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="TextBox">
+                                <Border x:Name="border"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="6"
+                                        SnapsToDevicePixels="True">
+                                    <ScrollViewer x:Name="PART_ContentHost"
+                                                  Focusable="False"
+                                                  HorizontalScrollBarVisibility="Hidden"
+                                                  VerticalScrollBarVisibility="Hidden"
+                                                  VerticalAlignment="Center"
+                                                  Padding="{TemplateBinding Padding}" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#94A3B8" />
+                                    </Trigger>
+                                    <Trigger Property="IsKeyboardFocused" Value="True">
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#2563EB" />
+                                        <Setter TargetName="border" Property="BorderThickness" Value="1.5" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+
+                <!-- Minor Preset Button (1,000 - 9,000) -->
+                <Style x:Key="TopupMinorButtonStyle" TargetType="Button">
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Background" Value="#F8FAFC" />
+                    <Setter Property="BorderBrush" Value="#E2E8F0" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="Foreground" Value="#334155" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                    <Setter Property="FontSize" Value="13.5" />
+                    <Setter Property="Height" Value="34" />
+                    <Setter Property="Margin" Value="2.5" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="6"
+                                        SnapsToDevicePixels="True">
+                                    <ContentPresenter HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#EEF2F6" />
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#CBD5E1" />
+                                        <Setter Property="Foreground" Value="#0F172A" />
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#E2E8F0" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+
+                <!-- Major Preset Button (10,000 - 90,000) -->
+                <Style x:Key="TopupMajorButtonStyle" TargetType="Button">
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Background" Value="#EFF6FF" />
+                    <Setter Property="BorderBrush" Value="#BFDBFE" />
+                    <Setter Property="BorderThickness" Value="1.5" />
+                    <Setter Property="Foreground" Value="#1D4ED8" />
+                    <Setter Property="FontWeight" Value="Bold" />
+                    <Setter Property="FontSize" Value="14" />
+                    <Setter Property="Height" Value="36" />
+                    <Setter Property="Margin" Value="2.5" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="6"
+                                        SnapsToDevicePixels="True">
+                                    <ContentPresenter HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#DBEAFE" />
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#93C5FD" />
+                                        <Setter Property="Foreground" Value="#1E40AF" />
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#BFDBFE" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+
+                <!-- Outline Utility Button (Undo, Clear) -->
+                <Style x:Key="TopupOutlineButtonStyle" TargetType="Button">
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Background" Value="White" />
+                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="Foreground" Value="#475569" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                    <Setter Property="FontSize" Value="12.5" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="6"
+                                        SnapsToDevicePixels="True">
+                                    <ContentPresenter HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#F8FAFC" />
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#94A3B8" />
+                                        <Setter Property="Foreground" Value="#0F172A" />
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#F1F5F9" />
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="border" Property="Opacity" Value="0.4" />
+                                        <Setter Property="Cursor" Value="Arrow" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+
+                <!-- Ghost Button (Cancel) -->
+                <Style x:Key="TopupGhostButtonStyle" TargetType="Button">
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Background" Value="#F1F5F9" />
+                    <Setter Property="BorderBrush" Value="#E2E8F0" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="Foreground" Value="#475569" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                    <Setter Property="FontSize" Value="13" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="6"
+                                        SnapsToDevicePixels="True">
+                                    <ContentPresenter HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#E2E8F0" />
+                                        <Setter Property="Foreground" Value="#0F172A" />
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#CBD5E1" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+
+                <!-- Primary Action Button (Submit) -->
+                <Style x:Key="TopupPrimaryButtonStyle" TargetType="Button">
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Background" Value="#10B981" />
+                    <Setter Property="BorderBrush" Value="#059669" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="Foreground" Value="White" />
+                    <Setter Property="FontWeight" Value="Bold" />
+                    <Setter Property="FontSize" Value="13.5" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="6"
+                                        SnapsToDevicePixels="True">
+                                    <ContentPresenter HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Opacity" Value="0.9" />
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Opacity" Value="0.75" />
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter TargetName="border" Property="Opacity" Value="0.45" />
+                                        <Setter Property="Cursor" Value="Arrow" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </Grid.Resources>
+
+            <Border Width="780"
                     MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Grid}}"
                     Margin="0,16"
                     Background="White"
-                    BorderBrush="#CFCFCF"
+                    BorderBrush="#E2E8F0"
                     BorderThickness="1"
-                    CornerRadius="8"
+                    CornerRadius="16"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
-                    Padding="16">
+                    Padding="22,16">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="32"
+                                      ShadowDepth="8"
+                                      Direction="270"
+                                      Color="#000000"
+                                      Opacity="0.25" />
+                </Border.Effect>
+
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled"
-                              CanContentScroll="True">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
+                              Focusable="False">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <!-- Row 0: Header -->
+                            <RowDefinition Height="Auto" />
+                            <!-- Row 1: 2-Column Body -->
+                            <RowDefinition Height="Auto" />
+                            <!-- Row 2: Error Message -->
+                            <RowDefinition Height="Auto" />
+                            <!-- Row 3: Footer Actions -->
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
 
-                    <TextBlock x:Name="TopupModalTitleTextBlock"
-                               Grid.Row="0"
-                               Text="Nạp tiền hội viên"
-                               FontSize="20"
-                               FontWeight="SemiBold"
-                               Margin="0,0,0,8" />
-
-                    <StackPanel Grid.Row="1" Margin="0,0,0,8">
-                        <TextBlock x:Name="TopupModalMemberTextBlock"
-                                   Text="Chọn số tiền nạp:"
-                                   FontWeight="SemiBold" />
-                        <TextBlock x:Name="TopupModalCurrentBalanceTextBlock"
-                                   Margin="0,4,0,0"
-                                   Foreground="#334155"
-                                   Text="Số dư hiện tại: - VND" />
-                    </StackPanel>
-
-                    <Border Grid.Row="2"
-                            Background="#E7F3FF"
-                            BorderBrush="#97B8E2"
-                            BorderThickness="1"
-                            CornerRadius="6"
-                            Padding="10"
-                            Margin="0,0,0,8">
-                        <TextBlock x:Name="TopupModalAmountTextBlock"
-                                   Text="0 VND"
-                                   FontSize="38"
-                                   FontWeight="Bold"
-                                   Foreground="#09248C"
-                                   HorizontalAlignment="Center"
-                                   TextAlignment="Center" />
-                    </Border>
-
-                    <TextBlock Grid.Row="3"
-                               Text="Bấm nhiều lần để cộng dồn. Không giới hạn trần mỗi lần nạp."
-                               Foreground="DimGray"
-                               Margin="0,0,0,10"
-                               TextWrapping="Wrap" />
-
-                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,10">
-                        <Button x:Name="TopupModeAddButton"
-                                Content="Nạp (+)"
-                                Width="110"
-                                Height="34"
-                                Margin="0,0,8,0"
-                                FontWeight="SemiBold"
-                                Click="TopupModeAddButton_Click" />
-                        <Button x:Name="TopupModeSubtractButton"
-                                Content="Trừ (-)"
-                                Width="110"
-                                Height="34"
-                                FontWeight="SemiBold"
-                                Click="TopupModeSubtractButton_Click" />
-                    </StackPanel>
-
-                    <StackPanel Grid.Row="5" Margin="0,0,0,10">
-                        <Grid Margin="0,0,0,6">
+                        <!-- Row 0: Header -->
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="200" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Width="32"
+                                        Height="32"
+                                        CornerRadius="8"
+                                        Background="#ECFDF5"
+                                        BorderBrush="#A7F3D0"
+                                        BorderThickness="1"
+                                        Margin="0,0,10,0">
+                                    <TextBlock Text="💳"
+                                               FontSize="16"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock x:Name="TopupModalTitleTextBlock"
+                                               Text="Nạp tiền hội viên"
+                                               FontSize="16"
+                                               FontWeight="Bold"
+                                               Foreground="#0F172A" />
+                                    <TextBlock Text="Chọn mệnh giá nhanh bên phải hoặc nhập số tiền tùy chỉnh"
+                                               FontSize="11"
+                                               Foreground="#64748B"
+                                               Margin="0,1,0,0" />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- Close Button (X) -->
+                            <Button Grid.Column="1"
+                                    Style="{StaticResource TopupCloseButtonStyle}"
+                                    Click="TopupCancelButton_Click"
+                                    ToolTip="Đóng (Esc)" />
+                        </Grid>
+
+                        <!-- Row 1: 2-Column Balanced Body -->
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <!-- Left Column: Info & Inputs (Width 340) -->
+                                <ColumnDefinition Width="340" />
+                                <!-- Gap -->
+                                <ColumnDefinition Width="18" />
+                                <!-- Right Column: Presets (Width *) -->
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,8,0"
-                                       Text="Nhập số tiền:" />
-                            <TextBox x:Name="TopupCustomAmountTextBox"
-                                     Grid.Column="1"
-                                     Height="32"
-                                     VerticalContentAlignment="Center"
-                                     Margin="0,0,8,0"
-                                     TextChanged="TopupCustomAmountTextBox_TextChanged"
-                                     KeyDown="TopupCustomAmountTextBox_KeyDown" />
+                            <!-- Left Column -->
+                            <StackPanel Grid.Column="0">
+                                <!-- Member Info Banner -->
+                                <Border Background="#F8FAFC"
+                                        BorderBrush="#E2E8F0"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="10,7"
+                                        Margin="0,0,0,8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <Border Grid.Column="0"
+                                                Width="28"
+                                                Height="28"
+                                                CornerRadius="14"
+                                                Background="#E2E8F0"
+                                                Margin="0,0,8,0">
+                                            <TextBlock Text="👤"
+                                                       FontSize="13"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock x:Name="TopupModalMemberTextBlock"
+                                                       Text="Hội viên: -"
+                                                       FontWeight="Bold"
+                                                       FontSize="13"
+                                                       Foreground="#1E293B" />
+                                            <TextBlock x:Name="TopupModalCurrentBalanceTextBlock"
+                                                       Margin="0,1,0,0"
+                                                       FontSize="11.5"
+                                                       Foreground="#64748B"
+                                                       Text="Số dư hiện tại: - VND" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Mode Segmented Switch -->
+                                <Border Background="#F1F5F9"
+                                        BorderBrush="#E2E8F0"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Padding="2"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,0,0,8">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button x:Name="TopupModeAddButton"
+                                                Style="{StaticResource TopupSegmentedToggleButtonStyle}"
+                                                Content="Nạp tiền (+)"
+                                                Width="110"
+                                                Margin="0,0,2,0"
+                                                Click="TopupModeAddButton_Click" />
+                                        <Button x:Name="TopupModeSubtractButton"
+                                                Style="{StaticResource TopupSegmentedToggleButtonStyle}"
+                                                Content="Trừ tiền (-)"
+                                                Width="110"
+                                                Click="TopupModeSubtractButton_Click" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Hero Amount Display Box -->
+                                <Border Background="#F8FAFC"
+                                        BorderBrush="#E2E8F0"
+                                        BorderThickness="1"
+                                        CornerRadius="10"
+                                        Padding="12,8"
+                                        Margin="0,0,0,8">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="SỐ TIỀN THỰC HIỆN"
+                                                   FontSize="10"
+                                                   FontWeight="Bold"
+                                                   Foreground="#64748B"
+                                                   HorizontalAlignment="Center" />
+                                        <TextBlock x:Name="TopupModalAmountTextBlock"
+                                                   Text="0 VND"
+                                                   FontSize="28"
+                                                   FontWeight="Bold"
+                                                   Foreground="#0F172A"
+                                                   Margin="0,2,0,2"
+                                                   HorizontalAlignment="Center" />
+                                        <TextBlock x:Name="TopupModalBonusTextBlock"
+                                                   Foreground="#15803D"
+                                                   Background="#DCFCE7"
+                                                   Padding="8,2"
+                                                   FontWeight="Bold"
+                                                   FontSize="11.5"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,2,0,0"
+                                                   Visibility="Collapsed" />
+                                        <TextBlock Text="Bấm mệnh giá bên phải để cộng dồn"
+                                                   FontSize="10.5"
+                                                   Foreground="#94A3B8"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Custom Direct Inputs Section -->
+                                <Border Background="#F8FAFC"
+                                        BorderBrush="#E2E8F0"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="10,8">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="10" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Amount Input -->
+                                        <StackPanel Grid.Row="0" Grid.Column="0">
+                                            <TextBlock Text="Số tiền tùy ý"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#475569"
+                                                       Margin="0,0,0,4" />
+                                            <Grid>
+                                                <TextBox x:Name="TopupCustomAmountTextBox"
+                                                         Style="{StaticResource TopupRoundedTextBoxStyle}"
+                                                         Padding="8,0,36,0"
+                                                         TextChanged="TopupCustomAmountTextBox_TextChanged"
+                                                         KeyDown="TopupCustomAmountTextBox_KeyDown" />
+                                                <TextBlock Text="VND"
+                                                           FontSize="11"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#94A3B8"
+                                                           HorizontalAlignment="Right"
+                                                           VerticalAlignment="Center"
+                                                           Margin="0,0,8,0"
+                                                           IsHitTestVisible="False" />
+                                            </Grid>
+                                        </StackPanel>
+
+                                        <!-- Minutes Input -->
+                                        <StackPanel Grid.Row="0" Grid.Column="2">
+                                            <TextBlock Text="Theo số phút"
+                                                       FontSize="11"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#475569"
+                                                       Margin="0,0,0,4" />
+                                            <Grid>
+                                                <TextBox x:Name="TopupMinutesTextBox"
+                                                         Style="{StaticResource TopupRoundedTextBoxStyle}"
+                                                         Padding="8,0,36,0"
+                                                         TextChanged="TopupMinutesTextBox_TextChanged"
+                                                         KeyDown="TopupMinutesTextBox_KeyDown" />
+                                                <TextBlock Text="Phút"
+                                                           FontSize="11"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#94A3B8"
+                                                           HorizontalAlignment="Right"
+                                                           VerticalAlignment="Center"
+                                                           Margin="0,0,8,0"
+                                                           IsHitTestVisible="False" />
+                                            </Grid>
+                                        </StackPanel>
+
+                                        <!-- Conversion Rate Hint -->
+                                        <TextBlock x:Name="TopupMinutesRateHintTextBlock"
+                                                   Grid.Row="1"
+                                                   Grid.Column="0"
+                                                   Grid.ColumnSpan="3"
+                                                   Foreground="#64748B"
+                                                   FontSize="11"
+                                                   Margin="0,5,0,0"
+                                                   Text="Đơn giá quy đổi: -"
+                                                   TextWrapping="Wrap" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- Right Column: Quick Amount Presets -->
+                            <StackPanel Grid.Column="2">
+                                <!-- 1k - 9k (Tiền lẻ cộng dồn) -->
+                                <DockPanel Margin="0,0,0,3">
+                                    <TextBlock Text="Tiền lẻ cộng dồn"
+                                               FontSize="11.5"
+                                               FontWeight="SemiBold"
+                                               Foreground="#64748B" />
+                                    <TextBlock Text="(1.000đ - 9.000đ)"
+                                               FontSize="10.5"
+                                               Foreground="#94A3B8"
+                                               Margin="4,0,0,0" />
+                                </DockPanel>
+                                <UniformGrid Columns="3" Margin="0,0,0,8">
+                                    <Button Content="1,000" Tag="1000" Style="{StaticResource TopupMinorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                    <Button Content="2,000" Tag="2000" Style="{StaticResource TopupMinorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                    <Button Content="3,000" Tag="3000" Style="{StaticResource TopupMinorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                    <Button Content="4,000" Tag="4000" Style="{StaticResource TopupMinorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                    <Button Content="5,000" Tag="5000" Style="{StaticResource TopupMinorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                    <Button Content="6,000" Tag="6000" Style="{StaticResource TopupMinorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                    <Button Content="7,000" Tag="7000" Style="{StaticResource TopupMinorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                    <Button Content="8,000" Tag="8000" Style="{StaticResource TopupMinorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                    <Button Content="9,000" Tag="9000" Style="{StaticResource TopupMinorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                </UniformGrid>
+
+                                <!-- 10k - 90k (Mệnh giá chuẩn) -->
+                                <DockPanel Margin="0,0,0,3">
+                                    <TextBlock Text="Mệnh giá chuẩn"
+                                               FontSize="11.5"
+                                               FontWeight="SemiBold"
+                                               Foreground="#1E40AF" />
+                                    <TextBlock Text="(10.000đ - 90.000đ)"
+                                               FontSize="10.5"
+                                               Foreground="#94A3B8"
+                                               Margin="4,0,0,0" />
+                                </DockPanel>
+                                <UniformGrid Columns="3">
+                                    <Button Content="10,000" Tag="10000" Style="{StaticResource TopupMajorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                    <Button Content="20,000" Tag="20000" Style="{StaticResource TopupMajorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                    <Button Content="30,000" Tag="30000" Style="{StaticResource TopupMajorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                    <Button Content="40,000" Tag="40000" Style="{StaticResource TopupMajorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                    <Button Content="50,000" Tag="50000" Style="{StaticResource TopupMajorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                    <Button Content="60,000" Tag="60000" Style="{StaticResource TopupMajorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                    <Button Content="70,000" Tag="70000" Style="{StaticResource TopupMajorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                    <Button Content="80,000" Tag="80000" Style="{StaticResource TopupMajorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                    <Button Content="90,000" Tag="90000" Style="{StaticResource TopupMajorButtonStyle}" Click="TopupQuickAmountButton_Click" />
+                                </UniformGrid>
+                            </StackPanel>
                         </Grid>
 
-                        <Grid Margin="0,0,0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="200" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock Grid.Column="0"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,8,0"
-                                       Text="Nhập số phút:" />
-                            <TextBox x:Name="TopupMinutesTextBox"
-                                     Grid.Column="1"
-                                     Height="32"
-                                     VerticalContentAlignment="Center"
-                                     Margin="0,0,8,0"
-                                     TextChanged="TopupMinutesTextBox_TextChanged"
-                                     KeyDown="TopupMinutesTextBox_KeyDown" />
-                        </Grid>
-
-                        <TextBlock x:Name="TopupMinutesRateHintTextBlock"
-                                   Foreground="#64748B"
+                        <!-- Row 2: Error Message -->
+                        <TextBlock x:Name="TopupModalErrorTextBlock"
+                                   Grid.Row="2"
+                                   Foreground="#DC2626"
+                                   FontWeight="SemiBold"
                                    FontSize="12"
-                                   Text="Đơn giá quy đổi: -"
+                                   Margin="0,6,0,0"
                                    TextWrapping="Wrap" />
-                    </StackPanel>
 
-                    <StackPanel Grid.Row="6" Margin="0,0,0,10">
-                        <UniformGrid Columns="3" Margin="0,0,0,8">
-                            <Button Content="1,000" Tag="1000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Background="#83D95C" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                            <Button Content="2,000" Tag="2000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Background="#83D95C" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                            <Button Content="3,000" Tag="3000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Background="#83D95C" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                            <Button Content="4,000" Tag="4000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Background="#83D95C" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                            <Button Content="5,000" Tag="5000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Background="#83D95C" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                            <Button Content="6,000" Tag="6000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Background="#83D95C" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                            <Button Content="7,000" Tag="7000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Background="#83D95C" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                            <Button Content="8,000" Tag="8000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Background="#83D95C" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                            <Button Content="9,000" Tag="9000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Background="#83D95C" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                        </UniformGrid>
+                        <!-- Row 3: Footer Action Buttons -->
+                        <Grid Grid.Row="3" Margin="0,12,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                        <UniformGrid Columns="3">
-                            <Button Content="10,000" Tag="10000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Foreground="#FFEE00" Background="#D02217" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                            <Button Content="20,000" Tag="20000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Foreground="#FFEE00" Background="#D02217" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                            <Button Content="30,000" Tag="30000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Foreground="#FFEE00" Background="#D02217" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                            <Button Content="40,000" Tag="40000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Foreground="#FFEE00" Background="#D02217" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                            <Button Content="50,000" Tag="50000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Foreground="#FFEE00" Background="#D02217" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                            <Button Content="60,000" Tag="60000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Foreground="#FFEE00" Background="#D02217" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                            <Button Content="70,000" Tag="70000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Foreground="#FFEE00" Background="#D02217" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                            <Button Content="80,000" Tag="80000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Foreground="#FFEE00" Background="#D02217" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                            <Button Content="90,000" Tag="90000" Height="44" Margin="3" FontWeight="Bold" FontSize="16" Foreground="#FFEE00" Background="#D02217" BorderBrush="#282828" Click="TopupQuickAmountButton_Click" />
-                        </UniformGrid>
-                    </StackPanel>
+                            <!-- Left: Utility buttons (Undo, Clear) -->
+                            <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <Button x:Name="TopupUndoButton"
+                                        Style="{StaticResource TopupOutlineButtonStyle}"
+                                        Content="↩ Hoàn tác"
+                                        Height="36"
+                                        Padding="12,0"
+                                        Margin="0,0,8,0"
+                                        ToolTip="Hoàn tác lượt bấm mệnh giá vừa rồi"
+                                        Click="TopupUndoButton_Click" />
+                                <Button x:Name="TopupClearButton"
+                                        Style="{StaticResource TopupOutlineButtonStyle}"
+                                        Content="✕ Xóa hết"
+                                        Height="36"
+                                        Padding="12,0"
+                                        ToolTip="Đặt lại số tiền về 0 VND"
+                                        Click="TopupClearButton_Click" />
+                            </StackPanel>
 
-                    <TextBlock x:Name="TopupModalErrorTextBlock"
-                               Grid.Row="7"
-                               Foreground="#B42318"
-                               Margin="0,0,0,8"
-                               TextWrapping="Wrap" />
-                    <TextBlock x:Name="TopupModalBonusTextBlock"
-                               Grid.Row="7"
-                               Foreground="Green"
-                               FontWeight="SemiBold"
-                               Margin="0,-4,0,8"
-                               TextWrapping="Wrap"
-                               Visibility="Collapsed" />
-
-                    <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button x:Name="TopupUndoButton"
-                                Content="-"
-                                Width="68"
-                                Height="36"
-                                Margin="0,0,8,0"
-                                FontWeight="Bold"
-                                Click="TopupUndoButton_Click" />
-                        <Button x:Name="TopupClearButton"
-                                Content="Xóa"
-                                Width="90"
-                                Height="36"
-                                Margin="0,0,8,0"
-                                FontWeight="SemiBold"
-                                Click="TopupClearButton_Click" />
-                        <Button Content="Hủy"
-                                Width="90"
-                                Height="36"
-                                Margin="0,0,8,0"
-                                Click="TopupCancelButton_Click" />
-                        <Button x:Name="TopupSubmitButton"
-                                Content="Nạp"
-                                Width="90"
-                                Height="36"
-                                FontWeight="SemiBold"
-                                Background="#79C959"
-                                BorderBrush="#3F8A2E"
-                                Click="TopupSubmitButton_Click" />
-                    </StackPanel>
-                </Grid>
+                            <!-- Right: Cancel & Submit -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                <Button Style="{StaticResource TopupGhostButtonStyle}"
+                                        Content="Hủy"
+                                        Width="85"
+                                        Height="36"
+                                        Margin="0,0,10,0"
+                                        Click="TopupCancelButton_Click" />
+                                <Button x:Name="TopupSubmitButton"
+                                        Style="{StaticResource TopupPrimaryButtonStyle}"
+                                        Content="Nạp tiền"
+                                        MinWidth="115"
+                                        Height="36"
+                                        Padding="16,0"
+                                        Click="TopupSubmitButton_Click" />
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
                 </ScrollViewer>
             </Border>
         </Grid>

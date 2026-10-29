@@ -431,7 +431,9 @@ public partial class MainWindow : Window
             row.StatusIconToolTip = "Hội viên VIP đang sử dụng";
             row.UserName = $"VIP: {username}";
             row.ActiveMemberUsername = username;
-            row.ActiveMemberBalance = balance;
+            row.ActiveSessionId = $"virtual-session-{row.Id}";
+            row.ActiveSessionElapsedSeconds = usedMins * 60;
+            row.ActiveSessionEstimatedAmount = estimatedMoney;
             row.StartedAtText = startedAt.ToString("HH:mm:ss");
             row.UsedText = $"{usedMins / 60:D2}:{usedMins % 60:D2}";
             row.RemainingText = $"{99 - (usedMins / 60)}:{60 - (usedMins % 60):D2}";
@@ -460,6 +462,9 @@ public partial class MainWindow : Window
             row.UserName = username;
             row.ActiveMemberUsername = username;
             row.ActiveMemberBalance = balance;
+            row.ActiveSessionId = $"virtual-session-{row.Id}";
+            row.ActiveSessionElapsedSeconds = usedMins * 60;
+            row.ActiveSessionEstimatedAmount = estimatedMoney;
             row.StartedAtText = startedAt.ToString("HH:mm:ss");
             row.UsedText = $"{usedMins / 60:D2}:{usedMins % 60:D2}";
             row.RemainingText = $"{remMins / 60:D2}:{remMins % 60:D2}";
@@ -491,6 +496,9 @@ public partial class MainWindow : Window
             row.UserName = $"Khách {pcName}";
             row.ActiveGuestDisplayName = $"Khách {pcName}";
             row.ActiveGuestPrepaidAmount = prepaidAmount;
+            row.ActiveSessionId = $"virtual-session-{row.Id}";
+            row.ActiveSessionElapsedSeconds = usedMins * 60;
+            row.ActiveSessionEstimatedAmount = isPrepaid ? prepaidAmount : estimatedMoney;
             row.StartedAtText = startedAt.ToString("HH:mm:ss");
             row.UsedText = $"{usedMins / 60:D2}:{usedMins % 60:D2}";
             row.RemainingText = $"{remMins / 60:D2}:{remMins % 60:D2}";
@@ -537,6 +545,13 @@ public partial class MainWindow : Window
                 selected.IsAdminSession = false;
                 selected.IsVipSession = false;
                 selected.IsGuestSession = false;
+                selected.ActiveSessionId = null;
+                selected.ActiveSessionElapsedSeconds = 0;
+                selected.ActiveSessionEstimatedAmount = 0;
+                selected.ServiceAmountRaw = 0;
+                selected.ServiceAmountText = "-";
+                selected.StartedAtText = "-";
+                selected.UsedText = "-";
                 selected.RemainingText = "-";
                 selected.MoneyText = "-";
                 break;
@@ -552,6 +567,10 @@ public partial class MainWindow : Window
                 selected.StatusBrush = Brushes.RoyalBlue;
                 selected.StatusIconToolTip = "Khách đang sử dụng";
                 selected.UserName = $"Khách {selected.Name}";
+                selected.ActiveGuestDisplayName = $"Khách {selected.Name}";
+                selected.ActiveSessionId = $"virtual-session-{selected.Id}";
+                selected.ActiveSessionElapsedSeconds = 60;
+                selected.ActiveSessionEstimatedAmount = 1000;
                 selected.StartedAtText = now.ToString("HH:mm:ss");
                 selected.UsedText = "00:01";
                 selected.RemainingText = "99:59";
@@ -592,6 +611,9 @@ public partial class MainWindow : Window
                 break;
 
             case "restart":
+            case "available":
+            case "ready":
+            case "checkout":
                 selected.StatusCode = "ONLINE";
                 selected.StatusText = "Sẵn sàng";
                 selected.StatusSubText = string.Empty;
@@ -606,17 +628,33 @@ public partial class MainWindow : Window
                 selected.MoneyText = "-";
                 selected.ServiceAmountRaw = 0;
                 selected.ServiceAmountText = "-";
+                selected.IsAdminSession = false;
+                selected.IsVipSession = false;
+                selected.IsGuestSession = false;
+                selected.ActiveSessionId = null;
+                selected.ActiveSessionElapsedSeconds = 0;
+                selected.ActiveSessionEstimatedAmount = 0;
+                selected.ActiveGuestDisplayName = null;
+                selected.ActiveGuestPrepaidAmount = 0;
+                selected.ActiveMemberId = null;
+                selected.ActiveMemberUsername = null;
+                selected.ActiveMemberFullName = null;
+                selected.ActiveMemberBalance = 0;
+                selected.LastSeenAtText = now.ToString("HH:mm:ss");
                 break;
         }
 
         UpdateVirtualPcSummaryBadges();
         _ = RefreshMachinesAsync();
 
-        MessageBox.Show(
-            $"Đã thực hiện lệnh [{action}] trên máy trạm ảo {selected.Name} thành công.",
-            "Máy trạm ảo (Demo)",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+        if (action != "available" && action != "ready" && action != "checkout")
+        {
+            MessageBox.Show(
+                $"Đã thực hiện lệnh [{action}] trên máy trạm ảo {selected.Name} thành công.",
+                "Máy trạm ảo (Demo)",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
     }
 
     private void UpdateVirtualPcSummaryBadges()

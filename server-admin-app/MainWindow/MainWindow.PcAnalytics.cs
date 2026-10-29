@@ -12,21 +12,21 @@ namespace Server.Admin.App;
 public class PcAnalyticsResponse
 {
     [JsonPropertyName("period")]
-    public string Period { get; set; }
+    public string Period { get; set; } = string.Empty;
     [JsonPropertyName("rangeStart")]
-    public string RangeStart { get; set; }
+    public string RangeStart { get; set; } = string.Empty;
     [JsonPropertyName("rangeEndExclusive")]
-    public string RangeEndExclusive { get; set; }
+    public string RangeEndExclusive { get; set; } = string.Empty;
     [JsonPropertyName("items")]
-    public List<PcAnalyticsItem> Items { get; set; }
+    public List<PcAnalyticsItem> Items { get; set; } = new();
 }
 
 public class PcAnalyticsItem
 {
     [JsonPropertyName("pcId")]
-    public string PcId { get; set; }
+    public string PcId { get; set; } = string.Empty;
     [JsonPropertyName("pcName")]
-    public string PcName { get; set; }
+    public string PcName { get; set; } = string.Empty;
     [JsonPropertyName("totalDurationSeconds")]
     public int TotalDurationSeconds { get; set; }
     [JsonPropertyName("playHours")]

@@ -888,13 +888,34 @@ public partial class MainWindow : Window
             return;
         }
 
-        _selectedMachineIds.Clear();
-        MachinesDataGrid.SelectedItems.Clear();
-
         if (selectedPcIds.Count == 0)
         {
+            if (MachinesDataGrid.SelectedItems.Count > 0)
+            {
+                _selectedMachineIds.Clear();
+                MachinesDataGrid.SelectedItems.Clear();
+            }
+            _selectedMachineId = null;
+            SelectionTextBlock.Text = I18n.NotSelectedPc;
             return;
         }
+
+        // If the grid selection is already identical to selectedPcIds, keep it completely untouched.
+        // This avoids resetting row focus/selection and prevents auto-scrolling on 1-second refresh ticks.
+        var currentSelected = MachinesDataGrid.SelectedItems.OfType<MachineRow>().ToList();
+        var currentSelectedIds = new HashSet<string>(currentSelected.Select(r => r.Id), StringComparer.OrdinalIgnoreCase);
+        if (currentSelected.Count > 0 && currentSelectedIds.SetEquals(selectedPcIds))
+        {
+            var first = currentSelected[0];
+            _selectedMachineId = first.Id;
+            SelectionTextBlock.Text = currentSelected.Count == 1
+                ? $"{I18n.SelectedPcPrefix}: {first.Name} ({first.StatusText})"
+                : $"{I18n.SelectedPcPrefix}: {currentSelected.Count} máy";
+            return;
+        }
+
+        _selectedMachineIds.Clear();
+        MachinesDataGrid.SelectedItems.Clear();
 
         MachineRow? firstSelected = null;
         foreach (var row in _machineRows)
@@ -918,7 +939,9 @@ public partial class MainWindow : Window
 
         _selectedMachineId = firstSelected.Id;
         MachinesDataGrid.SelectedItem = firstSelected;
-        MachinesDataGrid.ScrollIntoView(firstSelected);
+        // Never call MachinesDataGrid.ScrollIntoView(firstSelected) during background restore!
+        // Calling ScrollIntoView here causes the view to snap back to the selected row every second,
+        // preventing the user from scrolling down to view other machines.
         SelectionTextBlock.Text = _selectedMachineIds.Count == 1
             ? $"{I18n.SelectedPcPrefix}: {firstSelected.Name} ({firstSelected.StatusText})"
             : $"{I18n.SelectedPcPrefix}: {_selectedMachineIds.Count} máy";
@@ -1049,7 +1072,14 @@ public partial class MainWindow : Window
             return;
         }
 
-        row.IsSelected = true;
+        // If the right-clicked row is NOT currently selected, make it the single selection.
+        // If it IS already part of multiple selected rows, preserve the multi-selection!
+        if (!row.IsSelected)
+        {
+            MachinesDataGrid.SelectedItems.Clear();
+            row.IsSelected = true;
+        }
+
         row.Focus();
         if (row.Item is MachineRow selected)
         {
@@ -1108,7 +1138,18 @@ public partial class MainWindow : Window
         var hasTransferTargets = _allMachineRows.Any(x =>
             IsReadyMachineStatus(x) &&
             !string.Equals(x.Id, selectedMachine.Id, StringComparison.OrdinalIgnoreCase));
-        var canViewGuestBilling = IsGuestBillingEligibleMachine(selectedMachine);
+
+        // Evaluate all selected machines for billing eligibility
+        var selectedMachines = GetSelectedMachinesForBilling();
+        var eligibleMachines = selectedMachines.Where(IsGuestBillingEligibleMachine).ToList();
+        var canViewGuestBilling = eligibleMachines.Count > 0;
+
+        if (ContextViewMachineBillingMenuItem is not null)
+        {
+            ContextViewMachineBillingMenuItem.Header = eligibleMachines.Count > 1
+                ? $"Thanh toán gộp ({eligibleMachines.Count} máy)..."
+                : "Thanh toán...";
+        }
 
         if (ContextLockMachineMenuItem is not null)
         {
@@ -1303,11 +1344,6 @@ public partial class MainWindow : Window
         {
             ContextPayServiceMenuItem.IsEnabled = payService;
         }
-
-        if (ContextNotifyMachineMenuItem is not null)
-        {
-            ContextNotifyMachineMenuItem.IsEnabled = notify;
-        }
     }
 
     private void Window_PreviewMouseDown(object sender, MouseButtonEventArgs e)
@@ -1385,8 +1421,6 @@ public partial class MainWindow : Window
     private async void ContextPauseMachineMenuItem_Click(object sender, RoutedEventArgs e) => await SendCommandAsync("pause");
     private async void ContextResumeMachineMenuItem_Click(object sender, RoutedEventArgs e) => await SendCommandAsync("resume");
     private async void ContextTransferMachineMenuItem_Click(object sender, RoutedEventArgs e) => await TransferMachineAsync();
-
-    private async void ContextNotifyMachineMenuItem_Click(object sender, RoutedEventArgs e) => await NotifyPcAsync();
 
     private async void ContextRefreshMachinesMenuItem_Click(object sender, RoutedEventArgs e) => await RefreshMachinesAsync();
 
@@ -2663,6 +2697,12 @@ public partial class MainWindow : Window
             return false;
         }
 
+        // Virtual machines are always eligible if not an admin session
+        if (machine.IsVirtual)
+        {
+            return !machine.IsAdminSession;
+        }
+
         if (string.IsNullOrWhiteSpace(machine.ActiveSessionId))
         {
             return false;
@@ -2671,7 +2711,7 @@ public partial class MainWindow : Window
         var hasActiveMember =
             !string.IsNullOrWhiteSpace(machine.ActiveMemberId) ||
             !string.IsNullOrWhiteSpace(machine.ActiveMemberUsername);
-        return !hasActiveMember || machine.IsVipSession;
+        return !hasActiveMember || machine.IsVipSession || machine.ServiceAmountRaw > 0;
     }
 
     private async Task ShowMultipleMachinesBillingDetailsAsync(IReadOnlyList<MachineRow> machines)
@@ -2680,122 +2720,28 @@ public partial class MainWindow : Window
         if (summaryRows.Count == 0)
         {
             MessageBox.Show(
-                "Không có máy nào d? tính ti?n.",
+                "Không có máy nào để tính tiền.",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
         }
 
-        var totalPlayAmount = summaryRows.Sum(x => x.PlayAmount);
-        var totalServiceAmount = summaryRows.Sum(x => x.ServiceAmount);
-        var totalAmount = summaryRows.Sum(x => x.TotalAmount);
-        var hasServiceLoadError = summaryRows.Any(x => x.HasServiceLoadError);
-
-        var dialog = new Window
-        {
-            Title = $"Tổng hợp thanh toán - {summaryRows.Count} máy",
-            Width = 1020,
-            Height = 660,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            ResizeMode = ResizeMode.CanResize,
-            MinWidth = 860,
-            MinHeight = 520,
-            WindowStyle = WindowStyle.SingleBorderWindow,
-            ShowInTaskbar = false,
-            Owner = this,
-        };
-
-        var root = new Grid { Margin = new Thickness(16) };
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-        var title = new TextBlock
-        {
-            Text = $"Tính ti?n nhi?u máy ({summaryRows.Count} máy dã ch?n)",
-            FontSize = 18,
-            FontWeight = FontWeights.SemiBold,
-            Margin = new Thickness(0, 0, 0, 12),
-        };
-        Grid.SetRow(title, 0);
-        root.Children.Add(title);
-
-        var grid = new DataGrid
-        {
-            AutoGenerateColumns = false,
-            CanUserAddRows = false,
-            CanUserDeleteRows = false,
-            IsReadOnly = true,
-            HeadersVisibility = DataGridHeadersVisibility.Column,
-            GridLinesVisibility = DataGridGridLinesVisibility.Horizontal,
-            RowHeaderWidth = 0,
-            AlternationCount = 2,
-            SelectionMode = DataGridSelectionMode.Single,
-            ItemsSource = summaryRows,
-        };
-        grid.Columns.Add(new DataGridTextColumn { Header = "Máy trạm", Binding = new System.Windows.Data.Binding("MachineName"), Width = new DataGridLength(1.25, DataGridLengthUnitType.Star), MinWidth = 140 });
-        grid.Columns.Add(new DataGridTextColumn { Header = "Trạng thái", Binding = new System.Windows.Data.Binding("StatusText"), Width = new DataGridLength(0.95, DataGridLengthUnitType.Star), MinWidth = 110 });
-        grid.Columns.Add(new DataGridTextColumn { Header = "Đã sử dụng", Binding = new System.Windows.Data.Binding("PlayDurationText"), Width = new DataGridLength(1.0, DataGridLengthUnitType.Star), MinWidth = 110 });
-        grid.Columns.Add(new DataGridTextColumn { Header = "Giá/giờ (VND)", Binding = new System.Windows.Data.Binding("HourlyRateText"), Width = new DataGridLength(1.0, DataGridLengthUnitType.Star), MinWidth = 110 });
-        grid.Columns.Add(new DataGridTextColumn { Header = "Tiền giờ", Binding = new System.Windows.Data.Binding("PlayAmountText"), Width = new DataGridLength(1.0, DataGridLengthUnitType.Star), MinWidth = 110 });
-        grid.Columns.Add(new DataGridTextColumn { Header = "Tiền dịch vụ", Binding = new System.Windows.Data.Binding("ServiceAmountText"), Width = new DataGridLength(1.0, DataGridLengthUnitType.Star), MinWidth = 120 });
-        grid.Columns.Add(new DataGridTextColumn { Header = "Tổng", Binding = new System.Windows.Data.Binding("TotalAmountText"), Width = new DataGridLength(1.0, DataGridLengthUnitType.Star), MinWidth = 120 });
-        grid.Columns.Add(new DataGridTextColumn { Header = "Ghi chú", Binding = new System.Windows.Data.Binding("NoteText"), Width = new DataGridLength(1.35, DataGridLengthUnitType.Star), MinWidth = 160 });
-        Grid.SetRow(grid, 1);
-        root.Children.Add(grid);
-
-        var totalBorder = new Border
-        {
-            Background = new SolidColorBrush(Color.FromRgb(238, 242, 255)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(147, 197, 253)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(6),
-            Padding = new Thickness(12, 10, 12, 10),
-            Margin = new Thickness(0, 12, 0, 0),
-            Child = new TextBlock
+        var dialog = new Windows.MultiPaymentWindow(
+            summaryRows,
+            PayServiceOrdersForMachineAsync,
+            async (action, machine, forceLock) => await SendCommandAsync(action, machine, forceLock),
+            AppendServiceLog,
+            async () =>
             {
-                Text =
-                    $"Tổng cộng {summaryRows.Count} máy: {totalAmount:N0} VND  " +
-                    $"(Gi? choi: {totalPlayAmount:N0} + D?ch v?: {totalServiceAmount:N0})",
-                FontSize = 17,
-                FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(30, 64, 175)),
-                TextWrapping = TextWrapping.Wrap,
-            },
-        };
-        Grid.SetRow(totalBorder, 2);
-        root.Children.Add(totalBorder);
-
-        var noteText = new TextBlock
+                await RefreshMachinesAsync();
+                await RefreshTransactionLogsAsync();
+            })
         {
-            Margin = new Thickness(0, 10, 0, 0),
-            Foreground = hasServiceLoadError ? Brushes.DarkGoldenrod : Brushes.DimGray,
-            TextWrapping = TextWrapping.Wrap,
-            Text = hasServiceLoadError
-                ? "Một vài máy chưa tải được tiền dịch vụ nên tạm tính phần dịch vụ = 0. Bạn có thể mở lại popup để đồng bộ lần nữa."
-                : "Tổng tiền đã bao gồm tiền giờ chơi tạm tính và tiền dịch vụ trong phiên hiện tại của từng máy.",
+            Owner = this
         };
-        Grid.SetRow(noteText, 3);
-        root.Children.Add(noteText);
 
-        var closeButton = new Button
-        {
-            Content = "Đóng",
-            Width = 100,
-            Height = 34,
-            IsDefault = true,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 16, 0, 0),
-        };
-        closeButton.Click += (_, _) => dialog.Close();
-        Grid.SetRow(closeButton, 4);
-        root.Children.Add(closeButton);
-
-        dialog.Content = root;
-        _ = dialog.ShowModal();
+        _ = dialog.ShowModal(this);
     }
 
     private async Task<List<MachineBillingSummaryRow>> BuildMultiMachineBillingRowsAsync(
@@ -2805,18 +2751,34 @@ public partial class MainWindow : Window
         {
             decimal serviceAmount = 0;
             var hasServiceLoadError = false;
-            try
+            if (machine.IsVirtual)
             {
-                serviceAmount = await GetServiceAmountForMachineAsync(machine);
+                serviceAmount = machine.ServiceAmountRaw;
             }
-            catch
+            else
             {
-                hasServiceLoadError = true;
+                try
+                {
+                    serviceAmount = await GetServiceAmountForMachineAsync(machine);
+                }
+                catch
+                {
+                    hasServiceLoadError = true;
+                }
             }
 
             var isVip = machine.IsVipSession;
-            var hasActiveMember = machine.ActiveMemberId != null;
+            var hasActiveMember = machine.ActiveMemberId != null || !string.IsNullOrWhiteSpace(machine.ActiveMemberUsername);
             var playAmount = machine.ActiveSessionEstimatedAmount;
+            if (machine.IsVirtual && playAmount == 0)
+            {
+                var cleanMoney = machine.MoneyText?.Replace(",", "")?.Replace(".", "")?.Trim();
+                if (decimal.TryParse(cleanMoney, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedMoney))
+                {
+                    playAmount = parsedMoney;
+                }
+            }
+
             var playAmountToPay = playAmount;
             if (isVip)
             {
@@ -2842,9 +2804,11 @@ public partial class MainWindow : Window
                 }
             }
             var totalAmount = playAmountToPay + serviceAmount;
-            var hasActiveSession = !string.IsNullOrWhiteSpace(machine.ActiveSessionId);
+            var hasActiveSession = !string.IsNullOrWhiteSpace(machine.ActiveSessionId) || machine.IsVirtual;
             var playDurationText = hasActiveSession
-                ? FormatUsed(machine.ActiveSessionElapsedSeconds)
+                ? (machine.IsVirtual && !string.IsNullOrWhiteSpace(machine.UsedText) && machine.UsedText != "-"
+                    ? machine.UsedText
+                    : FormatUsed(machine.ActiveSessionElapsedSeconds))
                 : "0 phút";
 
             string playAmountText;
@@ -2874,24 +2838,48 @@ public partial class MainWindow : Window
                 playAmountText = $"{playAmount:N0}";
             }
 
+            string noteText;
+            if (hasServiceLoadError)
+            {
+                noteText = "Lỗi tải tiền dịch vụ";
+            }
+            else if (machine.IsVirtual)
+            {
+                noteText = machine.IsGuestSession
+                    ? "Khách vãng lai (Máy ảo)"
+                    : (isVip ? "Hội viên VIP (Máy ảo)" : "Hội viên (Máy ảo)");
+            }
+            else if (isVip)
+            {
+                noteText = machine.ActiveMemberBalance <= 0 ? "Hội viên VIP (Thanh toán trả sau tại quầy)" : "Hội viên VIP (Đã trừ số dư)";
+            }
+            else if (hasActiveMember)
+            {
+                noteText = "Hội viên (Tiền giờ trừ vào số dư tài khoản)";
+            }
+            else
+            {
+                noteText = "-";
+            }
+
             return new MachineBillingSummaryRow
             {
+                Machine = machine,
                 MachineName = machine.Name,
+                CustomerName = string.IsNullOrWhiteSpace(machine.ActiveGuestDisplayName)
+                    ? (string.IsNullOrWhiteSpace(machine.UserName) ? "-" : machine.UserName)
+                    : machine.ActiveGuestDisplayName,
                 StatusText = machine.StatusText,
                 PlayDurationText = playDurationText,
                 HourlyRateText = $"{machine.HourlyRate:N0}",
-                PlayAmount = playAmount,
+                PlayAmount = playAmountToPay,
                 ServiceAmount = serviceAmount,
                 TotalAmount = totalAmount,
                 PlayAmountText = playAmountText,
                 ServiceAmountText = $"{serviceAmount:N0}",
                 TotalAmountText = $"{totalAmount:N0}",
                 HasServiceLoadError = hasServiceLoadError,
-                NoteText = hasServiceLoadError
-                    ? "Lỗi tải tiền dịch vụ"
-                    : (isVip
-                        ? (machine.ActiveMemberBalance <= 0 ? "Hội viên VIP (Thanh toán trả sau tại quầy)" : "Hội viên VIP (Đã trừ số dư)")
-                        : (hasActiveMember ? "Hội viên (Tiền giờ trừ vào số dư tài khoản)" : "-")),
+                NoteText = noteText,
             };
         });
 
@@ -3191,7 +3179,10 @@ public partial class MainWindow : Window
 
         foreach (var row in rows)
         {
-            if (string.IsNullOrWhiteSpace(row.ActiveSessionId))
+            if (string.IsNullOrWhiteSpace(row.ActiveSessionId) ||
+                string.IsNullOrWhiteSpace(row.Id) ||
+                row.Id.StartsWith("virtual-", StringComparison.OrdinalIgnoreCase) ||
+                !Guid.TryParse(row.Id, out _))
             {
                 row.ServiceAmountRaw = 0;
                 row.ServiceAmountText = "-";
@@ -3414,12 +3405,24 @@ public partial class MainWindow : Window
 
     private async Task<decimal> GetServiceAmountForMachineAsync(MachineRow machine)
     {
+        if (machine.IsVirtual)
+        {
+            return machine.ServiceAmountRaw;
+        }
+
         var snapshot = await GetServiceAmountSnapshotForMachineAsync(machine);
         return snapshot.Amount;
     }
 
     private async Task<(decimal Amount, bool HasPendingClientOrderHighlight, List<PcServiceOrderDto> PendingClientOrders)> GetServiceAmountSnapshotForMachineAsync(MachineRow machine)
     {
+        if (string.IsNullOrWhiteSpace(machine.Id) ||
+            machine.Id.StartsWith("virtual-", StringComparison.OrdinalIgnoreCase) ||
+            !Guid.TryParse(machine.Id, out _))
+        {
+            return (0, false, new List<PcServiceOrderDto>());
+        }
+
         var response = await _httpClient.GetFromJsonAsync<PcServiceOrdersResponse>(
             BuildApiUrl($"/services/pcs/{machine.Id}/orders?limit=200"),
             JsonOptions());

@@ -39,17 +39,27 @@ public partial class MainWindow : Window
         public string TooltipGreeting { get; set; } = "Anh ơi, có Ami ở đây nè! ✨";
     }
 
+    private bool _chatbotWelcomeAdded;
+    private void EnsureChatbotWelcomeMessage()
+    {
+        if (_chatbotWelcomeAdded) return;
+        _chatbotWelcomeAdded = true;
+        AddAmiMessageToChat(
+            $"Em chào Anh ạ! Em là **{_chatbotConfig.AssistantName}**, trợ lý AI của hệ thống Server Manager Billing. " +
+            "Anh cần em kiểm tra tình hình phòng máy, soi máy trạm hay trò chuyện gì cứ nhắn em nhé! ✨💖"
+        );
+    }
+
     private void InitializeChatbot()
     {
         LoadChatbotSettings();
         ApplyChatbotConfigToUi();
         UpdateChatbotWidgetVisibility();
 
-        // Hiển thị tin nhắn chào mừng ban đầu
-        AddAmiMessageToChat(
-            $"Em chào Anh ạ! Em là **{_chatbotConfig.AssistantName}**, trợ lý AI của hệ thống Server Manager Billing. " +
-            "Anh cần em kiểm tra tình hình phòng máy, soi máy trạm hay trò chuyện gì cứ nhắn em nhé! ✨💖"
-        );
+        if (!_settings.IsLiteMode)
+        {
+            EnsureChatbotWelcomeMessage();
+        }
     }
 
     private string GetChatbotConfigFilePath()
@@ -143,12 +153,15 @@ public partial class MainWindow : Window
 
     private void UpdateChatbotWidgetVisibility()
     {
+        // Trong Bản Lite: Luôn luôn tắt và ẩn hoàn toàn chức năng Chatbot AI
+        var shouldShow = !_settings.IsLiteMode && _chatbotConfig.IsEnabled;
+
         if (ChatbotLauncherContainer != null)
         {
-            ChatbotLauncherContainer.Visibility = _chatbotConfig.IsEnabled ? Visibility.Visible : Visibility.Collapsed;
+            ChatbotLauncherContainer.Visibility = shouldShow ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        if (!_chatbotConfig.IsEnabled && ChatbotModalBorder != null)
+        if (!shouldShow && ChatbotModalBorder != null)
         {
             ChatbotModalBorder.Visibility = Visibility.Collapsed;
         }
@@ -309,12 +322,19 @@ public partial class MainWindow : Window
     {
         if (ChatbotModalBorder == null) return;
 
+        if (_settings.IsLiteMode)
+        {
+            ChatbotModalBorder.Visibility = Visibility.Collapsed;
+            return;
+        }
+
         if (ChatbotModalBorder.Visibility == Visibility.Visible)
         {
             ChatbotModalBorder.Visibility = Visibility.Collapsed;
         }
         else
         {
+            EnsureChatbotWelcomeMessage();
             ChatbotModalBorder.Visibility = Visibility.Visible;
             if (ChatbotInputTextBox != null)
             {

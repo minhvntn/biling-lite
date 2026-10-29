@@ -159,7 +159,14 @@ public partial class PaymentDetailsWindow : Window, INotifyPropertyChanged
     private async void CheckoutButton_Click(object sender, RoutedEventArgs e)
     {
         Close();
-        await _sendCommandAsync("lock", _machine, true);
+        if (_machine.IsVirtual)
+        {
+            await _sendCommandAsync("available", _machine, true);
+        }
+        else
+        {
+            await _sendCommandAsync("lock", _machine, true);
+        }
     }
 
     private void ToggleExpandButton_Click(object sender, RoutedEventArgs e)

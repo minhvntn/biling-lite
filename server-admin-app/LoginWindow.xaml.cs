@@ -10,12 +10,28 @@ public partial class LoginWindow : Window
 {
     private readonly HttpClient _httpClient;
     
+    public bool UserChoseLiteMode { get; private set; }
+
     public LoginWindow()
     {
         InitializeComponent();
         
-        // Setup HttpClient with baseUrl
-        var baseAddress = "http://localhost:39090"; // Default
+        _httpClient = new HttpClient();
+        _httpClient.DefaultRequestHeaders.Add("X-API-KEY", "SmbSecureLANKey2026");
+
+        Loaded += (s, e) =>
+        {
+            if (Owner != null)
+            {
+                WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            }
+            UsernameTextBox.Focus();
+        };
+    }
+
+    private string BuildLoginUrl()
+    {
+        var baseAddress = "http://localhost:39090/api/v1";
         try
         {
             var path = System.IO.Path.Combine(AppContext.BaseDirectory, "appsettings.json");
@@ -31,13 +47,31 @@ public partial class LoginWindow : Window
         }
         catch { }
 
-        _httpClient = new HttpClient { BaseAddress = new Uri(baseAddress) };
-        _httpClient.DefaultRequestHeaders.Add("X-API-KEY", "SmbSecureLANKey2026");
+        if (!baseAddress.EndsWith("/")) baseAddress += "/";
+        var baseUri = new Uri(baseAddress);
+        if (!baseUri.AbsolutePath.Contains("/api/v1"))
+        {
+            return new Uri(baseUri, "api/v1/auth/admin/login").ToString();
+        }
+        return new Uri(baseUri, "auth/admin/login").ToString();
     }
 
     private async void LoginButton_Click(object sender, RoutedEventArgs e)
     {
         await DoLoginAsync();
+    }
+
+    private void SkipToLiteButton_Click(object sender, RoutedEventArgs e)
+    {
+        UserChoseLiteMode = true;
+        try
+        {
+            this.DialogResult = false;
+        }
+        catch
+        {
+            this.Close();
+        }
     }
 
     private async void PasswordBox_KeyDown(object sender, KeyEventArgs e)
@@ -63,24 +97,32 @@ public partial class LoginWindow : Window
 
         try
         {
-            var response = await _httpClient.PostAsJsonAsync("/api/v1/auth/admin/login", new { username, password });
+            var loginUrl = BuildLoginUrl();
+            var response = await _httpClient.PostAsJsonAsync(loginUrl, new { username, password });
             
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<JsonElement>();
                 if (result.TryGetProperty("success", out var success) && success.GetBoolean())
                 {
-                    // Optionally save token/user info somewhere
-                    var userRole = result.GetProperty("user").GetProperty("role").GetString();
-                    var userFullName = result.GetProperty("user").GetProperty("fullName").GetString();
+                    var userObj = result.GetProperty("user");
+                    var userRole = userObj.TryGetProperty("role", out var r) ? r.GetString() : "ADMIN";
+                    var userFullName = userObj.TryGetProperty("fullName", out var f) ? f.GetString() : username;
+                    var userLoginName = userObj.TryGetProperty("username", out var u) ? u.GetString() : username;
                     
-                    // We could store user info in a static context or pass it to MainWindow
                     AdminSession.CurrentUserRole = userRole;
                     AdminSession.CurrentUserFullName = userFullName;
+                    AdminSession.CurrentUsername = userLoginName;
 
-                    var mainWindow = new MainWindow();
-                    mainWindow.Show();
-                    this.Close();
+                    UserChoseLiteMode = false;
+                    try
+                    {
+                        this.DialogResult = true;
+                    }
+                    catch
+                    {
+                        this.Close();
+                    }
                 }
                 else
                 {
@@ -117,6 +159,7 @@ public partial class LoginWindow : Window
         LoginButton.IsEnabled = !isLoading;
         UsernameTextBox.IsEnabled = !isLoading;
         PasswordBox.IsEnabled = !isLoading;
+        if (SkipToLiteButton != null) SkipToLiteButton.IsEnabled = !isLoading;
         LoadingTextBlock.Visibility = isLoading ? Visibility.Visible : Visibility.Collapsed;
         if (isLoading)
         {
@@ -129,4 +172,14 @@ public static class AdminSession
 {
     public static string? CurrentUserRole { get; set; }
     public static string? CurrentUserFullName { get; set; }
+    public static string? CurrentUsername { get; set; }
+
+    public static bool IsLoggedIn => !string.IsNullOrWhiteSpace(CurrentUserRole);
+
+    public static void Clear()
+    {
+        CurrentUserRole = null;
+        CurrentUserFullName = null;
+        CurrentUsername = null;
+    }
 }

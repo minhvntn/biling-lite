@@ -431,7 +431,7 @@ public partial class LockScreenWindow : Window
             return;
         }
 
-        var username = UsernameTextBox.Text.Trim();
+        var username = UsernameTextBox.Text.Trim().ToUpperInvariant();
         var password = PasswordBox.Password;
 
         bool isAdministrator = username.Equals("administrator", StringComparison.OrdinalIgnoreCase);

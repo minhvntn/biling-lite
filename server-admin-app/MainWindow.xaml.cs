@@ -12,6 +12,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Server.Admin.App.Windows;
 
 namespace Server.Admin.App;
 
@@ -111,6 +112,7 @@ public partial class MainWindow : Window
     private decimal _topupModalAmount;
     private bool _topupModalIsDeduct;
     private bool _topupModalAllowDeduct = true;
+    private bool _topupModalIsGift;
     private Point _groupMachineDragStartPoint;
     private GroupMachineRow? _draggingGroupMachine;
     private readonly HashSet<string> _memberTransferNotifiedEventIds = new(StringComparer.OrdinalIgnoreCase);
@@ -202,20 +204,29 @@ public partial class MainWindow : Window
             _machineContextMenuPaddingInitialized = true;
             _machineContextMenuFontSizeInitialized = true;
             _transactionReportInitialized = true;
-            InitializeLoyaltyRanksTab();
-            InitializeMiniGameTab();
-            InitializeAppBlockTab();
             InitializeWakeLanProfilesUi();
-            InitializeVirtualPcsTab();
             InitializeChatbot();
+            if (!_settings.IsLiteMode)
+            {
+                EnsureProTabsInitialized();
+            }
 
             _memberModalAutoCloseTimer.Interval = TimeSpan.FromMinutes(2);
             _memberModalAutoCloseTimer.Tick += MemberModalAutoCloseTimer_Tick;
 
             ApplyUserRoleRestrictions();
+            UpdateLoginStatusUi();
+            if (AdminSession.IsLoggedIn)
+            {
+                _settings.IsLiteMode = false;
+            }
+            UpdateAppModeUi();
 
-            _ = LoadServerUsersAsync();
-            _ = LoadDatabaseStorageStatsAsync();
+            if (AdminSession.IsLoggedIn && !_settings.IsLiteMode)
+            {
+                _ = LoadServerUsersAsync();
+                _ = LoadDatabaseStorageStatsAsync();
+            }
 
             _healthTimer.Interval = TimeSpan.FromSeconds(5);
             _healthTimer.Tick += HealthTimer_Tick;
@@ -263,7 +274,51 @@ public partial class MainWindow : Window
         finally
         {
             StartupInitializationCompleted?.Invoke(this, startupSuccess);
+            if (startupSuccess)
+            {
+                TriggerStartupLoginDialog();
+            }
         }
+    }
+
+    private async void TriggerStartupLoginDialog()
+    {
+        // Cho app chạy lên và hiển thị mượt mà trước, delay 1 giây rồi mới hiển thị form đăng nhập
+        await Task.Delay(1000);
+
+        if (!IsLoaded || !IsVisible || AdminSession.IsLoggedIn)
+        {
+            return;
+        }
+
+        if (Application.Current.Windows.OfType<LoginWindow>().Any())
+        {
+            return;
+        }
+
+        var loginWindow = new LoginWindow { Owner = this };
+        loginWindow.ShowDialog();
+        if (AdminSession.IsLoggedIn)
+        {
+            HandleSuccessfulLogin();
+        }
+    }
+
+    private void HandleSuccessfulLogin()
+    {
+        if (!AdminSession.IsLoggedIn)
+        {
+            return;
+        }
+
+        _settings.IsLiteMode = false;
+        SaveSettings();
+        UpdateLoginStatusUi();
+        UpdateAppModeUi();
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] 🖥️ Đăng nhập thành công ({AdminSession.CurrentUserFullName}). Đã tự động chuyển sang Bản Pro: Kích hoạt đầy đủ 12 tab tính năng quản trị.");
+        _ = RefreshAllDataAsync();
+        _ = LoadServerUsersAsync();
+        _ = LoadDatabaseStorageStatsAsync();
     }
 
     private void ReportStartupProgress(string message, int progressPercent)
@@ -315,6 +370,230 @@ public partial class MainWindow : Window
         }
     }
 
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", EntryPoint = "SetProcessWorkingSetSize")]
+    private static extern bool SetProcessWorkingSetSize(IntPtr proc, int min, int max);
+
+    public static void TrimProcessMemory()
+    {
+        try
+        {
+            GC.Collect(2, GCCollectionMode.Aggressive, true, true);
+            GC.WaitForPendingFinalizers();
+            GC.Collect(2, GCCollectionMode.Aggressive, true, true);
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+            {
+                using var proc = Process.GetCurrentProcess();
+                SetProcessWorkingSetSize(proc.Handle, -1, -1);
+            }
+        }
+        catch
+        {
+            // Keep app responsive
+        }
+    }
+
+    private void ToggleAppModeButton_Click(object sender, RoutedEventArgs e)
+    {
+        // Khi chưa đăng nhập: Không cho phép switch, chỉ được dùng Bản Lite, yêu cầu đăng nhập
+        if (!AdminSession.IsLoggedIn)
+        {
+            var msgResult = MessageBox.Show(
+                "Bạn cần đăng nhập tài khoản quản trị để chuyển sang Bản Pro (đầy đủ các tab tính năng).\nBạn có muốn đăng nhập ngay bây giờ không?",
+                "Yêu cầu đăng nhập",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Information);
+
+            if (msgResult == MessageBoxResult.Yes)
+            {
+                var loginWindow = new LoginWindow { Owner = this };
+                loginWindow.ShowDialog();
+                if (AdminSession.IsLoggedIn)
+                {
+                    HandleSuccessfulLogin();
+                }
+            }
+            return;
+        }
+
+        // Đã đăng nhập: Cho phép switch qua lại giữa Bản Lite và Bản Pro tự do
+        _settings.IsLiteMode = !_settings.IsLiteMode;
+        SaveSettings();
+        UpdateAppModeUi();
+
+        if (_settings.IsLiteMode)
+        {
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] 🍃 Đã chuyển sang Bản Lite: Đã tối ưu giải phóng RAM, giảm tải CPU & mạng, chỉ giữ 3 tab chính (Máy trạm, Hội viên, Nhật ký).");
+        }
+        else
+        {
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] 🖥️ Đã chuyển sang Bản Pro: Kích hoạt đầy đủ 12 tab tính năng quản trị.");
+            _ = RefreshAllDataAsync();
+        }
+    }
+
+    private bool _proTabsInitialized;
+    private void EnsureProTabsInitialized()
+    {
+        if (_proTabsInitialized) return;
+        _proTabsInitialized = true;
+
+        InitializeLoyaltyRanksTab();
+        InitializeMiniGameTab();
+        InitializeAppBlockTab();
+        InitializeVirtualPcsTab();
+    }
+
+    private void UpdateAppModeUi()
+    {
+        // Khi chưa đăng nhập: Luôn ép sử dụng Bản Lite
+        if (!AdminSession.IsLoggedIn)
+        {
+            _settings.IsLiteMode = true;
+        }
+
+        bool isLite = _settings.IsLiteMode;
+
+        if (isLite)
+        {
+            // 1. Tối ưu timer nền: giảm tần suất các chu kỳ polling để tiết kiệm tối đa CPU & mạng
+            _healthTimer.Interval = TimeSpan.FromSeconds(30);
+            _machinesTimer.Interval = TimeSpan.FromSeconds(Math.Max(3, _settings.MachineRefreshSeconds));
+            _systemLogsTimer.Interval = TimeSpan.FromSeconds(15);
+            _membersAutoRefreshTimer.Interval = TimeSpan.FromMinutes(2);
+
+            // 2. Chỉ hiển thị 3 tab chính: Máy trạm, Hội viên, Nhật ký
+            if (WorkstationsTab != null) WorkstationsTab.Visibility = Visibility.Visible;
+            if (MembersTab != null) MembersTab.Visibility = Visibility.Visible;
+            if (LogsTabItem != null) LogsTabItem.Visibility = Visibility.Visible;
+
+            if (GroupsTab != null) GroupsTab.Visibility = Visibility.Collapsed;
+            if (ServicesTab != null) ServicesTab.Visibility = Visibility.Collapsed;
+            if (BlockTab != null) BlockTab.Visibility = Visibility.Collapsed;
+            if (VipTab != null) VipTab.Visibility = Visibility.Collapsed;
+            if (ComboTab != null) ComboTab.Visibility = Visibility.Collapsed;
+            if (StatisticsTabItem != null) StatisticsTabItem.Visibility = Visibility.Collapsed;
+            if (MiniGameTabItem != null) MiniGameTabItem.Visibility = Visibility.Collapsed;
+            if (SettingsTab != null) SettingsTab.Visibility = Visibility.Collapsed;
+            if (AdminTab != null) AdminTab.Visibility = Visibility.Collapsed;
+
+            // Bản Lite: Ẩn 3 cột Ngày, IP, Nhóm bên tab Máy trạm
+            if (MachineDateColumn != null) MachineDateColumn.Visibility = Visibility.Collapsed;
+            if (MachineIpColumn != null) MachineIpColumn.Visibility = Visibility.Collapsed;
+            if (MachineGroupColumn != null) MachineGroupColumn.Visibility = Visibility.Collapsed;
+
+            // Bản Lite: Ẩn 3 block thống kê (Tổng số dư, Tổng giờ chơi, Tổng nạp) bên tab Hội viên
+            if (StatTotalBalanceCardBorder != null) StatTotalBalanceCardBorder.Visibility = Visibility.Collapsed;
+            if (StatTotalHoursCardBorder != null) StatTotalHoursCardBorder.Visibility = Visibility.Collapsed;
+            if (StatTotalTopupCardBorder != null) StatTotalTopupCardBorder.Visibility = Visibility.Collapsed;
+
+            // Bản Lite: Ẩn nút "Nhập từ GCafe" bên tab Hội viên
+            if (ImportGcafeMemberButton != null) ImportGcafeMemberButton.Visibility = Visibility.Collapsed;
+
+            // Bản Lite: Tắt và ẩn hoàn toàn widget Chatbot AI (Ami)
+            UpdateChatbotWidgetVisibility();
+
+            // Nút hiển thị mời chuyển sang "Bản Pro"
+            if (ToggleAppModeButton != null)
+            {
+                ToggleAppModeButton.ToolTip = AdminSession.IsLoggedIn
+                    ? "Đang ở Bản Lite (chế độ siêu nhẹ). Nhấn để chuyển sang Bản Pro (đầy đủ các tab tính năng)"
+                    : "Đang ở Bản Lite. Đăng nhập tài khoản quản trị để chuyển sang Bản Pro";
+            }
+            if (ModeIconTextBlock != null)
+            {
+                ModeIconTextBlock.Text = "🖥️";
+            }
+            if (ModeTextLabel != null)
+            {
+                ModeTextLabel.Text = "Bản Pro";
+                ModeTextLabel.Foreground = Brushes.White;
+            }
+
+            // Nếu tab hiện tại đang bị ẩn thì chuyển sang tab Máy trạm
+            if (MainTabControl != null && MainTabControl.SelectedItem is TabItem selected && selected.Visibility == Visibility.Collapsed)
+            {
+                MainTabControl.SelectedItem = WorkstationsTab;
+            }
+
+            // 3. Tối ưu bộ nhớ RAM: ép dọn rác và thu gọn Working Set ngay lập tức
+            TrimProcessMemory();
+        }
+        else
+        {
+            EnsureProTabsInitialized();
+
+            // 1. Khôi phục timer Bản Pro
+            _healthTimer.Interval = TimeSpan.FromSeconds(5);
+            _machinesTimer.Interval = TimeSpan.FromSeconds(1);
+            _systemLogsTimer.Interval = TimeSpan.FromSeconds(Math.Max(3, _settings.MachineRefreshSeconds));
+            _membersAutoRefreshTimer.Interval = TimeSpan.FromMinutes(1);
+
+            // 2. Hiển thị đầy đủ tất cả các tab
+            if (WorkstationsTab != null) WorkstationsTab.Visibility = Visibility.Visible;
+            if (MembersTab != null) MembersTab.Visibility = Visibility.Visible;
+            if (LogsTabItem != null) LogsTabItem.Visibility = Visibility.Visible;
+            if (GroupsTab != null) GroupsTab.Visibility = Visibility.Visible;
+            if (ServicesTab != null) ServicesTab.Visibility = Visibility.Visible;
+            if (BlockTab != null) BlockTab.Visibility = Visibility.Visible;
+            if (VipTab != null) VipTab.Visibility = Visibility.Visible;
+            if (ComboTab != null) ComboTab.Visibility = Visibility.Visible;
+            if (StatisticsTabItem != null) StatisticsTabItem.Visibility = Visibility.Visible;
+            if (MiniGameTabItem != null) MiniGameTabItem.Visibility = Visibility.Visible;
+            if (SettingsTab != null) SettingsTab.Visibility = Visibility.Visible;
+            if (AdminTab != null) AdminTab.Visibility = Visibility.Visible;
+
+            // Bản Pro: Hiển thị lại 3 cột Ngày, IP, Nhóm bên tab Máy trạm
+            if (MachineDateColumn != null) MachineDateColumn.Visibility = Visibility.Visible;
+            if (MachineIpColumn != null) MachineIpColumn.Visibility = Visibility.Visible;
+            if (MachineGroupColumn != null) MachineGroupColumn.Visibility = Visibility.Visible;
+
+            // Bản Pro: Hiển thị lại các block thống kê bên tab Hội viên
+            if (StatTotalBalanceCardBorder != null) StatTotalBalanceCardBorder.Visibility = Visibility.Visible;
+            if (StatTotalHoursCardBorder != null) StatTotalHoursCardBorder.Visibility = Visibility.Visible;
+            if (StatTotalTopupCardBorder != null)
+            {
+                StatTotalTopupCardBorder.Visibility = (AdminSession.CurrentUserRole == "STAFF") ? Visibility.Collapsed : Visibility.Visible;
+            }
+
+            // Bản Pro: Hiển thị lại nút "Nhập từ GCafe" bên tab Hội viên
+            if (ImportGcafeMemberButton != null) ImportGcafeMemberButton.Visibility = Visibility.Visible;
+
+            // Bản Pro: Khôi phục hiển thị widget Chatbot AI nếu đang được bật
+            UpdateChatbotWidgetVisibility();
+
+            // Áp dụng giới hạn vai trò nhân viên nếu có
+            ApplyUserRoleRestrictions();
+
+            // Nút hiển thị mời chuyển sang "Bản Lite"
+            if (ToggleAppModeButton != null)
+            {
+                ToggleAppModeButton.ToolTip = "Đang ở Bản Pro. Nhấn để chuyển sang Bản Lite (chỉ Máy trạm, Hội viên, Nhật ký)";
+            }
+            if (ModeIconTextBlock != null)
+            {
+                ModeIconTextBlock.Text = "🍂";
+            }
+            if (ModeTextLabel != null)
+            {
+                ModeTextLabel.Text = "Bản Lite";
+                ModeTextLabel.Foreground = Brushes.White;
+            }
+        }
+    }
+
+    protected override void OnStateChanged(EventArgs e)
+    {
+        base.OnStateChanged(e);
+        if (WindowState == WindowState.Minimized)
+        {
+            TrimProcessMemory();
+        }
+        else if (WindowState == WindowState.Normal || WindowState == WindowState.Maximized)
+        {
+            _ = RefreshMachinesAsync();
+        }
+    }
+
     private void MainWindow_Closed(object? sender, EventArgs e)
     {
         _healthTimer.Stop();
@@ -330,7 +609,7 @@ public partial class MainWindow : Window
 
     private async void MachinesTimer_Tick(object? sender, EventArgs e)
     {
-        if (!IsLoaded)
+        if (!IsLoaded || WindowState == WindowState.Minimized)
         {
             return;
         }
@@ -448,6 +727,14 @@ public partial class MainWindow : Window
         await RefreshMembersAsync(forceRefresh: true);
         await RefreshSystemLogsAsync();
         await RefreshTransactionLogsAsync();
+
+        if (_settings.IsLiteMode)
+        {
+            // Trong Bản Lite: Dừng hoàn toàn việc tải ngầm 9 tab phụ để app cực kỳ nhẹ và phản hồi tức thì!
+            TrimProcessMemory();
+            return;
+        }
+
         await RefreshGroupsAsync(forceReloadPricing: true);
         await RefreshServiceItemsAsync();
         await LoadLoyaltySettingsAsync();
@@ -542,11 +829,11 @@ public partial class MainWindow : Window
 
             if (isUserInitiated && HealthTextBlock != null && (HealthTextBlock.Text.Contains(I18n.BackendOffline) || HealthTextBlock.Text.Contains("offline", StringComparison.OrdinalIgnoreCase)))
             {
-                MessageBox.Show(
-                    "Hiện vẫn chưa kết nối được tới Backend / Database.\nVui lòng kiểm tra lại dịch vụ Backend trên máy chủ.",
+                ConnectionErrorDialog.Show(
+                    this,
                     "Chưa kết nối được máy chủ",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                    new Exception("Hiện vẫn chưa kết nối được tới Backend / Database (localhost:39090)."),
+                    async () => await ReloadAllSystemDataAsync(isUserInitiated: true));
             }
         }
         catch (Exception ex)
@@ -554,11 +841,11 @@ public partial class MainWindow : Window
             AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] ❌ Tải lại dữ liệu lỗi: {ex.Message}");
             if (isUserInitiated)
             {
-                MessageBox.Show(
-                    $"Tải lại dữ liệu thất bại:\n{ex.Message}\n\nVui lòng kiểm tra xem Backend / Database đã hoạt động chưa.",
-                    "Lỗi kết nối máy chủ",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                ConnectionErrorDialog.Show(
+                    this,
+                    "Tải lại dữ liệu thất bại",
+                    ex,
+                    async () => await ReloadAllSystemDataAsync(isUserInitiated: true));
             }
         }
         finally
@@ -606,21 +893,72 @@ public partial class MainWindow : Window
         _websiteLogsCacheResponse = null;
     }
 
+    private void UpdateLoginStatusUi()
+    {
+        if (AdminSession.IsLoggedIn)
+        {
+            if (LogoutIconTextBlock != null) LogoutIconTextBlock.Text = "🚪";
+            if (LogoutTextLabel != null)
+            {
+                var name = !string.IsNullOrWhiteSpace(AdminSession.CurrentUserFullName)
+                    ? AdminSession.CurrentUserFullName
+                    : (!string.IsNullOrWhiteSpace(AdminSession.CurrentUsername) ? AdminSession.CurrentUsername : "Admin");
+                LogoutTextLabel.Text = $"{name} (Đăng xuất)";
+            }
+            if (LogoutButton != null)
+            {
+                LogoutButton.ToolTip = $"Đang đăng nhập: {AdminSession.CurrentUserFullName} ({AdminSession.CurrentUserRole}). Nhấn để đăng xuất.";
+            }
+        }
+        else
+        {
+            if (LogoutIconTextBlock != null) LogoutIconTextBlock.Text = "🔑";
+            if (LogoutTextLabel != null) LogoutTextLabel.Text = "Đăng nhập";
+            if (LogoutButton != null)
+            {
+                LogoutButton.ToolTip = "Đăng nhập tài khoản quản trị để mở Bản Pro";
+            }
+        }
+    }
+
     private void LogoutButton_Click(object sender, RoutedEventArgs e)
     {
-        var result = MessageBox.Show("Bạn có chắc chắn muốn đăng xuất không?", "Xác nhận đăng xuất", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (!AdminSession.IsLoggedIn)
+        {
+            // Mở popup đăng nhập
+            var loginWindow = new LoginWindow { Owner = this };
+            loginWindow.ShowDialog();
+            if (AdminSession.IsLoggedIn)
+            {
+                HandleSuccessfulLogin();
+            }
+            return;
+        }
+
+        // Đang đăng nhập -> Xác nhận đăng xuất
+        var displayName = !string.IsNullOrWhiteSpace(AdminSession.CurrentUserFullName)
+            ? AdminSession.CurrentUserFullName
+            : (!string.IsNullOrWhiteSpace(AdminSession.CurrentUsername) ? AdminSession.CurrentUsername : "Admin");
+
+        var result = MessageBox.Show(
+            $"Bạn đang đăng nhập: {displayName} ({AdminSession.CurrentUserRole}).\nBạn có chắc chắn muốn đăng xuất không?",
+            "Xác nhận đăng xuất",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
         if (result == MessageBoxResult.Yes)
         {
             // Clear session info
-            AdminSession.CurrentUserRole = null;
-            AdminSession.CurrentUserFullName = null;
+            AdminSession.Clear();
 
-            // Show login window
-            var loginWindow = new LoginWindow();
-            loginWindow.Show();
+            // Khi chưa đăng nhập, tự động chuyển về Bản Lite
+            _settings.IsLiteMode = true;
+            SaveSettings();
 
-            // Close current window
-            this.Close();
+            UpdateLoginStatusUi();
+            UpdateAppModeUi();
+
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] 🚪 Đã đăng xuất. Ứng dụng đã chuyển về Bản Lite.");
         }
     }
 
@@ -639,6 +977,12 @@ public partial class MainWindow : Window
         var hit = e.OriginalSource as DependencyObject;
         if (hit == null) return;
 
+        // If clicking inside the member detail sidebar, do NOT clear selection or auto close
+        if (MemberDetailSidebarBorder != null && IsVisualChildOf(hit, MemberDetailSidebarBorder))
+        {
+            return;
+        }
+
         var dataGrid = FindVisualParent<DataGrid>(hit);
         if (dataGrid != null)
         {
@@ -646,8 +990,12 @@ public partial class MainWindow : Window
             var row = FindVisualParent<DataGridRow>(hit);
             if (row == null)
             {
-                // Clicking blank area of the DataGrid -> Unselect it
-                dataGrid.SelectedItem = null;
+                // Clicking blank area of the DataGrid -> Unselect it (except MembersDataGrid)
+                // (MembersDataGrid selection drives the member detail sidebar which must not auto-close)
+                if (dataGrid != MembersDataGrid)
+                {
+                    dataGrid.SelectedItem = null;
+                }
             }
         }
         else
@@ -657,10 +1005,21 @@ public partial class MainWindow : Window
             if (!IsActionControl(hit))
             {
                 if (MachinesDataGrid != null) MachinesDataGrid.SelectedItem = null;
-                if (MembersDataGrid != null) MembersDataGrid.SelectedItem = null;
+                // Note: Do NOT clear MembersDataGrid.SelectedItem so the member sidebar does not auto-close
                 if (ServiceItemsDataGrid != null) ServiceItemsDataGrid.SelectedItem = null;
             }
         }
+    }
+
+    private static bool IsVisualChildOf(DependencyObject? child, DependencyObject parent)
+    {
+        while (child != null)
+        {
+            if (ReferenceEquals(child, parent)) return true;
+            var visualParent = (child is Visual || child is System.Windows.Media.Media3D.Visual3D) ? VisualTreeHelper.GetParent(child) : null;
+            child = visualParent ?? LogicalTreeHelper.GetParent(child);
+        }
+        return false;
     }
 
     private static T? FindVisualParent<T>(DependencyObject child) where T : DependencyObject

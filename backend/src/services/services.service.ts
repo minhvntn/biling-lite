@@ -21,6 +21,14 @@ const MAX_SERVICE_IMAGE_LENGTH = 2_000_000;
 
 @Injectable()
 export class ServicesService {
+  private static readonly UUID_REGEX =
+    /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+  private isValidUuid(value?: string | null): boolean {
+    if (!value || typeof value !== 'string') return false;
+    return ServicesService.UUID_REGEX.test(value.trim());
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeService,
@@ -145,6 +153,9 @@ export class ServicesService {
   }
 
   async createPcServiceOrder(pcId: string, payload: CreatePcServiceOrderDto) {
+    if (!this.isValidUuid(pcId)) {
+      throw new NotFoundException('Khong tim thay may tram');
+    }
     const quantity = payload.quantity ?? 1;
     const note = this.normalizeOptionalText(payload.note);
     const createdBy = payload.requestedBy?.trim() || 'admin.desktop';
@@ -236,6 +247,15 @@ export class ServicesService {
   }
 
   async getPcServiceOrders(pcId: string, rawLimit?: number) {
+    if (!this.isValidUuid(pcId)) {
+      return {
+        pcId,
+        items: [],
+        total: 0,
+        serverTime: new Date().toISOString(),
+      };
+    }
+
     const limit = this.normalizeLimit(rawLimit);
     const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
     if (!pc) {
@@ -271,6 +291,9 @@ export class ServicesService {
   }
 
   async cancelPcServiceOrders(pcId: string, payload: CancelPcServiceOrdersDto) {
+    if (!this.isValidUuid(pcId)) {
+      throw new NotFoundException('Khong tim thay may tram');
+    }
     const requestedBy = payload.requestedBy?.trim() || 'admin.desktop';
     const note = this.normalizeOptionalText(payload.note);
     const isAdminRequester = this.isAdminServiceRequester(requestedBy);
@@ -498,6 +521,9 @@ export class ServicesService {
   }
 
   async payPcServiceOrders(pcId: string, payload: PayPcServiceOrdersDto) {
+    if (!this.isValidUuid(pcId)) {
+      throw new NotFoundException('Khong tim thay may tram');
+    }
     const requestedBy = payload.requestedBy?.trim() || 'admin.desktop';
     const note = this.normalizeOptionalText(payload.note);
 
@@ -697,6 +723,9 @@ export class ServicesService {
   }
 
   private async getPaidOrderIdsForPc(pcId: string): Promise<Set<string>> {
+    if (!this.isValidUuid(pcId)) {
+      return new Set<string>();
+    }
     const events = await this.prisma.eventLog.findMany({
       where: { pcId, eventType: 'service.order.paid' },
       select: { payload: true },

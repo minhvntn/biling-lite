@@ -1,0 +1,182 @@
+<Window x:Class="Server.Admin.App.Windows.ImportGcafeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Tùy chọn nhập dữ liệu GCafe" Height="490" Width="530"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BorderColor" Color="#E2E8F0" />
+        <SolidColorBrush x:Key="PrimaryColor" Color="#8B5CF6" />
+        <SolidColorBrush x:Key="TextMain" Color="#1E293B" />
+        <SolidColorBrush x:Key="TextMuted" Color="#64748B" />
+
+        <ControlTemplate x:Key="RoundedButtonTemplate" TargetType="Button">
+            <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="border" Property="Opacity" Value="0.9" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter TargetName="border" Property="Opacity" Value="0.6" />
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
+    </Window.Resources>
+
+    <Border Background="White" CornerRadius="12" BorderBrush="{StaticResource BorderColor}" BorderThickness="1">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="20" ShadowDepth="4" Opacity="0.15" Color="#000000" />
+        </Border.Effect>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="54"/> <!-- Header -->
+                <RowDefinition Height="*"/>  <!-- Body -->
+                <RowDefinition Height="68"/> <!-- Footer -->
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,0,0,1" Padding="18,0" Background="#FAF5FF" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="32" Height="32" CornerRadius="8" Background="#EDE9FE" VerticalAlignment="Center" Margin="0,0,10,0">
+                            <TextBlock Text="📥" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="Tùy chọn nhập dữ liệu GCafe" FontWeight="Bold" FontSize="15" Foreground="{StaticResource TextMain}" VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <Button x:Name="TitleCloseButton" Grid.Column="1" Click="CancelButton_Click" Background="Transparent" BorderThickness="0" Cursor="Hand" Width="28" Height="28">
+                        <TextBlock Text="✕" FontSize="14" Foreground="#94A3B8" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Content Area -->
+            <Grid Grid.Row="1">
+                <!-- 1. Options Panel (Normal) -->
+                <StackPanel x:Name="OptionsPanel" Margin="22,16,22,12">
+                    <!-- File info block -->
+                    <Border Background="#F8FAFC" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,14">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="📁" FontSize="16" VerticalAlignment="Center" Margin="0,0,10,0" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock x:Name="FileNameTextBlock" Text="Main.gbsdat" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource TextMain}" />
+                                <TextBlock x:Name="FilePathTextBlock" Text="C:\...\Main.gbsdat" FontSize="11" Foreground="{StaticResource TextMuted}" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <TextBlock Text="Chọn phương thức nhập hội viên:" FontWeight="SemiBold" FontSize="13.5" Foreground="{StaticResource TextMain}" Margin="0,0,0,10" />
+
+                    <!-- Option 1: Merge Mode (Recommended) -->
+                    <Border x:Name="MergeOptionBorder" Background="#FAF5FF" BorderBrush="#8B5CF6" BorderThickness="1.5" CornerRadius="8" Padding="14,12" Margin="0,0,0,10" Cursor="Hand" MouseLeftButtonDown="MergeOption_Click">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <RadioButton x:Name="MergeRadioButton" GroupName="ImportModeGroup" Grid.Column="0" IsChecked="True" VerticalAlignment="Top" Margin="0,2,10,0" Checked="ModeRadioButton_Checked" />
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="1. Giữ nguyên hội viên cũ (Ghi đè &amp; thêm mới)" FontWeight="Bold" FontSize="13" Foreground="#6D28D9" />
+                                <TextBlock Text="• Giữ nguyên toàn bộ hội viên hiện có trong hệ thống." FontSize="11.5" Foreground="{StaticResource TextMuted}" Margin="0,3,0,1" />
+                                <TextBlock Text="• Tài khoản trùng tên: Tự động cộng dồn số dư, tổng nạp và giờ chơi." FontSize="11.5" Foreground="{StaticResource TextMuted}" Margin="0,0,0,1" />
+                                <TextBlock Text="• Tài khoản mới: Tự động tạo tài khoản mới vào danh sách." FontSize="11.5" Foreground="{StaticResource TextMuted}" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Option 2: Replace Mode (Clear All & Reimport) -->
+                    <Border x:Name="ReplaceOptionBorder" Background="White" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" CornerRadius="8" Padding="14,12" Cursor="Hand" MouseLeftButtonDown="ReplaceOption_Click">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <RadioButton x:Name="ReplaceRadioButton" GroupName="ImportModeGroup" Grid.Column="0" IsChecked="False" VerticalAlignment="Top" Margin="0,2,10,0" Checked="ModeRadioButton_Checked" />
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="2. Xóa tất cả hội viên cũ và ghi lại từ đầu" FontWeight="Bold" FontSize="13" Foreground="#B91C1C" />
+                                <TextBlock Text="• Xóa sạch toàn bộ hội viên và lịch sử giao dịch cũ đang có trên hệ thống." FontSize="11.5" Foreground="{StaticResource TextMuted}" Margin="0,3,0,1" />
+                                <TextBlock Text="• Khởi tạo mới 100% danh sách chỉ từ file GCafe vừa chọn." FontSize="11.5" Foreground="{StaticResource TextMuted}" Margin="0,0,0,2" />
+                                <TextBlock Text="⚠️ Cảnh báo: Dữ liệu hội viên cũ sẽ mất hoàn toàn và không thể khôi phục." FontSize="11" Foreground="#DC2626" FontWeight="Medium" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Rule Note: Tự động lọc tài khoản rác -->
+                    <Border Background="#F0FDF4" BorderBrush="#BBF7D0" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,10,0,0">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="🛡️" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Hệ thống tự động lọc bỏ hội viên không đăng nhập &gt; 6 tháng có số dư &lt; 500đ và tổng nạp &lt; 100.000đ." FontSize="11.5" Foreground="#15803D" FontWeight="Medium" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- 2. Loading Panel (When Importing) -->
+                <Grid x:Name="LoadingPanel" Margin="22,20,22,12" Visibility="Collapsed" VerticalAlignment="Center">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Border Width="64" Height="64" CornerRadius="32" Background="#EDE9FE" HorizontalAlignment="Center" Margin="0,0,0,16">
+                            <TextBlock Text="⏳" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="Đang xử lý dữ liệu GCafe..." FontWeight="Bold" FontSize="16" Foreground="{StaticResource TextMain}" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                        <TextBlock x:Name="LoadingStatusTextBlock" 
+                                   Text="Hệ thống đang tải tệp lên máy chủ, giải mã cấu trúc dữ liệu và đồng bộ vào cơ sở dữ liệu. Vui lòng chờ..." 
+                                   TextWrapping="Wrap" TextAlignment="Center" FontSize="12.5" Foreground="{StaticResource TextMuted}" Margin="10,0,10,20" LineHeight="18" MaxWidth="440" />
+                        
+                        <ProgressBar IsIndeterminate="True" Height="7" Width="380" Foreground="#8B5CF6" Background="#EDE9FE" BorderThickness="0" Margin="0,0,0,8">
+                            <ProgressBar.Resources>
+                                <Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style>
+                            </ProgressBar.Resources>
+                        </ProgressBar>
+                        <TextBlock Text="Quá trình này có thể mất từ 2 - 10 giây tùy số lượng hội viên..." FontSize="11" Foreground="#94A3B8" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- 3. Success Panel (Completed) -->
+                <Grid x:Name="SuccessPanel" Margin="22,20,22,12" Visibility="Collapsed" VerticalAlignment="Center">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Border Width="64" Height="64" CornerRadius="32" Background="#ECFDF5" HorizontalAlignment="Center" Margin="0,0,0,14">
+                            <TextBlock Text="✅" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="Nhập dữ liệu GCafe thành công!" FontWeight="Bold" FontSize="16" Foreground="#065F46" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                        
+                        <Border Background="#F0FDF4" BorderBrush="#BBF7D0" BorderThickness="1" CornerRadius="8" Padding="16,14" Margin="10,0,10,0" MaxWidth="450">
+                            <TextBlock x:Name="SuccessDetailTextBlock" 
+                                       Text="Đã hoàn tất nhập hội viên thành công!" 
+                                       TextWrapping="Wrap" FontSize="13" Foreground="#166534" LineHeight="19" TextAlignment="Center" />
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <!-- Footer -->
+            <Border Grid.Row="2" BorderBrush="{StaticResource BorderColor}" BorderThickness="0,1,0,0" Padding="20,0" Background="#F8FAFC">
+                <Grid VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Button x:Name="CancelButton" Grid.Column="0" Content="Hủy bỏ" Click="CancelButton_Click" Width="85" Height="36" HorizontalAlignment="Left"
+                            Background="White" BorderBrush="{StaticResource BorderColor}" BorderThickness="1" Foreground="{StaticResource TextMain}"
+                            Cursor="Hand" Template="{StaticResource RoundedButtonTemplate}" />
+
+                    <Button x:Name="SubmitButton" Grid.Column="1" Content="📥 Bắt đầu nhập dữ liệu" Click="SubmitButton_Click"
+                            Padding="18,0" Height="38" Background="#8B5CF6" BorderThickness="0" Foreground="White" FontWeight="SemiBold" FontSize="13.5"
+                            Cursor="Hand" Template="{StaticResource RoundedButtonTemplate}" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

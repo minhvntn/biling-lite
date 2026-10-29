@@ -5,6 +5,7 @@ import { BuyPlaytimeDto } from './dto/buy-playtime.dto';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { TopupMemberDto } from './dto/topup-member.dto';
 import { AdjustBalanceDto } from './dto/adjust-balance.dto';
+import { GiftMemberDto } from './dto/gift-member.dto';
 import { MemberLoginDto } from './dto/member-login.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { TransferBalanceDto } from './dto/transfer-balance.dto';
@@ -35,8 +36,15 @@ export class MembersController {
   constructor(private readonly membersService: MembersService) {}
 
   @Get()
-  async getMembers(@Query('search') search?: string, @Query('memberType') memberType?: string) {
-    return this.membersService.getMembers(search, memberType);
+  async getMembers(
+    @Query('search') search?: string,
+    @Query('memberType') memberType?: string,
+    @Query('limit') limit?: string,
+    @Query('hideInactive') hideInactive?: string,
+  ) {
+    const parsedLimit = limit ? parseInt(limit, 10) : undefined;
+    const shouldHideInactive = hideInactive === undefined ? true : hideInactive !== 'false';
+    return this.membersService.getMembers(search, memberType, parsedLimit, shouldHideInactive);
   }
 
   @Post()
@@ -337,6 +345,14 @@ export class MembersController {
     return this.membersService.topupMember(memberId, payload);
   }
 
+  @Post(':memberId/gift')
+  async giftMember(
+    @Param('memberId') memberId: string,
+    @Body() payload: GiftMemberDto,
+  ) {
+    return this.membersService.giftMember(memberId, payload);
+  }
+
   @Post(':memberId/buy-hours')
   async buyPlaytime(
     @Param('memberId') memberId: string,
@@ -400,7 +416,13 @@ export class MembersController {
   async importGcafe(
     @UploadedFile() file?: any,
     @Body('filePath') filePath?: string,
+    @Body('mode') mode?: 'merge' | 'replace',
   ) {
-    return this.membersService.importGcafe(file, filePath);
+    return this.membersService.importGcafe(file, filePath, mode);
+  }
+
+  @Post('cleanup-inactive')
+  async cleanupInactiveMembers() {
+    return this.membersService.purgeInactiveMembers();
   }
 }

@@ -13,5 +13,12 @@ export class AdjustBalanceDto {
   @IsString()
   @MaxLength(100)
   createdBy?: string;
+
+  @IsOptional()
+  isGift?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  ratePerHour?: number;
 }
 

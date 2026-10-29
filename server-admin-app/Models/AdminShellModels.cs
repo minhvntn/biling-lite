@@ -25,6 +25,8 @@ public sealed class AdminShellSettings
 
     public bool EnableMembersPagination { get; set; } = false;
 
+    public bool IsLiteMode { get; set; } = false;
+
     public string ColorInUseBg { get; set; } = "#EFF6FF";
     public string ColorInUseFg { get; set; } = "#2563EB";
     public string ColorAdminBg { get; set; } = "#FEF9C3";
@@ -264,6 +266,7 @@ public sealed class MemberListResponse
 {
     public List<MemberItem> Items { get; set; } = new();
     public int Total { get; set; }
+    public int? TotalAll { get; set; }
 }
 
 public sealed class MemberItem
@@ -282,6 +285,7 @@ public sealed class MemberItem
     public int AvailablePoints { get; set; }
     public string MemberType { get; set; } = "REGULAR";
     public string CreatedAt { get; set; } = string.Empty;
+    public string? LastLoginAt { get; set; }
     public string? AvatarId { get; set; }
 }
 
@@ -667,7 +671,9 @@ public sealed class SessionLogRow
 
 public sealed class MachineBillingSummaryRow
 {
+    public MachineRow? Machine { get; set; }
     public string MachineName { get; set; } = "-";
+    public string CustomerName { get; set; } = "-";
     public string StatusText { get; set; } = "-";
     public string PlayDurationText { get; set; } = "0 phút";
     public string HourlyRateText { get; set; } = "0";
@@ -943,6 +949,100 @@ public sealed class LoyaltyRankRow
             return $"{mins} phút";
         }
     }
+
+    public string TierGroup
+    {
+        get
+        {
+            var name = RankName?.Trim() ?? string.Empty;
+            if (name.StartsWith("Bạch Kim", StringComparison.OrdinalIgnoreCase)) return "Bạch Kim";
+            if (name.StartsWith("Đại Cao Thủ", StringComparison.OrdinalIgnoreCase)) return "Đại Cao Thủ";
+            if (name.StartsWith("Sắt", StringComparison.OrdinalIgnoreCase)) return "Sắt";
+            if (name.StartsWith("Đồng", StringComparison.OrdinalIgnoreCase)) return "Đồng";
+            if (name.StartsWith("Bạc", StringComparison.OrdinalIgnoreCase)) return "Bạc";
+            if (name.StartsWith("Vàng", StringComparison.OrdinalIgnoreCase)) return "Vàng";
+            if (name.StartsWith("Tinh Anh", StringComparison.OrdinalIgnoreCase) || name.StartsWith("Tinh Vân", StringComparison.OrdinalIgnoreCase)) return "Tinh Anh";
+            if (name.StartsWith("Kim Cương", StringComparison.OrdinalIgnoreCase)) return "Kim Cương";
+            if (name.StartsWith("Cao Thủ", StringComparison.OrdinalIgnoreCase)) return "Cao Thủ";
+            if (name.StartsWith("Thách Đấu", StringComparison.OrdinalIgnoreCase) || name.StartsWith("Thần Thoại", StringComparison.OrdinalIgnoreCase)) return "Thách Đấu";
+            return "Khác";
+        }
+    }
+
+    public string TierIcon
+    {
+        get => TierGroup switch
+        {
+            "Sắt" => "\U0001F6E1",
+            "Đồng" => "\U0001F949",
+            "Bạc" => "\U0001F948",
+            "Vàng" => "\U0001F947",
+            "Bạch Kim" => "\U0001F48E",
+            "Tinh Anh" => "\U0001F52E",
+            "Kim Cương" => "\U0001F539",
+            "Cao Thủ" => "\U0001F451",
+            "Đại Cao Thủ" => "\U0001F396",
+            "Thách Đấu" => "\U0001F525",
+            _ => "\u2B50"
+        };
+    }
+
+    public string TierBgColor
+    {
+        get => TierGroup switch
+        {
+            "Sắt" => "#F1F5F9",
+            "Đồng" => "#FEF3C7",
+            "Bạc" => "#F1F5F9",
+            "Vàng" => "#FEF9C3",
+            "Bạch Kim" => "#CCFBF1",
+            "Tinh Anh" => "#EDE9FE",
+            "Kim Cương" => "#DBEAFE",
+            "Cao Thủ" => "#FEE2E2",
+            "Đại Cao Thủ" => "#FFEDD5",
+            "Thách Đấu" => "#FCE7F3",
+            _ => "#F3F4F6"
+        };
+    }
+
+    public string TierBorderColor
+    {
+        get => TierGroup switch
+        {
+            "Sắt" => "#CBD5E1",
+            "Đồng" => "#FDE68A",
+            "Bạc" => "#CBD5E1",
+            "Vàng" => "#FDE047",
+            "Bạch Kim" => "#99F6E4",
+            "Tinh Anh" => "#DDD6FE",
+            "Kim Cương" => "#BFDBFE",
+            "Cao Thủ" => "#FECACA",
+            "Đại Cao Thủ" => "#FED7AA",
+            "Thách Đấu" => "#FBCFE8",
+            _ => "#E5E7EB"
+        };
+    }
+
+    public string TierTextColor
+    {
+        get => TierGroup switch
+        {
+            "Sắt" => "#475569",
+            "Đồng" => "#B45309",
+            "Bạc" => "#334155",
+            "Vàng" => "#B45309",
+            "Bạch Kim" => "#0F766E",
+            "Tinh Anh" => "#6D28D9",
+            "Kim Cương" => "#1D4ED8",
+            "Cao Thủ" => "#B91C1C",
+            "Đại Cao Thủ" => "#C2410C",
+            "Thách Đấu" => "#BE185D",
+            _ => "#374151"
+        };
+    }
+
+    public string BonusPercentText => $"+{BonusPercent:0.#}%";
+    public string MinTopupFormatted => $"{MinTopup:N0} VNĐ";
 }
 
 public sealed class LoyaltySpinSettingRow

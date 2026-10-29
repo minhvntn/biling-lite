@@ -1,22 +1,50 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
 
 namespace Server.Admin.App;
 
 public partial class MainWindow
 {
     private readonly ObservableCollection<LoyaltyRankRow> _loyaltyRankRows = new();
+    private string _selectedLoyaltyTier = "ALL";
 
     private void InitializeLoyaltyRanksTab()
     {
         LoyaltyRanksDataGrid.ItemsSource = _loyaltyRankRows;
+        var view = CollectionViewSource.GetDefaultView(_loyaltyRankRows);
+        if (view != null)
+        {
+            view.Filter = FilterLoyaltyRankRow;
+        }
+        _ = RefreshLoyaltyRanksAsync();
+    }
+
+    private bool FilterLoyaltyRankRow(object obj)
+    {
+        if (obj is not LoyaltyRankRow row) return false;
+
+        if (_selectedLoyaltyTier != "ALL" && !string.Equals(row.TierGroup, _selectedLoyaltyTier, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private void ApplyLoyaltyRanksFilter()
+    {
+        var view = CollectionViewSource.GetDefaultView(_loyaltyRankRows);
+        view?.Refresh();
     }
 
     private async void RefreshLoyaltyRanksButton_Click(object sender, RoutedEventArgs e)
@@ -51,12 +79,50 @@ public partial class MainWindow
                 });
             }
 
+            if (response.Count > 0)
+            {
+                if (VipTotalRanksTextBlock != null) VipTotalRanksTextBlock.Text = $"{response.Count} Cấp";
+                if (VipMaxBonusTextBlock != null) VipMaxBonusTextBlock.Text = $"+{response.Max(x => x.BonusPercent):0.#}%";
+                if (VipFastestPointTextBlock != null) VipFastestPointTextBlock.Text = $"{response.Min(x => x.MinutesPerPoint):0.#}p / điểm";
+                if (VipMaxThresholdTextBlock != null) VipMaxThresholdTextBlock.Text = $"{response.Max(x => x.MinTopup):N0} đ";
+            }
+
+            ApplyLoyaltyRanksFilter();
+
             LoyaltyRanksInfoTextBlock.Text = $"[\u0110\u00e3 t\u1ea3i {response.Count} b\u1eadc h\u1ea1ng l\u00fac {DateTime.Now:HH:mm:ss}] S\u1eeda tr\u1ef1c ti\u1ebfp v\u00e0o b\u1ea3ng \u0111\u1ec3 c\u1eadp nh\u1eadt.";
             LoyaltyRanksInfoTextBlock.Foreground = System.Windows.Media.Brushes.DarkGreen;
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Kh\u00f4ng th\u1ec3 t\u1ea3i danh s\u00e1ch rank: {ex.Message}", "L\u1ed7i", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void TierFilterButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn) return;
+        var tag = btn.Tag?.ToString() ?? "ALL";
+        _selectedLoyaltyTier = tag;
+
+        ResetTierButtonStyles();
+        btn.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4F46E5"));
+        btn.Foreground = Brushes.White;
+        btn.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4F46E5"));
+
+        ApplyLoyaltyRanksFilter();
+    }
+
+    private void ResetTierButtonStyles()
+    {
+        if (TierFilterPanel == null) return;
+        foreach (var child in TierFilterPanel.Children)
+        {
+            if (child is Button b)
+            {
+                b.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F1F5F9"));
+                b.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#475569"));
+                b.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E2E8F0"));
+            }
         }
     }
 

@@ -267,6 +267,7 @@
                                         <Grid Grid.Column="1">
                                             <TextBox x:Name="UsernameTextBox" 
                                                      TabIndex="0" 
+                                                     CharacterCasing="Upper"
                                                      BorderThickness="0" 
                                                      Background="Transparent" 
                                                      VerticalContentAlignment="Center" 

@@ -246,7 +246,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         {
             CollapseButtonText.Text = "Thu gọn";
             CollapseButtonIcon.Text = "\uE76C"; // ChevronLeft
-            LeftColumnGrid.Margin = new Thickness(0, 0, 15, 0);
+            LeftColumnGrid.Margin = new Thickness(0, 0, 10, 0);
             LeftColumnGrid.HorizontalAlignment = HorizontalAlignment.Stretch;
             LeftColumnGrid.SetValue(System.Windows.Controls.Grid.ColumnSpanProperty, 1);
             
@@ -595,7 +595,7 @@ public static decimal PricingStep { get; set; } = 1000m;
 
     public void SetMemberInfo(string? username, string? rank, string? memberType = null, string? avatarId = null, string? comboExpiresAt = null)
     {
-        _currentUsername = username;
+        _currentUsername = username?.ToUpperInvariant();
         _currentRank = rank;
         _currentMemberType = memberType;
         _currentAvatarId = avatarId;
@@ -656,7 +656,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         {
             MemberRankContainer.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
         }
-        MemberUsernameTextBlock.Text = username;
+        MemberUsernameTextBlock.Text = username?.ToUpperInvariant() ?? string.Empty;
         
         var avatarToLoad = string.IsNullOrWhiteSpace(avatarId) ? "avatar_1.png" : avatarId;
         var avatarSource = avatarToLoad.StartsWith("data:image/") 

@@ -18,4 +18,9 @@ export class TopupMemberDto {
   @MaxLength(100)
   @Transform(({ value }: { value?: string }) => value?.trim() || undefined)
   createdBy?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  ratePerHour?: number;
 }

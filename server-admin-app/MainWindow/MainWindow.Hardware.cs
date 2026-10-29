@@ -113,7 +113,6 @@ public class PcMaintenanceLogDto
 
 public partial class MainWindow : Window
 {
-    private string? _currentHardwarePcId = null;
     private readonly ObservableCollection<HardwareRow> _hardwareRows = new();
 
     private async Task RefreshAllHardwareAsync()
