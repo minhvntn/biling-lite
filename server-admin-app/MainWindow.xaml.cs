@@ -777,6 +777,15 @@ public partial class MainWindow : Window
         diagWindow.ShowDialog();
     }
 
+    private void AboutMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var aboutWindow = new Server.Admin.App.Windows.AboutWindow
+        {
+            Owner = this
+        };
+        aboutWindow.ShowDialog();
+    }
+
     private void QuickAutoRepair_Click(object sender, RoutedEventArgs e)
     {
         var diagWindow = new SystemHealthCheckWindow(this, autoStartRepair: true)

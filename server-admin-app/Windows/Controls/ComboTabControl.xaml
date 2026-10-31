@@ -4,196 +4,665 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             d:DesignHeight="700" d:DesignWidth="1200"
-             Background="#F5F7FA">
-    <TabControl x:Name="MainTabControl" Background="Transparent" BorderThickness="0" SelectionChanged="MainTabControl_SelectionChanged">
-        <TabControl.Resources>
-            <Style TargetType="TabItem">
-                <Setter Property="Padding" Value="20,10" />
-                <Setter Property="FontSize" Value="16" />
-                <Setter Property="FontWeight" Value="SemiBold" />
-                <Setter Property="Foreground" Value="#64748B" />
-                <Setter Property="Background" Value="Transparent" />
-                <Setter Property="BorderThickness" Value="0" />
-                <Style.Triggers>
-                    <Trigger Property="IsSelected" Value="True">
-                        <Setter Property="Foreground" Value="#1E5AA8" />
-                    </Trigger>
-                </Style.Triggers>
-            </Style>
-        </TabControl.Resources>
+             d:DesignHeight="750" d:DesignWidth="1280"
+             Background="#F1F5F9"
+             FontFamily="Segoe UI">
 
-        <TabItem Header="Cấu hình &amp; Bán Thẻ">
-            <Grid Margin="20">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="2*" />
-            <ColumnDefinition Width="1*" />
-        </Grid.ColumnDefinitions>
+    <UserControl.Resources>
+        <!-- Modern Sub-Tab Style -->
+        <Style x:Key="SubTabItemStyle" TargetType="TabItem">
+            <Setter Property="Padding" Value="18,10"/>
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="TabBorder" Background="{TemplateBinding Background}" BorderThickness="{TemplateBinding BorderThickness}" BorderBrush="{TemplateBinding BorderBrush}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background" Value="#F8FAFC"/>
+                                <Setter Property="Foreground" Value="#1E293B"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Foreground" Value="#4F46E5"/>
+                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="#4F46E5"/>
+                                <Setter TargetName="TabBorder" Property="Background" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-        <!-- Left Column: Combo Packages -->
-        <Border Grid.Column="0" Background="White" CornerRadius="8" Margin="0,0,10,0" Padding="20">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
+        <!-- Modern DataGrid Header Style -->
+        <Style x:Key="ComboDataGridColumnHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#F8FAFC"/>
+            <Setter Property="Foreground" Value="#475569"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
 
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
-                    <TextBlock Text="Cấu hình Gói Combo" FontSize="18" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center" />
-                    <Button x:Name="BtnAddCombo" Content="Thêm Gói Mới" Margin="20,0,0,0" Padding="15,8" Background="#1E5AA8" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnAddCombo_Click">
-                        <Button.Resources>
-                            <Style TargetType="Border">
-                                <Setter Property="CornerRadius" Value="4"/>
-                            </Style>
-                        </Button.Resources>
-                    </Button>
-                </StackPanel>
+        <!-- Modern DataGrid Row Style -->
+        <Style x:Key="ComboDataGridRowStyle" TargetType="DataGridRow">
+            <Setter Property="MinHeight" Value="42"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#F1F5F9"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#F8FAFC"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#EEF2FF"/>
+                    <Setter Property="Foreground" Value="#1E293B"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
 
-                <DataGrid x:Name="GridCombos" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" 
-                          Background="Transparent" BorderThickness="1" BorderBrush="#E2E8F0" RowHeight="45">
-                    <DataGrid.ContextMenu>
-                        <ContextMenu>
-                            <MenuItem Header="Sửa" Click="MenuItemEditCombo_Click" />
-                        </ContextMenu>
-                    </DataGrid.ContextMenu>
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Tên gói" Binding="{Binding name}" Width="2*" />
-                        <DataGridTextColumn Header="Giá (VND)" Binding="{Binding price, StringFormat={}{0:N0}}" Width="1*" />
-                        <DataGridTextColumn Header="Giờ BĐ" Binding="{Binding startTime}" Width="1*" />
-                        <DataGridTextColumn Header="Giờ KT" Binding="{Binding endTime}" Width="1*" />
-                        <DataGridTextColumn Header="Hạn (Ngày)" Binding="{Binding validityDays}" Width="1*" />
-                        <DataGridTemplateColumn Header="Thao tác" Width="100">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <Button Content="Xóa" Click="BtnDeleteCombo_Click" Tag="{Binding id}" Background="#DC2626" Foreground="White" BorderThickness="0" Padding="10,5" Cursor="Hand" />
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Grid>
+        <!-- Modern Primary Button Style -->
+        <Style x:Key="PrimaryActionBtnStyle" TargetType="Button">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="Background" Value="#4F46E5"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#4338CA"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Secondary Outline Button Style -->
+        <Style x:Key="SecondaryActionBtnStyle" TargetType="Button">
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Background" Value="#F8FAFC"/>
+            <Setter Property="BorderBrush" Value="#CBD5E1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="#334155"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#F1F5F9"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#94A3B8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Sub-Tabs Header Bar -->
+            <RowDefinition Height="*"/>    <!-- Sub-Tab Content -->
+        </Grid.RowDefinitions>
+
+        <!-- Top Navigation Sub-Tabs -->
+        <Border Grid.Row="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1" Padding="16,0">
+            <TabControl x:Name="MainTabControl" Background="Transparent" BorderThickness="0" SelectionChanged="MainTabControl_SelectionChanged">
+                <TabItem Style="{StaticResource SubTabItemStyle}">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🎟️" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Cấu hình &amp; Bán Thẻ" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                </TabItem>
+
+                <TabItem x:Name="TabComboCards" Style="{StaticResource SubTabItemStyle}">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="💳" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Danh sách thẻ Combo đã tạo" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                </TabItem>
+
+                <TabItem x:Name="TabPreGeneratedCombos" Style="{StaticResource SubTabItemStyle}">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚡" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Combo tạo sẵn (Kho thẻ)" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </TabItem.Header>
+                </TabItem>
+            </TabControl>
         </Border>
 
-        <!-- Right Column: Generate Combo Cards -->
-        <Border Grid.Column="1" Background="White" CornerRadius="8" Margin="10,0,0,0" Padding="20">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
+        <!-- Sub-Tab 1: Cấu hình & Bán Thẻ -->
+        <Grid x:Name="TabContent1" Grid.Row="1" Margin="16" Visibility="Visible">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="6*" />
+                <ColumnDefinition Width="4*" />
+            </Grid.ColumnDefinitions>
 
-                <TextBlock Text="Bán Thẻ Combo" FontSize="18" FontWeight="SemiBold" Foreground="#1E293B" Margin="0,0,0,20" />
-
-                <StackPanel Grid.Row="1">
-                    <TextBlock Text="Chọn gói Combo:" Margin="0,0,0,5" Foreground="#64748B" />
-                    <ComboBox x:Name="CboComboPackages" DisplayMemberPath="name" SelectedValuePath="id" Margin="0,0,0,15" Height="35" Padding="5" />
-
-                    <TextBlock Text="Số lượng thẻ (1-100):" Margin="0,0,0,5" Foreground="#64748B" />
-                    <TextBox x:Name="TxtQuantity" Text="1" Margin="0,0,0,15" Height="35" Padding="5" VerticalContentAlignment="Center" />
-
-                    <Button x:Name="BtnGenerate" Content="Tạo Thẻ (Bán Mới)" Height="45" Background="#10B981" Foreground="White" BorderThickness="0" Cursor="Hand" FontSize="15" FontWeight="SemiBold" Click="BtnGenerate_Click">
-                        <Button.Resources>
-                            <Style TargetType="Border">
-                                <Setter Property="CornerRadius" Value="4"/>
-                            </Style>
-                        </Button.Resources>
-                    </Button>
-                </StackPanel>
-
-                <!-- Results Area -->
-                <Grid Grid.Row="2" Margin="0,20,0,0">
+            <!-- LEFT COLUMN: Cấu hình Gói Combo -->
+            <Border Grid.Column="0" Background="White" CornerRadius="12" BorderBrush="#E2E8F0" BorderThickness="1" Margin="0,0,10,0" Padding="18">
+                <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto"/> <!-- Toolbar Header -->
+                        <RowDefinition Height="*"/>    <!-- DataGrid -->
                     </Grid.RowDefinitions>
-                    <TextBlock Text="Danh sách tài khoản vừa tạo:" Foreground="#64748B" Margin="0,0,0,10" />
-                    <TextBox x:Name="TxtGeneratedResults" Grid.Row="1" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" AcceptsReturn="True" 
-                             FontFamily="Consolas" Background="#F8FAFC" BorderBrush="#E2E8F0" Padding="10" />
+
+                    <!-- Header Toolbar -->
+                    <Grid Grid.Row="0" Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Width="28" Height="28" CornerRadius="6" Background="#EEF2FF" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <TextBlock Text="⚙️" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="Cấu hình Gói Combo" FontSize="16" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="Thiết lập các khung giờ chơi đêm, combo giờ hoặc thời lượng định mức" FontSize="12" Foreground="#64748B" Margin="36,2,0,0"/>
+                        </StackPanel>
+
+                        <!-- Add Combo Button -->
+                        <Button x:Name="BtnAddCombo" Grid.Column="1" Style="{StaticResource PrimaryActionBtnStyle}" Click="BtnAddCombo_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="➕" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Thêm Gói Mới" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <!-- Packages DataGrid -->
+                    <Border Grid.Row="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                        <DataGrid x:Name="GridCombos" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" 
+                                  Background="White" BorderThickness="0" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                                  ColumnHeaderStyle="{StaticResource ComboDataGridColumnHeaderStyle}"
+                                  RowStyle="{StaticResource ComboDataGridRowStyle}">
+                            <DataGrid.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="✏️ Sửa gói combo" Click="MenuItemEditCombo_Click" />
+                                </ContextMenu>
+                            </DataGrid.ContextMenu>
+                            <DataGrid.Columns>
+                                <!-- Tên gói -->
+                                <DataGridTemplateColumn Header="TÊN GÓI COMBO" Width="1.8*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0">
+                                                <TextBlock Text="🎟️" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding name}" FontWeight="Bold" FontSize="13" Foreground="#0F172A" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Giá -->
+                                <DataGridTemplateColumn Header="GIÁ BÁN" Width="1.2*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding PriceFormatted}" FontWeight="Bold" FontSize="13" Foreground="#059669" VerticalAlignment="Center" Margin="12,0"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Khung giờ -->
+                                <DataGridTemplateColumn Header="KHUNG GIỜ CHƠI" Width="1.5*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="12" Padding="8,3" HorizontalAlignment="Left" Margin="10,0">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="🕒" FontSize="10" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding TimeRangeText}" FontSize="11.5" FontWeight="SemiBold" Foreground="#4338CA" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Giới hạn giờ -->
+                                <DataGridTemplateColumn Header="GIỚI HẠN GIỜ" Width="1.1*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DurationText}" FontSize="12" Foreground="#475569" VerticalAlignment="Center" Margin="12,0"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Hạn (Ngày) -->
+                                <DataGridTemplateColumn Header="HẠN DÙNG" Width="0.9*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding ValidityDaysText}" FontSize="12" Foreground="#64748B" VerticalAlignment="Center" Margin="12,0"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Thao tác -->
+                                <DataGridTemplateColumn Header="THAO TÁC" Width="140">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                                <!-- Edit Button -->
+                                                <Button Click="BtnEditCombo_Click" Tag="{Binding}" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" Padding="8,3" Margin="0,0,6,0" Cursor="Hand" ToolTip="Chỉnh sửa">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                    <TextBlock Text="✏️" FontSize="11"/>
+                                                </Button>
+
+                                                <!-- Delete Button -->
+                                                <Button Content="Xóa" Click="BtnDeleteCombo_Click" Tag="{Binding id}" Background="#FEE2E2" Foreground="#DC2626" BorderBrush="#FCA5A5" BorderThickness="1" Padding="10,3" Cursor="Hand" FontSize="11.5" FontWeight="SemiBold">
+                                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                </Button>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
                 </Grid>
-            </Grid>
-        </Border>
-            </Grid>
-        </TabItem>
+            </Border>
 
-        <TabItem Header="Danh sách thẻ Combo đã tạo" x:Name="TabComboCards">
-            <Grid Margin="20">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-                
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
-                    <TextBlock Text="Danh sách các tài khoản Combo trên hệ thống" FontSize="18" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center" />
-                    <Button x:Name="BtnRefreshCards" Content="Làm mới" Margin="20,0,0,0" Padding="15,8" Background="#F1F5F9" Foreground="#1E293B" BorderThickness="1" BorderBrush="#CBD5E1" Cursor="Hand" Click="BtnRefreshCards_Click">
-                        <Button.Resources>
-                            <Style TargetType="Border">
-                                <Setter Property="CornerRadius" Value="4"/>
-                            </Style>
-                        </Button.Resources>
-                    </Button>
-                </StackPanel>
+            <!-- RIGHT COLUMN: Bán Thẻ Combo (POS Quầy) -->
+            <Border Grid.Column="1" Background="White" CornerRadius="12" BorderBrush="#E2E8F0" BorderThickness="1" Margin="10,0,0,0" Padding="18">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- POS Header -->
+                        <RowDefinition Height="Auto"/> <!-- POS Form -->
+                        <RowDefinition Height="*"/>    <!-- Generated Cards Output -->
+                    </Grid.RowDefinitions>
 
-                <DataGrid x:Name="GridComboCards" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" 
-                          Background="White" BorderThickness="1" BorderBrush="#E2E8F0" RowHeight="45">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Tài khoản" Binding="{Binding username}" Width="1*" />
-                        <DataGridTextColumn Header="Giá (VND)" Binding="{Binding balance, StringFormat={}{0:N0}}" Width="1*" />
-                        <DataGridTextColumn Header="TG Bắt đầu" Binding="{Binding createdAt, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="1*" />
-                        <DataGridTextColumn Header="TG Kết thúc" Binding="{Binding comboExpiresAt, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="1*" />
-                        <DataGridTextColumn Header="Thời lượng (h)" Binding="{Binding playHours}" Width="1*" />
-                        <DataGridTextColumn Header="Trạng thái" Binding="{Binding status}" Width="1*" />
-                        <DataGridTemplateColumn Header="Thao tác" Width="100">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <Button Content="Xóa" Click="BtnDeleteComboCard_Click" Tag="{Binding id}" Background="#DC2626" Foreground="White" BorderThickness="0" Padding="10,5" Cursor="Hand" />
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Grid>
-        </TabItem>
-        <TabItem Header="Combo tạo sẵn" x:Name="TabPreGeneratedCombos">
-            <Grid Margin="20">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-                
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
-                    <TextBlock Text="Danh sách thẻ Combo sẵn sàng" FontSize="18" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center" />
-                    <Button x:Name="BtnDeletePreCombos" Content="Xóa &amp; Tạo Lại" Margin="20,0,0,0" Padding="15,8" Background="#EF4444" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnDeleteAllPreCombos_Click">
-                        <Button.Resources>
-                            <Style TargetType="Border">
-                                <Setter Property="CornerRadius" Value="4"/>
-                            </Style>
-                        </Button.Resources>
-                    </Button>
-                    <Button x:Name="BtnGeneratePreCombos" Content="Tạo mới toàn bộ" Margin="10,0,0,0" Padding="15,8" Background="#10B981" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnGeneratePreCombos_Click" Visibility="Visible">
-                        <Button.Resources>
-                            <Style TargetType="Border">
-                                <Setter Property="CornerRadius" Value="4"/>
-                            </Style>
-                        </Button.Resources>
-                    </Button>
-                </StackPanel>
+                    <!-- POS Header -->
+                    <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Width="28" Height="28" CornerRadius="6" Background="#ECFDF5" VerticalAlignment="Center" Margin="0,0,8,0">
+                                <TextBlock Text="⚡" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="Bán Thẻ Combo" FontSize="16" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="Xuất thẻ nhanh cho khách hàng, tự động ghi nhận doanh thu" FontSize="12" Foreground="#64748B" Margin="36,2,0,0"/>
+                    </StackPanel>
 
-                <DataGrid x:Name="GridPreGeneratedCombos" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" 
-                          Background="White" BorderThickness="1" BorderBrush="#E2E8F0" RowHeight="45"
-                          MouseDoubleClick="GridPreGeneratedCombos_MouseDoubleClick">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Tên gói" Binding="{Binding comboName}" Width="1.5*" />
-                        <DataGridTextColumn Header="Tài khoản" Binding="{Binding username}" Width="1*" />
-                        <DataGridTextColumn Header="Giá (VND)" Binding="{Binding price, StringFormat={}{0:N0}}" Width="1*" />
-                        <DataGridTextColumn Header="Giờ BĐ" Binding="{Binding startTime}" Width="0.8*" />
-                        <DataGridTextColumn Header="Giờ KT" Binding="{Binding endTime}" Width="0.8*" />
-                        <DataGridTextColumn Header="Lượng (h)" Binding="{Binding durationHours}" Width="0.8*" />
-                        <DataGridTextColumn Header="Hạn (Ngày)" Binding="{Binding validityDays}" Width="1*" />
-                        <DataGridTextColumn Header="Hạn dùng đến" Binding="{Binding expiresAt, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="1.5*" />
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Grid>
-        </TabItem>
-    </TabControl>
+                    <!-- POS Input Form -->
+                    <StackPanel Grid.Row="1">
+                        <!-- Chọn gói Combo -->
+                        <TextBlock Text="CHỌN GÓI COMBO" FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,0,5"/>
+                        <ComboBox x:Name="CboComboPackages" DisplayMemberPath="name" SelectedValuePath="id" SelectionChanged="CboComboPackages_SelectionChanged"
+                                  Height="38" Padding="10,0" Margin="0,0,0,12" FontSize="13" VerticalContentAlignment="Center" Background="#F8FAFC" BorderBrush="#CBD5E1"/>
+
+                        <!-- Số lượng thẻ -->
+                        <Grid Margin="0,0,0,5">
+                            <TextBlock Text="SỐ LƯỢNG THẺ" FontSize="11" FontWeight="SemiBold" Foreground="#475569"/>
+                            <TextBlock Text="(Tối đa 100)" FontSize="10.5" Foreground="#94A3B8" HorizontalAlignment="Right"/>
+                        </Grid>
+                        
+                        <Grid Margin="0,0,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <TextBox x:Name="TxtQuantity" Grid.Column="0" Text="1" TextChanged="TxtQuantity_TextChanged"
+                                     Height="38" FontSize="14" FontWeight="Bold" Foreground="#0F172A" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" 
+                                     Background="#F8FAFC" BorderBrush="#CBD5E1">
+                                <TextBox.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style></TextBox.Resources>
+                            </TextBox>
+
+                            <!-- Quick Count Preset Chips -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <Button Content="1" Tag="1" Click="QuickQty_Click" Style="{StaticResource SecondaryActionBtnStyle}" Width="36" Margin="0,0,5,0"/>
+                                <Button Content="2" Tag="2" Click="QuickQty_Click" Style="{StaticResource SecondaryActionBtnStyle}" Width="36" Margin="0,0,5,0"/>
+                                <Button Content="5" Tag="5" Click="QuickQty_Click" Style="{StaticResource SecondaryActionBtnStyle}" Width="36" Margin="0,0,5,0"/>
+                                <Button Content="10" Tag="10" Click="QuickQty_Click" Style="{StaticResource SecondaryActionBtnStyle}" Width="38"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Order Summary Card -->
+                        <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,0,14">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="TỔNG TIỀN THANH TOÁN" FontSize="10.5" FontWeight="SemiBold" Foreground="#64748B"/>
+                                    <TextBlock x:Name="TxtSummaryDetails" Text="1 thẻ x 30,000 đ" FontSize="11.5" Foreground="#475569" Margin="0,2,0,0"/>
+                                </StackPanel>
+                                <TextBlock x:Name="TxtTotalPrice" Grid.Column="1" Text="30,000 đ" FontSize="18" FontWeight="Bold" Foreground="#059669" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Generate Button -->
+                        <Button x:Name="BtnGenerate" Height="42" Background="#059669" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnGenerate_Click">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="brd" Background="{TemplateBinding Background}" CornerRadius="8">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="brd" Property="Background" Value="#047857"/>
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter TargetName="brd" Property="Opacity" Value="0.6"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="✨" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="BtnGenerateText" Text="Tạo Thẻ (Bán Mới)" FontSize="13.5" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- Generated Results Panel -->
+                    <Grid Grid.Row="2" Margin="0,16,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" Margin="0,0,0,8">
+                            <TextBlock Text="Tài khoản vừa tạo:" FontSize="11" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center"/>
+                            <Button x:Name="BtnCopyAllResults" Click="BtnCopyAllResults_Click" Visibility="Collapsed" HorizontalAlignment="Right" Background="Transparent" BorderThickness="0" Cursor="Hand">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="📋" FontSize="11" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="BtnCopyAllText" Text="Sao chép tất cả" FontSize="11.5" FontWeight="SemiBold" Foreground="#4F46E5" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
+                        <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10">
+                            <!-- Cards Output -->
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel>
+                                    <!-- Empty placeholder -->
+                                    <TextBlock x:Name="TxtNoResultsPlaceholder" Text="Chưa có thẻ nào được bán trong phiên này. Hãy chọn gói và bấm 'Tạo Thẻ'." 
+                                               Foreground="#94A3B8" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" Margin="0,40,0,0"/>
+
+                                    <!-- Formatted list of generated cards -->
+                                    <ItemsControl x:Name="ItemsGeneratedCards" Visibility="Collapsed">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,0,6">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0">
+                                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                                                <TextBlock Text="TK: " FontSize="11.5" Foreground="#64748B" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding username}" FontSize="13" FontWeight="Bold" Foreground="#2563EB" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="  |  MK: " FontSize="11.5" Foreground="#64748B" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="{Binding password}" FontSize="13" FontWeight="Bold" Foreground="#DC2626" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                            <TextBlock Text="{Binding ExpiresFormatted, StringFormat='{}Hạn dùng: {0}'}" FontSize="11" Foreground="#94A3B8"/>
+                                                        </StackPanel>
+
+                                                        <Button Grid.Column="1" Click="BtnCopySingleCard_Click" Tag="{Binding}" Background="#F1F5F9" BorderBrush="#CBD5E1" BorderThickness="1" Padding="8,4" Cursor="Hand" ToolTip="Sao chép tài khoản &amp; mật khẩu">
+                                                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <TextBlock Text="📋" FontSize="11"/>
+                                                            </StackPanel>
+                                                        </Button>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <!-- Raw text container (hidden by default, used for raw format / copy) -->
+                                    <TextBox x:Name="TxtGeneratedResults" Visibility="Collapsed" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" 
+                                             FontFamily="Consolas" FontSize="11.5" Background="Transparent" BorderThickness="0" Padding="0"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Sub-Tab 2: Danh sách thẻ Combo đã tạo -->
+        <Grid x:Name="TabContent2" Grid.Row="1" Margin="16" Visibility="Collapsed">
+            <Border Background="White" CornerRadius="12" BorderBrush="#E2E8F0" BorderThickness="1" Padding="18">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- KPI Cards & Filter Bar -->
+                        <RowDefinition Height="*"/>    <!-- DataGrid -->
+                    </Grid.RowDefinitions>
+
+                    <!-- Top Bar: KPI Summary & Search / Refresh -->
+                    <Grid Grid.Row="0" Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Left: Search Box -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Width="240" Height="34" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="6" Background="White" Padding="8,0" Margin="0,0,10,0">
+                                <Grid VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="🔍" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBox x:Name="TxtSearchCards" Grid.Column="1" BorderThickness="0" Background="Transparent" 
+                                             VerticalContentAlignment="Center" FontSize="12.5" Foreground="#1E293B" TextChanged="TxtSearchCards_TextChanged"
+                                             Tag="Tìm theo tên tài khoản..."/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Status Filter -->
+                            <ComboBox x:Name="CboCardsStatusFilter" Height="34" Width="130" SelectedIndex="0" SelectionChanged="CboCardsStatusFilter_SelectionChanged"
+                                      VerticalContentAlignment="Center" FontSize="12.5" Background="White" BorderBrush="#CBD5E1">
+                                <ComboBoxItem Content="Tất cả trạng thái"/>
+                                <ComboBoxItem Content="🟢 Khả dụng"/>
+                                <ComboBoxItem Content="⚪ Đã hết hạn"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Right: Refresh Button -->
+                        <Button x:Name="BtnRefreshCards" Grid.Column="1" Style="{StaticResource SecondaryActionBtnStyle}" Click="BtnRefreshCards_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="🔄" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Làm mới" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <!-- Cards DataGrid -->
+                    <Border Grid.Row="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                        <DataGrid x:Name="GridComboCards" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" 
+                                  Background="White" BorderThickness="0" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                                  ColumnHeaderStyle="{StaticResource ComboDataGridColumnHeaderStyle}"
+                                  RowStyle="{StaticResource ComboDataGridRowStyle}">
+                            <DataGrid.Columns>
+                                <!-- Tài khoản -->
+                                <DataGridTemplateColumn Header="TÀI KHOẢN COMBO" Width="1.5*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0">
+                                                <TextBlock Text="👤" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding username}" FontWeight="Bold" FontSize="13" Foreground="#2563EB" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Gói combo -->
+                                <DataGridTemplateColumn Header="GÓI COMBO" Width="1.5*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding comboName}" FontWeight="SemiBold" FontSize="12.5" Foreground="#0F172A" VerticalAlignment="Center" Margin="12,0"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Mật khẩu gốc -->
+                                <DataGridTemplateColumn Header="MẬT KHẨU" Width="1.1*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding displayPassword}" FontFamily="Consolas" FontWeight="Bold" FontSize="13" Foreground="#DC2626" VerticalAlignment="Center" Margin="12,0"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- TG Tạo -->
+                                <DataGridTextColumn Header="THỜI GIAN BÁN" Binding="{Binding createdAt, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="1.3*" />
+
+                                <!-- Hết hạn -->
+                                <DataGridTextColumn Header="HẾT HẠN LÚC" Binding="{Binding comboExpiresAt, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="1.3*" />
+
+                                <!-- Thời lượng -->
+                                <DataGridTextColumn Header="THỜI LƯỢNG" Binding="{Binding durationText}" Width="1*" />
+
+                                <!-- Trạng thái -->
+                                <DataGridTemplateColumn Header="TRẠNG THÁI" Width="1.2*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding statusBg}" BorderBrush="{Binding statusBorder}" BorderThickness="1" CornerRadius="12" Padding="8,2" HorizontalAlignment="Left" Margin="10,0">
+                                                <TextBlock Text="{Binding status}" FontSize="11.5" FontWeight="SemiBold" Foreground="{Binding statusFg}"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+
+                                <!-- Thao tác -->
+                                <DataGridTemplateColumn Header="THAO TÁC" Width="100">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="Xóa thẻ" Click="BtnDeleteComboCard_Click" Tag="{Binding id}" Background="#FEE2E2" Foreground="#DC2626" BorderBrush="#FCA5A5" BorderThickness="1" Padding="10,4" Cursor="Hand" FontSize="11.5" FontWeight="SemiBold" Margin="8,0">
+                                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="4"/></Style></Button.Resources>
+                                            </Button>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Sub-Tab 3: Combo Tạo Sẵn (Kho Thẻ) -->
+        <Grid x:Name="TabContent3" Grid.Row="1" Margin="16" Visibility="Collapsed">
+            <Border Background="White" CornerRadius="12" BorderBrush="#E2E8F0" BorderThickness="1" Padding="18">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- Toolbar -->
+                        <RowDefinition Height="*"/>    <!-- DataGrid -->
+                    </Grid.RowDefinitions>
+
+                    <!-- Toolbar -->
+                    <Grid Grid.Row="0" Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Width="28" Height="28" CornerRadius="6" Background="#FEF3C7" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <TextBlock Text="⚡" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="Kho Thẻ Combo Sẵn Sàng (Pre-generated)" FontSize="16" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="Click đúp vào một hàng để xem phiếu in thẻ hoặc thông tin chi tiết" FontSize="12" Foreground="#64748B" Margin="36,2,0,0"/>
+                        </StackPanel>
+
+                        <!-- Actions -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="BtnDeletePreCombos" Style="{StaticResource SecondaryActionBtnStyle}" Foreground="#DC2626" BorderBrush="#FCA5A5" Background="#FEF2F2" Click="BtnDeleteAllPreCombos_Click" Margin="0,0,8,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="🗑️" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Xóa &amp; Tạo Lại" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+
+                            <Button x:Name="BtnGeneratePreCombos" Style="{StaticResource PrimaryActionBtnStyle}" Background="#059669" Click="BtnGeneratePreCombos_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="⚡" FontSize="11" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Tạo mới toàn bộ" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Pre-generated DataGrid -->
+                    <Border Grid.Row="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                        <DataGrid x:Name="GridPreGeneratedCombos" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" 
+                                  Background="White" BorderThickness="0" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                                  ColumnHeaderStyle="{StaticResource ComboDataGridColumnHeaderStyle}"
+                                  RowStyle="{StaticResource ComboDataGridRowStyle}"
+                                  MouseDoubleClick="GridPreGeneratedCombos_MouseDoubleClick">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="GÓI COMBO" Binding="{Binding comboName}" Width="1.5*" />
+                                <DataGridTemplateColumn Header="TÀI KHOẢN" Width="1.2*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding username}" FontWeight="Bold" FontSize="13" Foreground="#2563EB" VerticalAlignment="Center" Margin="12,0"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="MẬT KHẨU" Width="1.1*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding password}" FontFamily="Consolas" FontWeight="Bold" FontSize="13" Foreground="#DC2626" VerticalAlignment="Center" Margin="12,0"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="GIÁ BÁN" Width="1.2*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding PriceFormatted}" FontWeight="Bold" FontSize="13" Foreground="#059669" VerticalAlignment="Center" Margin="12,0"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="KHUNG GIỜ" Binding="{Binding TimeRangeText}" Width="1.3*" />
+                                <DataGridTextColumn Header="HẠN DÙNG ĐẾN" Binding="{Binding ExpiresFormatted}" Width="1.5*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
 </UserControl>

@@ -90,6 +90,11 @@ public partial class MainWindow : Window
                 QueueRealtimeMachineRefresh();
             });
 
+            socket.On("pc.hardware_updated", async _ =>
+            {
+                await RefreshAllHardwareAsync();
+            });
+
             socket.On("member.withdraw.requested", response =>
             {
                 try
@@ -182,6 +187,9 @@ public partial class MainWindow : Window
                     var createdAtStr = json.TryGetProperty("createdAt", out var c) ? c.GetString() : null;
                     var messageId = json.TryGetProperty("id", out var i) ? i.GetString() : null;
 
+                    // Phát âm thanh thông báo tin nhắn từ máy trạm cho Admin
+                    _ = PlayChatMessageNotificationAudioAsync(pcName, messageText);
+
                     QueueRealtimeUi(() => 
                     {
                         if (string.IsNullOrEmpty(pcId) || string.IsNullOrEmpty(pcName)) return;
@@ -221,7 +229,10 @@ public partial class MainWindow : Window
                             // Chưa có cửa sổ chat mở -> Hiện popup thông báo ở góc
                             _lastChatNotificationPcId = pcId;
                             _lastChatNotificationPcName = pcName;
-                            ChatNotificationTextBlock.Text = $"Tin nhắn - {pcName}";
+                            var preview = string.IsNullOrWhiteSpace(messageText)
+                                ? $"Tin nhắn - {pcName}"
+                                : $"Tin nhắn [{pcName}]: {(messageText.Length > 28 ? messageText[..25] + "..." : messageText)}";
+                            ChatNotificationTextBlock.Text = preview;
                             ChatNotificationPopupBorder.Visibility = Visibility.Visible;
                         }
                     });

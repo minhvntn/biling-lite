@@ -56,6 +56,35 @@ public partial class LoginWindow : Window
         return new Uri(baseUri, "auth/admin/login").ToString();
     }
 
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.LeftButton == MouseButtonState.Pressed)
+        {
+            DragMove();
+        }
+    }
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    {
+        UserChoseLiteMode = true;
+        try
+        {
+            this.DialogResult = false;
+        }
+        catch
+        {
+            this.Close();
+        }
+    }
+
+    private void UsernameTextBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            PasswordBox.Focus();
+        }
+    }
+
     private async void LoginButton_Click(object sender, RoutedEventArgs e)
     {
         await DoLoginAsync();
@@ -151,7 +180,10 @@ public partial class LoginWindow : Window
     private void ShowError(string message)
     {
         ErrorTextBlock.Text = message;
-        ErrorTextBlock.Visibility = Visibility.Visible;
+        if (ErrorContainer != null)
+        {
+            ErrorContainer.Visibility = Visibility.Visible;
+        }
     }
 
     private void SetLoading(bool isLoading)
@@ -160,10 +192,18 @@ public partial class LoginWindow : Window
         UsernameTextBox.IsEnabled = !isLoading;
         PasswordBox.IsEnabled = !isLoading;
         if (SkipToLiteButton != null) SkipToLiteButton.IsEnabled = !isLoading;
-        LoadingTextBlock.Visibility = isLoading ? Visibility.Visible : Visibility.Collapsed;
-        if (isLoading)
+        if (LoadingPanel != null)
         {
-            ErrorTextBlock.Visibility = Visibility.Collapsed;
+            LoadingPanel.Visibility = isLoading ? Visibility.Visible : Visibility.Collapsed;
+        }
+        else if (LoadingTextBlock != null)
+        {
+            LoadingTextBlock.Visibility = isLoading ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        if (isLoading && ErrorContainer != null)
+        {
+            ErrorContainer.Visibility = Visibility.Collapsed;
         }
     }
 }

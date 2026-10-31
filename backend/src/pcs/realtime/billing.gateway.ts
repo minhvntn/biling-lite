@@ -227,7 +227,12 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
       return;
     }
 
-    await this.pcsService.updateAutoFetchedHardware(pc.id, payload.hardware);
+    const updated = await this.pcsService.updateAutoFetchedHardware(pc.id, payload.hardware);
+    this.realtime.emitToAll('pc.hardware_updated', {
+      pcId: pc.id,
+      pcName: pc.name,
+      hardware: updated,
+    });
   }
 
   @SubscribeMessage('agent.support_request')

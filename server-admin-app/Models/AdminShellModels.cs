@@ -459,8 +459,10 @@ public sealed class MemberTransactionItem
     public string CreatedAt { get; set; } = string.Empty;
 }
 
-public sealed class MemberRow
+public sealed class MemberRow : System.ComponentModel.INotifyPropertyChanged
 {
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged(string prop) => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(prop));
     public string Id { get; set; } = string.Empty;
     public string Username { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
@@ -486,7 +488,12 @@ public sealed class MemberRow
     public string Email { get; set; } = "-";
     public string Address { get; set; } = "-";
     public string BirthdayText { get; set; } = "-";
-    public string LastLoginText { get; set; } = "-";
+    private string _lastLoginText = "Chưa đăng nhập";
+    public string LastLoginText
+    {
+        get => _lastLoginText;
+        set { _lastLoginText = value; OnPropertyChanged(nameof(LastLoginText)); }
+    }
 
     // BADGE COLORS
     private static string NormalizeRank(string? rank)
@@ -630,6 +637,51 @@ public sealed class SystemLogRow
     public string EventType { get; set; } = "-";
     public string PcText { get; set; } = "-";
     public string PayloadText { get; set; } = "-";
+
+    public string SourceBg => Source?.ToUpperInvariant() switch
+    {
+        "SERVER" => "#F5F3FF",
+        "CLIENT" => "#EFF6FF",
+        "ADMIN" => "#FFFBEB",
+        _ => "#F1F5F9"
+    };
+
+    public string SourceFg => Source?.ToUpperInvariant() switch
+    {
+        "SERVER" => "#7C3AED",
+        "CLIENT" => "#2563EB",
+        "ADMIN" => "#D97706",
+        _ => "#475569"
+    };
+
+    public string SourceBorder => Source?.ToUpperInvariant() switch
+    {
+        "SERVER" => "#DDD6FE",
+        "CLIENT" => "#BFDBFE",
+        "ADMIN" => "#FDE68A",
+        _ => "#E2E8F0"
+    };
+
+    public bool IsAlertEvent => (EventType?.Contains("Mất kết nối", StringComparison.OrdinalIgnoreCase) ?? false) ||
+                                (EventType?.Contains("Lỗi", StringComparison.OrdinalIgnoreCase) ?? false) ||
+                                (EventType?.Contains("Warning", StringComparison.OrdinalIgnoreCase) ?? false) ||
+                                (EventType?.Contains("Khóa máy", StringComparison.OrdinalIgnoreCase) ?? false);
+
+    public string EventFg => IsAlertEvent ? "#DC2626" : "#0F172A";
+
+    public string EventIcon => EventType switch
+    {
+        var e when string.IsNullOrEmpty(e) => "📝",
+        var e when e.Contains("Mất kết nối", StringComparison.OrdinalIgnoreCase) => "⚠️",
+        var e when e.Contains("nạp tiền", StringComparison.OrdinalIgnoreCase) => "💳",
+        var e when e.Contains("Chuyển tiền", StringComparison.OrdinalIgnoreCase) => "💸",
+        var e when e.Contains("đăng nhập", StringComparison.OrdinalIgnoreCase) => "🔑",
+        var e when e.Contains("đăng xuất", StringComparison.OrdinalIgnoreCase) => "🚪",
+        var e when e.Contains("Trạng thái", StringComparison.OrdinalIgnoreCase) => "🖥️",
+        var e when e.Contains("web", StringComparison.OrdinalIgnoreCase) => "🌐",
+        var e when e.Contains("số dư", StringComparison.OrdinalIgnoreCase) => "💰",
+        _ => "📝"
+    };
 }
 
 public sealed class MachineTimelineRow
@@ -637,6 +689,22 @@ public sealed class MachineTimelineRow
     public string TimeText { get; set; } = "-";
     public string EventText { get; set; } = "-";
     public string DetailsText { get; set; } = "-";
+
+    public string DatePart => TimeText.Contains(' ') ? TimeText.Split(' ')[0] : TimeText;
+    public string TimePart => TimeText.Contains(' ') ? TimeText.Split(' ')[1] : "";
+
+    public string EventIcon => EventText switch
+    {
+        var e when string.IsNullOrEmpty(e) => "📝",
+        var e when e.Contains("Mất kết nối", StringComparison.OrdinalIgnoreCase) => "⚠️",
+        var e when e.Contains("nạp tiền", StringComparison.OrdinalIgnoreCase) => "💳",
+        var e when e.Contains("Chuyển tiền", StringComparison.OrdinalIgnoreCase) => "💸",
+        var e when e.Contains("đăng nhập", StringComparison.OrdinalIgnoreCase) => "🔑",
+        var e when e.Contains("đăng xuất", StringComparison.OrdinalIgnoreCase) => "🚪",
+        var e when e.Contains("Trạng thái", StringComparison.OrdinalIgnoreCase) => "🖥️",
+        var e when e.Contains("số dư", StringComparison.OrdinalIgnoreCase) => "💰",
+        _ => "🔹"
+    };
 }
 
 public sealed class SessionsListResponse
@@ -667,6 +735,33 @@ public sealed class SessionLogRow
     public string AmountText { get; set; } = "0";
     public string Status { get; set; } = "-";
     public string ClosedReason { get; set; } = "-";
+
+    public string StatusBg => Status?.ToUpperInvariant() switch
+    {
+        "ACTIVE" => "#ECFDF5",
+        "RUNNING" => "#ECFDF5",
+        "COMPLETED" => "#EFF6FF",
+        "CLOSED" => "#F8FAFC",
+        _ => "#F1F5F9"
+    };
+
+    public string StatusFg => Status?.ToUpperInvariant() switch
+    {
+        "ACTIVE" => "#15803D",
+        "RUNNING" => "#15803D",
+        "COMPLETED" => "#2563EB",
+        "CLOSED" => "#475569",
+        _ => "#64748B"
+    };
+
+    public string StatusBorder => Status?.ToUpperInvariant() switch
+    {
+        "ACTIVE" => "#A7F3D0",
+        "RUNNING" => "#A7F3D0",
+        "COMPLETED" => "#BFDBFE",
+        "CLOSED" => "#E2E8F0",
+        _ => "#CBD5E1"
+    };
 }
 
 public sealed class MachineBillingSummaryRow
@@ -1045,12 +1140,135 @@ public sealed class LoyaltyRankRow
     public string MinTopupFormatted => $"{MinTopup:N0} VNĐ";
 }
 
-public sealed class LoyaltySpinSettingRow
+public sealed class LoyaltySpinSettingRow : System.ComponentModel.INotifyPropertyChanged
 {
-    public int Minutes { get; set; }
-    public decimal Chance { get; set; }
-    public string MinutesText => $"{Minutes}p";
-    public string Label { get; set; } = string.Empty;
+    private int _minutes;
+    private decimal _chance;
+    private string _label = string.Empty;
+
+    public int Minutes
+    {
+        get => _minutes;
+        set
+        {
+            if (_minutes != value)
+            {
+                _minutes = value;
+                OnPropertyChanged(nameof(Minutes));
+                OnPropertyChanged(nameof(MinutesText));
+                OnPropertyChanged(nameof(RarityBadge));
+                OnPropertyChanged(nameof(RarityBackground));
+                OnPropertyChanged(nameof(RarityForeground));
+                OnPropertyChanged(nameof(BarBrush));
+            }
+        }
+    }
+
+    public decimal Chance
+    {
+        get => _chance;
+        set
+        {
+            if (_chance != value)
+            {
+                _chance = value;
+                OnPropertyChanged(nameof(Chance));
+                OnPropertyChanged(nameof(ChanceFormatted));
+                OnPropertyChanged(nameof(ProgressValue));
+            }
+        }
+    }
+
+    public string MinutesText
+    {
+        get => $"{Minutes} phút";
+        set { }
+    }
+
+    public string ChanceFormatted
+    {
+        get => $"{Chance:0.####}%";
+        set { }
+    }
+
+    public double ProgressValue
+    {
+        get => (double)Math.Clamp(Chance, 0m, 100m);
+        set { }
+    }
+
+    public string Label
+    {
+        get => _label;
+        set
+        {
+            if (_label != value)
+            {
+                _label = value;
+                OnPropertyChanged(nameof(Label));
+            }
+        }
+    }
+
+    public string RarityBadge
+    {
+        get => Minutes switch
+        {
+            0 => "Không trúng",
+            <= 2 => "Phổ biến",
+            <= 6 => "Thường",
+            <= 10 => "Hiếm",
+            <= 20 => "Rất hiếm",
+            _ => "Jackpot ⭐"
+        };
+        set { }
+    }
+
+    public string RarityBackground
+    {
+        get => Minutes switch
+        {
+            0 => "#F1F5F9",
+            <= 2 => "#ECFDF5",
+            <= 6 => "#EFF6FF",
+            <= 10 => "#FEF3C7",
+            <= 20 => "#FAF5FF",
+            _ => "#FEF2F2"
+        };
+        set { }
+    }
+
+    public string RarityForeground
+    {
+        get => Minutes switch
+        {
+            0 => "#64748B",
+            <= 2 => "#059669",
+            <= 6 => "#2563EB",
+            <= 10 => "#D97706",
+            <= 20 => "#7C3AED",
+            _ => "#DC2626"
+        };
+        set { }
+    }
+
+    public string BarBrush
+    {
+        get => Minutes switch
+        {
+            0 => "#94A3B8",
+            <= 2 => "#10B981",
+            <= 6 => "#3B82F6",
+            <= 10 => "#F59E0B",
+            <= 20 => "#8B5CF6",
+            _ => "#EF4444"
+        };
+        set { }
+    }
+
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged(string propertyName) =>
+        PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));
 }
 
 public class ServerUserRow

@@ -5,7 +5,7 @@ import { GenerateComboDto } from './dto/generate-combo.dto';
 import { CommandsService } from '../commands/commands.service';
 import { PcsService } from '../pcs/pcs.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { CommandType } from '@prisma/client';
+import { CommandType, MemberTransactionType } from '@prisma/client';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 
@@ -48,23 +48,10 @@ export class CombosService {
     });
     if (!combo) throw new NotFoundException('Combo package not found');
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const generatedTodayCount = await this.prisma.member.count({
-      where: {
-        memberType: 'COMBO',
-        fullName: `Combo ${combo.name}`,
-        createdAt: { gte: today }
-      }
-    });
-
-    const quantityToGenerate = Math.max(0, data.quantity - generatedTodayCount);
+    const quantityToGenerate = Math.max(1, Math.min(100, Math.floor(data.quantity || 1)));
     const generated = [];
-    if (quantityToGenerate === 0) {
-      return generated;
-    }
 
-    let currentIdx = await this.prisma.member.count({ where: { memberType: 'COMBO' } }) + 1;
+    let currentIdx = (await this.prisma.member.count({ where: { memberType: 'COMBO' } })) + 1;
 
     for (let i = 0; i < quantityToGenerate; i++) {
       let username = `COMBO${currentIdx}`;
@@ -85,8 +72,8 @@ export class CombosService {
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + combo.validityDays);
       
-      const [endHour, endMin] = combo.endTime.split(':').map(Number);
-      expiresAt.setHours(endHour, endMin, 0, 0);
+      const [endHour, endMin] = (combo.endTime || '00:00').split(':').map(Number);
+      expiresAt.setHours(endHour || 0, endMin || 0, 0, 0);
 
       const isLimitedCombo = Boolean(combo.durationHours && combo.durationHours > 0);
       const initialPlaySeconds = isLimitedCombo ? combo.durationHours * 3600 : 0;
@@ -104,6 +91,18 @@ export class CombosService {
           balance: 0,
         },
       });
+
+      if (Number(combo.price) > 0) {
+        await this.prisma.memberTransaction.create({
+          data: {
+            memberId: member.id,
+            type: MemberTransactionType.TOPUP,
+            amountDelta: combo.price,
+            createdBy: 'ADMIN',
+            note: 'Bán thẻ Combo: ' + combo.name,
+          },
+        });
+      }
 
       generated.push({ 
         username, 

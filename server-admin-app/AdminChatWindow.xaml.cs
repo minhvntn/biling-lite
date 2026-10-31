@@ -16,6 +16,7 @@ public partial class AdminChatWindow : Window
     private readonly string _pcName;
     private readonly ObservableCollection<Models.SupportMessageDto> _messages = new();
     private readonly DispatcherTimer _pollTimer;
+    private bool _isInitialLoaded;
 
     public AdminChatWindow(MainWindow parent, string pcId, string pcName)
     {
@@ -39,6 +40,7 @@ public partial class AdminChatWindow : Window
     private async Task InitializeAsync()
     {
         await LoadMessagesAsync();
+        _isInitialLoaded = true;
         _pollTimer.Start();
     }
 
@@ -69,6 +71,8 @@ public partial class AdminChatWindow : Window
                     }
 
                     bool added = false;
+                    bool hasNewClientMsg = false;
+                    string? newClientMsgText = null;
                     foreach (var m in msgs)
                     {
                         m.SentBy = m.SentBy ?? "Admin"; // Fallback for display
@@ -88,6 +92,11 @@ public partial class AdminChatWindow : Window
                         {
                             _messages.Add(m);
                             added = true;
+                            if (string.Equals(m.Direction, "CLIENT", StringComparison.OrdinalIgnoreCase))
+                            {
+                                hasNewClientMsg = true;
+                                newClientMsgText = m.Message;
+                            }
                         }
                     }
 
@@ -95,6 +104,11 @@ public partial class AdminChatWindow : Window
                     {
                         // Auto scroll down only when new messages are added
                         MessagesScrollViewer.ScrollToEnd();
+
+                        if (_isInitialLoaded && hasNewClientMsg)
+                        {
+                            _ = _parent.PlayChatMessageNotificationAudioAsync(_pcName, newClientMsgText);
+                        }
                     }
                 });
             }

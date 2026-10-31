@@ -95,6 +95,20 @@ public sealed class AgentSocketService : IAsyncDisposable
             await _logger.InfoAsync("Connected to billing server");
             await EmitHelloAsync();
             StartHeartbeatLoop();
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(2000);
+                    var hw = HardwareInfoService.GetHardwareInfo();
+                    await EmitHardwareInfoAsync(hw);
+                }
+                catch (Exception ex)
+                {
+                    await _logger.ErrorAsync("Failed to auto-emit hardware info", ex);
+                }
+            });
         };
 
         _socket.OnDisconnected += async (_, reason) =>
@@ -671,6 +685,28 @@ public sealed class AgentSocketService : IAsyncDisposable
             macAddress = _deviceMacAddress,
             at = DateTimeOffset.UtcNow.ToString("O"),
         });
+    }
+
+    public async Task EmitHardwareInfoAsync(object hardware)
+    {
+        if (_socket is null || !_socket.Connected)
+        {
+            return;
+        }
+
+        try
+        {
+            await _socket.EmitAsync("agent.hardware_info", new
+            {
+                agentId = _settings.AgentId,
+                hardware
+            });
+            await _logger.InfoAsync("Emitted agent.hardware_info to server successfully");
+        }
+        catch (Exception ex)
+        {
+            await _logger.ErrorAsync("Failed to emit agent.hardware_info", ex);
+        }
     }
 
     private static string ResolvePrimaryMacAddress()

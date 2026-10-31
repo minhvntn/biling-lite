@@ -331,7 +331,7 @@ public partial class MainWindow : Window
             BirthdayText = $"{random.Next(1, 28):D2}-{random.Next(1, 12):D2}-{random.Next(1990, 2005)}",
             LastLoginText = !string.IsNullOrWhiteSpace(item.LastLoginAt)
                 ? FormatDateTime(item.LastLoginAt)
-                : (!string.IsNullOrWhiteSpace(item.CreatedAt) ? FormatDateTime(item.CreatedAt) : "-")
+                : "Chưa đăng nhập"
         };
     }
 
@@ -1796,11 +1796,47 @@ public partial class MainWindow : Window
     private bool _isMemberDetailSidebarOpen = false;
     private int _sidebarAnimToken = 0;
 
+    private async Task LoadMemberUsageSummaryForSidebarAsync(MemberRow row)
+    {
+        try
+        {
+            var usage = await GetMemberUsageSummaryAsync(row.Id);
+            if (usage == null || !string.Equals(_selectedMemberId, row.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(usage.LastLoginAt))
+            {
+                var dt = FormatDateTime(usage.LastLoginAt);
+                var pcParts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(usage.LastLoginPcName))
+                {
+                    pcParts.Add(usage.LastLoginPcName.Trim());
+                }
+                if (!string.IsNullOrWhiteSpace(usage.LastLoginAgentId) && !string.Equals(usage.LastLoginAgentId.Trim(), usage.LastLoginPcName?.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    pcParts.Add(usage.LastLoginAgentId.Trim());
+                }
+                row.LastLoginText = pcParts.Count > 0 ? $"{dt} ({string.Join(" - ", pcParts)})" : dt;
+            }
+            else
+            {
+                row.LastLoginText = "Chưa đăng nhập";
+            }
+        }
+        catch
+        {
+            // Ignore temporary error
+        }
+    }
+
     private void UpdateMemberSidebar(MemberRow row, bool forceAnimate = false)
     {
         if (MemberDetailSidebarBorder == null) return;
 
         MemberDetailSidebarContentGrid.DataContext = row;
+        _ = LoadMemberUsageSummaryForSidebarAsync(row);
 
         if (!_isMemberDetailSidebarOpen || MemberDetailSidebarBorder.Visibility != Visibility.Visible || forceAnimate)
         {

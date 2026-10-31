@@ -20,6 +20,7 @@ namespace Server.Admin.App.Windows
             {
                 _comboId = existingCombo.id;
                 this.Title = "Sửa Gói Combo";
+                if (TxtHeaderTitle != null) TxtHeaderTitle.Text = "Sửa Gói Combo";
                 TxtName.Text = existingCombo.name;
                 TxtPrice.Text = existingCombo.price.ToString("0");
                 CboStartTime.Text = existingCombo.startTime;

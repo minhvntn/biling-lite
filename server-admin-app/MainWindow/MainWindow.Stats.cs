@@ -305,13 +305,14 @@ public partial class MainWindow : Window
                     };
                     barStack.Children.Add(valLabel);
 
-                    var barContainer = new Grid { Height = barHeight, Width = 28, HorizontalAlignment = HorizontalAlignment.Center };
+                    var barContainer = new Grid { Height = barHeight, Width = 40, HorizontalAlignment = HorizontalAlignment.Center };
                     var barBorder = new Border
                     {
                         Height = barHeight,
-                        Width = 24,
-                        CornerRadius = new CornerRadius(6, 6, 0, 0),
-                        ToolTip = $"Tổng giờ chơi: {data.PlayHours} giờ"
+                        Width = 34,
+                        CornerRadius = new CornerRadius(8, 8, 0, 0),
+                        Cursor = System.Windows.Input.Cursors.Hand,
+                        ToolTip = $"Thứ {data.Label}: {data.PlayHours:0.#} giờ chơi"
                     };
 
                     var gradient = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
@@ -374,13 +375,14 @@ public partial class MainWindow : Window
                     };
                     barStack.Children.Add(valLabel);
 
-                    var barContainer = new Grid { Height = barHeight, Width = 28, HorizontalAlignment = HorizontalAlignment.Center };
+                    var barContainer = new Grid { Height = barHeight, Width = 40, HorizontalAlignment = HorizontalAlignment.Center };
                     var barBorder = new Border
                     {
                         Height = barHeight,
-                        Width = 24,
-                        CornerRadius = new CornerRadius(6, 6, 0, 0),
-                        ToolTip = $"Tổng giờ chơi: {data.PlayHours} giờ"
+                        Width = 34,
+                        CornerRadius = new CornerRadius(8, 8, 0, 0),
+                        Cursor = System.Windows.Input.Cursors.Hand,
+                        ToolTip = $"Khung giờ {data.Label}: {data.PlayHours:0.#} giờ chơi"
                     };
 
                     var gradient = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
@@ -1159,6 +1161,8 @@ public partial class MainWindow : Window
         }
     }
 
+    private DashboardStatsResponse? _lastDashboardStatsResponse;
+
     private void ActivityPeriodComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ActivityPeriodComboBox.SelectedItem is ComboBoxItem selectedItem)
@@ -1168,205 +1172,435 @@ public partial class MainWindow : Window
         }
     }
 
+    private void RefreshActivityStatsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var period = (ActivityPeriodComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "week";
+        _ = LoadStatisticsDataAsync(period);
+    }
+
+    private void ActivityDailyChartCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_lastDashboardStatsResponse != null && _lastDashboardStatsResponse.DailyData.Count > 0)
+        {
+            RenderActivityDailyChart(_lastDashboardStatsResponse.DailyData);
+        }
+    }
+
     private void RenderActivityStats(DashboardStatsResponse response)
     {
+        _lastDashboardStatsResponse = response;
+
+        // 1. Hero KPI Ribbon
         ActivityTotalRevenueTextBlock.Text = $"{response.TotalRevenue:N0}đ";
         ActivityRevenueGrowthTextBlock.Text = response.TotalGrowth;
-        
+        ActivityRevenueBreakdownTextBlock.Text = $"Giờ chơi: {response.PlaytimeRevenue:N0}đ • Dịch vụ: {response.ServiceRevenue:N0}đ";
+
+        ActivityTotalPlayHoursTextBlock.Text = $"{response.TotalPlayHours:N1} giờ";
+        ActivityPlayHoursGrowthTextBlock.Text = response.PlayhoursGrowth;
+
+        var machineCount = _machineRows.Count;
+        var inUseCount = _machineRows.Count(m => m.StatusCode == "IN_USE");
+        var occupancy = machineCount > 0 ? (double)inUseCount / machineCount : 0.0;
+        ActivityOccupancyRateTextBlock.Text = $"{occupancy:P0}";
+        ActivityInUseStatusBadge.Text = $"{inUseCount}/{machineCount} máy";
+
         ActivityTotalCustomersTextBlock.Text = $"{response.TotalMembers:N0}";
         ActivityCustomersGrowthTextBlock.Text = response.TotalMembersGrowth;
-        
         ActivityVipCustomersTextBlock.Text = $"{response.VipMembers:N0}";
         ActivityVipGrowthTextBlock.Text = response.VipMembersGrowth;
 
-        // Render Top Services
-        ActivityTopServicesStackPanel.Children.Clear();
-        var maxServiceRevenue = response.TopServiceItems.Count == 0
-            ? 1m
-            : Math.Max(1m, response.TopServiceItems.Max(x => x.Revenue));
+        var avgPerPc = machineCount > 0 ? response.TotalRevenue / machineCount : 0m;
+        ActivityAvgRevenuePerPcTextBlock.Text = $"{avgPerPc:N0}đ / máy";
 
-        var barColors = new[] { "#A855F7", "#C084FC", "#D8B4FE", "#E9D5FF" };
-        var top4Services = response.TopServiceItems.Take(4).ToList();
-        for (int i = 0; i < top4Services.Count; i++)
-        {
-            var item = top4Services[i];
-            var progress = (double)(item.Revenue / maxServiceRevenue) * 100.0;
-            var colorStr = barColors[i % barColors.Length];
-            var barColor = (Color)ColorConverter.ConvertFromString(colorStr);
+        // 2. Middle Row Charts
+        RenderActivityDailyChart(response.DailyData);
+        RenderActivityDonutChart();
 
-            var grid = new Grid { Margin = new Thickness(0, 0, 0, 16) };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+        // 3. Bottom Row Cards
+        RenderActivityTopServices(response.TopServiceItems);
+        RenderActivityTopMembers(response.TopMembers);
+        RenderActivityHourlyChart(response.HourlyDistribution);
+    }
 
-            var nameText = new TextBlock
-            {
-                Text = item.Category ?? item.Name,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = new SolidColorBrush(Color.FromRgb(71, 85, 105)) // #475569
-            };
-            Grid.SetColumn(nameText, 0);
-
-            var progressBar = new ProgressBar
-            {
-                Value = progress,
-                Height = 10,
-                Foreground = new SolidColorBrush(barColor),
-                Background = new SolidColorBrush(Color.FromRgb(241, 245, 249)), // #F1F5F9
-                BorderThickness = new Thickness(0),
-                Margin = new Thickness(12, 0, 12, 0)
-            };
-            Grid.SetColumn(progressBar, 1);
-
-            var valText = new TextBlock
-            {
-                Text = FormatCompactMoney(item.Revenue),
-                HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Center,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = new SolidColorBrush(Color.FromRgb(30, 41, 59)) // #1E293B
-            };
-            Grid.SetColumn(valText, 2);
-
-            grid.Children.Add(nameText);
-            grid.Children.Add(progressBar);
-            grid.Children.Add(valText);
-            
-            ActivityTopServicesStackPanel.Children.Add(grid);
-        }
-
-        // Render Activity Daily Chart (Line Chart)
+    private void RenderActivityDailyChart(List<DailyStatsData> dailyData)
+    {
         ActivityDailyChartCanvas.Children.Clear();
         ActivityDailyChartXAxisGrid.Children.Clear();
         ActivityDailyChartXAxisGrid.ColumnDefinitions.Clear();
 
-        if (response.DailyData.Count > 0)
+        if (dailyData == null || dailyData.Count == 0)
         {
-            var maxVal = response.DailyData.Max(d => d.PlaytimeRevenue + d.ServiceRevenue);
-            if (maxVal == 0) maxVal = 1;
-            
-            double width = 340;
-            double height = 150;
-            double stepX = response.DailyData.Count > 1 ? width / (response.DailyData.Count - 1) : width;
-            
-            var points = new PointCollection();
-            points.Add(new Point(0, height)); // Bottom left for polygon
-            
-            var linePoints = new PointCollection();
-
-            for (int i = 0; i < response.DailyData.Count; i++)
-            {
-                var data = response.DailyData[i];
-                var total = data.PlaytimeRevenue + data.ServiceRevenue;
-                
-                double x = i * stepX;
-                double y = height - ((double)(total / maxVal) * (height - 20)) - 10; // 10 padding top/bottom
-                
-                points.Add(new Point(x, y));
-                linePoints.Add(new Point(x, y));
-                
-                // Add X Axis Label
-                ActivityDailyChartXAxisGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                var xLabel = new TextBlock
-                {
-                    Text = data.Label,
-                    TextAlignment = TextAlignment.Center,
-                    Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), // #94A3B8
-                    FontSize = 12
-                };
-                Grid.SetColumn(xLabel, i);
-                ActivityDailyChartXAxisGrid.Children.Add(xLabel);
-            }
-            
-            points.Add(new Point(width, height)); // Bottom right for polygon
-            
-            var polygon = new Polygon
-            {
-                Points = points,
-                Fill = new SolidColorBrush(Color.FromRgb(239, 246, 255)) // #EFF6FF
-            };
-            
-            var polyline = new Polyline
-            {
-                Points = linePoints,
-                Stroke = new SolidColorBrush(Color.FromRgb(59, 130, 246)), // #3B82F6
-                StrokeThickness = 3,
-                StrokeLineJoin = PenLineJoin.Round
-            };
-            
-            ActivityDailyChartCanvas.Children.Add(polygon);
-            ActivityDailyChartCanvas.Children.Add(polyline);
-            
-            // Re-add ellipses on top
-            for (int i = 0; i < response.DailyData.Count; i++)
-            {
-                var data = response.DailyData[i];
-                var total = data.PlaytimeRevenue + data.ServiceRevenue;
-                double x = i * stepX;
-                double y = height - ((double)(total / maxVal) * (height - 20)) - 10;
-                
-                var ellipse = new Ellipse
-                {
-                    Width = 10,
-                    Height = 10,
-                    Fill = new SolidColorBrush(Color.FromRgb(59, 130, 246)),
-                    Stroke = Brushes.White,
-                    StrokeThickness = 2,
-                    ToolTip = $"{data.Label}: {total:N0}đ"
-                };
-                Canvas.SetLeft(ellipse, x - 5);
-                Canvas.SetTop(ellipse, y - 5);
-                ActivityDailyChartCanvas.Children.Add(ellipse);
-            }
+            ActivityChartPeakSummaryTextBlock.Text = "Chưa có dữ liệu doanh thu trong kỳ";
+            ActivityChartAvgSummaryTextBlock.Text = "Trung bình: 0đ / ngày";
+            return;
         }
-        
-        RenderActivityDonutChart();
+
+        var maxVal = dailyData.Max(d => d.PlaytimeRevenue + d.ServiceRevenue);
+        if (maxVal == 0) maxVal = 1;
+
+        var peakDay = dailyData.OrderByDescending(d => d.PlaytimeRevenue + d.ServiceRevenue).FirstOrDefault();
+        var peakVal = peakDay != null ? peakDay.PlaytimeRevenue + peakDay.ServiceRevenue : 0;
+        var avgVal = dailyData.Average(d => d.PlaytimeRevenue + d.ServiceRevenue);
+
+        ActivityChartPeakSummaryTextBlock.Text = peakDay != null ? $"Cao nhất trong kỳ: {peakDay.Label} ({peakVal:N0}đ)" : "Cao nhất: 0đ";
+        ActivityChartAvgSummaryTextBlock.Text = $"Trung bình: {avgVal:N0}đ / mốc";
+
+        double width = ActivityDailyChartCanvas.ActualWidth > 150 ? ActivityDailyChartCanvas.ActualWidth : 580;
+        double height = 160;
+        double stepX = dailyData.Count > 1 ? width / (dailyData.Count - 1) : width;
+
+        var points = new PointCollection();
+        points.Add(new Point(0, height)); // Bottom left for polygon
+        var linePoints = new PointCollection();
+
+        for (int i = 0; i < dailyData.Count; i++)
+        {
+            var data = dailyData[i];
+            var total = data.PlaytimeRevenue + data.ServiceRevenue;
+            double x = i * stepX;
+            double y = height - ((double)(total / maxVal) * (height - 24)) - 12;
+
+            points.Add(new Point(x, y));
+            linePoints.Add(new Point(x, y));
+
+            // X Axis Label
+            ActivityDailyChartXAxisGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var xLabel = new TextBlock
+            {
+                Text = data.Label,
+                TextAlignment = TextAlignment.Center,
+                Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), // #94A3B8
+                FontSize = 11,
+                FontWeight = FontWeights.Medium
+            };
+            Grid.SetColumn(xLabel, i);
+            ActivityDailyChartXAxisGrid.Children.Add(xLabel);
+        }
+
+        points.Add(new Point(width, height)); // Bottom right for polygon
+
+        var polygon = new Polygon
+        {
+            Points = points,
+            Fill = new SolidColorBrush(Color.FromArgb(50, 59, 130, 246)) // Soft semi-transparent blue area
+        };
+
+        var polyline = new Polyline
+        {
+            Points = linePoints,
+            Stroke = new SolidColorBrush(Color.FromRgb(37, 99, 235)), // #2563EB
+            StrokeThickness = 3,
+            StrokeLineJoin = PenLineJoin.Round
+        };
+
+        ActivityDailyChartCanvas.Children.Add(polygon);
+        ActivityDailyChartCanvas.Children.Add(polyline);
+
+        // Data point circles with glowing dot
+        for (int i = 0; i < dailyData.Count; i++)
+        {
+            var data = dailyData[i];
+            var total = data.PlaytimeRevenue + data.ServiceRevenue;
+            double x = i * stepX;
+            double y = height - ((double)(total / maxVal) * (height - 24)) - 12;
+
+            var outerEllipse = new Ellipse
+            {
+                Width = 12,
+                Height = 12,
+                Fill = new SolidColorBrush(Color.FromRgb(219, 234, 254)), // #DBEAFE
+                Stroke = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
+                StrokeThickness = 2,
+                ToolTip = $"{data.Label}: {total:N0}đ (Giờ: {data.PlaytimeRevenue:N0}đ | DV: {data.ServiceRevenue:N0}đ)"
+            };
+            Canvas.SetLeft(outerEllipse, x - 6);
+            Canvas.SetTop(outerEllipse, y - 6);
+            ActivityDailyChartCanvas.Children.Add(outerEllipse);
+
+            var innerDot = new Ellipse
+            {
+                Width = 4,
+                Height = 4,
+                Fill = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
+                IsHitTestVisible = false
+            };
+            Canvas.SetLeft(innerDot, x - 2);
+            Canvas.SetTop(innerDot, y - 2);
+            ActivityDailyChartCanvas.Children.Add(innerDot);
+        }
     }
-    
+
     private void RenderActivityDonutChart()
     {
         var onlineCount = _machineRows.Count(m => m.StatusCode == "IN_USE");
         var emptyCount = _machineRows.Count(m => m.StatusCode == "ONLINE");
         var maintenanceCount = _machineRows.Count(m => m.StatusCode == "LOCKED" || m.StatusCode == "OFFLINE");
         var total = onlineCount + emptyCount + maintenanceCount;
-        if (total == 0) total = 1; // Prevent div by 0 for display
+        if (total == 0) total = 1;
         var actualTotal = _machineRows.Count;
-        
+
         ActivityTotalMachinesTextBlock.Text = $"Tổng: {actualTotal} máy";
-        
+
         if (actualTotal == 0)
         {
             ActivityInUseMachinesTextBlock.Text = "0 (0%)";
             ActivityEmptyMachinesTextBlock.Text = "0 (0%)";
             ActivityMaintenanceMachinesTextBlock.Text = "0 (0%)";
+            ActivityDonutCenterPercentageTextBlock.Text = "0%";
+            ActivityInUseProgressBar.Value = 0;
+            ActivityEmptyProgressBar.Value = 0;
+            ActivityMaintenanceProgressBar.Value = 0;
+            ActivityFleetInsightTextBlock.Text = "Chưa có máy trạm nào được kết nối.";
             return;
         }
-        
+
         double onlinePct = (double)onlineCount / total;
         double emptyPct = (double)emptyCount / total;
         double maintPct = (double)maintenanceCount / total;
-        
+
         ActivityInUseMachinesTextBlock.Text = $"{onlineCount} ({onlinePct:P0})";
         ActivityEmptyMachinesTextBlock.Text = $"{emptyCount} ({emptyPct:P0})";
         ActivityMaintenanceMachinesTextBlock.Text = $"{maintenanceCount} ({maintPct:P0})";
-        
+
+        ActivityDonutCenterPercentageTextBlock.Text = $"{onlinePct:P0}";
+        ActivityInUseProgressBar.Value = onlinePct * 100.0;
+        ActivityEmptyProgressBar.Value = emptyPct * 100.0;
+        ActivityMaintenanceProgressBar.Value = maintPct * 100.0;
+
+        ActivityFleetInsightTextBlock.Text = onlineCount > 0 
+            ? $"💡 Đang vận hành {onlineCount}/{actualTotal} máy ({onlinePct:P0}). Còn trống {emptyCount} máy sẵn sàng đón khách."
+            : "💡 Dàn máy đang sẵn sàng phục vụ toàn bộ khách hàng.";
+
         // Draw Donut
         double radius = 68;
         double cx = 80;
         double cy = 80;
-        
-        // Start angle -90deg (top)
         double currentAngle = -90;
-        
+
         ActivityDonutInUsePath.Data = CreateArcGeometry(cx, cy, radius, currentAngle, onlinePct * 360);
         currentAngle += onlinePct * 360;
-        
+
         ActivityDonutEmptyPath.Data = CreateArcGeometry(cx, cy, radius, currentAngle, emptyPct * 360);
         currentAngle += emptyPct * 360;
-        
+
         ActivityDonutMaintenancePath.Data = CreateArcGeometry(cx, cy, radius, currentAngle, maintPct * 360);
     }
-    
+
+    private void RenderActivityTopServices(List<TopServiceItemData> serviceItems)
+    {
+        if (ActivityTopServicesStackPanel == null || ActivityTopServicesEmptyState == null) return;
+        ActivityTopServicesStackPanel.Children.Clear();
+
+        if (serviceItems == null || serviceItems.Count == 0)
+        {
+            ActivityTopServicesEmptyState.Visibility = Visibility.Visible;
+            ActivityTopServicesStackPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        ActivityTopServicesEmptyState.Visibility = Visibility.Collapsed;
+        ActivityTopServicesStackPanel.Visibility = Visibility.Visible;
+
+        var maxRevenue = Math.Max(1m, serviceItems.Max(x => x.Revenue));
+        var medals = new[] { "🥇", "🥈", "🥉", "4️⃣" };
+        var top4 = serviceItems.Take(4).ToList();
+
+        for (int i = 0; i < top4.Count; i++)
+        {
+            var item = top4[i];
+            var progress = (double)(item.Revenue / maxRevenue) * 100.0;
+            var medal = i < medals.Length ? medals[i] : $"#{i + 1}";
+
+            var border = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(10, 8, 10, 8),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var medalText = new TextBlock { Text = medal, FontSize = 13, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(medalText, 0);
+
+            var infoStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 8, 0) };
+            var nameText = new TextBlock { Text = item.Name, FontWeight = FontWeights.Bold, FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42)), TextTrimming = TextTrimming.CharacterEllipsis };
+            var progressBar = new ProgressBar
+            {
+                Value = progress,
+                Height = 4,
+                Foreground = new SolidColorBrush(Color.FromRgb(168, 85, 247)), // #A855F7 Purple
+                Background = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            infoStack.Children.Add(nameText);
+            infoStack.Children.Add(progressBar);
+            Grid.SetColumn(infoStack, 1);
+
+            var valText = new TextBlock
+            {
+                Text = $"{item.Revenue:N0}đ",
+                FontWeight = FontWeights.Bold,
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(126, 34, 206)),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(valText, 2);
+
+            grid.Children.Add(medalText);
+            grid.Children.Add(infoStack);
+            grid.Children.Add(valText);
+            border.Child = grid;
+
+            ActivityTopServicesStackPanel.Children.Add(border);
+        }
+    }
+
+    private void RenderActivityTopMembers(List<TopMemberData> topMembers)
+    {
+        if (ActivityTopMembersStackPanel == null || ActivityTopMembersEmptyState == null) return;
+        ActivityTopMembersStackPanel.Children.Clear();
+
+        if (topMembers == null || topMembers.Count == 0)
+        {
+            ActivityTopMembersEmptyState.Visibility = Visibility.Visible;
+            ActivityTopMembersStackPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        ActivityTopMembersEmptyState.Visibility = Visibility.Collapsed;
+        ActivityTopMembersStackPanel.Visibility = Visibility.Visible;
+
+        var medals = new[] { "🥇", "🥈", "🥉", "4️⃣" };
+        var top3 = topMembers.Take(3).ToList();
+        var maxHours = Math.Max(1, top3.Max(m => m.PlayHours));
+
+        for (int i = 0; i < top3.Count; i++)
+        {
+            var m = top3[i];
+            var medal = i < medals.Length ? medals[i] : $"#{i + 1}";
+            var progress = (double)m.PlayHours / maxHours * 100.0;
+
+            var border = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(248, 250, 252)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(10, 8, 10, 8),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var medalText = new TextBlock { Text = medal, FontSize = 13, VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(medalText, 0);
+
+            var infoStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 8, 0) };
+            var userText = new TextBlock { Text = m.Username, FontWeight = FontWeights.Bold, FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(15, 23, 42)), TextTrimming = TextTrimming.CharacterEllipsis };
+            var progressBar = new ProgressBar
+            {
+                Value = progress,
+                Height = 4,
+                Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)), // #2563EB Blue
+                Background = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            infoStack.Children.Add(userText);
+            infoStack.Children.Add(progressBar);
+            Grid.SetColumn(infoStack, 1);
+
+            var hoursText = new TextBlock
+            {
+                Text = $"{m.PlayHours} giờ",
+                FontWeight = FontWeights.Bold,
+                FontSize = 12,
+                Foreground = new SolidColorBrush(Color.FromRgb(37, 99, 235)),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(hoursText, 2);
+
+            grid.Children.Add(medalText);
+            grid.Children.Add(infoStack);
+            grid.Children.Add(hoursText);
+            border.Child = grid;
+
+            ActivityTopMembersStackPanel.Children.Add(border);
+        }
+    }
+
+    private void RenderActivityHourlyChart(List<DistributionData> hourlyData)
+    {
+        if (ActivityHourlyChartGrid == null) return;
+        ActivityHourlyChartGrid.Children.Clear();
+        ActivityHourlyChartGrid.ColumnDefinitions.Clear();
+
+        if (hourlyData == null || hourlyData.Count == 0)
+        {
+            ActivityPeakHourTextBlock.Text = "⭐ Chưa có dữ liệu giờ cao điểm";
+            ActivityOffPeakHourTextBlock.Text = "🌙 Thấp điểm: Chưa có";
+            return;
+        }
+
+        var maxVal = hourlyData.Max(h => h.PlayHours);
+        if (maxVal == 0) maxVal = 1;
+
+        var peakHour = hourlyData.OrderByDescending(x => x.PlayHours).FirstOrDefault();
+        var offPeakHour = hourlyData.OrderBy(x => x.PlayHours).FirstOrDefault();
+
+        if (peakHour != null && peakHour.PlayHours > 0)
+        {
+            ActivityPeakHourTextBlock.Text = $"⭐ Cao điểm: {peakHour.Label} ({peakHour.PlayHours:N1}h)";
+            ActivityRecommendationTextBlock.Text = $"💡 Gợi ý: Khung giờ vàng {peakHour.Label} có lượng khách cao nhất. Khuyên dùng tăng cường phục vụ nước & đồ ăn nhanh.";
+        }
+        else
+        {
+            ActivityPeakHourTextBlock.Text = "⭐ Đang tổng hợp giờ cao điểm...";
+            ActivityRecommendationTextBlock.Text = "💡 Gợi ý: Có thể kích cầu thêm vào các khung giờ sáng & đêm bằng các gói combo ưu đãi.";
+        }
+
+        if (offPeakHour != null)
+        {
+            ActivityOffPeakHourTextBlock.Text = $"🌙 Thấp điểm: {offPeakHour.Label}";
+        }
+
+        for (int i = 0; i < hourlyData.Count; i++)
+        {
+            var item = hourlyData[i];
+            ActivityHourlyChartGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var isPeak = peakHour != null && item.Label == peakHour.Label && item.PlayHours > 0;
+            var barHeight = Math.Max(4, (double)(item.PlayHours / maxVal) * 55);
+
+            var bar = new Border
+            {
+                Height = barHeight,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                CornerRadius = new CornerRadius(3, 3, 0, 0),
+                Background = isPeak
+                    ? new SolidColorBrush(Color.FromRgb(37, 99, 235)) // #2563EB Primary
+                    : (item.PlayHours > 0 
+                        ? new SolidColorBrush(Color.FromRgb(96, 165, 250)) // #60A5FA
+                        : new SolidColorBrush(Color.FromRgb(226, 232, 240))), // #E2E8F0
+                Margin = new Thickness(1, 0, 1, 0),
+                ToolTip = $"{item.Label}: {item.PlayHours:N1} giờ chơi"
+            };
+            Grid.SetColumn(bar, i);
+            ActivityHourlyChartGrid.Children.Add(bar);
+        }
+    }
+
     private Geometry CreateArcGeometry(double cx, double cy, double radius, double startAngle, double sweepAngle)
     {
         if (sweepAngle <= 0) return new PathGeometry();

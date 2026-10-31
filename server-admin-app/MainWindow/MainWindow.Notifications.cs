@@ -629,5 +629,121 @@ public partial class MainWindow : Window
         return row.IsVipSession &&
                row.StatusCode.Equals("IN_USE", StringComparison.OrdinalIgnoreCase);
     }
+
+    public async Task PlayChatMessageNotificationAudioAsync(string? pcName = null, string? messageText = null)
+    {
+        await _guestLoginSpeechLock.WaitAsync();
+        try
+        {
+            var fileNames = new[]
+            {
+                "tin-nhan.wav",
+                "tin-nhan.mp3",
+                "chat-message.wav",
+                "chat-message.mp3",
+                "message.wav",
+                "message.mp3",
+                "notification.wav",
+                "notification.mp3",
+            };
+
+            var roots = new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, "audio"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ServerManagerBilling", "audio"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "Music"),
+            };
+
+            foreach (var root in roots)
+            {
+                if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+                {
+                    continue;
+                }
+
+                foreach (var fileName in fileNames)
+                {
+                    var path = Path.Combine(root, fileName);
+                    if (!File.Exists(path))
+                    {
+                        continue;
+                    }
+
+                    if (path.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try
+                        {
+                            await Task.Run(() =>
+                            {
+                                using var sp = new System.Media.SoundPlayer(path);
+                                sp.PlaySync();
+                            });
+                            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Phát chuông tin nhắn từ {pcName ?? "máy trạm"}: {path}");
+                            return;
+                        }
+                        catch
+                        {
+                            // fallback to TryPlayAudioFile
+                        }
+                    }
+
+                    if (TryPlayAudioFile(path))
+                    {
+                        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Phát chuông tin nhắn từ {pcName ?? "máy trạm"}: {path}");
+                        return;
+                    }
+                }
+            }
+
+            // Fallback 1: Windows system messaging sounds
+            var winMediaRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Media");
+            var defaultWinSounds = new[] { "Windows Notify Messaging.wav", "Windows Notify.wav", "notify.wav" };
+            foreach (var soundFile in defaultWinSounds)
+            {
+                var fullPath = Path.Combine(winMediaRoot, soundFile);
+                if (File.Exists(fullPath))
+                {
+                    try
+                    {
+                        await Task.Run(() =>
+                        {
+                            using var sp = new System.Media.SoundPlayer(fullPath);
+                            sp.PlaySync();
+                        });
+                        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Phát chuông tin nhắn Windows từ {pcName ?? "máy trạm"}: {fullPath}");
+                        return;
+                    }
+                    catch
+                    {
+                        if (TryPlayAudioFile(fullPath))
+                        {
+                            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Phát chuông tin nhắn Windows từ {pcName ?? "máy trạm"}: {fullPath}");
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // Fallback 2: SystemSound Asterisk
+            System.Media.SystemSounds.Asterisk.Play();
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Phát chuông hệ thống cho tin nhắn từ {pcName ?? "máy trạm"}.");
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                System.Media.SystemSounds.Asterisk.Play();
+            }
+            catch
+            {
+                // Resilient fallback
+            }
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Lỗi phát âm thanh tin nhắn: {ex.Message}");
+        }
+        finally
+        {
+            _guestLoginSpeechLock.Release();
+        }
+    }
 }
 

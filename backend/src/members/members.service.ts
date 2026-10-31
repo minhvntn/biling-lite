@@ -306,13 +306,14 @@ export class MembersService {
     const presenceEvents = await this.prisma.eventLog.findMany({
       where: { eventType: 'member.pc.presence' },
       orderBy: { createdAt: 'desc' },
-      take: 2000,
+      take: 5000,
     });
     const lastLoginByMember = new Map<string, string>();
     for (const ev of presenceEvents) {
       const payload = ev.payload as any;
       const mId = payload?.memberId;
-      if (mId && !lastLoginByMember.has(mId)) {
+      const isActive = payload?.isActive;
+      if (mId && isActive === true && !lastLoginByMember.has(mId)) {
         lastLoginByMember.set(mId, ev.createdAt.toISOString());
       }
     }
@@ -330,10 +331,7 @@ export class MembersService {
           }
         }
 
-        const lastLoginAt =
-          lastLoginByMember.get(member.id) ||
-          member.createdAt?.toISOString() ||
-          null;
+        const lastLoginAt = lastLoginByMember.get(member.id) || null;
 
         return {
           ...this.toMemberItem(member, rank, availablePoints),

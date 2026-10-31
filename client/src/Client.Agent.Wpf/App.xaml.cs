@@ -547,6 +547,25 @@ public partial class App : Application
                     Dispatcher.Invoke(() => LockMachine(force: true));
                     return (true, "locked");
 
+                case "SCAN_HARDWARE":
+                case "REFRESH_HARDWARE":
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var hw = Client.Agent.Wpf.Services.HardwareInfoService.GetHardwareInfo();
+                            if (_socketService != null)
+                            {
+                                await _socketService.EmitHardwareInfoAsync(hw);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.ErrorAsync("Failed to execute SCAN_HARDWARE command", ex);
+                        }
+                    });
+                    return (true, "hardware scan initiated");
+
                 case "RESTART":
                     var shouldPreserveGuestSession =
                         _isPostpaidGuestSession &&

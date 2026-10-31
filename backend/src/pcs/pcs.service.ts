@@ -1160,6 +1160,10 @@ export class PcsService {
       updateData.monitor = dto.monitor;
     }
 
+    if (dto.storage) {
+      updateData.storage = dto.storage;
+    }
+
     return this.prisma.pcHardware.upsert({
       where: { pcId },
       create: {

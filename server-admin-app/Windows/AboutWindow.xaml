@@ -1,0 +1,165 @@
+<Window x:Class="Server.Admin.App.Windows.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Giới thiệu CyberS Admin"
+        Width="440" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize"
+        FontFamily="Segoe UI">
+
+    <!-- Card Container with Shadow -->
+    <Border Margin="14" Background="White" CornerRadius="16" BorderBrush="#E2E8F0" BorderThickness="1">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="26" ShadowDepth="5" Opacity="0.14" Color="#0F172A" />
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="36"/> <!-- Title Bar -->
+                <RowDefinition Height="Auto"/> <!-- Brand Header -->
+                <RowDefinition Height="Auto"/> <!-- Specs & Details -->
+                <RowDefinition Height="Auto"/> <!-- Footer Actions -->
+            </Grid.RowDefinitions>
+
+            <!-- Title Bar -->
+            <Border Grid.Row="0" Background="Transparent" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" CornerRadius="16,16,0,0">
+                <Grid Margin="16,8,10,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="7" Height="7" CornerRadius="3.5" Background="#10B981" Margin="0,0,7,0"/>
+                        <TextBlock Text="Thông tin ứng dụng" FontSize="11.5" FontWeight="SemiBold" Foreground="#94A3B8"/>
+                    </StackPanel>
+
+                    <!-- Close Button -->
+                    <Button Click="CloseButton_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="24" Height="24" Background="Transparent" BorderThickness="0" Cursor="Hand" ToolTip="Đóng">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="closeBrd" Background="{TemplateBinding Background}" CornerRadius="12">
+                                    <Path Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" 
+                                          Fill="#64748B" Width="9" Height="9" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="closeBrd" Property="Background" Value="#FEE2E2"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Brand Header -->
+            <StackPanel Grid.Row="1" Margin="24,6,24,14" HorizontalAlignment="Center">
+                <Border Width="52" Height="52" CornerRadius="14" HorizontalAlignment="Center" Margin="0,0,0,10">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Color="#2563EB" Offset="0"/>
+                            <GradientStop Color="#4F46E5" Offset="1"/>
+                        </LinearGradientBrush>
+                    </Border.Background>
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="12" ShadowDepth="3" Opacity="0.25" Color="#2563EB"/>
+                    </Border.Effect>
+                    <Path Data="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z" 
+                          Fill="White" Width="24" Height="24" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+
+                <TextBlock Text="CYBERS ADMIN" FontSize="18" FontWeight="Bold" Foreground="#0F172A" HorizontalAlignment="Center"/>
+
+                <!-- Version Pill -->
+                <Border Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="12" Padding="10,3" Margin="0,6,0,6" HorizontalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⚡" FontSize="10" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBlock x:Name="VersionTextBlock" Text="Phiên bản 2.6.0 (Build 2026.10)" FontWeight="Bold" FontSize="11.5" Foreground="#4338CA" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="Hệ thống quản lý phòng máy &amp; hội viên chuyên nghiệp" FontSize="12.5" Foreground="#64748B" HorizontalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Specifications & Details Box -->
+            <Border Grid.Row="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Margin="24,0,24,14" Padding="14,12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Row 1: Nền tảng -->
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Nền tảng:" FontWeight="SemiBold" FontSize="12" Foreground="#64748B" Margin="0,0,12,6"/>
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text=".NET 10.0 (WPF x64 - Native Desktop)" FontWeight="Medium" FontSize="12" Foreground="#1E293B" Margin="0,0,0,6"/>
+
+                    <!-- Row 2: Máy chủ Backend -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Máy chủ Backend:" FontWeight="SemiBold" FontSize="12" Foreground="#64748B" Margin="0,0,12,6"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="NestJS Engine + Prisma ORM (v1.0)" FontWeight="Medium" FontSize="12" Foreground="#1E293B" Margin="0,0,0,6"/>
+
+                    <!-- Row 3: Cơ sở dữ liệu -->
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Cơ sở dữ liệu:" FontWeight="SemiBold" FontSize="12" Foreground="#64748B" Margin="0,0,12,6"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text="PostgreSQL 16 Relational Database" FontWeight="Medium" FontSize="12" Foreground="#1E293B" Margin="0,0,0,6"/>
+
+                    <!-- Row 4: Bản quyền -->
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Bản quyền:" FontWeight="SemiBold" FontSize="12" Foreground="#64748B" Margin="0,0,12,6"/>
+                    <TextBlock Grid.Row="3" Grid.Column="1" Text="© 2026 CyberS Team. All rights reserved." FontWeight="Medium" FontSize="12" Foreground="#1E293B" Margin="0,0,0,6"/>
+
+                    <!-- Row 5: Giấy phép -->
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Trạng thái giấy phép:" FontWeight="SemiBold" FontSize="12" Foreground="#64748B" VerticalAlignment="Center"/>
+                    <Border Grid.Row="4" Grid.Column="1" HorizontalAlignment="Left" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="6" Padding="6,2">
+                        <TextBlock Text="✓ Bản quyền vĩnh viễn (Chính thức)" FontSize="11" FontWeight="SemiBold" Foreground="#047857"/>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Footer Actions -->
+            <Border Grid.Row="3" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="20,12" CornerRadius="0,0,16,16">
+                <Grid>
+                    <Button Click="CopyInfoButton_Click" HorizontalAlignment="Left" Background="Transparent" BorderBrush="#CBD5E1" BorderThickness="1" Height="34" Padding="12,0" Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="brd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="brd" Property="Background" Value="#E2E8F0"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📋" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock x:Name="CopyButtonTextBlock" Text="Sao chép thông tin" FontSize="12" FontWeight="Medium" Foreground="#334155" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Click="CloseButton_Click" HorizontalAlignment="Right" Background="#2563EB" Foreground="White" BorderThickness="0" Height="34" Padding="22,0" Cursor="Hand" IsDefault="True">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="brd" Background="{TemplateBinding Background}" CornerRadius="6">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="brd" Property="Background" Value="#1D4ED8"/>
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="brd" Property="Background" Value="#1E40AF"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <TextBlock Text="Đóng" FontSize="12.5" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                    </Button>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>
+

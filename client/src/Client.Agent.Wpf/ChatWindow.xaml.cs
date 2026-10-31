@@ -74,6 +74,15 @@ public partial class ChatWindow : Window
                 CreatedAt = dt == default ? DateTime.UtcNow : dt
             });
             ScrollToBottom();
+
+            try
+            {
+                System.Media.SystemSounds.Asterisk.Play();
+            }
+            catch
+            {
+                // Resilient fallback
+            }
         });
     }
 

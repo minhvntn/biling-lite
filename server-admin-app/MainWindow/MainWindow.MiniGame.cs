@@ -24,9 +24,13 @@ public partial class MainWindow
         new() { Minutes = 30, Chance = 0.5m, Label = "30p" },
     ];
 
+    private bool _isSyncingAutoInputs;
+    private bool _isUpdatingHorseRaceInputs;
+
     private void InitializeMiniGameTab()
     {
         MiniGameSpinSettingsDataGrid.ItemsSource = _loyaltySpinSettingRows;
+        UpdateSpinTotalDisplay();
         // Trigger fetch of horse race settings and lucky envelope settings without blocking initialization
         _ = RefreshHorseRaceSettingsAsync();
         _ = RefreshLuckyEnvelopeSettingsAsync();
@@ -69,15 +73,17 @@ public partial class MainWindow
             var total = _loyaltySpinSettingRows.Sum(x => x.Chance);
             var totalText = total.ToString("0.####", CultureInfo.InvariantCulture);
             var updatedAtText = FormatDateTime(response?.UpdatedAt);
-            MiniGameSpinStatusTextBlock.Text = $"Da tai cau hinh vong quay. Tong hien tai: {totalText}% (cap nhat: {updatedAtText}).";
+            MiniGameSpinStatusTextBlock.Text = $"Đã tải cấu hình vòng quay. Tổng hiện tại: {totalText}% (cập nhật: {updatedAtText}).";
             MiniGameSpinStatusTextBlock.Foreground = IsChanceTotalValid(total)
                 ? Brushes.DarkGreen
                 : Brushes.DarkGoldenrod;
+            UpdateSpinTotalDisplay();
         }
         catch
         {
-            MiniGameSpinStatusTextBlock.Text = "Khong ket noi duoc backend de tai cau hinh mini game.";
+            MiniGameSpinStatusTextBlock.Text = "Không kết nối được backend để tải cấu hình mini game.";
             MiniGameSpinStatusTextBlock.Foreground = Brushes.Firebrick;
+            UpdateSpinTotalDisplay();
         }
         finally
         {
@@ -96,6 +102,7 @@ public partial class MainWindow
         {
             MiniGameSpinStatusTextBlock.Text = validationMessage;
             MiniGameSpinStatusTextBlock.Foreground = Brushes.Firebrick;
+            UpdateSpinTotalDisplay();
             return;
         }
 
@@ -122,8 +129,8 @@ public partial class MainWindow
             {
                 var error = await response.Content.ReadAsStringAsync();
                 MiniGameSpinStatusTextBlock.Text = string.IsNullOrWhiteSpace(error)
-                    ? $"Luu ti le that bai ({(int)response.StatusCode})."
-                    : $"Luu that bai: {error}";
+                    ? $"Lưu tỉ lệ thất bại ({(int)response.StatusCode})."
+                    : $"Lưu thất bại: {error}";
                 MiniGameSpinStatusTextBlock.Foreground = Brushes.Firebrick;
                 return;
             }
@@ -131,13 +138,14 @@ public partial class MainWindow
             var payload = await response.Content.ReadFromJsonAsync<LoyaltySpinSettingsResponse>(JsonOptions());
             var totalChance = payload?.TotalChance ?? total;
             MiniGameSpinStatusTextBlock.Text =
-                $"Da luu ti le vong quay thanh cong. Tong: {totalChance.ToString("0.####", CultureInfo.InvariantCulture)}%.";
+                $"Đã lưu tỉ lệ vòng quay thành công. Tổng: {totalChance.ToString("0.####", CultureInfo.InvariantCulture)}%.";
             MiniGameSpinStatusTextBlock.Foreground = Brushes.DarkGreen;
-            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Da luu cau hinh mini game vong quay.");
+            UpdateSpinTotalDisplay();
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã lưu cấu hình mini game vòng quay.");
         }
         catch
         {
-            MiniGameSpinStatusTextBlock.Text = "Khong ket noi duoc backend khi luu cau hinh mini game.";
+            MiniGameSpinStatusTextBlock.Text = "Không kết nối được backend khi lưu cấu hình mini game.";
             MiniGameSpinStatusTextBlock.Foreground = Brushes.Firebrick;
         }
     }
@@ -155,7 +163,8 @@ public partial class MainWindow
             });
         }
 
-        MiniGameSpinStatusTextBlock.Text = "Da dua ve ti le mac dinh. Bam \"Luu ti le\" de ap dung len backend.";
+        UpdateSpinTotalDisplay();
+        MiniGameSpinStatusTextBlock.Text = "Đã đưa về tỉ lệ mặc định. Bấm \"Lưu tỉ lệ\" để áp dụng lên máy chủ.";
         MiniGameSpinStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
     }
 
@@ -168,11 +177,12 @@ public partial class MainWindow
 
         Dispatcher.InvokeAsync(() =>
         {
+            UpdateSpinTotalDisplay();
             if (TryValidateMiniGameSpinRows(out var validationMessage))
             {
                 var total = _loyaltySpinSettingRows.Sum(x => x.Chance);
                 MiniGameSpinStatusTextBlock.Text =
-                    $"Da chinh ti le. Tong hien tai: {total.ToString("0.####", CultureInfo.InvariantCulture)}%. Bam \"Luu ti le\" de ap dung.";
+                    $"Đã chỉnh tỉ lệ. Tổng hiện tại: {total.ToString("0.####", CultureInfo.InvariantCulture)}%. Bấm \"Lưu tỉ lệ\" để áp dụng.";
                 MiniGameSpinStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
             }
             else
@@ -181,6 +191,289 @@ public partial class MainWindow
                 MiniGameSpinStatusTextBlock.Foreground = Brushes.Firebrick;
             }
         }, System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    private void UpdateSpinTotalDisplay()
+    {
+        var total = _loyaltySpinSettingRows.Sum(x => x.Chance);
+        var isValid = IsChanceTotalValid(total);
+
+        if (SpinTotalPercentTextBlock != null)
+        {
+            SpinTotalPercentTextBlock.Text = $"{total:0.####}%";
+            SpinTotalPercentTextBlock.Foreground = isValid
+                ? new SolidColorBrush(Color.FromRgb(22, 163, 74))
+                : new SolidColorBrush(Color.FromRgb(220, 38, 38));
+        }
+
+        if (MiniGameSpinTotalProgressBar != null)
+        {
+            MiniGameSpinTotalProgressBar.Value = (double)Math.Clamp(total, 0m, 100m);
+            MiniGameSpinTotalProgressBar.Foreground = isValid
+                ? new SolidColorBrush(Color.FromRgb(22, 163, 74))
+                : new SolidColorBrush(Color.FromRgb(220, 38, 38));
+        }
+
+        if (SpinTotalBadgeBorder != null && SpinTotalBadgeTextBlock != null)
+        {
+            if (isValid)
+            {
+                SpinTotalBadgeBorder.Background = new SolidColorBrush(Color.FromRgb(240, 253, 244));
+                SpinTotalBadgeBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(187, 247, 208));
+                SpinTotalBadgeTextBlock.Text = "✓ Tổng: 100.0% (Hợp lệ)";
+                SpinTotalBadgeTextBlock.Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74));
+            }
+            else
+            {
+                var diff = 100m - total;
+                var diffText = diff > 0 ? $"Thiếu {diff:0.####}%" : $"Thừa {Math.Abs(diff):0.####}%";
+                SpinTotalBadgeBorder.Background = new SolidColorBrush(Color.FromRgb(254, 242, 242));
+                SpinTotalBadgeBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(254, 202, 202));
+                SpinTotalBadgeTextBlock.Text = $"⚠️ {diffText} (Chưa đủ 100%)";
+                SpinTotalBadgeTextBlock.Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38));
+            }
+        }
+    }
+
+    private void AutoMinChanceSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isSyncingAutoInputs || AutoMinChanceTextBox == null) return;
+        _isSyncingAutoInputs = true;
+        try
+        {
+            AutoMinChanceTextBox.Text = e.NewValue.ToString("0.#", CultureInfo.InvariantCulture);
+        }
+        finally
+        {
+            _isSyncingAutoInputs = false;
+        }
+    }
+
+    private void AutoMinChanceTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_isSyncingAutoInputs || AutoMinChanceSlider == null) return;
+        if (decimal.TryParse(AutoMinChanceTextBox.Text.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var val))
+        {
+            _isSyncingAutoInputs = true;
+            try
+            {
+                AutoMinChanceSlider.Value = (double)Math.Clamp(val, 1m, 90m);
+            }
+            finally
+            {
+                _isSyncingAutoInputs = false;
+            }
+        }
+    }
+
+    private void AutoJackpotChanceSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isSyncingAutoInputs || AutoJackpotChanceTextBox == null) return;
+        _isSyncingAutoInputs = true;
+        try
+        {
+            AutoJackpotChanceTextBox.Text = e.NewValue.ToString("0.##", CultureInfo.InvariantCulture);
+        }
+        finally
+        {
+            _isSyncingAutoInputs = false;
+        }
+    }
+
+    private void AutoJackpotChanceTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_isSyncingAutoInputs || AutoJackpotChanceSlider == null) return;
+        if (decimal.TryParse(AutoJackpotChanceTextBox.Text.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var val))
+        {
+            _isSyncingAutoInputs = true;
+            try
+            {
+                AutoJackpotChanceSlider.Value = (double)Math.Clamp(val, 0.01m, 20m);
+            }
+            finally
+            {
+                _isSyncingAutoInputs = false;
+            }
+        }
+    }
+
+    private void ApplyAutoCalcButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!decimal.TryParse(AutoMinChanceTextBox?.Text.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var baseChance0p))
+        {
+            baseChance0p = 28m;
+        }
+
+        if (!decimal.TryParse(AutoJackpotChanceTextBox?.Text.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var jackpotChance))
+        {
+            jackpotChance = 0.5m;
+        }
+
+        bool isExponential = AutoCurveTypeComboBox?.SelectedIndex != 1;
+        ApplyAutoSpinCalculation(baseChance0p, jackpotChance, isExponential);
+    }
+
+    private void ApplyPresetEasyButton_Click(object sender, RoutedEventArgs e)
+    {
+        _isSyncingAutoInputs = true;
+        try
+        {
+            if (AutoMinChanceTextBox != null) AutoMinChanceTextBox.Text = "18";
+            if (AutoMinChanceSlider != null) AutoMinChanceSlider.Value = 18;
+            if (AutoJackpotChanceTextBox != null) AutoJackpotChanceTextBox.Text = "1.0";
+            if (AutoJackpotChanceSlider != null) AutoJackpotChanceSlider.Value = 1.0;
+        }
+        finally
+        {
+            _isSyncingAutoInputs = false;
+        }
+        ApplyAutoSpinCalculation(18m, 1.0m, true);
+    }
+
+    private void ApplyPresetNormalButton_Click(object sender, RoutedEventArgs e)
+    {
+        _isSyncingAutoInputs = true;
+        try
+        {
+            if (AutoMinChanceTextBox != null) AutoMinChanceTextBox.Text = "28";
+            if (AutoMinChanceSlider != null) AutoMinChanceSlider.Value = 28;
+            if (AutoJackpotChanceTextBox != null) AutoJackpotChanceTextBox.Text = "0.5";
+            if (AutoJackpotChanceSlider != null) AutoJackpotChanceSlider.Value = 0.5;
+        }
+        finally
+        {
+            _isSyncingAutoInputs = false;
+        }
+        ApplyAutoSpinCalculation(28m, 0.5m, true);
+    }
+
+    private void ApplyPresetHardButton_Click(object sender, RoutedEventArgs e)
+    {
+        _isSyncingAutoInputs = true;
+        try
+        {
+            if (AutoMinChanceTextBox != null) AutoMinChanceTextBox.Text = "38";
+            if (AutoMinChanceSlider != null) AutoMinChanceSlider.Value = 38;
+            if (AutoJackpotChanceTextBox != null) AutoJackpotChanceTextBox.Text = "0.2";
+            if (AutoJackpotChanceSlider != null) AutoJackpotChanceSlider.Value = 0.2;
+        }
+        finally
+        {
+            _isSyncingAutoInputs = false;
+        }
+        ApplyAutoSpinCalculation(38m, 0.2m, true);
+    }
+
+    private void ApplyAutoSpinCalculation(decimal baseChance0p, decimal jackpotChance, bool isExponential)
+    {
+        if (_loyaltySpinSettingRows.Count == 0) return;
+
+        var sortedRows = _loyaltySpinSettingRows.OrderBy(x => x.Minutes).ToList();
+        int n = sortedRows.Count;
+        if (n <= 1)
+        {
+            sortedRows[0].Chance = 100m;
+            UpdateSpinTotalDisplay();
+            return;
+        }
+
+        baseChance0p = Math.Clamp(baseChance0p, 1m, 90m);
+        jackpotChance = Math.Clamp(jackpotChance, 0.01m, 20m);
+
+        if (baseChance0p + jackpotChance >= 99.5m)
+        {
+            baseChance0p = 50m;
+            jackpotChance = 0.5m;
+        }
+
+        decimal targetMid = 100m - baseChance0p - jackpotChance;
+        int midCount = n - 2;
+
+        double[] weights = new double[midCount];
+        double c0 = (double)baseChance0p;
+        double cn = (double)jackpotChance;
+
+        for (int i = 0; i < midCount; i++)
+        {
+            double t = (double)(i + 1) / (n - 1);
+            if (isExponential)
+            {
+                weights[i] = Math.Pow(cn / c0, t);
+            }
+            else
+            {
+                weights[i] = Math.Max(0.01, c0 - (t * (c0 - cn)));
+            }
+        }
+
+        double sumWeights = weights.Sum();
+        if (sumWeights <= 0.00001) sumWeights = 1.0;
+
+        sortedRows[0].Chance = Math.Round(baseChance0p, 1);
+        decimal currentSum = sortedRows[0].Chance;
+
+        for (int i = 0; i < midCount; i++)
+        {
+            var val = Math.Round((decimal)(weights[i] / sumWeights * (double)targetMid), 1);
+            if (val < 0.1m) val = 0.1m;
+            sortedRows[i + 1].Chance = val;
+            currentSum += val;
+        }
+
+        sortedRows[n - 1].Chance = Math.Round(jackpotChance, 1);
+        currentSum += sortedRows[n - 1].Chance;
+
+        decimal diff = 100.0m - currentSum;
+        if (diff != 0m && midCount > 0)
+        {
+            sortedRows[1].Chance = Math.Round(sortedRows[1].Chance + diff, 1);
+        }
+        else if (diff != 0m)
+        {
+            sortedRows[0].Chance = Math.Round(sortedRows[0].Chance + diff, 1);
+        }
+
+        UpdateSpinTotalDisplay();
+        MiniGameSpinStatusTextBlock.Text = $"Đã tự động tính tỉ lệ (Mốc 0p: {baseChance0p}%, Mốc {sortedRows[n - 1].Minutes}p: {jackpotChance}%). Tổng: {_loyaltySpinSettingRows.Sum(x => x.Chance):0.####}%. Bấm \"Lưu tỉ lệ\" để áp dụng.";
+        MiniGameSpinStatusTextBlock.Foreground = Brushes.DarkGreen;
+    }
+
+    private void BalanceSpinChancesButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_loyaltySpinSettingRows.Count == 0) return;
+
+        var total = _loyaltySpinSettingRows.Sum(x => x.Chance);
+        if (IsChanceTotalValid(total))
+        {
+            MiniGameSpinStatusTextBlock.Text = "Tổng tỉ lệ đã chuẩn 100.0%, không cần bù trừ.";
+            MiniGameSpinStatusTextBlock.Foreground = Brushes.DarkGreen;
+            return;
+        }
+
+        var zeroRow = _loyaltySpinSettingRows.FirstOrDefault(x => x.Minutes == 0) ?? _loyaltySpinSettingRows.First();
+        var diff = 100.0m - total;
+        var newChance = zeroRow.Chance + diff;
+
+        if (newChance >= 0m)
+        {
+            zeroRow.Chance = Math.Round(newChance, 4);
+        }
+        else
+        {
+            var factor = 100.0m / total;
+            decimal sum = 0m;
+            foreach (var row in _loyaltySpinSettingRows)
+            {
+                row.Chance = Math.Round(row.Chance * factor, 1);
+                sum += row.Chance;
+            }
+            var rem = 100.0m - sum;
+            zeroRow.Chance = Math.Round(zeroRow.Chance + rem, 1);
+        }
+
+        UpdateSpinTotalDisplay();
+        MiniGameSpinStatusTextBlock.Text = $"Đã tự động bù trừ về 100.0% (Điều chỉnh mốc {zeroRow.Minutes}p). Bấm \"Lưu tỉ lệ\" để áp dụng.";
+        MiniGameSpinStatusTextBlock.Foreground = Brushes.DarkGreen;
     }
 
     private bool TryValidateMiniGameSpinRows(out string message)
@@ -252,9 +545,7 @@ public partial class MainWindow
 
             if (response != null)
             {
-                HorseRaceTop1TextBox.Text = response.Top1Multiplier.ToString(CultureInfo.InvariantCulture);
-                HorseRaceTop2TextBox.Text = response.Top2Multiplier.ToString(CultureInfo.InvariantCulture);
-                HorseRaceTop3TextBox.Text = response.Top3Multiplier.ToString(CultureInfo.InvariantCulture);
+                SetHorseRaceValues(response.Top1Multiplier, response.Top2Multiplier, response.Top3Multiplier);
                 
                 HorseRaceStatusTextBlock.Text = "Đã tải cấu hình đua ngựa.";
                 HorseRaceStatusTextBlock.Foreground = Brushes.DarkGreen;
@@ -310,19 +601,182 @@ public partial class MainWindow
 
     private void ResetHorseRaceDefaultButton_Click(object sender, RoutedEventArgs e)
     {
-        HorseRaceTop1TextBox.Text = "3.0";
-        HorseRaceTop2TextBox.Text = "2.25";
-        HorseRaceTop3TextBox.Text = "1.5";
-        HorseRaceStatusTextBlock.Text = "Đã đưa về mặc định. Bấm \"Lưu cấu hình\" để áp dụng.";
+        SetHorseRaceValues(3.0, 2.25, 1.5);
+        HorseRaceStatusTextBlock.Text = "Đã đưa về mặc định (x3.0 / x2.25 / x1.5). Bấm \"Lưu cấu hình\" để áp dụng.";
         HorseRaceStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+    }
+
+    private void HorseRaceTop1Slider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isUpdatingHorseRaceInputs || HorseRaceTop1TextBox == null) return;
+        _isUpdatingHorseRaceInputs = true;
+        try
+        {
+            HorseRaceTop1TextBox.Text = Math.Round(e.NewValue, 2).ToString("0.##", CultureInfo.InvariantCulture);
+            UpdateHorseRaceSimulator();
+            if (HorseRaceStatusTextBlock != null)
+            {
+                HorseRaceStatusTextBlock.Text = "Đã thay đổi. Bấm \"Lưu cấu hình\" để áp dụng.";
+                HorseRaceStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+            }
+        }
+        finally
+        {
+            _isUpdatingHorseRaceInputs = false;
+        }
+    }
+
+    private void HorseRaceTop2Slider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isUpdatingHorseRaceInputs || HorseRaceTop2TextBox == null) return;
+        _isUpdatingHorseRaceInputs = true;
+        try
+        {
+            HorseRaceTop2TextBox.Text = Math.Round(e.NewValue, 2).ToString("0.##", CultureInfo.InvariantCulture);
+            UpdateHorseRaceSimulator();
+            if (HorseRaceStatusTextBlock != null)
+            {
+                HorseRaceStatusTextBlock.Text = "Đã thay đổi. Bấm \"Lưu cấu hình\" để áp dụng.";
+                HorseRaceStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+            }
+        }
+        finally
+        {
+            _isUpdatingHorseRaceInputs = false;
+        }
+    }
+
+    private void HorseRaceTop3Slider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isUpdatingHorseRaceInputs || HorseRaceTop3TextBox == null) return;
+        _isUpdatingHorseRaceInputs = true;
+        try
+        {
+            HorseRaceTop3TextBox.Text = Math.Round(e.NewValue, 2).ToString("0.##", CultureInfo.InvariantCulture);
+            UpdateHorseRaceSimulator();
+            if (HorseRaceStatusTextBlock != null)
+            {
+                HorseRaceStatusTextBlock.Text = "Đã thay đổi. Bấm \"Lưu cấu hình\" để áp dụng.";
+                HorseRaceStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+            }
+        }
+        finally
+        {
+            _isUpdatingHorseRaceInputs = false;
+        }
+    }
+
+    private void HorseRaceSimBetTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        UpdateHorseRaceSimulator();
+    }
+
+    private void UpdateHorseRaceSimulator()
+    {
+        if (HorseRaceSimTop1PayoutTextBlock == null || HorseRaceSimTop2PayoutTextBlock == null || HorseRaceSimTop3PayoutTextBlock == null)
+            return;
+
+        decimal bet = 10000m;
+        if (HorseRaceSimBetTextBox != null && decimal.TryParse(HorseRaceSimBetTextBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedBet))
+        {
+            bet = Math.Max(0, parsedBet);
+        }
+
+        double.TryParse(HorseRaceTop1TextBox?.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var t1);
+        double.TryParse(HorseRaceTop2TextBox?.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var t2);
+        double.TryParse(HorseRaceTop3TextBox?.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var t3);
+
+        decimal p1 = bet * (decimal)Math.Max(0, t1);
+        decimal p2 = bet * (decimal)Math.Max(0, t2);
+        decimal p3 = bet * (decimal)Math.Max(0, t3);
+
+        HorseRaceSimTop1PayoutTextBlock.Text = $"{p1:N0} VNĐ";
+        HorseRaceSimTop2PayoutTextBlock.Text = $"{p2:N0} VNĐ";
+        HorseRaceSimTop3PayoutTextBlock.Text = $"{p3:N0} VNĐ";
+    }
+
+    private void ApplyHorseRacePresetHigh_Click(object sender, RoutedEventArgs e)
+    {
+        SetHorseRaceValues(4.0, 2.5, 1.8);
+        if (HorseRaceStatusTextBlock != null)
+        {
+            HorseRaceStatusTextBlock.Text = "Đã chọn cấu hình \"Thưởng lớn\" (x4.0 / x2.5 / x1.8). Bấm \"Lưu cấu hình\" để áp dụng.";
+            HorseRaceStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+        }
+    }
+
+    private void ApplyHorseRacePresetStandard_Click(object sender, RoutedEventArgs e)
+    {
+        SetHorseRaceValues(3.0, 2.25, 1.5);
+        if (HorseRaceStatusTextBlock != null)
+        {
+            HorseRaceStatusTextBlock.Text = "Đã chọn cấu hình \"Tiêu chuẩn\" (x3.0 / x2.25 / x1.5). Bấm \"Lưu cấu hình\" để áp dụng.";
+            HorseRaceStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+        }
+    }
+
+    private void ApplyHorseRacePresetSafe_Click(object sender, RoutedEventArgs e)
+    {
+        SetHorseRaceValues(2.0, 1.5, 1.2);
+        if (HorseRaceStatusTextBlock != null)
+        {
+            HorseRaceStatusTextBlock.Text = "Đã chọn cấu hình \"An toàn\" (x2.0 / x1.5 / x1.2). Bấm \"Lưu cấu hình\" để áp dụng.";
+            HorseRaceStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+        }
+    }
+
+    private void SetHorseRaceValues(double top1, double top2, double top3)
+    {
+        _isUpdatingHorseRaceInputs = true;
+        try
+        {
+            if (HorseRaceTop1TextBox != null) HorseRaceTop1TextBox.Text = top1.ToString("0.##", CultureInfo.InvariantCulture);
+            if (HorseRaceTop2TextBox != null) HorseRaceTop2TextBox.Text = top2.ToString("0.##", CultureInfo.InvariantCulture);
+            if (HorseRaceTop3TextBox != null) HorseRaceTop3TextBox.Text = top3.ToString("0.##", CultureInfo.InvariantCulture);
+
+            if (HorseRaceTop1Slider != null) HorseRaceTop1Slider.Value = Math.Clamp(top1, HorseRaceTop1Slider.Minimum, HorseRaceTop1Slider.Maximum);
+            if (HorseRaceTop2Slider != null) HorseRaceTop2Slider.Value = Math.Clamp(top2, HorseRaceTop2Slider.Minimum, HorseRaceTop2Slider.Maximum);
+            if (HorseRaceTop3Slider != null) HorseRaceTop3Slider.Value = Math.Clamp(top3, HorseRaceTop3Slider.Minimum, HorseRaceTop3Slider.Maximum);
+
+            UpdateHorseRaceSimulator();
+        }
+        finally
+        {
+            _isUpdatingHorseRaceInputs = false;
+        }
     }
 
     private void HorseRaceTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
-        if (HorseRaceStatusTextBlock != null)
+        if (_isUpdatingHorseRaceInputs) return;
+
+        _isUpdatingHorseRaceInputs = true;
+        try
         {
-            HorseRaceStatusTextBlock.Text = "Đã thay đổi. Bấm \"Lưu cấu hình\" để áp dụng.";
-            HorseRaceStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+            if (sender == HorseRaceTop1TextBox && double.TryParse(HorseRaceTop1TextBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var t1))
+            {
+                if (HorseRaceTop1Slider != null) HorseRaceTop1Slider.Value = Math.Clamp(t1, HorseRaceTop1Slider.Minimum, HorseRaceTop1Slider.Maximum);
+            }
+            else if (sender == HorseRaceTop2TextBox && double.TryParse(HorseRaceTop2TextBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var t2))
+            {
+                if (HorseRaceTop2Slider != null) HorseRaceTop2Slider.Value = Math.Clamp(t2, HorseRaceTop2Slider.Minimum, HorseRaceTop2Slider.Maximum);
+            }
+            else if (sender == HorseRaceTop3TextBox && double.TryParse(HorseRaceTop3TextBox.Text, NumberStyles.Any, CultureInfo.InvariantCulture, out var t3))
+            {
+                if (HorseRaceTop3Slider != null) HorseRaceTop3Slider.Value = Math.Clamp(t3, HorseRaceTop3Slider.Minimum, HorseRaceTop3Slider.Maximum);
+            }
+
+            UpdateHorseRaceSimulator();
+
+            if (HorseRaceStatusTextBlock != null)
+            {
+                HorseRaceStatusTextBlock.Text = "Đã thay đổi. Bấm \"Lưu cấu hình\" để áp dụng.";
+                HorseRaceStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+            }
+        }
+        finally
+        {
+            _isUpdatingHorseRaceInputs = false;
         }
     }
 
