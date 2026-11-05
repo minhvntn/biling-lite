@@ -18,6 +18,8 @@ public sealed class AdminShellSettings
 
     public double MachineTableIconSize { get; set; } = 32;
 
+    public double MachineTableItemSpacing { get; set; } = 10;
+
     public double MachineContextMenuItemPadding { get; set; } = 12;
 
     public double MachineContextMenuFontSize { get; set; } = 14;

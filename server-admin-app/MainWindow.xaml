@@ -27,6 +27,7 @@
         <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#F8FAFC" />
         <Thickness x:Key="MachineContextMenuItemPadding">12,7</Thickness>
         <sys:Double x:Key="MachineTableIconSize">32</sys:Double>
+        <Thickness x:Key="MachineCardMargin">6</Thickness>
         <sys:Double x:Key="MachineContextMenuFontSize">14</sys:Double>
 
         <!-- ================= MODERN CONTEXT MENU & MENU ITEM STYLES ================= -->
@@ -1403,7 +1404,7 @@
                                     <DataTemplate>
                                         <Border x:Name="IconCard"
                                                 Width="120" Height="120"
-                                                Margin="6"
+                                                Margin="{DynamicResource MachineCardMargin}"
                                                 CornerRadius="8"
                                                 BorderThickness="1"
                                                 BorderBrush="#CBD5E1"
@@ -7758,6 +7759,7 @@
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
 
                                             <TextBlock Grid.Row="0" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B" Text="Giao diện và menu thao tác" />
@@ -7827,6 +7829,26 @@
                                                     <ColumnDefinition Width="340" />
                                                     <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Khoảng cách các item Máy trạm:" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Slider x:Name="MachineTableItemSpacingSlider"
+                                                            Width="260"
+                                                            Minimum="2"
+                                                            Maximum="30"
+                                                            TickFrequency="1"
+                                                            IsSnapToTickEnabled="True"
+                                                            ValueChanged="MachineTableItemSpacingSlider_ValueChanged" />
+                                                    <Border Margin="10,0,0,0" Padding="8,3" Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="6">
+                                                        <TextBlock x:Name="MachineTableItemSpacingValueTextBlock" VerticalAlignment="Center" Foreground="#3730A3" FontWeight="SemiBold" Text="10" />
+                                                    </Border>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <Grid Grid.Row="5" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="340" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
                                                 <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Padding menu chuột phải bảng Máy trạm:" />
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                                     <Slider x:Name="MachineContextMenuPaddingSlider"
@@ -7842,7 +7864,7 @@
                                                 </StackPanel>
                                             </Grid>
 
-                                            <Grid Grid.Row="5" Margin="0,10,0,0">
+                                            <Grid Grid.Row="6" Margin="0,10,0,0">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="340" />
                                                     <ColumnDefinition Width="*" />
@@ -7862,7 +7884,7 @@
                                                 </StackPanel>
                                             </Grid>
 
-                                             <Grid Grid.Row="6" Margin="0,12,0,0">
+                                             <Grid Grid.Row="7" Margin="0,12,0,0">
                                                  <Grid.ColumnDefinitions>
                                                      <ColumnDefinition Width="340" />
                                                      <ColumnDefinition Width="*" />
@@ -7871,7 +7893,7 @@
                                                  <Button Grid.Column="1" Content="Cấu hình màu sắc..." Width="220" Height="32" HorizontalAlignment="Left" Click="ConfigureColorsButton_Click" />
                                              </Grid>
 
-                                             <Grid Grid.Row="7" Margin="0,14,0,0">
+                                             <Grid Grid.Row="8" Margin="0,14,0,0">
                                                  <Grid.ColumnDefinitions>
                                                      <ColumnDefinition Width="340" />
                                                      <ColumnDefinition Width="*" />

@@ -75,6 +75,7 @@ public partial class MainWindow : Window
     private bool _fontSizeInitialized;
     private bool _machineTableFontSizeInitialized;
     private bool _machineTableIconSizeInitialized;
+    private bool _machineTableItemSpacingInitialized;
     private bool _machineContextMenuPaddingInitialized;
     private bool _machineContextMenuFontSizeInitialized;
     private bool _loyaltySettingsInitialized;
@@ -169,6 +170,7 @@ public partial class MainWindow : Window
             ApplyUiFontSize(_settings.UiFontSize);
             ApplyMachineTableFontSize(_settings.MachineTableFontSize);
             ApplyMachineTableIconSize(_settings.MachineTableIconSize);
+            ApplyMachineTableItemSpacing(_settings.MachineTableItemSpacing);
             ApplyMachineContextMenuPadding(_settings.MachineContextMenuItemPadding);
             ApplyMachineContextMenuFontSize(_settings.MachineContextMenuFontSize);
 
@@ -200,6 +202,14 @@ public partial class MainWindow : Window
             {
                 MachineTableIconSizeValueTextBlock.Text = _settings.MachineTableIconSize.ToString("0");
             }
+            if (MachineTableItemSpacingSlider is not null)
+            {
+                MachineTableItemSpacingSlider.Value = _settings.MachineTableItemSpacing;
+            }
+            if (MachineTableItemSpacingValueTextBlock is not null)
+            {
+                MachineTableItemSpacingValueTextBlock.Text = _settings.MachineTableItemSpacing.ToString("0");
+            }
             MachineContextMenuPaddingSlider.Value = _settings.MachineContextMenuItemPadding;
             MachineContextMenuPaddingValueTextBlock.Text = _settings.MachineContextMenuItemPadding.ToString("0");
             MachineContextMenuFontSizeSlider.Value = _settings.MachineContextMenuFontSize;
@@ -225,6 +235,7 @@ public partial class MainWindow : Window
             _fontSizeInitialized = true;
             _machineTableFontSizeInitialized = true;
             _machineTableIconSizeInitialized = true;
+            _machineTableItemSpacingInitialized = true;
             _machineContextMenuPaddingInitialized = true;
             _machineContextMenuFontSizeInitialized = true;
             _transactionReportInitialized = true;

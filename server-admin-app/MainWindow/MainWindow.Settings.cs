@@ -189,6 +189,11 @@ public partial class MainWindow : Window
         return Math.Clamp(value, 16, 48);
     }
 
+    private static double ClampMachineTableItemSpacing(double value)
+    {
+        return Math.Clamp(value, 2, 30);
+    }
+
     private void ApplyUiFontSize(double value)
     {
         var clamped = ClampFontSize(value);
@@ -229,14 +234,28 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ApplyMachineTableItemSpacing(double value)
+    {
+        var clamped = ClampMachineTableItemSpacing(value);
+        _settings.MachineTableItemSpacing = clamped;
+        Resources["MachineCardMargin"] = new Thickness(Math.Max(2, Math.Round(clamped / 2.0)));
+        UpdateMachineTableRowHeight();
+        if (MachineTableItemSpacingValueTextBlock is not null)
+        {
+            MachineTableItemSpacingValueTextBlock.Text = clamped.ToString("0");
+        }
+    }
+
     private void UpdateMachineTableRowHeight()
     {
         var iconSize = _settings.MachineTableIconSize > 0 ? _settings.MachineTableIconSize : 32;
         var fontSize = _settings.MachineTableFontSize > 0 ? _settings.MachineTableFontSize : 14;
+        var itemSpacing = _settings.MachineTableItemSpacing >= 0 ? _settings.MachineTableItemSpacing : 10;
 
-        // Row height matches icon size plus vertical spacing, or font size scaled
-        var calculated = Math.Max(iconSize + 8, fontSize * 2.0);
-        MachinesDataGrid.RowHeight = Math.Round(Math.Max(26, calculated));
+        // Base content height matches icon size or font height, plus the customized item spacing
+        var baseContentHeight = Math.Max(iconSize, fontSize * 1.5);
+        var calculated = baseContentHeight + itemSpacing;
+        MachinesDataGrid.RowHeight = Math.Round(Math.Max(22, calculated));
     }
 
     private void ApplyColorSettings()
@@ -2491,6 +2510,16 @@ public partial class MainWindow : Window
         ApplyMachineTableIconSize(e.NewValue);
     }
 
+    private void MachineTableItemSpacingSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!_machineTableItemSpacingInitialized)
+        {
+            return;
+        }
+
+        ApplyMachineTableItemSpacing(e.NewValue);
+    }
+
     private void MachineContextMenuPaddingSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (!_machineContextMenuPaddingInitialized)
@@ -2525,7 +2554,7 @@ public partial class MainWindow : Window
         await SaveLoyaltySettingsAsync();
         await SaveGuestLoginSettingsAsync();
         await SaveBackupSettingsAsync(appendSuccessLog: false);
-        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 l\u01b0u: c\u1ee1 ch\u1eef app = {_settings.UiFontSize:0}, b\u1ea3ng m\u00e1y = {_settings.MachineTableFontSize:0}, c\u1ee1 icon = {_settings.MachineTableIconSize:0}, padding menu = {_settings.MachineContextMenuItemPadding:0}, ch\u1eef menu = {_settings.MachineContextMenuFontSize:0}, t\u1ef1 t\u1eaft = {_readyAutoShutdownMinutes} ph\u00fat");
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 l\u01b0u: c\u1ee1 ch\u1eef app = {_settings.UiFontSize:0}, b\u1ea3ng m\u00e1y = {_settings.MachineTableFontSize:0}, c\u1ee1 icon = {_settings.MachineTableIconSize:0}, kho\u1ea3ng c\u00e1ch item = {_settings.MachineTableItemSpacing:0}, padding menu = {_settings.MachineContextMenuItemPadding:0}, ch\u1eef menu = {_settings.MachineContextMenuFontSize:0}, t\u1ef1 t\u1eaft = {_readyAutoShutdownMinutes} ph\u00fat");
     }
 
     private void ResetFontSizeButton_Click(object sender, RoutedEventArgs e)
@@ -2547,6 +2576,14 @@ public partial class MainWindow : Window
         }
         _machineTableIconSizeInitialized = true;
         ApplyMachineTableIconSize(32);
+
+        _machineTableItemSpacingInitialized = false;
+        if (MachineTableItemSpacingSlider is not null)
+        {
+            MachineTableItemSpacingSlider.Value = 10;
+        }
+        _machineTableItemSpacingInitialized = true;
+        ApplyMachineTableItemSpacing(10);
 
         _machineContextMenuPaddingInitialized = false;
         MachineContextMenuPaddingSlider.Value = 12;
