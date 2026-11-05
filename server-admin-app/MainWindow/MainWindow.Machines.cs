@@ -1143,6 +1143,11 @@ public partial class MainWindow : Window
         var selectedMachines = GetSelectedMachinesForBilling();
         var eligibleMachines = selectedMachines.Where(IsGuestBillingEligibleMachine).ToList();
         var canViewGuestBilling = eligibleMachines.Count > 0;
+        var isSelectedEligibleForTransfer = Windows.TransferBillingWindow.IsEligibleForTransferBilling(selectedMachine);
+        var hasActiveTargetMachines = _allMachineRows.Any(x =>
+            !string.Equals(x.Id, selectedMachine.Id, StringComparison.OrdinalIgnoreCase) &&
+            Windows.TransferBillingWindow.IsEligibleForTransferBilling(x));
+        var canTransferBilling = isSelectedEligibleForTransfer && hasActiveTargetMachines;
 
         if (ContextViewMachineBillingMenuItem is not null)
         {
@@ -1187,6 +1192,7 @@ public partial class MainWindow : Window
                 transfer: false,
                 assignGroup: true,
                 viewBilling: canViewGuestBilling,
+                transferBilling: false,
                 selectService: false,
                 payService: false,
                 notify: false);
@@ -1212,6 +1218,7 @@ public partial class MainWindow : Window
             transfer: isInUse && hasTransferTargets,
             assignGroup: true,
             viewBilling: canViewGuestBilling,
+            transferBilling: canTransferBilling,
             selectService: true,
             payService: isInUse && selectedMachine.ServiceAmountRaw > 0,
             notify: true);
@@ -1242,6 +1249,7 @@ public partial class MainWindow : Window
         bool transfer,
         bool assignGroup,
         bool viewBilling,
+        bool transferBilling,
         bool selectService,
         bool payService,
         bool notify)
@@ -1349,6 +1357,11 @@ public partial class MainWindow : Window
         if (ContextViewMachineBillingMenuItem is not null)
         {
             ContextViewMachineBillingMenuItem.IsEnabled = viewBilling;
+        }
+
+        if (ContextTransferBillingToOtherPcMenuItem is not null)
+        {
+            ContextTransferBillingToOtherPcMenuItem.IsEnabled = transferBilling;
         }
 
         if (ContextSelectServiceMenuItem is not null)
@@ -2691,6 +2704,49 @@ public partial class MainWindow : Window
         await ShowMultipleMachinesBillingDetailsAsync(eligibleMachines);
     }
 
+    private void ContextTransferBillingToOtherPcMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = MachinesDataGrid.SelectedItem as MachineRow;
+        if (selected is null && !string.IsNullOrWhiteSpace(_selectedMachineId))
+        {
+            selected = _machineRows.FirstOrDefault(x => x.Id == _selectedMachineId);
+        }
+
+        if (selected is null)
+        {
+            MessageBox.Show(I18n.PleaseSelectPc, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (!Windows.TransferBillingWindow.IsEligibleForTransferBilling(selected))
+        {
+            MessageBox.Show(
+                "Tính năng chuyển / gộp thanh toán chỉ áp dụng đối với khách vãng lai và hội viên VIP.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var dialog = new Windows.TransferBillingWindow(
+            selected,
+            _allMachineRows,
+            _httpClient,
+            BuildApiUrl,
+            async (action, machine, forceLock) => await SendCommandAsync(action, machine, forceLock),
+            AppendServiceLog,
+            async () =>
+            {
+                await RefreshMachinesAsync();
+                await RefreshTransactionLogsAsync();
+            })
+        {
+            Owner = this
+        };
+
+        dialog.ShowDialog();
+    }
+
     private List<MachineRow> GetSelectedMachinesForBilling()
     {
         var rows = MachinesDataGrid.SelectedItems.OfType<MachineRow>().ToList();
@@ -2929,6 +2985,13 @@ public partial class MainWindow : Window
             async (action, targetMachine, forceLock) =>
             {
                 await SendCommandAsync(action, targetMachine, forceLock);
+            },
+            _allMachineRows,
+            AppendServiceLog,
+            async () =>
+            {
+                await RefreshMachinesAsync();
+                await RefreshTransactionLogsAsync();
             });
 
         dialog.Owner = this;

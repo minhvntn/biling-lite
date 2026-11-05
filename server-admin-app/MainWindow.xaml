@@ -738,6 +738,7 @@
                                     </MenuItem>
                                     <Separator />
                                     <MenuItem x:Name="ContextViewMachineBillingMenuItem" Header="Thanh toán..." Click="ContextViewMachineBillingMenuItem_Click" />
+                                    <MenuItem x:Name="ContextTransferBillingToOtherPcMenuItem" Header="Thanh toán tới máy khác..." Click="ContextTransferBillingToOtherPcMenuItem_Click" />
                                     <MenuItem x:Name="ContextPayServiceMenuItem" Header="Thanh toán dịch vụ..." Click="ContextPayServiceMenuItem_Click" />
                                     <Separator />
                                     <MenuItem Header="Làm mới danh sách" Click="ContextRefreshMachinesMenuItem_Click" />
@@ -8671,6 +8672,7 @@
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
 
                                             <TextBlock Grid.Row="0"
@@ -8718,7 +8720,20 @@
                                                          TextChanged="VietQrConfigTextChanged" />
                                             </Grid>
 
-                                            <Button Grid.Row="4"
+                                            <Grid Grid.Row="4" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="200" />
+                                                    <ColumnDefinition Width="300" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Hạn mức nạp tối đa (VND):" />
+                                                <TextBox x:Name="MaxMemberTopupAmountTextBox"
+                                                         Grid.Column="1"
+                                                         Height="32"
+                                                         VerticalContentAlignment="Center"
+                                                         TextChanged="VietQrConfigTextChanged" />
+                                            </Grid>
+
+                                            <Button Grid.Row="5"
                                                     Width="200"
                                                     Height="38"
                                                     Margin="0,20,0,0"
@@ -8727,7 +8742,7 @@
                                                     Click="SaveVietQrSettingsButton_Click" />
 
                                             <TextBlock x:Name="VietQrStatusTextBlock"
-                                                       Grid.Row="5"
+                                                       Grid.Row="6"
                                                        Margin="0,8,0,0"
                                                        Foreground="#64748B"
                                                        Text="Đang tải cài đặt ngân hàng..." />

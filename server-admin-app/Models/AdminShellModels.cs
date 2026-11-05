@@ -351,6 +351,7 @@ public sealed class ClientRuntimeSettingsResponse
     public string? VietQrBankId { get; set; }
     public string? VietQrAccountNo { get; set; }
     public string? VietQrAccountName { get; set; }
+    public decimal MaxMemberTopupAmount { get; set; } = 100000m;
     public bool VpnEnabled { get; set; } = true;
     public string? VpnLocalInstallerPath { get; set; }
     public string? VpnDownloadUrl { get; set; }
@@ -1375,4 +1376,48 @@ public sealed class ServiceCategoryRevenueViewModel
     public string BarColor { get; set; } = string.Empty;
     public string DotColor { get; set; } = string.Empty;
 }
+
+public sealed class TransferredBillItem
+{
+    public string Id { get; set; } = string.Empty;
+    public string FromPcId { get; set; } = string.Empty;
+    public string FromPcName { get; set; } = string.Empty;
+    public string FromSessionId { get; set; } = string.Empty;
+    public decimal PlayAmount { get; set; }
+    public int PlayDurationSeconds { get; set; }
+    public string PlayDurationText { get; set; } = string.Empty;
+    public decimal HourlyRate { get; set; }
+    public decimal ServiceAmount { get; set; }
+    public string ServiceItemsSummary { get; set; } = string.Empty;
+    public decimal TotalAmount { get; set; }
+    public string TransferredAt { get; set; } = string.Empty;
+    public string Note { get; set; } = string.Empty;
+}
+
+public sealed class TransferredBillsResponse
+{
+    public string PcId { get; set; } = string.Empty;
+    public List<TransferredBillItem> Bills { get; set; } = new();
+    public decimal TotalTransferredPlayAmount { get; set; }
+    public decimal TotalTransferredServiceAmount { get; set; }
+    public decimal TotalTransferredAmount { get; set; }
+}
+
+public sealed class TransferBillingRequest
+{
+    public string TargetPcId { get; set; } = string.Empty;
+    public string? Note { get; set; }
+    public string? RequestedBy { get; set; } = "admin.desktop";
+}
+
+public sealed class TransferBillingResponse
+{
+    public bool Success { get; set; }
+    public string FromPcName { get; set; } = string.Empty;
+    public string TargetPcName { get; set; } = string.Empty;
+    public TransferredBillItem? TransferredBill { get; set; }
+    public List<TransferredBillItem> AllTargetBills { get; set; } = new();
+    public decimal TotalTransferredToTarget { get; set; }
+}
+
 

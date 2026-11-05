@@ -69,6 +69,7 @@ public partial class App : Application
     private string _vietQrBankId = "MB";
     private string _vietQrAccountNo = "0123456789";
     private string _vietQrAccountName = "NGUYEN VAN A";
+    private decimal _maxMemberTopupAmount = 100000m;
     private bool _topupPromoEnabled;
     private string _topupPromoTiers = "[]";
     private bool _adminOnline = true;
@@ -2575,6 +2576,7 @@ public async void OpenLoyaltyPanelFromClientUi()
             _vietQrBankId = payload.VietQrBankId ?? "MB";
             _vietQrAccountNo = payload.VietQrAccountNo ?? "0123456789";
             _vietQrAccountName = payload.VietQrAccountName ?? "NGUYEN VAN A";
+            _maxMemberTopupAmount = payload.MaxMemberTopupAmount > 0 ? payload.MaxMemberTopupAmount : 100000m;
             _topupPromoEnabled = payload.TopupPromoEnabled;
             _topupPromoTiers = payload.TopupPromoTiers ?? "[]";
             _adminOnline = payload.AdminOnline;

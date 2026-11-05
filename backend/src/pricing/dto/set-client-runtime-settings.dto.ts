@@ -72,6 +72,13 @@ export class SetClientRuntimeSettingsDto {
   vietQrAccountName?: string;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1000)
+  @Max(100000000)
+  maxMemberTopupAmount?: number;
+
+  @IsOptional()
   @Type(() => Boolean)
   @IsBoolean()
   vpnEnabled?: boolean;

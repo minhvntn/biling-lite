@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { EventSource, Pc, PcGroup, PcStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
@@ -18,6 +19,22 @@ type PresencePayload = AgentHelloPayload | AgentHeartbeatPayload;
 export type PresenceTransition = {
   pc: Pc & { group?: PcGroup | null };
   previousStatus: PcStatus | null;
+};
+
+export type TransferredBillItem = {
+  id: string;
+  fromPcId: string;
+  fromPcName: string;
+  fromSessionId: string;
+  playAmount: number;
+  playDurationSeconds: number;
+  playDurationText: string;
+  hourlyRate: number;
+  serviceAmount: number;
+  serviceItemsSummary: string;
+  totalAmount: number;
+  transferredAt: string;
+  note: string;
 };
 
 export type PcListItem = {
@@ -1338,5 +1355,372 @@ export class PcsService {
       orderBy: { startedAt: 'desc' },
     });
     return results;
+  }
+
+  private formatPlayDuration(totalSeconds: number): string {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    if (hours > 0) {
+      return minutes > 0 ? `${hours} giờ ${minutes} phút` : `${hours} giờ`;
+    }
+    return `${Math.max(1, minutes)} phút`;
+  }
+
+  private getTransferredBillsSettingKey(pcId: string): string {
+    return `__TRANSFERRED_BILLS_${pcId}__`;
+  }
+
+  async getTransferredBillsList(pcId: string): Promise<TransferredBillItem[]> {
+    const key = this.getTransferredBillsSettingKey(pcId);
+    const setting = await this.prisma.appSetting.findUnique({
+      where: { key },
+      select: { value: true },
+    });
+    if (!setting || !setting.value) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(setting.value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async getTransferredBills(pcId: string) {
+    const bills = await this.getTransferredBillsList(pcId);
+    const totalTransferredPlayAmount = bills.reduce(
+      (sum, b) => sum + (Number(b.playAmount) || 0),
+      0,
+    );
+    const totalTransferredServiceAmount = bills.reduce(
+      (sum, b) => sum + (Number(b.serviceAmount) || 0),
+      0,
+    );
+    const totalTransferredAmount =
+      totalTransferredPlayAmount + totalTransferredServiceAmount;
+
+    return {
+      pcId,
+      bills,
+      totalTransferredPlayAmount,
+      totalTransferredServiceAmount,
+      totalTransferredAmount,
+    };
+  }
+
+  async clearTransferredBills(pcId: string, requestedBy?: string) {
+    const bills = await this.getTransferredBillsList(pcId);
+    if (bills.length > 0) {
+      const key = this.getTransferredBillsSettingKey(pcId);
+      await this.prisma.appSetting.deleteMany({
+        where: { key },
+      });
+
+      try {
+        await this.prisma.eventLog.create({
+          data: {
+            source: EventSource.ADMIN,
+            eventType: 'billing.transferred.cleared',
+            pcId,
+            payload: {
+              pcId,
+              clearedBills: bills,
+              clearedAt: new Date().toISOString(),
+              requestedBy: requestedBy || 'admin.desktop',
+            },
+          },
+        });
+      } catch {
+        // Ignore event log error
+      }
+
+      this.realtime.emitToAll('billing.transferred.cleared', { pcId });
+    }
+
+    return { success: true, pcId, clearedCount: bills.length };
+  }
+
+  async transferBilling(
+    fromPcId: string,
+    targetPcId: string,
+    note?: string,
+    requestedBy?: string,
+  ) {
+    if (fromPcId === targetPcId) {
+      throw new BadRequestException('Không thể chuyển thanh toán cho chính máy này');
+    }
+
+    const [fromPc, targetPc] = await Promise.all([
+      this.prisma.pc.findUnique({
+        where: { id: fromPcId },
+        include: {
+          sessions: {
+            where: { status: 'ACTIVE' },
+            orderBy: { startedAt: 'desc' },
+            take: 1,
+          },
+        },
+      }),
+      this.prisma.pc.findUnique({
+        where: { id: targetPcId },
+        include: {
+          sessions: {
+            where: { status: 'ACTIVE' },
+            orderBy: { startedAt: 'desc' },
+            take: 1,
+          },
+        },
+      }),
+    ]);
+
+    if (!fromPc) {
+      throw new NotFoundException('Không tìm thấy máy chuyển');
+    }
+    if (!targetPc) {
+      throw new NotFoundException('Không tìm thấy máy đích');
+    }
+
+    const targetSession = targetPc.sessions[0];
+    if (!targetSession) {
+      throw new BadRequestException(
+        `Máy đích (${targetPc.name || targetPc.agentId}) không có phiên đang chơi để nhận cộng dồn thanh toán`,
+      );
+    }
+
+    const fromSession = fromPc.sessions[0];
+    if (!fromSession) {
+      throw new BadRequestException(
+        `Máy chuyển (${fromPc.name || fromPc.agentId}) không có phiên đang hoạt động`,
+      );
+    }
+
+    // Validate session user types: Only Guest (Khách vãng lai) and VIP members are eligible
+    const activeUsers = await this.resolveActiveUsersByPcId([fromPcId, targetPcId]);
+    const fromUser = activeUsers.get(fromPcId);
+    const targetUser = activeUsers.get(targetPcId);
+
+    let fromMemberType: string | null = null;
+    if (fromUser?.member?.memberId) {
+      const m = await this.prisma.member.findUnique({
+        where: { id: fromUser.member.memberId },
+        select: { memberType: true },
+      });
+      fromMemberType = m?.memberType ?? null;
+    } else {
+      const m = await this.getActiveMemberForPc(fromPcId);
+      if (m) fromMemberType = m.memberType;
+    }
+
+    if (fromUser?.admin) {
+      throw new BadRequestException('Không thể chuyển thanh toán cho phiên Admin');
+    }
+    if (fromMemberType && fromMemberType !== 'VIP') {
+      throw new BadRequestException(
+        'Tính năng chuyển thanh toán chỉ áp dụng cho khách vãng lai và hội viên VIP',
+      );
+    }
+
+    let targetMemberType: string | null = null;
+    if (targetUser?.member?.memberId) {
+      const m = await this.prisma.member.findUnique({
+        where: { id: targetUser.member.memberId },
+        select: { memberType: true },
+      });
+      targetMemberType = m?.memberType ?? null;
+    } else {
+      const m = await this.getActiveMemberForPc(targetPcId);
+      if (m) targetMemberType = m.memberType;
+    }
+
+    if (targetUser?.admin) {
+      throw new BadRequestException('Không thể chuyển thanh toán tới máy Admin');
+    }
+    if (targetMemberType && targetMemberType !== 'VIP') {
+      throw new BadRequestException(
+        'Máy đích nhận cộng dồn thanh toán phải là khách vãng lai hoặc hội viên VIP',
+      );
+    }
+
+    const fromBilling = await this.getActiveSessionBillingForPc(fromPcId);
+    if (!fromBilling) {
+      throw new BadRequestException('Không thể tính tiền cho máy chuyển');
+    }
+
+    // 1. Fetch unpaid service orders on fromPc
+    const [orders, paidEvents] = await Promise.all([
+      this.prisma.pcServiceOrder.findMany({
+        where: { pcId: fromPcId, sessionId: fromSession.id },
+        include: { serviceItem: true },
+        orderBy: [{ createdAt: 'asc' }],
+      }),
+      this.prisma.eventLog.findMany({
+        where: { pcId: fromPcId, eventType: 'service.order.paid' },
+        select: { payload: true },
+        orderBy: [{ createdAt: 'desc' }],
+        take: 500,
+      }),
+    ]);
+
+    const paidOrderIds = new Set<string>();
+    for (const event of paidEvents) {
+      const payload = event.payload as any;
+      if (payload?.orderIds && Array.isArray(payload.orderIds)) {
+        payload.orderIds.forEach((id: string) => paidOrderIds.add(id));
+      }
+    }
+
+    const unpaidOrders = orders.filter((o) => !paidOrderIds.has(o.id));
+    const unpaidServicesTotal = unpaidOrders.reduce(
+      (sum, o) => sum + Number(o.lineTotal ?? 0),
+      0,
+    );
+
+    // 2. Move unpaid orders to targetPc and targetSession
+    const fromLabel = fromPc.name || fromPc.agentId;
+    for (const order of unpaidOrders) {
+      const prefix = `[Gộp từ ${fromLabel}]`;
+      const updatedNote = order.note ? `${prefix} ${order.note}` : prefix;
+      await this.prisma.pcServiceOrder.update({
+        where: { id: order.id },
+        data: {
+          pcId: targetPcId,
+          sessionId: targetSession.id,
+          note: updatedNote,
+        },
+      });
+    }
+
+    // 3. Collect prior transferred bills if fromPc already held some
+    const fromPriorBills = await this.getTransferredBillsList(fromPcId);
+
+    // 4. Build new TransferredBillItem
+    const serviceSummary =
+      unpaidOrders
+        .map((o) => `${o.quantity}x ${o.serviceItem?.name || 'Món'}`)
+        .join(', ') || 'Không có';
+
+    const newBillItem: TransferredBillItem = {
+      id: randomUUID(),
+      fromPcId,
+      fromPcName: fromLabel,
+      fromSessionId: fromSession.id,
+      playAmount: fromBilling.estimatedAmount,
+      playDurationSeconds: fromBilling.elapsedSeconds,
+      playDurationText: this.formatPlayDuration(fromBilling.elapsedSeconds),
+      hourlyRate: fromBilling.hourlyRate,
+      serviceAmount: unpaidServicesTotal,
+      serviceItemsSummary: serviceSummary,
+      totalAmount: fromBilling.estimatedAmount + unpaidServicesTotal,
+      transferredAt: new Date().toISOString(),
+      note: note || `Cộng dồn vào ${targetPc.name || targetPc.agentId}`,
+    };
+
+    // 5. Append to targetPc's transferred bills
+    const targetExistingBills = await this.getTransferredBillsList(targetPcId);
+    const updatedTargetBills = [
+      ...targetExistingBills,
+      ...fromPriorBills,
+      newBillItem,
+    ];
+
+    const targetKey = this.getTransferredBillsSettingKey(targetPcId);
+    await this.prisma.appSetting.upsert({
+      where: { key: targetKey },
+      update: { value: JSON.stringify(updatedTargetBills) },
+      create: { key: targetKey, value: JSON.stringify(updatedTargetBills) },
+    });
+
+    // Clear fromPc's transferred bills key
+    const fromKey = this.getTransferredBillsSettingKey(fromPcId);
+    await this.prisma.appSetting.deleteMany({
+      where: { key: fromKey },
+    });
+
+    // 6. Close fromSession & Lock fromPc
+    await this.prisma.session.update({
+      where: { id: fromSession.id },
+      data: {
+        status: 'CLOSED',
+        endedAt: new Date(),
+        amount: fromBilling.estimatedAmount,
+        durationSeconds: fromBilling.elapsedSeconds,
+        billableMinutes: fromBilling.billableMinutes,
+        closedReason: 'ADMIN_LOCK',
+      },
+    });
+
+    await this.prisma.pc.update({
+      where: { id: fromPcId },
+      data: { status: PcStatus.LOCKED },
+    });
+
+    // 7. Emit lock command and realtime events
+    this.realtime.emitToAgent(fromPc.agentId, 'command.dispatch', {
+      type: 'LOCK',
+      pcId: fromPcId,
+    });
+
+    this.realtime.emitToAll('pc.status.changed', {
+      pcId: fromPcId,
+      agentId: fromPc.agentId,
+      previousStatus: fromPc.status,
+      status: PcStatus.LOCKED,
+    });
+
+    this.realtime.emitToAll('session.closed', {
+      pcId: fromPcId,
+      sessionId: fromSession.id,
+      amount: fromBilling.estimatedAmount,
+      billableMinutes: fromBilling.billableMinutes,
+    });
+
+    this.realtime.emitToAll('billing.transferred', {
+      fromPcId,
+      fromPcName: fromLabel,
+      targetPcId,
+      targetPcName: targetPc.name || targetPc.agentId,
+      transferredBill: newBillItem,
+      allTargetBills: updatedTargetBills,
+    });
+
+    this.realtime.emitToAll('service.orders.changed', { pcId: targetPcId });
+    this.realtime.emitToAll('service.orders.changed', { pcId: fromPcId });
+
+    // 8. Log audit event
+    try {
+      await this.prisma.eventLog.create({
+        data: {
+          source: EventSource.ADMIN,
+          eventType: 'billing.transferred',
+          pcId: fromPcId,
+          payload: {
+            fromPcId,
+            fromPcName: fromLabel,
+            targetPcId,
+            targetPcName: targetPc.name || targetPc.agentId,
+            bill: newBillItem,
+            allTargetBills: updatedTargetBills,
+            requestedBy: requestedBy || 'admin.desktop',
+          },
+        },
+      });
+    } catch {
+      // Ignore event log error
+    }
+
+    const totalTransferredToTarget = updatedTargetBills.reduce(
+      (sum, b) => sum + (Number(b.totalAmount) || 0),
+      0,
+    );
+
+    return {
+      success: true,
+      fromPcName: fromLabel,
+      targetPcName: targetPc.name || targetPc.agentId,
+      transferredBill: newBillItem,
+      allTargetBills: updatedTargetBills,
+      totalTransferredToTarget,
+    };
   }
 }

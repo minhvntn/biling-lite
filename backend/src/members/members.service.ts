@@ -1332,10 +1332,11 @@ export class MembersService {
       }
 
       if (payload.horseRaceMinTopup !== undefined) {
+        const topupVal = Math.max(0, payload.horseRaceMinTopup);
         await tx.appSetting.upsert({
           where: { key: LOYALTY_HORSE_RACE_MIN_TOPUP_KEY },
-          update: { value: payload.horseRaceMinTopup.toString() },
-          create: { key: LOYALTY_HORSE_RACE_MIN_TOPUP_KEY, value: payload.horseRaceMinTopup.toString() },
+          update: { value: topupVal.toString() },
+          create: { key: LOYALTY_HORSE_RACE_MIN_TOPUP_KEY, value: topupVal.toString() },
         });
       }
 
@@ -2821,6 +2822,14 @@ export class MembersService {
     }
 
     const amount = this.roundMoney(payload.amount);
+    const maxSetting = await this.prisma.appSetting.findUnique({
+      where: { key: '__CLIENT_MAX_MEMBER_TOPUP_AMOUNT__' },
+      select: { value: true },
+    });
+    const maxAmount = Number(maxSetting?.value) || 100000;
+    if (amount > maxAmount) {
+      throw new BadRequestException(`Số tiền nạp tối đa là ${maxAmount.toLocaleString('vi-VN')} VND cho mỗi yêu cầu`);
+    }
     const createdBy = payload.createdBy?.trim() || 'client.member.topup.request';
     const note = payload.note?.trim() || null;
     const normalizedAgentId = payload.agentId?.trim() || null;

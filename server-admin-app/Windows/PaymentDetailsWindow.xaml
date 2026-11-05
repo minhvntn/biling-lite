@@ -177,6 +177,29 @@
                                 <TextBlock Grid.Column="1" Style="{StaticResource LabelStyle}" Text="Tổng tiền dịch vụ:"/>
                                 <TextBlock Grid.Column="2" Style="{StaticResource ValueStyle}" Foreground="#10B981" Text="{Binding TotalServiceAmountText}"/>
                             </Grid>
+
+                            <!-- Tiền gộp từ máy khác nếu có -->
+                            <StackPanel Margin="0,16,0,0" Visibility="{Binding TransferredBillsVisibility}">
+                                <Separator Background="#E2E8F0" Margin="0,0,0,12" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Width="20" Height="20" CornerRadius="4" Background="#EDE9FE" Margin="0,0,10,0">
+                                        <TextBlock Text="⇄" FontSize="14" FontWeight="Bold" Foreground="#7C3AED" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-2,0,0" />
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Style="{StaticResource LabelStyle}" Text="Tiền giờ gộp từ máy khác:" />
+                                    <TextBlock Grid.Column="2" Style="{StaticResource ValueStyle}" Foreground="#7C3AED" Text="{Binding TransferredPlayAmountText}" />
+                                </Grid>
+                                <TextBlock Text="{Binding TransferredBillsDetailText}" 
+                                           FontSize="11" 
+                                           Foreground="#64748B" 
+                                           FontStyle="Italic" 
+                                           TextWrapping="Wrap" 
+                                           Margin="30,4,0,0" />
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
@@ -342,9 +365,31 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
-                <Button Grid.Column="1" Content="X Đóng" FontSize="14" FontWeight="SemiBold" Width="100" Height="40" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" Foreground="#475569" Cursor="Hand" Margin="0,0,12,0" Click="CloseButton_Click">
+                <Button Grid.Column="1" 
+                        x:Name="TransferBillingButton"
+                        Content="⇄ Tới máy khác..." 
+                        FontSize="13" 
+                        FontWeight="SemiBold" 
+                        Height="40" 
+                        Padding="14,0" 
+                        Background="#EDE9FE" 
+                        BorderBrush="#DDD6FE" 
+                        BorderThickness="1" 
+                        Foreground="#7C3AED" 
+                        Cursor="Hand" 
+                        Margin="0,0,10,0" 
+                        Click="TransferBillingButton_Click">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="6"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+
+                <Button Grid.Column="2" Content="✕ Đóng" FontSize="14" FontWeight="SemiBold" Width="100" Height="40" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" Foreground="#475569" Cursor="Hand" Margin="0,0,12,0" Click="CloseButton_Click">
                     <Button.Resources>
                         <Style TargetType="Border">
                             <Setter Property="CornerRadius" Value="6"/>
@@ -352,7 +397,7 @@
                     </Button.Resources>
                 </Button>
                 
-                <Button Grid.Column="2" Width="120" Height="40" Background="#10B981" BorderThickness="0" Cursor="Hand" Click="CheckoutButton_Click">
+                <Button Grid.Column="3" Width="120" Height="40" Background="#10B981" BorderThickness="0" Cursor="Hand" Click="CheckoutButton_Click">
                     <Button.Resources>
                         <Style TargetType="Border">
                             <Setter Property="CornerRadius" Value="6"/>

@@ -381,6 +381,7 @@ public partial class MainWindow : Window
             VietQrBankIdTextBox.Text = (response.VietQrBankId ?? string.Empty).Trim();
             VietQrAccountNoTextBox.Text = (response.VietQrAccountNo ?? string.Empty).Trim();
             VietQrAccountNameTextBox.Text = (response.VietQrAccountName ?? string.Empty).Trim();
+            MaxMemberTopupAmountTextBox.Text = (response.MaxMemberTopupAmount > 0 ? response.MaxMemberTopupAmount : 100000m).ToString("N0", CultureInfo.InvariantCulture);
             RebuildMediaContainerFromTextBox();
             LockScreenIntervalTextBox.Text = Math.Max(1, response.LockScreenIntervalSeconds).ToString(CultureInfo.InvariantCulture);
 
@@ -478,6 +479,9 @@ public partial class MainWindow : Window
             int.TryParse(LockScreenIntervalTextBox.Text, out var intervalSeconds);
             if (intervalSeconds <= 0) intervalSeconds = 5;
 
+            decimal.TryParse(MaxMemberTopupAmountTextBox.Text.Replace(",", "").Replace(".", "").Trim(), out var maxTopup);
+            if (maxTopup <= 0) maxTopup = 100000m;
+
             using var response = await _httpClient.PatchAsJsonAsync(
                 BuildApiUrl("/pricing/client-settings"),
                 new
@@ -496,6 +500,7 @@ public partial class MainWindow : Window
                     vietQrBankId = VietQrBankIdTextBox.Text.Trim(),
                     vietQrAccountNo = VietQrAccountNoTextBox.Text.Trim(),
                     vietQrAccountName = VietQrAccountNameTextBox.Text.Trim(),
+                    maxMemberTopupAmount = maxTopup,
                 });
 
             if (!response.IsSuccessStatusCode)
@@ -539,6 +544,7 @@ public partial class MainWindow : Window
             VietQrBankIdTextBox.Text = (payload?.VietQrBankId ?? string.Empty).Trim();
             VietQrAccountNoTextBox.Text = (payload?.VietQrAccountNo ?? string.Empty).Trim();
             VietQrAccountNameTextBox.Text = (payload?.VietQrAccountName ?? string.Empty).Trim();
+            MaxMemberTopupAmountTextBox.Text = (payload?.MaxMemberTopupAmount > 0 ? payload.MaxMemberTopupAmount : maxTopup).ToString("N0", CultureInfo.InvariantCulture);
             RebuildMediaContainerFromTextBox();
             LockScreenIntervalTextBox.Text = Math.Max(1, payload?.LockScreenIntervalSeconds ?? intervalSeconds).ToString(CultureInfo.InvariantCulture);
 
@@ -1382,9 +1388,10 @@ public partial class MainWindow : Window
                 BuildApiUrl("/members/loyalty/ranks"),
                 JsonOptions());
 
+            List<LoyaltyRankRow>? rankItems = null;
             if (ranksResponse != null)
             {
-                var rankItems = ranksResponse.Select(r => new LoyaltyRankRow
+                rankItems = ranksResponse.Select(r => new LoyaltyRankRow
                 {
                     Id = r.Id,
                     RankName = r.RankName,
@@ -1418,9 +1425,12 @@ public partial class MainWindow : Window
             LoyaltyWeekendMultiplierTextBox.Text = response.WeekendMultiplier.ToString(CultureInfo.InvariantCulture);
             LoyaltyReferralRewardPointsTextBox.Text = response.ReferralRewardPoints.ToString(CultureInfo.InvariantCulture);
             
-            if (response.HorseRaceMinTopup > 0)
+            if (response.HorseRaceMinTopup > 0 && rankItems != null && rankItems.Count > 0)
             {
-                HorseRaceMinRankComboBox.SelectedValue = response.HorseRaceMinTopup;
+                var matched = rankItems.Where(r => r.MinTopup > 0 && r.MinTopup <= response.HorseRaceMinTopup)
+                                       .OrderByDescending(r => r.MinTopup)
+                                       .FirstOrDefault();
+                HorseRaceMinRankComboBox.SelectedValue = matched != null ? matched.MinTopup : -1m;
             }
             else
             {
@@ -1501,8 +1511,8 @@ public partial class MainWindow : Window
             }
         }
 
-        var horseRaceMinTopup = -1m;
-        if (HorseRaceMinRankComboBox.SelectedValue is decimal selectedMinTopup)
+        decimal horseRaceMinTopup = 0m;
+        if (HorseRaceMinRankComboBox.SelectedValue is decimal selectedMinTopup && selectedMinTopup > 0)
         {
             horseRaceMinTopup = selectedMinTopup;
         }
@@ -1546,6 +1556,18 @@ public partial class MainWindow : Window
             LoyaltyWeekdayMultiplierTextBox.Text = effectiveWeekdayMultiplier.ToString(CultureInfo.InvariantCulture);
             LoyaltyWeekendMultiplierTextBox.Text = effectiveWeekendMultiplier.ToString(CultureInfo.InvariantCulture);
             LoyaltyReferralRewardPointsTextBox.Text = effectiveReferralRewardPoints.ToString(CultureInfo.InvariantCulture);
+
+            if (payload?.HorseRaceMinTopup > 0 && HorseRaceMinRankComboBox.ItemsSource is List<LoyaltyRankRow> currentRankItems)
+            {
+                var matched = currentRankItems.Where(r => r.MinTopup > 0 && r.MinTopup <= payload.HorseRaceMinTopup)
+                                              .OrderByDescending(r => r.MinTopup)
+                                              .FirstOrDefault();
+                HorseRaceMinRankComboBox.SelectedValue = matched != null ? matched.MinTopup : -1m;
+            }
+            else
+            {
+                HorseRaceMinRankComboBox.SelectedValue = -1m;
+            }
 
             LoyaltySettingsStatusTextBlock.Text = enabled
                 ? $"Đã bật tích lũy: {effectiveMinutesPerPoint} phút = 1 điểm, 1 điểm = {effectivePointsToMinutes} phút chơi. (Ngày thường x{effectiveWeekdayMultiplier}, Cuối tuần x{effectiveWeekendMultiplier})"

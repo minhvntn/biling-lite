@@ -22,6 +22,7 @@ import {
   calculateSessionAmountByPromotions,
 } from '../pricing/time-based-billing.util';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 type CommandRequestedBy = string | undefined;
 const ADMIN_LOGIN_MARKER = '|admin-login';
 
@@ -49,8 +50,15 @@ export class CommandsService {
   private readonly liveFrameByPcId = new Map<string, LiveFrameStoreItem>();
   private readonly maxLiveFramesPerPc = 10;
 
+  private async findPcById(pcId: string): Promise<Pc | null> {
+    if (!pcId || !UUID_REGEX.test(pcId.trim())) {
+      return null;
+    }
+    return this.prisma.pc.findUnique({ where: { id: pcId.trim() } });
+  }
+
   async requestRunningApps(pcId: string, requestedBy?: string) {
-    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    const pc = await this.findPcById(pcId);
     if (!pc) {
       throw new NotFoundException('PC not found');
     }
@@ -92,7 +100,7 @@ export class CommandsService {
   }
 
   async killProcess(pcId: string, body: { pid: number; name: string }) {
-    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    const pc = await this.findPcById(pcId);
     if (!pc) {
       throw new NotFoundException('PC not found');
     }
@@ -245,7 +253,7 @@ export class CommandsService {
     broadcastAddressRaw?: string,
     requestedBy?: CommandRequestedBy,
   ) {
-    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    const pc = await this.findPcById(pcId);
     if (!pc) {
       throw new NotFoundException('PC not found');
     }
@@ -303,7 +311,7 @@ export class CommandsService {
   }
 
   async notifyPc(pcId: string, message: string, requestedBy?: CommandRequestedBy) {
-    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    const pc = await this.findPcById(pcId);
     if (!pc) {
       throw new NotFoundException('PC not found');
     }
@@ -330,7 +338,7 @@ export class CommandsService {
   }
 
   async requestPcScreenshot(pcId: string, requestedBy?: CommandRequestedBy) {
-    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    const pc = await this.findPcById(pcId);
     if (!pc) {
       throw new NotFoundException('PC not found');
     }
@@ -360,7 +368,7 @@ export class CommandsService {
   }
 
   async uploadPcScreenshot(pcId: string, body: UploadPcScreenshotDto) {
-    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    const pc = await this.findPcById(pcId);
     if (!pc) {
       throw new NotFoundException('PC not found');
     }
@@ -418,7 +426,7 @@ export class CommandsService {
   }
 
   async getLatestPcScreenshot(pcId: string, requestId?: string) {
-    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    const pc = await this.findPcById(pcId);
     if (!pc) {
       throw new NotFoundException('PC not found');
     }
@@ -480,7 +488,7 @@ export class CommandsService {
   }
 
   async requestPcLiveFrame(pcId: string, requestedBy?: CommandRequestedBy) {
-    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    const pc = await this.findPcById(pcId);
     if (!pc) {
       throw new NotFoundException('PC not found');
     }
@@ -508,7 +516,7 @@ export class CommandsService {
   }
 
   async uploadPcLiveFrame(pcId: string, body: UploadPcLiveFrameDto) {
-    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    const pc = await this.findPcById(pcId);
     if (!pc) {
       throw new NotFoundException('PC not found');
     }
@@ -578,7 +586,7 @@ export class CommandsService {
   }
 
   async getLatestPcLiveFrame(pcId: string, requestId?: string) {
-    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    const pc = await this.findPcById(pcId);
     if (!pc) {
       throw new NotFoundException('PC not found');
     }
@@ -612,7 +620,7 @@ export class CommandsService {
   }
 
   async sendRemoteInput(pcId: string, body: RemoteInputDto) {
-    const pc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    const pc = await this.findPcById(pcId);
     if (!pc) {
       throw new NotFoundException('PC not found');
     }
@@ -954,7 +962,7 @@ export class CommandsService {
     type: CommandType,
     requestedBy?: CommandRequestedBy,
   ) {
-    const requestedPc = await this.prisma.pc.findUnique({ where: { id: pcId } });
+    const requestedPc = await this.findPcById(pcId);
     if (!requestedPc) {
       throw new NotFoundException('PC not found');
     }
@@ -1851,6 +1859,14 @@ export class CommandsService {
       }
     } catch (err) {
       console.error('Error auto-paying service orders on session close:', err);
+    }
+
+    try {
+      await tx.appSetting.deleteMany({
+        where: { key: `__TRANSFERRED_BILLS_${pcId}__` },
+      });
+    } catch {
+      // Ignore
     }
 
     return {

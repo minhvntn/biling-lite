@@ -51,9 +51,14 @@ export class UpdateLoyaltySettingsDto {
   weekendMultiplier?: number;
 
   @IsOptional()
+  @Transform(({ value }: { value?: unknown }) => {
+    if (value === undefined || value === null || value === '') return undefined;
+    const num = Number(value);
+    if (isNaN(num)) return undefined;
+    return num < 0 ? 0 : num;
+  })
   @IsNumber()
   @Min(0)
-  @Type(() => Number)
   horseRaceMinTopup?: number;
 
   @IsOptional()

@@ -22,6 +22,31 @@ public partial class PaymentDetailsWindow : Window, INotifyPropertyChanged
     private readonly HttpClient _httpClient;
     private readonly Func<string, MachineRow, bool, Task> _sendCommandAsync;
     private readonly Func<string, string> _buildApiUrl;
+    private readonly IReadOnlyList<MachineRow>? _allMachines;
+    private readonly Action<string>? _appendServiceLog;
+    private readonly Func<Task>? _onCompletedAsync;
+
+    private decimal _transferredPlayAmount;
+    private string _transferredPlayAmountText = "0 VND";
+    public string TransferredPlayAmountText
+    {
+        get => _transferredPlayAmountText;
+        set { _transferredPlayAmountText = value; OnPropertyChanged(); }
+    }
+
+    private Visibility _transferredBillsVisibility = Visibility.Collapsed;
+    public Visibility TransferredBillsVisibility
+    {
+        get => _transferredBillsVisibility;
+        set { _transferredBillsVisibility = value; OnPropertyChanged(); }
+    }
+
+    private string _transferredBillsDetailText = string.Empty;
+    public string TransferredBillsDetailText
+    {
+        get => _transferredBillsDetailText;
+        set { _transferredBillsDetailText = value; OnPropertyChanged(); }
+    }
     
     private MachineRow _machineSnapshot;
     private int _elapsedAnchorSeconds;
@@ -87,7 +112,10 @@ public partial class PaymentDetailsWindow : Window, INotifyPropertyChanged
         HttpClient httpClient,
         List<TimeBasedPromotionDto> allPromotions,
         Func<string, string> buildApiUrl,
-        Func<string, MachineRow, bool, Task> sendCommandAsync)
+        Func<string, MachineRow, bool, Task> sendCommandAsync,
+        IReadOnlyList<MachineRow>? allMachines = null,
+        Action<string>? appendServiceLog = null,
+        Func<Task>? onCompletedAsync = null)
     {
         InitializeComponent();
         DataContext = this;
@@ -99,6 +127,9 @@ public partial class PaymentDetailsWindow : Window, INotifyPropertyChanged
         _allPromotions = allPromotions ?? new();
         _buildApiUrl = buildApiUrl;
         _sendCommandAsync = sendCommandAsync;
+        _allMachines = allMachines;
+        _appendServiceLog = appendServiceLog;
+        _onCompletedAsync = onCompletedAsync;
 
         _elapsedAnchorSeconds = machine.ActiveSessionElapsedSeconds;
         _elapsedAnchorAt = DateTime.Now;
@@ -165,8 +196,48 @@ public partial class PaymentDetailsWindow : Window, INotifyPropertyChanged
         }
         else
         {
+            try
+            {
+                await _httpClient.PostAsJsonAsync(_buildApiUrl($"/pcs/{_machine.Id}/transferred-bills/clear"), new { requestedBy = "admin.desktop" });
+            }
+            catch { }
             await _sendCommandAsync("lock", _machine, true);
         }
+        if (_onCompletedAsync != null)
+        {
+            await _onCompletedAsync();
+        }
+    }
+
+    private void TransferBillingButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TransferBillingWindow.IsEligibleForTransferBilling(_machineSnapshot))
+        {
+            MessageBox.Show("Tính năng chuyển / gộp thanh toán chỉ áp dụng đối với khách vãng lai và hội viên VIP.", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (_allMachines is null || _appendServiceLog is null || _onCompletedAsync is null)
+        {
+            MessageBox.Show("Chức năng chuyển thanh toán có sẵn từ menu chuột phải máy trạm.", "Thông báo", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        Close();
+
+        var transferDialog = new TransferBillingWindow(
+            _machineSnapshot,
+            _allMachines,
+            _httpClient,
+            _buildApiUrl,
+            _sendCommandAsync,
+            _appendServiceLog,
+            _onCompletedAsync)
+        {
+            Owner = Owner
+        };
+
+        transferDialog.ShowDialog();
     }
 
     private void ToggleExpandButton_Click(object sender, RoutedEventArgs e)
@@ -299,6 +370,36 @@ public partial class PaymentDetailsWindow : Window, INotifyPropertyChanged
         ClientServiceAmountText = $"{clientServiceAmount:N0} VND";
         ServerServiceAmountText = $"{serverServiceAmount:N0} VND";
 
+        _transferredPlayAmount = 0m;
+        if (!_machineSnapshot.IsVirtual)
+        {
+            try
+            {
+                var transferredRes = await _httpClient.GetFromJsonAsync<TransferredBillsResponse>(
+                    _buildApiUrl($"/pcs/{_machineSnapshot.Id}/transferred-bills"),
+                    JsonOptions());
+
+                if (transferredRes?.Bills is { Count: > 0 })
+                {
+                    _transferredPlayAmount = transferredRes.TotalTransferredPlayAmount;
+                    TransferredPlayAmountText = $"{_transferredPlayAmount:N0} VND";
+                    TransferredBillsVisibility = Visibility.Visible;
+                    
+                    var details = string.Join("\n", transferredRes.Bills.Select(b =>
+                        $"• {b.FromPcName}: Tiền giờ {b.PlayAmount:N0}đ ({b.PlayDurationText}) + Dịch vụ {b.ServiceAmount:N0}đ ({b.ServiceItemsSummary}) = {b.TotalAmount:N0}đ"));
+                    TransferredBillsDetailText = details;
+                }
+                else
+                {
+                    TransferredBillsVisibility = Visibility.Collapsed;
+                }
+            }
+            catch
+            {
+                TransferredBillsVisibility = Visibility.Collapsed;
+            }
+        }
+
         if (_machineSnapshot.IsVipSession)
         {
             if (_machineSnapshot.ActiveMemberBalance <= 0)
@@ -343,8 +444,12 @@ public partial class PaymentDetailsWindow : Window, INotifyPropertyChanged
         }
         CurrentRatePlayAmountText = $"{currentRatePlayAmount:N0} VND";
 
-        var totalAmount = playAmountToPay + serviceAmount;
+        var totalAmount = playAmountToPay + serviceAmount + _transferredPlayAmount;
         TotalAmountValue = $"{totalAmount:N0}";
+
+        TransferBillingButton.Visibility = TransferBillingWindow.IsEligibleForTransferBilling(_machineSnapshot)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
 
         var startedAtTime = DateTime.TryParse(_machineSnapshot.ActiveSessionStartedAt, out var dt) 
             ? dt : DateTime.Now.AddSeconds(-displayedElapsedSeconds);

@@ -274,5 +274,7 @@ Cách chạy tailsalce
 npm run dev -- --host 0.0.0.0 --port 5400
 
 
+đường dẫn game menu máy trạm
+I:\servermanagergame\src\GameLauncher.Client\bin\Release\net8.0-windows\
 
 I:\servermanagergame\src\GameLauncher.Client\bin\Release\net8.0-windows

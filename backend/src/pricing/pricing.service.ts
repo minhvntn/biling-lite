@@ -41,6 +41,8 @@ const DEFAULT_VPN_DOWNLOAD_URL = 'https://1111-releases.cloudflareclient.com/win
 const VIETQR_BANK_ID_KEY = '__VIETQR_BANK_ID__';
 const VIETQR_ACCOUNT_NO_KEY = '__VIETQR_ACCOUNT_NO__';
 const VIETQR_ACCOUNT_NAME_KEY = '__VIETQR_ACCOUNT_NAME__';
+const CLIENT_MAX_MEMBER_TOPUP_AMOUNT_KEY = '__CLIENT_MAX_MEMBER_TOPUP_AMOUNT__';
+const DEFAULT_MAX_MEMBER_TOPUP_AMOUNT = 100000;
 const LOCK_SCREEN_MEDIA_DIR = path.join(
   process.cwd(),
   'storage',
@@ -99,6 +101,7 @@ export class PricingService {
       vietQrBankIdSetting,
       vietQrAccountNoSetting,
       vietQrAccountNameSetting,
+      maxMemberTopupAmountSetting,
       topupPromoEnabledSetting,
       topupPromoTiersSetting,
       vpnEnabledSetting,
@@ -137,6 +140,9 @@ export class PricingService {
       }),
       this.prisma.appSetting.findUnique({
         where: { key: VIETQR_ACCOUNT_NAME_KEY },
+      }),
+      this.prisma.appSetting.findUnique({
+        where: { key: CLIENT_MAX_MEMBER_TOPUP_AMOUNT_KEY },
       }),
       this.prisma.appSetting.findUnique({
         where: { key: 'TOPUP_PROMO_ENABLED' },
@@ -186,6 +192,9 @@ export class PricingService {
       vietQrBankId: (vietQrBankIdSetting?.value ?? 'VCB').trim(),
       vietQrAccountNo: (vietQrAccountNoSetting?.value ?? '0071001072225').trim(),
       vietQrAccountName: vietQrAccountNameSetting?.value || null,
+      maxMemberTopupAmount: maxMemberTopupAmountSetting
+        ? (Number(maxMemberTopupAmountSetting.value) || DEFAULT_MAX_MEMBER_TOPUP_AMOUNT)
+        : DEFAULT_MAX_MEMBER_TOPUP_AMOUNT,
       topupPromoEnabled: topupPromoEnabledSetting?.value === 'true',
       topupPromoTiers: topupPromoTiersSetting?.value || '[]',
       vpnEnabled: this.parseBooleanSetting(
@@ -211,6 +220,7 @@ export class PricingService {
     const hasVietQrBankId = payload.vietQrBankId !== undefined;
     const hasVietQrAccountNo = payload.vietQrAccountNo !== undefined;
     const hasVietQrAccountName = payload.vietQrAccountName !== undefined;
+    const hasMaxMemberTopupAmount = payload.maxMemberTopupAmount !== undefined;
     const hasVpnEnabled = payload.vpnEnabled !== undefined;
     const hasVpnLocalInstallerPath = payload.vpnLocalInstallerPath !== undefined;
     const hasVpnDownloadUrl = payload.vpnDownloadUrl !== undefined;
@@ -227,6 +237,7 @@ export class PricingService {
       !hasVietQrBankId &&
       !hasVietQrAccountNo &&
       !hasVietQrAccountName &&
+      !hasMaxMemberTopupAmount &&
       !hasVpnEnabled &&
       !hasVpnLocalInstallerPath &&
       !hasVpnDownloadUrl
@@ -348,6 +359,15 @@ export class PricingService {
         where: { key: VIETQR_ACCOUNT_NAME_KEY },
         update: { value: val },
         create: { key: VIETQR_ACCOUNT_NAME_KEY, value: val },
+      });
+    }
+
+    if (hasMaxMemberTopupAmount) {
+      const maxVal = Math.max(1000, Math.floor(payload.maxMemberTopupAmount!));
+      await this.prisma.appSetting.upsert({
+        where: { key: CLIENT_MAX_MEMBER_TOPUP_AMOUNT_KEY },
+        update: { value: maxVal.toString() },
+        create: { key: CLIENT_MAX_MEMBER_TOPUP_AMOUNT_KEY, value: maxVal.toString() },
       });
     }
 

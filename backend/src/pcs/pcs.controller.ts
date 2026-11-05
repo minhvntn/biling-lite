@@ -1,5 +1,6 @@
 import { Controller, Get, Param, Post, Put, Body, Query, Delete } from '@nestjs/common';
 import { PcsService } from './pcs.service';
+import { TransferBillingDto } from './dto/transfer-billing.dto';
 
 @Controller('pcs')
 export class PcsController {
@@ -113,5 +114,31 @@ export class PcsController {
       from ? new Date(from) : undefined,
       to ? new Date(to) : undefined,
     );
+  }
+
+  @Post(':id/transfer-billing')
+  async transferBilling(
+    @Param('id') fromPcId: string,
+    @Body() dto: TransferBillingDto,
+  ) {
+    return this.pcsService.transferBilling(
+      fromPcId,
+      dto.targetPcId,
+      dto.note,
+      dto.requestedBy,
+    );
+  }
+
+  @Get(':id/transferred-bills')
+  async getTransferredBills(@Param('id') pcId: string) {
+    return this.pcsService.getTransferredBills(pcId);
+  }
+
+  @Post(':id/transferred-bills/clear')
+  async clearTransferredBills(
+    @Param('id') pcId: string,
+    @Body() body: { requestedBy?: string },
+  ) {
+    return this.pcsService.clearTransferredBills(pcId, body?.requestedBy);
   }
 }
