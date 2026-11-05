@@ -1,3 +1,4 @@
+using System.Windows.Input;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
@@ -218,6 +219,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         
         if (_isCollapsed)
         {
+            if (MoreActionsOverlay is not null) MoreActionsOverlay.Visibility = Visibility.Collapsed;
             SuspendAllAnimations();
             CollapseButtonText.Text = "Mở rộng";
             CollapseButtonIcon.Text = "\uE76B"; // ChevronRight
@@ -627,6 +629,8 @@ public static decimal PricingStep { get; set; } = 1000m;
             WithdrawActionButton.Visibility = Visibility.Collapsed;
             TopupRequestActionButton.Visibility = Visibility.Collapsed;
             PasswordActionButton.Visibility = Visibility.Collapsed;
+            if (MoreActionButton is not null) MoreActionButton.Visibility = Visibility.Collapsed;
+            if (MoreActionsOverlay is not null) MoreActionsOverlay.Visibility = Visibility.Collapsed;
             FooterContainer.Visibility = Visibility.Collapsed;
             PromotionsContainer.Visibility = Visibility.Collapsed;
             MemberRankContainer.Visibility = Visibility.Collapsed;
@@ -635,6 +639,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         {
             MessagesActionButton.Visibility = Visibility.Visible;
             ServicesActionButton.Visibility = Visibility.Visible;
+            if (MoreActionButton is not null) MoreActionButton.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
             PromotionsContainer.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
             MemberRankContainer.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
         }
@@ -1905,6 +1910,7 @@ public static decimal PricingStep { get; set; } = 1000m;
 
     private void LeaderboardButton_Click(object sender, RoutedEventArgs e)
     {
+        if (MoreActionsOverlay is not null) MoreActionsOverlay.Visibility = Visibility.Collapsed;
         if (Application.Current is App app)
         {
             app.OpenLeaderboardPanelFromClientUi();
@@ -1920,6 +1926,7 @@ public static decimal PricingStep { get; set; } = 1000m;
 
     private void DailyMissionsButton_Click(object sender, RoutedEventArgs e)
     {
+        if (MoreActionsOverlay is not null) MoreActionsOverlay.Visibility = Visibility.Collapsed;
         if (Application.Current is App app)
         {
             app.OpenDailyMissionsPanelFromClientUi();
@@ -1935,6 +1942,7 @@ public static decimal PricingStep { get; set; } = 1000m;
 
     private void TransferBalanceButton_Click(object sender, RoutedEventArgs e)
     {
+        if (MoreActionsOverlay is not null) MoreActionsOverlay.Visibility = Visibility.Collapsed;
         if (Application.Current is App app)
         {
             app.OpenTransferBalancePanelFromClientUi();
@@ -1950,6 +1958,7 @@ public static decimal PricingStep { get; set; } = 1000m;
 
     private void WithdrawBalanceButton_Click(object sender, RoutedEventArgs e)
     {
+        if (MoreActionsOverlay is not null) MoreActionsOverlay.Visibility = Visibility.Collapsed;
         if (Application.Current is App app)
         {
             app.OpenWithdrawBalancePanelFromClientUi();
@@ -2125,6 +2134,7 @@ public static decimal PricingStep { get; set; } = 1000m;
 
     private void PasswordButton_Click(object sender, RoutedEventArgs e)
     {
+        if (MoreActionsOverlay is not null) MoreActionsOverlay.Visibility = Visibility.Collapsed;
         if (Application.Current is App app)
         {
             app.OpenChangePasswordPanelFromClientUi();
@@ -2167,6 +2177,7 @@ public static decimal PricingStep { get; set; } = 1000m;
 
     private void ChangeWallpaperButton_Click(object sender, RoutedEventArgs e)
     {
+        if (MoreActionsOverlay is not null) MoreActionsOverlay.Visibility = Visibility.Collapsed;
         if (!_isVipSession || string.IsNullOrWhiteSpace(CurrentMemberId)) return;
 
         var window = new WallpaperSelectionWindow(CurrentMemberId);
@@ -2243,7 +2254,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         var hasValidPath = !string.IsNullOrWhiteSpace(_gameLauncherPath);
         if (GameLauncherActionButton is not null)
         {
-            GameLauncherActionButton.Visibility = hasValidPath ? Visibility.Visible : Visibility.Collapsed;
+            GameLauncherActionButton.Visibility = Visibility.Visible;
         }
         UpdateActionButtonsLayout();
     }
@@ -2431,4 +2442,38 @@ public static decimal PricingStep { get; set; } = 1000m;
     }
 
 
+
+    #region More Actions Modal Handlers
+    private void MoreActionButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (MoreActionsOverlay is null) return;
+        MoreActionsOverlay.Visibility = Visibility.Visible;
+    }
+
+    private void CloseMoreActionsModal_Click(object sender, RoutedEventArgs e)
+    {
+        if (MoreActionsOverlay is null) return;
+        MoreActionsOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private void MoreActionsOverlay_Backdrop_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (MoreActionsOverlay is null) return;
+        MoreActionsOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private void MoreActionsCard_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+    }
+
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && MoreActionsOverlay is not null && MoreActionsOverlay.Visibility == Visibility.Visible)
+        {
+            MoreActionsOverlay.Visibility = Visibility.Collapsed;
+            e.Handled = true;
+        }
+    }
+    #endregion
 }

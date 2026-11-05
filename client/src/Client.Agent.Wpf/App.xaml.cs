@@ -406,6 +406,10 @@ public partial class App : Application
                 _mainWindow?.UpdatePromotions(promos);
             });
         };
+        _socketService.ClientSettingsChangedHandler = async () =>
+        {
+            await RefreshClientRuntimeSettingsAsync();
+        };
         _socketService.GuestPrepaidConfigureHandler = payload =>
         {
             if (payload.PrepaidAmount > 0 && payload.HourlyRate > 0)
@@ -414,10 +418,10 @@ public partial class App : Application
                 var totalMinutes = (int)Math.Floor((payload.PrepaidAmount / payload.HourlyRate) * 60m);
                 totalMinutes = Math.Max(1, totalMinutes);
                 _guestPrepaidTotalMinutes = totalMinutes;
+                _isPostpaidGuestSession = false;
                 Dispatcher.Invoke(() =>
                 {
-                    _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, true, isPostpaid: _isPostpaidGuestSession);
-                    _mainWindow?.SetUpfrontUsedDuration();
+                    _mainWindow?.ConfigureBilling(totalMinutes, _currentHourlyRate, false, isPostpaid: false);
                 });
             }
         };
@@ -525,7 +529,7 @@ public partial class App : Application
             {
                 case "OPEN":
                     await TrackAndClearMemberSessionAsync("SERVER_OPEN");
-                    _isPostpaidGuestSession = true;
+                    _isPostpaidGuestSession = _guestPrepaidTotalMinutes is null;
                     if (payload.HourlyRate is > 0)
                     {
                         _currentHourlyRate = payload.HourlyRate.Value;
@@ -3985,7 +3989,36 @@ LIMIT $limit;";
             return;
         }
 
-        if (_activeMemberSession is null || _isAdminSession || _isPostpaidGuestSession || _activeMemberSession.MemberType == "VIP")
+        if (_activeMemberSession is null)
+        {
+            if (!_isPostpaidGuestSession && _guestPrepaidTotalMinutes.HasValue)
+            {
+                var guestRemainingMins = Math.Max(0, GetRemainingMinutesOnUiThread());
+                if (guestRemainingMins <= 0)
+                {
+                    _isMemberAutoLockInProgress = true;
+                    try
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            LockMachine(force: true);
+                            _mainWindow?.SetLastCommand($"GUEST PREPAID EXPIRED AUTO LOCK @ {DateTime.Now:HH:mm:ss}");
+                        });
+                        if (_logger is not null)
+                        {
+                            await _logger.InfoAsync($"Auto-locked prepaid guest session because remaining time reached 0 (source={source})");
+                        }
+                    }
+                    finally
+                    {
+                        _isMemberAutoLockInProgress = false;
+                    }
+                }
+            }
+            return;
+        }
+
+        if (_isAdminSession || _isPostpaidGuestSession || _activeMemberSession.MemberType == "VIP")
         {
             return;
         }

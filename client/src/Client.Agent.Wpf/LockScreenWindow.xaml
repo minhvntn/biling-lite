@@ -7,35 +7,63 @@
         ResizeMode="NoResize"
         Topmost="True"
         ShowInTaskbar="False"
-        Background="#0F172A"
+        Focusable="True"
+        Background="#090D16"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
-        <!-- Modern Button Style -->
+        <!-- Modern Primary Button Style (Indigo-Violet Gradient with Colored Glow) -->
         <Style x:Key="PrimaryButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#4F46E5" />
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#4F46E5" Offset="0" />
+                        <GradientStop Color="#6366F1" Offset="1" />
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
             <Setter Property="Foreground" Value="White" />
             <Setter Property="Padding" Value="20,10" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="border" 
                                 Background="{TemplateBinding Background}" 
-                                CornerRadius="8" 
+                                CornerRadius="12" 
                                 BorderThickness="0">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="16" Color="#6366F1" Opacity="0.38" ShadowDepth="3" />
+                            </Border.Effect>
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#4338CA" />
+                                <Setter TargetName="border" Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#4338CA" Offset="0" />
+                                            <GradientStop Color="#4F46E5" Offset="1" />
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect BlurRadius="20" Color="#6366F1" Opacity="0.55" ShadowDepth="4" />
+                                    </Setter.Value>
+                                </Setter>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#3730A3" />
                                 <Setter Property="RenderTransform">
                                     <Setter.Value>
-                                        <ScaleTransform ScaleX="0.98" ScaleY="0.98" CenterX="50" CenterY="20" />
+                                        <ScaleTransform ScaleX="0.985" ScaleY="0.985" CenterX="180" CenterY="26" />
                                     </Setter.Value>
                                 </Setter>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#94A3B8" />
+                                <Setter TargetName="border" Property="Effect" Value="{x:Null}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -43,13 +71,130 @@
             </Setter>
         </Style>
 
-        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#4F46E5" />
-            <Setter Property="BorderBrush" Value="#E2E8F0" />
-            <Setter Property="BorderThickness" Value="1" />
+        <!-- Emerald Button Style (For Guest Login) -->
+        <Style x:Key="EmeraldButtonStyle" TargetType="Button">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#059669" Offset="0" />
+                        <GradientStop Color="#10B981" Offset="1" />
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Foreground" Value="White" />
             <Setter Property="Padding" Value="20,10" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}" 
+                                CornerRadius="12" 
+                                BorderThickness="0">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="16" Color="#10B981" Opacity="0.35" ShadowDepth="3" />
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#047857" Offset="0" />
+                                            <GradientStop Color="#059669" Offset="1" />
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect BlurRadius="20" Color="#10B981" Opacity="0.5" ShadowDepth="4" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#065F46" />
+                                <Setter Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.985" ScaleY="0.985" CenterX="180" CenterY="25" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#94A3B8" />
+                                <Setter TargetName="border" Property="Effect" Value="{x:Null}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Amber Button Style (For Manual Unlock) -->
+        <Style x:Key="AmberButtonStyle" TargetType="Button">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#D97706" Offset="0" />
+                        <GradientStop Color="#F59E0B" Offset="1" />
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Padding" Value="20,10" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}" 
+                                CornerRadius="12" 
+                                BorderThickness="0">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="16" Color="#F59E0B" Opacity="0.35" ShadowDepth="3" />
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#B45309" Offset="0" />
+                                            <GradientStop Color="#D97706" Offset="1" />
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect BlurRadius="20" Color="#F59E0B" Opacity="0.5" ShadowDepth="4" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#92400E" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Background" Value="#94A3B8" />
+                                <Setter TargetName="border" Property="Effect" Value="{x:Null}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Secondary Button Style -->
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#F8FAFC" />
+            <Setter Property="Foreground" Value="#4F46E5" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="Padding" Value="20,10" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -57,13 +202,13 @@
                                 Background="{TemplateBinding Background}" 
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8">
+                                CornerRadius="12">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#F8FAFC" />
-                                <Setter TargetName="border" Property="BorderBrush" Value="#4F46E5" />
+                                <Setter TargetName="border" Property="Background" Value="#EEF2FF" />
+                                <Setter TargetName="border" Property="BorderBrush" Value="#818CF8" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -71,57 +216,118 @@
             </Setter>
         </Style>
 
-        <!-- Custom Tab Style -->
-        <Style TargetType="TabControl">
+        <!-- Segmented TabControl Style -->
+        <Style x:Key="SegmentedTabControlStyle" TargetType="TabControl">
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="ItemsPanel">
+                <Setter.Value>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Rows="1" />
+                    </ItemsPanelTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabControl">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            
+                            <!-- Segmented Track Pill -->
+                            <Border Grid.Row="0"
+                                    Background="#F1F5F9"
+                                    CornerRadius="13"
+                                    Padding="3"
+                                    Margin="0,0,0,20">
+                                <ItemsPresenter />
+                            </Border>
+                            
+                            <!-- Tab Content -->
+                            <ContentPresenter Grid.Row="1"
+                                              ContentSource="SelectedContent" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
-        <Style TargetType="TabItem">
+        <!-- Segmented TabItem Style -->
+        <Style x:Key="SegmentedTabItemStyle" TargetType="TabItem">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TabItem">
-                        <Border x:Name="Border" BorderThickness="0,0,0,2" Margin="0,0,15,0" Padding="5,8">
-                            <ContentPresenter x:Name="ContentSite"
-                                            VerticalAlignment="Center"
-                                            HorizontalAlignment="Center"
-                                            ContentSource="Header"
-                                            Margin="5,2"/>
+                        <Border x:Name="TabPillBorder"
+                                Background="Transparent"
+                                CornerRadius="10"
+                                Padding="8,8"
+                                Margin="1,0">
+                            <ContentPresenter x:Name="TabContent"
+                                              ContentSource="Header"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Border" Property="BorderBrush" Value="#4F46E5" />
+                                <Setter TargetName="TabPillBorder" Property="Background" Value="#FFFFFF" />
+                                <Setter TargetName="TabPillBorder" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect BlurRadius="6" Color="#000000" Opacity="0.1" ShadowDepth="1" />
+                                    </Setter.Value>
+                                </Setter>
                                 <Setter Property="Foreground" Value="#4F46E5" />
                                 <Setter Property="FontWeight" Value="SemiBold" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="False">
-                                <Setter TargetName="Border" Property="BorderBrush" Value="Transparent" />
+                                <Setter TargetName="TabPillBorder" Property="Background" Value="Transparent" />
                                 <Setter Property="Foreground" Value="#64748B" />
+                                <Setter Property="FontWeight" Value="Medium" />
                             </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="#4F46E5" />
-                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsSelected" Value="False" />
+                                    <Condition Property="IsMouseOver" Value="True" />
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="TabPillBorder" Property="Background" Value="#E2E8F0" />
+                                <Setter Property="Foreground" Value="#1E293B" />
+                            </MultiTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
-        <!-- Modern Textbox/Passwordbox Style -->
+        <!-- Modern Input Field Border with Keyboard Focus Glow -->
         <Style x:Key="ModernFieldBorder" TargetType="Border">
-            <Setter Property="Background" Value="White" />
+            <Setter Property="Background" Value="#F8FAFC" />
             <Setter Property="BorderBrush" Value="#E2E8F0" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Height" Value="45" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Height" Value="50" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="BorderBrush" Value="#CBD5E1" />
+                    <Setter Property="Background" Value="#FFFFFF" />
+                </Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter Property="BorderBrush" Value="#6366F1" />
+                    <Setter Property="Background" Value="#FFFFFF" />
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect BlurRadius="10" Color="#6366F1" Opacity="0.22" ShadowDepth="0" />
+                        </Setter.Value>
+                    </Setter>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
+        <!-- Error Border Style -->
         <Style TargetType="Border" x:Key="ErrorBorderStyle">
             <Setter Property="Visibility" Value="Visible" />
             <Style.Triggers>
@@ -138,8 +344,18 @@
     <Grid>
         <!-- Background Layer -->
         <Grid>
-            <!-- Content to be blurred -->
-            <Grid x:Name="BackgroundContainer">
+            <!-- Default Dark Cyber Gradient (shown when no custom media is loaded) -->
+            <Border>
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#090D16" Offset="0" />
+                        <GradientStop Color="#0F172A" Offset="1" />
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+
+            <!-- Media / Slideshow Container -->
+            <Grid x:Name="BackgroundContainer" Visibility="Collapsed">
                 <Image x:Name="BackgroundImageElement"
                        Visibility="Collapsed"
                        Stretch="UniformToFill" />
@@ -153,117 +369,146 @@
                               MediaFailed="BackgroundVideoElement_MediaFailed" />
             </Grid>
             
-            <!-- Dark Overlay -->
-            <Border Background="#AA0F172A" />
+            <!-- Subtle Overlay for text readability over bright wallpapers -->
+            <Border Background="#26000000" IsHitTestVisible="False" />
         </Grid>
 
-        <!-- Machine Name (Top Right) -->
+        <!-- Machine Name Watermark (Top Right) -->
         <TextBlock x:Name="AgentIdTextBlock"
                    Text="PC-001"
                    HorizontalAlignment="Right"
                    VerticalAlignment="Top"
-                   Margin="0,40,60,0"
+                   Margin="0,36,48,0"
                    Foreground="White"
                    FontWeight="Black"
-                   FontSize="120"
-                   Opacity="0.8">
+                   FontSize="100"
+                   Opacity="0.75">
             <TextBlock.Effect>
-                <DropShadowEffect BlurRadius="20" ShadowDepth="0" Color="Black" Opacity="0.5" />
+                <DropShadowEffect BlurRadius="28" ShadowDepth="0" Color="Black" Opacity="0.65" />
             </TextBlock.Effect>
         </TextBlock>
 
-        <!-- Centered Content Card -->
+        <!-- Centered Modern Card -->
         <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
-
             <Border x:Name="MainContentCard"
-                    Width="380"
+                    Width="420"
                     Visibility="Collapsed"
                     Background="White"
-                    CornerRadius="28"
-                    Padding="24,24,24,20">
+                    CornerRadius="26"
+                    BorderBrush="#E2E8F0"
+                    BorderThickness="1"
+                    Padding="28,26,28,26">
                 <Border.Effect>
-                    <DropShadowEffect BlurRadius="40" Color="Black" Opacity="0.2" ShadowDepth="10" />
+                    <DropShadowEffect BlurRadius="50" Color="#000000" Opacity="0.32" ShadowDepth="12" />
                 </Border.Effect>
                 
                 <StackPanel>
-                    <!-- Header Section Removed as requested -->
-                    <StackPanel Margin="0,0,0,16" Visibility="Collapsed">
-                        <TextBlock x:Name="TitleTextBlock"
-                                   Text="Đăng nhập máy trạm"
-                                   Foreground="#1E293B"
-                                   FontWeight="Bold"
-                                   FontSize="28"
-                                   HorizontalAlignment="Center" />
-                        <Border Height="4" Width="40" Background="#4F46E5" CornerRadius="2" Margin="0,12,0,0" />
-                    </StackPanel>
-
-
                     <!-- Manual Unlock Panel (Temporary Lock) -->
-                    <StackPanel x:Name="ManualUnlockPanel"
-                                Visibility="Collapsed">
-                        <TextBlock Text="Máy đang khóa tạm thời"
-                                   Foreground="#334155"
-                                   FontWeight="SemiBold"
-                                   FontSize="18"
-                                   HorizontalAlignment="Center" />
-                        
-                        <TextBlock Text="Vui lòng nhập mật mã bảo vệ để mở khóa và tiếp tục sử dụng."
-                                   Margin="0,8,0,0"
-                                   Foreground="#64748B"
-                                   FontSize="14"
-                                   TextAlignment="Center"
-                                   TextWrapping="Wrap" />
+                    <StackPanel x:Name="ManualUnlockPanel" Visibility="Collapsed">
+                        <TextBlock x:Name="TitleTextBlock"
+                                   Text="Khóa máy tạm thời"
+                                   Foreground="#0F172A"
+                                   FontWeight="Bold"
+                                   FontSize="20"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,16" />
 
-                        <Border Style="{StaticResource ModernFieldBorder}" Margin="0,24,0,0">
+                        <Border Background="#FFFBEB" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="12" Padding="14,12" Margin="0,0,0,16">
+                            <TextBlock Text="Máy đang khóa tạm thời để bảo vệ tài khoản. Nhập mật mã mở khóa bạn đã thiết lập để tiếp tục sử dụng."
+                                       Foreground="#B45309"
+                                       FontSize="12.5"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap" />
+                        </Border>
+
+                        <TextBlock Text="MẬT MÃ MỞ KHÓA" 
+                                   FontSize="11" 
+                                   FontWeight="Bold" 
+                                   Foreground="#64748B" 
+                                   Margin="2,0,0,6" />
+
+                        <Border Style="{StaticResource ModernFieldBorder}" Margin="0,0,0,20">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="45" />
+                                    <ColumnDefinition Width="46" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="🔐" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="18" />
-                                <PasswordBox x:Name="ManualUnlockPasswordBox"
-                                             Grid.Column="1"
-                                             BorderThickness="0"
-                                             Background="Transparent"
-                                             VerticalContentAlignment="Center"
-                                             Padding="10,0"
-                                             FontSize="16"
-                                             KeyDown="ManualUnlockPasswordBox_KeyDown"
-                                             PasswordChanged="ManualUnlockPasswordBox_PasswordChanged" />
-                                <TextBlock x:Name="ManualUnlockPasswordHint"
-                                           Grid.Column="1"
-                                           Text="Mật mã khóa máy" 
-                                           Foreground="#94A3B8" 
-                                           IsHitTestVisible="False" 
-                                           VerticalAlignment="Center" 
-                                           Margin="10,0" 
-                                           FontSize="16" />
+                                <Path Grid.Column="0" 
+                                      Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+                                      Fill="#D97706"
+                                      Stretch="Uniform"
+                                      Width="17"
+                                      Height="17"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                                <Grid Grid.Column="1">
+                                    <PasswordBox x:Name="ManualUnlockPasswordBox"
+                                                 BorderThickness="0"
+                                                 Background="Transparent"
+                                                 VerticalContentAlignment="Center"
+                                                 Padding="4,0,14,0"
+                                                 FontSize="16"
+                                                 Foreground="#0F172A"
+                                                 CaretBrush="#D97706"
+                                                 KeyDown="ManualUnlockPasswordBox_KeyDown"
+                                                 PasswordChanged="ManualUnlockPasswordBox_PasswordChanged" />
+                                    <TextBlock x:Name="ManualUnlockPasswordHint"
+                                               Text="Nhập mật mã mở khóa..." 
+                                               Foreground="#94A3B8" 
+                                               IsHitTestVisible="False" 
+                                               VerticalAlignment="Center" 
+                                               Margin="4,0,0,0" 
+                                               FontSize="14" />
+                                </Grid>
                             </Grid>
                         </Border>
 
                         <Button x:Name="ManualUnlockButton"
-                                Style="{StaticResource PrimaryButtonStyle}"
-                                Margin="0,20,0,0"
-                                Height="48"
-                                Content="Mở khóa máy"
-                                FontSize="16"
+                                Style="{StaticResource AmberButtonStyle}"
+                                Height="50"
+                                Content="MỞ KHÓA MÁY"
+                                FontSize="15"
                                 FontWeight="Bold"
                                 Click="ManualUnlockButton_Click" />
                     </StackPanel>
 
-                    <!-- Main Login Panel -->
-                    <TabControl x:Name="LoginModeTabControl" Visibility="Visible">
-                        <!-- Member Login -->
-                        <TabItem x:Name="MemberTabItem" Header="HỘI VIÊN">
-                            <StackPanel Margin="0,20,0,0">
+                    <!-- Segmented Login Tabs -->
+                    <TabControl x:Name="LoginModeTabControl" 
+                                Style="{StaticResource SegmentedTabControlStyle}" 
+                                Visibility="Visible">
+                        <!-- Member Login Tab -->
+                        <TabItem x:Name="MemberTabItem" Style="{StaticResource SegmentedTabItemStyle}">
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                                          Fill="{Binding RelativeSource={RelativeSource AncestorType=TabItem}, Path=Foreground}"
+                                          Stretch="Uniform" Width="13" Height="13" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Hội viên" FontSize="13" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </TabItem.Header>
+                            
+                            <StackPanel Margin="0,4,0,0">
                                 <!-- Username Field -->
+                                <TextBlock Text="TÀI KHOẢN HỘI VIÊN" 
+                                           FontSize="11" 
+                                           FontWeight="Bold" 
+                                           Foreground="#64748B" 
+                                           Margin="2,0,0,6" />
                                 <Border Style="{StaticResource ModernFieldBorder}" Margin="0,0,0,16">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="45" />
+                                            <ColumnDefinition Width="46" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="👤" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="18" />
+                                        <!-- SVG User Icon -->
+                                        <Path Grid.Column="0" 
+                                              Data="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                                              Fill="#6366F1"
+                                              Stretch="Uniform"
+                                              Width="18"
+                                              Height="18"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
                                         <Grid Grid.Column="1">
                                             <TextBox x:Name="UsernameTextBox" 
                                                      TabIndex="0" 
@@ -271,15 +516,18 @@
                                                      BorderThickness="0" 
                                                      Background="Transparent" 
                                                      VerticalContentAlignment="Center" 
-                                                     Padding="10,0" 
-                                                     FontSize="16" 
+                                                     Padding="4,0,14,0" 
+                                                     FontSize="15" 
+                                                     FontWeight="SemiBold"
+                                                     Foreground="#0F172A"
+                                                     CaretBrush="#4F46E5"
                                                      KeyDown="Input_KeyDown" />
-                                            <TextBlock Text="Tên đăng nhập" 
+                                            <TextBlock Text="Nhập tên đăng nhập..." 
                                                        Foreground="#94A3B8" 
                                                        IsHitTestVisible="False" 
                                                        VerticalAlignment="Center" 
-                                                       Margin="10,0" 
-                                                       FontSize="16">
+                                                       Margin="4,0,0,0" 
+                                                       FontSize="14">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock">
                                                         <Setter Property="Visibility" Value="Collapsed" />
@@ -296,133 +544,245 @@
                                 </Border>
 
                                 <!-- Password Field -->
-                                <Border Style="{StaticResource ModernFieldBorder}" Margin="0,0,0,24">
+                                <TextBlock Text="MẬT KHẨU" 
+                                           FontSize="11" 
+                                           FontWeight="Bold" 
+                                           Foreground="#64748B" 
+                                           Margin="2,0,0,6" />
+                                <Border Style="{StaticResource ModernFieldBorder}" Margin="0,0,0,22">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="45" />
+                                            <ColumnDefinition Width="46" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="🔑" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="18" />
+                                        <!-- SVG Lock / Key Icon -->
+                                        <Path Grid.Column="0" 
+                                              Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+                                              Fill="#6366F1"
+                                              Stretch="Uniform"
+                                              Width="17"
+                                              Height="17"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
                                         <Grid Grid.Column="1">
                                             <PasswordBox x:Name="PasswordBox" 
                                                          TabIndex="1" 
                                                          BorderThickness="0" 
                                                          Background="Transparent" 
                                                          VerticalContentAlignment="Center" 
-                                                         Padding="10,0" 
+                                                         Padding="4,0,14,0" 
                                                          FontSize="16" 
+                                                         Foreground="#0F172A"
+                                                         CaretBrush="#4F46E5"
                                                          KeyDown="Input_KeyDown"
                                                          PasswordChanged="PasswordBox_PasswordChanged" />
                                             <TextBlock x:Name="PasswordHint"
-                                                       Text="Mật khẩu" 
+                                                       Text="Nhập mật khẩu tài khoản..." 
                                                        Foreground="#94A3B8" 
                                                        IsHitTestVisible="False" 
                                                        VerticalAlignment="Center" 
-                                                       Margin="10,0" 
-                                                       FontSize="16" />
+                                                       Margin="4,0,0,0" 
+                                                       FontSize="14" />
                                         </Grid>
                                     </Grid>
                                 </Border>
 
+                                <!-- Primary Login Button -->
                                 <Button x:Name="LoginButton"
                                         Style="{StaticResource PrimaryButtonStyle}"
-                                        Height="50"
+                                        Height="52"
                                         Content="ĐĂNG NHẬP"
-                                        FontSize="16"
+                                        FontSize="15"
                                         FontWeight="Bold"
                                         Click="LoginButton_Click" />
+
                             </StackPanel>
                         </TabItem>
 
-                        <!-- Guest Login -->
-                        <TabItem x:Name="GuestTabItem" Header="KHÁCH">
-                            <StackPanel Margin="0,20,0,0">
-                                <TextBlock Text="Sử dụng máy không cần tài khoản"
-                                           Foreground="#334155"
-                                           FontWeight="SemiBold"
-                                           FontSize="16"
-                                           HorizontalAlignment="Center" />
-                                <TextBlock Text="Bạn có thể thanh toán trực tiếp tại quầy hoặc nạp tiền vào máy sau khi đăng nhập."
-                                           Margin="0,12,0,24"
-                                           Foreground="#64748B"
-                                           FontSize="14"
-                                           TextAlignment="Center"
-                                           TextWrapping="Wrap" />
+                        <!-- Guest Login Tab -->
+                        <TabItem x:Name="GuestTabItem" Style="{StaticResource SegmentedTabItemStyle}">
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="M7 2v11h3v9l7-12h-4l4-8z"
+                                          Fill="{Binding RelativeSource={RelativeSource AncestorType=TabItem}, Path=Foreground}"
+                                          Stretch="Uniform" Width="12" Height="12" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Khách" FontSize="13" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </TabItem.Header>
+                            
+                            <StackPanel Margin="0,4,0,0">
+                                <!-- Bento Benefit Box -->
+                                <Border Background="#F0FDF4" BorderBrush="#BBF7D0" BorderThickness="1.5" CornerRadius="14" Padding="16,14" Margin="0,0,0,18">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                            <Border Width="26" Height="26" CornerRadius="13" Background="#DCFCE7" Margin="0,0,8,0">
+                                                <Path Data="M7 2v11h3v9l7-12h-4l4-8z" Fill="#16A34A" Stretch="Uniform" Width="12" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <TextBlock Text="Chơi ngay không cần tài khoản" FontWeight="Bold" FontSize="13.5" Foreground="#15803D" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        
+                                        <!-- Benefit item 1 -->
+                                        <Grid Margin="0,2,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="20" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Path Grid.Column="0" Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" Fill="#16A34A" Stretch="Uniform" Width="11" Height="11" VerticalAlignment="Center" HorizontalAlignment="Left" />
+                                            <TextBlock Grid.Column="1" Text="Khởi động phiên chơi tức thì không mất thời gian đăng ký" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />
+                                        </Grid>
 
+                                        <!-- Benefit item 2 -->
+                                        <Grid Margin="0,4,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="20" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Path Grid.Column="0" Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" Fill="#16A34A" Stretch="Uniform" Width="11" Height="11" VerticalAlignment="Center" HorizontalAlignment="Left" />
+                                            <TextBlock Grid.Column="1" Text="Nạp tiền linh hoạt tại quầy hoặc tính tiền trả sau theo giờ chơi" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />
+                                        </Grid>
+
+                                        <!-- Benefit item 3 -->
+                                        <Grid Margin="0,4,0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="20" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Path Grid.Column="0" Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" Fill="#16A34A" Stretch="Uniform" Width="11" Height="11" VerticalAlignment="Center" HorizontalAlignment="Left" />
+                                            <TextBlock Grid.Column="1" Text="Tự động dọn dẹp dữ liệu cá nhân khi kết thúc phiên" FontSize="12" Foreground="#334155" TextWrapping="Wrap" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Guest Login Action Button -->
                                 <Button x:Name="GuestLoginButton"
-                                        Style="{StaticResource SecondaryButtonStyle}"
-                                        Height="48"
-                                        Content="Bắt đầu phiên Khách"
-                                        FontSize="16"
-                                        FontWeight="SemiBold"
+                                        Style="{StaticResource EmeraldButtonStyle}"
+                                        Height="50"
+                                        Content="BẮT ĐẦU PHIÊN KHÁCH"
+                                        FontSize="15"
+                                        FontWeight="Bold"
                                         Click="GuestLoginButton_Click" />
+
+                                <TextBlock Text="Nhấn để bắt đầu phiên tính giờ cho khách vãng lai"
+                                           Foreground="#94A3B8"
+                                           FontSize="11.5"
+                                           TextAlignment="Center"
+                                           Margin="0,12,0,0" />
                             </StackPanel>
                         </TabItem>
 
-                        <!-- Server Settings -->
-                        <TabItem x:Name="ServerTabItem" Header="HỆ THỐNG">
-                            <StackPanel Margin="0,20,0,0">
-                                <TextBlock Text="Địa chỉ Máy chủ (Server IP)"
-                                           Foreground="#334155"
-                                           FontWeight="SemiBold"
-                                           FontSize="14"
-                                           Margin="0,0,0,8" />
+                        <!-- Server Settings Tab -->
+                        <TabItem x:Name="ServerTabItem" Style="{StaticResource SegmentedTabItemStyle}">
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="M4 1h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm0 8h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1zm0 8h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1zM6 4h2v1H6V4zm0 8h2v1H6v-1zm0 8h2v1H6v-1z"
+                                          Fill="{Binding RelativeSource={RelativeSource AncestorType=TabItem}, Path=Foreground}"
+                                          Stretch="Uniform" Width="12" Height="12" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Hệ thống" FontSize="13" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </TabItem.Header>
+                            
+                            <StackPanel Margin="0,4,0,0">
+                                <!-- Server Network Info Header -->
+                                <TextBlock Text="ĐỊA CHỈ MÁY CHỦ BILLING (SERVER IP)"
+                                           Foreground="#64748B"
+                                           FontWeight="Bold"
+                                           FontSize="11"
+                                           Margin="2,0,0,6" />
                                 
                                 <Border Style="{StaticResource ModernFieldBorder}" Margin="0,0,0,16">
-                                    <TextBox x:Name="ServerIpTextBox"
-                                             BorderThickness="0"
-                                             Background="Transparent"
-                                             VerticalContentAlignment="Center"
-                                             Padding="12,0"
-                                             FontSize="16" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="46" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Path Grid.Column="0" 
+                                              Data="M4 1h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1zm0 8h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1zm0 8h16a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1zM6 4h2v1H6V4zm0 8h2v1H6v-1zm0 8h2v1H6v-1z"
+                                              Fill="#6366F1"
+                                              Stretch="Uniform"
+                                              Width="16"
+                                              Height="16"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                                        <TextBox x:Name="ServerIpTextBox"
+                                                 Grid.Column="1"
+                                                 BorderThickness="0"
+                                                 Background="Transparent"
+                                                 VerticalContentAlignment="Center"
+                                                 Padding="4,0,14,0"
+                                                 FontSize="14.5"
+                                                 FontWeight="SemiBold"
+                                                 Foreground="#0F172A"
+                                                 CaretBrush="#4F46E5" />
+                                    </Grid>
                                 </Border>
 
                                 <Button x:Name="SaveServerButton"
                                         Style="{StaticResource PrimaryButtonStyle}"
-                                        Height="45"
+                                        Height="48"
                                         Content="Cập nhật &amp; Kết nối lại"
-                                        FontSize="15"
+                                        FontSize="14.5"
                                         FontWeight="Bold"
                                         Click="SaveServerButton_Click" />
 
-                                <TextBlock x:Name="ServerSetupStatusTextBlock"
-                                           Margin="0,12,0,0"
-                                           Foreground="#059669"
-                                           FontSize="13"
-                                           TextAlignment="Center"
-                                           TextWrapping="Wrap" />
+                                <!-- Status Badge Block -->
+                                <Border Margin="0,14,0,0" Padding="12,9" Background="#F8FAFC" CornerRadius="10" BorderBrush="#E2E8F0" BorderThickness="1">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <Border Width="8" Height="8" CornerRadius="4" Background="#10B981" Margin="0,0,7,0" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="ServerSetupStatusTextBlock"
+                                                   Foreground="#059669"
+                                                   FontSize="12"
+                                                   FontWeight="Medium"
+                                                   TextAlignment="Center"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </TabItem>
                     </TabControl>
 
-                    <!-- Error Section -->
+                    <!-- Error Alert Banner -->
                     <Border x:Name="ErrorBorder" 
                             Style="{StaticResource ErrorBorderStyle}"
                             Margin="0,16,0,0" 
                             Background="#FEF2F2" 
-                            CornerRadius="8" 
-                            Padding="12">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="⚠️" Margin="0,0,8,0" />
+                            BorderBrush="#FECACA"
+                            BorderThickness="1"
+                            CornerRadius="10" 
+                            Padding="12,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="22" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Path Grid.Column="0" 
+                                  Data="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" 
+                                  Fill="#DC2626" 
+                                  Stretch="Uniform" 
+                                  Width="14" 
+                                  Height="14" 
+                                  VerticalAlignment="Center" 
+                                  HorizontalAlignment="Left" />
                             <TextBlock x:Name="ErrorTextBlock"
-                                       Foreground="#B91C1C"
+                                       Grid.Column="1"
+                                       Foreground="#DC2626"
                                        FontSize="13"
+                                       FontWeight="SemiBold"
                                        TextWrapping="Wrap"
-                                       VerticalAlignment="Center" />
-                        </StackPanel>
+                                       VerticalAlignment="Center"
+                                       Margin="4,0,0,0" />
+                        </Grid>
                     </Border>
-                    <!-- Trigger visibility for ErrorBorder based on ErrorTextBlock.Text -->
                 </StackPanel>
             </Border>
         </Grid>
 
         <!-- Footer / Credits -->
-        <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,32">
-            <TextBlock Text="CyberS v2.0" 
+        <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,28">
+            <TextBlock Text="CYBER MANAGER BILLING • AGENT TERMINAL v2.0" 
                        Foreground="White" 
-                       Opacity="0.4" 
-                       FontSize="12" 
-                       FontWeight="Bold" />
+                       Opacity="0.45" 
+                       FontSize="11.5" 
+                       FontWeight="SemiBold" />
         </StackPanel>
     </Grid>
 </Window>

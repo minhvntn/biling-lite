@@ -11,8 +11,28 @@ export class ApiKeyGuard implements CanActivate {
       return true;
     }
 
-    const apiKey = request.headers['x-api-key'];
+    if (request.method === 'OPTIONS') {
+      return true;
+    }
+
+    // Public lock-screen media assets streamed/displayed on client workstations
+    // Public lock-screen media assets streamed/displayed on client workstations
+    const rawPath = (request.path || request.originalUrl || request.url || '').split('?')[0];
+    if (
+      (request.method === 'GET' || request.method === 'HEAD') &&
+      rawPath.includes('/pricing/client-settings/lock-screen-media/')
+    ) {
+      return true;
+    }
+
     const expectedKey = process.env.SMB_API_KEY || 'SmbSecureLANKey2026';
+
+    const apiKey =
+      request.headers['x-api-key'] ||
+      (request.query?.['x-api-key'] as string) ||
+      (request.query?.['api_key'] as string) ||
+      (request.query?.['apiKey'] as string) ||
+      (request.query?.['key'] as string);
 
     if (apiKey === expectedKey) {
       return true;
@@ -21,3 +41,4 @@ export class ApiKeyGuard implements CanActivate {
     throw new UnauthorizedException('Missing or invalid API Key');
   }
 }
+

@@ -3456,14 +3456,15 @@ export class MembersService {
     totalTopup: number,
     configs: { rankName: string; minTopup: Prisma.Decimal }[],
   ): string {
-    if (configs.length === 0) return 'S\u1eaft';
-    const matched = configs.find((c) => totalTopup >= Number(c.minTopup));
-    return matched?.rankName || 'S\u1eaft';
+    if (configs.length === 0) return 'Sắt 1';
+    const sorted = [...configs].sort((a, b) => Number(b.minTopup) - Number(a.minTopup));
+    const matched = sorted.find((c) => totalTopup >= Number(c.minTopup));
+    return matched?.rankName || 'Sắt 1';
   }
 
   async getLoyaltyRanks() {
     return this.prisma.loyaltyRankConfig.findMany({
-      orderBy: { minTopup: 'asc' },
+      orderBy: { minTopup: 'desc' },
     });
   }
 
@@ -4991,28 +4992,15 @@ export class MembersService {
     const now = new Date();
     let startDate: Date | undefined;
     if (period === 'week') {
-      const day = now.getDay();
-      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-      startDate = new Date(now.setDate(diff));
-      startDate.setHours(0, 0, 0, 0);
+      const d = new Date(now);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      d.setDate(diff);
+      d.setHours(0, 0, 0, 0);
+      startDate = d;
     } else if (period === 'month') {
       startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
     }
-
-    const members = await this.prisma.member.findMany({
-      where: {
-        isActive: true,
-        memberType: 'REGULAR',
-      },
-      select: {
-        id: true,
-        username: true,
-        playSeconds: true,
-        avatarId: true,
-        totalTopup: true,
-      },
-      take: 100,
-    });
 
     const rankConfigs = await this.getLoyaltyRanks();
     const loyaltySettings = await this.getLoyaltySettingsItem();
@@ -5027,6 +5015,7 @@ export class MembersService {
     }> = [];
 
     if (startDate) {
+      // Find all usage transactions in this period
       const txs = await this.prisma.memberTransaction.findMany({
         where: {
           createdAt: { gte: startDate },
@@ -5046,12 +5035,71 @@ export class MembersService {
         statsMap.set(tx.memberId, current);
       }
 
+      // Bonus transactions in this period
+      const bonusTxs = await this.prisma.memberTransaction.findMany({
+        where: {
+          createdAt: { gte: startDate },
+          OR: [
+            { note: { startsWith: 'MISSION_REWARD' } },
+            { note: { startsWith: 'LOYALTY_DAILY_CHECKIN' } },
+            { note: { startsWith: 'REFERRAL_REWARD' } },
+            { note: { startsWith: 'HORSE_RACE_REWARD' } },
+            { note: { startsWith: 'HORSE_RACE_WIN' } },
+          ],
+          playSecondsDelta: { gt: 0 },
+        },
+        select: {
+          memberId: true,
+          playSecondsDelta: true,
+        },
+      });
+
+      const bonusMap = new Map<string, number>();
+      for (const b of bonusTxs) {
+        bonusMap.set(b.memberId, (bonusMap.get(b.memberId) || 0) + b.playSecondsDelta);
+      }
+
+      // Candidate member IDs: anyone with usage or bonus in period, plus currentMemberId
+      const candidateIds = new Set<string>([...statsMap.keys(), ...bonusMap.keys()]);
+      if (currentMemberId) {
+        candidateIds.add(currentMemberId);
+      }
+
+      // If fewer than 20 candidates, pad with top active members
+      if (candidateIds.size < 20) {
+        const padMembers = await this.prisma.member.findMany({
+          where: { isActive: true, memberType: 'REGULAR' },
+          orderBy: { totalTopup: 'desc' },
+          take: 20 - candidateIds.size,
+          select: { id: true },
+        });
+        for (const pm of padMembers) {
+          candidateIds.add(pm.id);
+        }
+      }
+
+      const members = await this.prisma.member.findMany({
+        where: {
+          id: { in: Array.from(candidateIds) },
+          isActive: true,
+        },
+        select: {
+          id: true,
+          username: true,
+          avatarId: true,
+          totalTopup: true,
+        },
+      });
+
       for (const m of members) {
         const stats = statsMap.get(m.id) || { playSeconds: 0 };
-        const playHours = Number((stats.playSeconds / 3600).toFixed(2));
+        const playHours = Number((stats.playSeconds / 3600).toFixed(1));
         const rankName = this.calculateRankName(Number(m.totalTopup), rankConfigs);
         const minutesPerPoint = rankConfigs.find(r => r.rankName === rankName)?.minutesPerPoint || loyaltySettings.minutesPerPoint || 15;
-        const points = Math.floor(stats.playSeconds / (minutesPerPoint * 60));
+        const secondsPerPoint = minutesPerPoint * 60;
+        const bonusSecs = bonusMap.get(m.id) || 0;
+        const bonusPts = Math.floor(bonusSecs / secondsPerPoint);
+        const points = Math.floor(stats.playSeconds / secondsPerPoint) + bonusPts;
 
         memberStats.push({
           memberId: m.id,
@@ -5063,32 +5111,98 @@ export class MembersService {
         });
       }
     } else {
-      memberStats = await Promise.all(
-        members.map(async (m) => {
-          const rankName = this.calculateRankName(Number(m.totalTopup), rankConfigs);
-          const playHours = Number((m.playSeconds / 3600).toFixed(2));
-          try {
-            const snapshot = await this.buildLoyaltySnapshot(m.id, this.prisma);
-            return {
-              memberId: m.id,
-              username: (m.username || '').toUpperCase(),
-              avatarId: m.avatarId,
-              rankName,
-              points: snapshot.earnedPoints,
-              playHours,
-            };
-          } catch {
-            return {
-              memberId: m.id,
-              username: (m.username || '').toUpperCase(),
-              avatarId: m.avatarId,
-              rankName,
-              points: 0,
-              playHours,
-            };
-          }
-        })
-      );
+      // All-time leaderboard:
+      // Fetch members with usage or topup, and ALWAYS include currentMemberId
+      const members = await this.prisma.member.findMany({
+        where: {
+          isActive: true,
+          memberType: 'REGULAR',
+        },
+        select: {
+          id: true,
+          username: true,
+          avatarId: true,
+          totalTopup: true,
+          totalUsageSeconds: true,
+        },
+        orderBy: { totalTopup: 'desc' },
+      });
+
+      // Batch aggregate usage transactions (if any)
+      const usageSums = await this.prisma.memberTransaction.groupBy({
+        by: ['memberId'],
+        where: {
+          createdBy: LOYALTY_USAGE_CREATED_BY,
+          playSecondsDelta: { lt: 0 },
+        },
+        _sum: { playSecondsDelta: true },
+      });
+      const usageMap = new Map<string, number>();
+      for (const u of usageSums) {
+        usageMap.set(u.memberId, Math.abs(u._sum.playSecondsDelta || 0));
+      }
+
+      // Batch aggregate bonus transactions
+      const bonusSums = await this.prisma.memberTransaction.groupBy({
+        by: ['memberId'],
+        where: {
+          OR: [
+            { note: { startsWith: 'MISSION_REWARD' } },
+            { note: { startsWith: 'LOYALTY_DAILY_CHECKIN' } },
+            { note: { startsWith: 'REFERRAL_REWARD' } },
+            { note: { startsWith: 'HORSE_RACE_REWARD' } },
+            { note: { startsWith: 'HORSE_RACE_WIN' } },
+          ],
+          playSecondsDelta: { gt: 0 },
+        },
+        _sum: { playSecondsDelta: true },
+      });
+      const bonusMap = new Map<string, number>();
+      for (const b of bonusSums) {
+        bonusMap.set(b.memberId, b._sum.playSecondsDelta || 0);
+      }
+
+      // Batch aggregate redeemed transactions
+      const redeemSums = await this.prisma.memberTransaction.groupBy({
+        by: ['memberId'],
+        where: {
+          note: { startsWith: LOYALTY_REDEEM_NOTE_PREFIX },
+          playSecondsDelta: { gt: 0 },
+        },
+        _sum: { playSecondsDelta: true },
+      });
+      const redeemMap = new Map<string, number>();
+      for (const r of redeemSums) {
+        redeemMap.set(r.memberId, r._sum.playSecondsDelta || 0);
+      }
+
+      const redeemSecondsPerPoint = (loyaltySettings.pointsToMinutes || 1) * 60;
+
+      for (const m of members) {
+        const rankName = this.calculateRankName(Number(m.totalTopup), rankConfigs);
+        const minutesPerPoint = rankConfigs.find(r => r.rankName === rankName)?.minutesPerPoint || loyaltySettings.minutesPerPoint || 15;
+        const secondsPerPoint = minutesPerPoint * 60;
+
+        const recordedUsage = usageMap.get(m.id) || 0;
+        const totalSeconds = Math.max(m.totalUsageSeconds || 0, recordedUsage);
+        const playHours = Number((totalSeconds / 3600).toFixed(1));
+
+        const bonusSecs = bonusMap.get(m.id) || 0;
+        const bonusPts = Math.floor(bonusSecs / secondsPerPoint);
+        const earnedPoints = Math.floor(totalSeconds / secondsPerPoint) + bonusPts;
+        const redeemedSecs = redeemMap.get(m.id) || 0;
+        const redeemedPts = Math.floor(redeemedSecs / redeemSecondsPerPoint);
+        const points = Math.max(0, earnedPoints - redeemedPts);
+
+        memberStats.push({
+          memberId: m.id,
+          username: (m.username || '').toUpperCase(),
+          avatarId: m.avatarId,
+          rankName,
+          points,
+          playHours,
+        });
+      }
     }
 
     const byPoints = [...memberStats].sort((a, b) => b.points - a.points || b.playHours - a.playHours || a.username.localeCompare(b.username));
@@ -5112,7 +5226,7 @@ export class MembersService {
       avatarId: m.avatarId,
       rankName: m.rankName,
       value: m.playHours,
-      displayValue: `${m.playHours} giờ`,
+      displayValue: `${m.playHours.toLocaleString()} giờ`,
       isCurrentUser: Boolean(currentMemberId && m.memberId === currentMemberId),
     }));
 
@@ -5126,11 +5240,12 @@ export class MembersService {
     if (currentMemberId) {
       const pIdx = byPoints.findIndex((m) => m.memberId === currentMemberId);
       const tIdx = byPlaytime.findIndex((m) => m.memberId === currentMemberId);
+      const currentStat = memberStats.find((m) => m.memberId === currentMemberId);
       currentUserRank = {
         pointsRank: pIdx >= 0 ? pIdx + 1 : 0,
         playtimeRank: tIdx >= 0 ? tIdx + 1 : 0,
-        pointsValue: pIdx >= 0 ? byPoints[pIdx].points : 0,
-        playtimeValue: tIdx >= 0 ? byPlaytime[tIdx].playHours : 0,
+        pointsValue: currentStat?.points ?? 0,
+        playtimeValue: currentStat?.playHours ?? 0,
       };
     }
 

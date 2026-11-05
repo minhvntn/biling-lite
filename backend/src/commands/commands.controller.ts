@@ -34,6 +34,18 @@ export class CommandsController {
     );
   }
 
+  @Post('pcs/:pcId/guest-prepaid')
+  async configureGuestPrepaid(
+    @Param('pcId') pcId: string,
+    @Body() body: GuestOpenDto,
+  ) {
+    return this.commandsService.configureGuestPrepaid(
+      pcId,
+      body.amount,
+      body.requestedBy,
+    );
+  }
+
   @Post('pcs/:pcId/lock')
   async lockPc(@Param('pcId') pcId: string, @Body() body: RequestCommandDto) {
     return this.commandsService.createLockCommand(pcId, body.requestedBy);

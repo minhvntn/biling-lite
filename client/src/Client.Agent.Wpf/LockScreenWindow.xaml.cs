@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using System.IO;
+using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
@@ -8,6 +10,32 @@ namespace Client.Agent.Wpf;
 
 public partial class LockScreenWindow : Window
 {
+    private static readonly HttpClient _mediaHttpClient = new()
+    {
+        Timeout = System.TimeSpan.FromSeconds(10)
+    };
+
+    private const int WH_KEYBOARD_LL = 13;
+    private const int WM_KEYDOWN = 0x0100;
+    private const int WM_SYSKEYDOWN = 0x0104;
+
+    private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
+    private LowLevelKeyboardProc? _keyboardProc;
+    private IntPtr _keyboardHookId = IntPtr.Zero;
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool UnhookWindowsHookEx(IntPtr hhk);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    private static extern IntPtr GetModuleHandle(string? lpModuleName);
+
     private bool _allowClose;
     private bool _isAuthenticating;
     private bool _manualUnlockMode;
@@ -23,12 +51,14 @@ public partial class LockScreenWindow : Window
     {
         InitializeComponent();
         
+        this.Focusable = true;
         _idleTimer = new System.Windows.Threading.DispatcherTimer();
         _idleTimer.Interval = System.TimeSpan.FromSeconds(15);
         _idleTimer.Tick += IdleTimer_Tick;
         
         this.PreviewMouseDown += (s, e) => ResetIdleTimer();
         this.PreviewKeyDown += (s, e) => ResetIdleTimer();
+        this.Loaded += (s, e) => StartKeyboardHook();
 
         System.Windows.Input.InputManager.Current.PreProcessInput += (s, e) =>
         {
@@ -50,6 +80,64 @@ public partial class LockScreenWindow : Window
             }
         };
 
+        StartKeyboardHook();
+    }
+
+    private void StartKeyboardHook()
+    {
+        if (_keyboardHookId != IntPtr.Zero)
+        {
+            return;
+        }
+
+        try
+        {
+            _keyboardProc = KeyboardHookCallback;
+            using var curProcess = System.Diagnostics.Process.GetCurrentProcess();
+            using var curModule = curProcess.MainModule;
+            var moduleHandle = GetModuleHandle(curModule?.ModuleName);
+            _keyboardHookId = SetWindowsHookEx(WH_KEYBOARD_LL, _keyboardProc, moduleHandle, 0);
+        }
+        catch (System.Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[LockScreen] Failed to install keyboard hook: {ex.Message}");
+        }
+    }
+
+    private void StopKeyboardHook()
+    {
+        if (_keyboardHookId != IntPtr.Zero)
+        {
+            try
+            {
+                UnhookWindowsHookEx(_keyboardHookId);
+            }
+            catch {}
+            _keyboardHookId = IntPtr.Zero;
+            _keyboardProc = null;
+        }
+    }
+
+    private IntPtr KeyboardHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
+    {
+        if (nCode >= 0 && (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_SYSKEYDOWN))
+        {
+            try
+            {
+                Dispatcher.BeginInvoke(() =>
+                {
+                    if (this.IsVisible)
+                    {
+                        ResetIdleTimer();
+                    }
+                });
+            }
+            catch
+            {
+            }
+        }
+
+        return CallNextHookEx(_keyboardHookId, nCode, wParam, lParam);
     }
 
     private void IdleTimer_Tick(object? sender, System.EventArgs e)
@@ -58,6 +146,8 @@ public partial class LockScreenWindow : Window
         if (!_isAuthenticating && MainContentCard.Visibility == Visibility.Visible)
         {
             MainContentCard.Visibility = Visibility.Collapsed;
+            this.Focus();
+            Keyboard.Focus(this);
         }
     }
 
@@ -66,6 +156,10 @@ public partial class LockScreenWindow : Window
         _idleTimer.Stop();
         if (MainContentCard.Visibility != Visibility.Visible)
         {
+            if (!this.IsActive)
+            {
+                this.Activate();
+            }
             MainContentCard.Visibility = Visibility.Visible;
             if (_manualUnlockMode)
             {
@@ -259,13 +353,17 @@ public partial class LockScreenWindow : Window
 
         Show();
         Activate();
+        this.Focus();
+        Keyboard.Focus(this);
         
         _idleTimer.Stop();
         MainContentCard.Visibility = Visibility.Collapsed;
+        StartKeyboardHook();
     }
 
     public new void Hide()
     {
+        StopKeyboardHook();
         base.Hide();
         
         _idleTimer.Stop();
@@ -288,6 +386,7 @@ public partial class LockScreenWindow : Window
     {
         if (_allowClose)
         {
+            StopKeyboardHook();
             base.OnClosing(e);
             return;
         }
@@ -295,6 +394,12 @@ public partial class LockScreenWindow : Window
         // Prevent users from closing the lock overlay directly.
         e.Cancel = true;
         Hide();
+    }
+
+    protected override void OnClosed(System.EventArgs e)
+    {
+        StopKeyboardHook();
+        base.OnClosed(e);
     }
 
     private async void LoginButton_Click(object sender, RoutedEventArgs e)
@@ -592,18 +697,40 @@ public partial class LockScreenWindow : Window
         BackgroundContainer.Visibility = Visibility.Collapsed;
     }
 
-    private void TryApplyImageBackground(string source)
+    private async void TryApplyImageBackground(string source)
     {
         try
         {
-            var uri = BuildBackgroundUri(source);
-            var image = new BitmapImage();
-            image.BeginInit();
-            image.UriSource = uri;
-            image.CacheOption = BitmapCacheOption.OnLoad;
-            image.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
-            image.DecodePixelWidth = 1024;
-            image.EndInit();
+            BitmapImage image;
+            var isRemote = source.StartsWith("http://", System.StringComparison.OrdinalIgnoreCase) ||
+                           source.StartsWith("https://", System.StringComparison.OrdinalIgnoreCase);
+
+            if (isRemote)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, source);
+                request.Headers.Add("x-api-key", "SmbSecureLANKey2026");
+                using var response = await _mediaHttpClient.SendAsync(request);
+                response.EnsureSuccessStatusCode();
+
+                var bytes = await response.Content.ReadAsByteArrayAsync();
+                using var stream = new MemoryStream(bytes);
+                image = new BitmapImage();
+                image.BeginInit();
+                image.CacheOption = BitmapCacheOption.OnLoad;
+                image.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+                image.StreamSource = stream;
+                image.EndInit();
+            }
+            else
+            {
+                var uri = BuildBackgroundUri(source);
+                image = new BitmapImage();
+                image.BeginInit();
+                image.UriSource = uri;
+                image.CacheOption = BitmapCacheOption.OnLoad;
+                image.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+                image.EndInit();
+            }
             
             if (image.CanFreeze) image.Freeze();
 
@@ -614,9 +741,13 @@ public partial class LockScreenWindow : Window
             BackgroundVideoElement.Source = null;
             BackgroundVideoElement.Visibility = Visibility.Collapsed;
         }
-        catch
+        catch (System.Exception ex)
         {
-            ClearBackgroundMedia();
+            System.Diagnostics.Debug.WriteLine($"[LockScreen] Load background image failed for '{source}': {ex.Message}");
+            if (_mediaSources.Count <= 1)
+            {
+                ClearBackgroundMedia();
+            }
         }
     }
 

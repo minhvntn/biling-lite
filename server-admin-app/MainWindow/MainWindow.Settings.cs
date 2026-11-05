@@ -15,6 +15,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Win32;
 
@@ -736,38 +737,208 @@ public partial class MainWindow : Window
         _isSyncingMediaContainer = false;
     }
 
+    private FrameworkElement CreateThumbnailElement(string pathOrUrl)
+    {
+        var container = new Border
+        {
+            Width = 64,
+            Height = 40,
+            CornerRadius = new CornerRadius(6),
+            BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CBD5E1")),
+            BorderThickness = new Thickness(1),
+            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F1F5F9")),
+            ClipToBounds = true,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        var trimmed = (pathOrUrl ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            container.Child = new TextBlock
+            {
+                Text = "🖼️",
+                FontSize = 14,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            return container;
+        }
+
+        var ext = Path.GetExtension(trimmed).ToLowerInvariant();
+        var isVideo = ext is ".mp4" or ".webm" or ".avi" or ".mkv" or ".mov";
+
+        if (isVideo)
+        {
+            var videoBadge = new Border
+            {
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E293B")),
+                Child = new TextBlock
+                {
+                    Text = "▶ VIDEO",
+                    FontSize = 9.5,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
+            };
+            container.Child = videoBadge;
+            return container;
+        }
+
+        try
+        {
+            var bi = new BitmapImage();
+            bi.BeginInit();
+            bi.DecodePixelWidth = 120;
+            bi.CacheOption = BitmapCacheOption.OnLoad;
+            if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+            {
+                bi.UriSource = uri;
+            }
+            else if (File.Exists(trimmed))
+            {
+                bi.UriSource = new Uri(Path.GetFullPath(trimmed));
+            }
+            else
+            {
+                container.Child = new TextBlock
+                {
+                    Text = "🖼️",
+                    FontSize = 14,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                return container;
+            }
+            bi.DownloadFailed += (s, e) => {
+                Dispatcher.InvokeAsync(() => {
+                    container.Child = new TextBlock
+                    {
+                        Text = "⚠️",
+                        FontSize = 13,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                });
+            };
+            bi.EndInit();
+            if (!bi.IsDownloading)
+            {
+                bi.Freeze();
+            }
+
+            var img = new Image
+            {
+                Source = bi,
+                Stretch = Stretch.UniformToFill
+            };
+            container.Child = img;
+        }
+        catch
+        {
+            container.Child = new TextBlock
+            {
+                Text = "🖼️",
+                FontSize = 14,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+        }
+
+        return container;
+    }
+
+    private void UpdateRowNumbers()
+    {
+        var idx = 1;
+        foreach (UIElement child in LockScreenMediaContainer.Children)
+        {
+            if (child is Border b && b.Child is Grid g && g.Children.Count > 0 && g.Children[0] is TextBlock tb)
+            {
+                tb.Text = $"#{idx:D2}";
+                idx++;
+            }
+        }
+    }
+
     private void AddMediaRow(string initialPath)
     {
-        var grid = new Grid { Margin = new Thickness(0, 4, 0, 4) };
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var cardBorder = new Border
+        {
+            Background = Brushes.White,
+            BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#E2E8F0")),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(10, 8, 10, 8),
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) }); // Column 0: Index badge
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(72) }); // Column 1: Thumbnail
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Column 2: TextBox
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Column 3: Browse Button
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Column 4: Delete Button
+
+        var indexTextBlock = new TextBlock
+        {
+            Text = $"#{LockScreenMediaContainer.Children.Count + 1:D2}",
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 12,
+            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#64748B")),
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Left
+        };
+        Grid.SetColumn(indexTextBlock, 0);
+        grid.Children.Add(indexTextBlock);
+
+        var thumbnailHolder = new Border
+        {
+            Margin = new Thickness(0, 0, 8, 0),
+            Child = CreateThumbnailElement(initialPath)
+        };
+        Grid.SetColumn(thumbnailHolder, 1);
+        grid.Children.Add(thumbnailHolder);
 
         var textBox = new TextBox
         {
-            Height = 30,
+            Height = 36,
             VerticalContentAlignment = VerticalAlignment.Center,
-            Text = initialPath
+            Padding = new Thickness(8, 0, 8, 0),
+            FontSize = 12.5,
+            Text = initialPath,
+            ToolTip = string.IsNullOrWhiteSpace(initialPath) ? "Nhập đường dẫn URL hoặc chọn file..." : initialPath,
+            BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CBD5E1")),
+            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F8FAFC"))
         };
         textBox.TextChanged += (s, e) => {
+            textBox.ToolTip = textBox.Text;
+            thumbnailHolder.Child = CreateThumbnailElement(textBox.Text);
             SyncDynamicRowsToHiddenTextBox();
         };
-        Grid.SetColumn(textBox, 0);
+        Grid.SetColumn(textBox, 2);
         grid.Children.Add(textBox);
 
         var browseBtn = new Button
         {
-            Content = "Chọn file...",
-            Margin = new Thickness(6, 0, 0, 0),
-            Padding = new Thickness(10, 0, 10, 0),
-            Height = 30,
-            VerticalAlignment = VerticalAlignment.Center
+            Content = "📁 Chọn tệp...",
+            Margin = new Thickness(8, 0, 0, 0),
+            Padding = new Thickness(12, 0, 12, 0),
+            Height = 36,
+            VerticalAlignment = VerticalAlignment.Center,
+            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EEF2FF")),
+            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4338CA")),
+            BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#C7D2FE")),
+            BorderThickness = new Thickness(1),
+            FontWeight = FontWeights.SemiBold,
+            Cursor = Cursors.Hand
         };
         browseBtn.Click += (s, e) => {
             var mode = GetLockScreenBackgroundModeFromUi();
             if (mode == "none")
             {
-                LockScreenBackgroundStatusTextBlock.Text = "Hay chon loai nen image/video truoc khi chon file.";
+                LockScreenBackgroundStatusTextBlock.Text = "Hãy chọn loại nền hình ảnh hoặc video trước khi chọn file.";
                 LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
                 return;
             }
@@ -779,7 +950,7 @@ public partial class MainWindow : Window
                 Filter = mode == "video"
                     ? "Video files|*.mp4;*.webm;*.avi;*.mkv;*.mov|All files|*.*"
                     : "Image files|*.jpg;*.jpeg;*.png;*.bmp;*.gif;*.webp|All files|*.*",
-                Title = mode == "video" ? "Chon video nen lock screen" : "Chon anh nen lock screen",
+                Title = mode == "video" ? "Chọn video nền lock screen" : "Chọn ảnh nền lock screen",
             };
 
             var current = textBox.Text.Trim();
@@ -802,27 +973,36 @@ public partial class MainWindow : Window
                 textBox.Text = dialog.FileName;
             }
         };
-        Grid.SetColumn(browseBtn, 1);
+        Grid.SetColumn(browseBtn, 3);
         grid.Children.Add(browseBtn);
 
         var deleteBtn = new Button
         {
-            Content = "Xóa",
+            Content = "🗑️ Xóa",
             Margin = new Thickness(6, 0, 0, 0),
-            Padding = new Thickness(10, 0, 10, 0),
-            Height = 30,
+            Padding = new Thickness(12, 0, 12, 0),
+            Height = 36,
             VerticalAlignment = VerticalAlignment.Center,
-            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444")),
-            Foreground = Brushes.White
+            Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FEE2E2")),
+            Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DC2626")),
+            BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FECACA")),
+            BorderThickness = new Thickness(1),
+            FontWeight = FontWeights.SemiBold,
+            Cursor = Cursors.Hand
         };
         deleteBtn.Click += (s, e) => {
-            LockScreenMediaContainer.Children.Remove(grid);
+            LockScreenMediaContainer.Children.Remove(cardBorder);
+            UpdateRowNumbers();
             SyncDynamicRowsToHiddenTextBox();
         };
-        Grid.SetColumn(deleteBtn, 2);
+        Grid.SetColumn(deleteBtn, 4);
         grid.Children.Add(deleteBtn);
 
-        LockScreenMediaContainer.Children.Add(grid);
+        cardBorder.Child = grid;
+        cardBorder.Tag = textBox;
+
+        LockScreenMediaContainer.Children.Add(cardBorder);
+        UpdateRowNumbers();
     }
 
     private void SyncDynamicRowsToHiddenTextBox()
@@ -833,13 +1013,23 @@ public partial class MainWindow : Window
         var paths = new List<string>();
         foreach (UIElement child in LockScreenMediaContainer.Children)
         {
-            if (child is Grid grid)
+            TextBox? textBox = null;
+            if (child is FrameworkElement fe && fe.Tag is TextBox tb)
             {
-                var textBox = grid.Children.OfType<TextBox>().FirstOrDefault();
-                if (textBox != null)
-                {
-                    paths.Add(textBox.Text.Trim());
-                }
+                textBox = tb;
+            }
+            else if (child is Grid grid)
+            {
+                textBox = grid.Children.OfType<TextBox>().FirstOrDefault();
+            }
+            else if (child is Panel panel)
+            {
+                textBox = panel.Children.OfType<TextBox>().FirstOrDefault();
+            }
+
+            if (textBox != null && !string.IsNullOrWhiteSpace(textBox.Text))
+            {
+                paths.Add(textBox.Text.Trim());
             }
         }
 
@@ -848,7 +1038,7 @@ public partial class MainWindow : Window
 
         if (_readyShutdownSettingsInitialized && !_isLoadingReadyShutdownSettings)
         {
-            LockScreenBackgroundStatusTextBlock.Text = "Da thay doi danh sach file lock screen. Bam \"Luu cai dat\" de ap dung.";
+            LockScreenBackgroundStatusTextBlock.Text = "Đã thay đổi danh sách file lock screen. Bấm \"Lưu cài đặt hình nền\" để áp dụng.";
             LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
         }
     }
@@ -866,7 +1056,52 @@ public partial class MainWindow : Window
             return;
         }
 
-        LockScreenBackgroundStatusTextBlock.Text = "Da thay doi thoi gian cho lock screen. Bam \"Luu cai dat\" de ap dung.";
+        LockScreenBackgroundStatusTextBlock.Text = "Đã thay đổi thời gian chờ lock screen. Bấm \"Lưu cài đặt hình nền\" để áp dụng.";
+        LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+    }
+
+    private void IntervalPresetButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string tag)
+        {
+            LockScreenIntervalTextBox.Text = tag;
+            LockScreenBackgroundStatusTextBlock.Text = $"Đã chọn thời gian {tag} giây. Bấm \"Lưu cài đặt hình nền\" để áp dụng.";
+            LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+        }
+    }
+
+    private async void SaveLockScreenTabButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            SaveLockScreenTabButton.IsEnabled = false;
+            LockScreenBackgroundStatusTextBlock.Text = "Đang lưu cài đặt và đồng bộ hình nền máy trạm...";
+            LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+
+            await SaveClientRuntimeSettingsAsync();
+
+            LockScreenBackgroundStatusTextBlock.Text = "✅ Đã lưu cài đặt hình nền lock screen thành công!";
+            LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGreen;
+        }
+        catch (Exception ex)
+        {
+            LockScreenBackgroundStatusTextBlock.Text = $"Lưu thất bại: {ex.Message}";
+            LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
+        }
+        finally
+        {
+            SaveLockScreenTabButton.IsEnabled = true;
+        }
+    }
+
+    private void ResetLockScreenSettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        SetLockScreenBackgroundModeUi("none");
+        LockScreenIntervalTextBox.Text = "5";
+        LockScreenMediaContainer.Children.Clear();
+        AddMediaRow("");
+        SyncDynamicRowsToHiddenTextBox();
+        LockScreenBackgroundStatusTextBlock.Text = "Đã đặt lại về mặc định. Bấm \"Lưu cài đặt hình nền\" để áp dụng.";
         LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
     }
 

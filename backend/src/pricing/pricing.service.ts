@@ -381,7 +381,9 @@ export class PricingService {
       });
     }
 
-    return this.getClientRuntimeSettings();
+    const updatedSettings = await this.getClientRuntimeSettings();
+    this.realtime.emitToAll('pricing.client_settings.changed', updatedSettings);
+    return updatedSettings;
   }
 
   async uploadLockScreenMedia(

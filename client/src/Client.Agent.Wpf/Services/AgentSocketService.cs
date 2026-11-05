@@ -37,6 +37,7 @@ public sealed class AgentSocketService : IAsyncDisposable
     public Action<string, string, string>? SupportReplyHandler { get; set; }
     public Action? SupportClearedHandler { get; set; }
     public Action<int, decimal?>? SessionBillingHandler { get; set; }
+    public Func<Task>? ClientSettingsChangedHandler { get; set; }
 
     public AgentSocketService(
         AgentSettings settings,
@@ -473,6 +474,21 @@ public sealed class AgentSocketService : IAsyncDisposable
             catch (Exception ex)
             {
                 await _logger.ErrorAsync("Failed to parse web.filter.settings.changed payload", ex);
+            }
+        });
+
+        _socket.On("pricing.client_settings.changed", async _ =>
+        {
+            try
+            {
+                if (ClientSettingsChangedHandler != null)
+                {
+                    await ClientSettingsChangedHandler.Invoke();
+                }
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync("Failed to handle pricing.client_settings.changed event", ex);
             }
         });
 

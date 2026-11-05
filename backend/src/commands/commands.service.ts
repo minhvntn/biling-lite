@@ -154,6 +154,79 @@ export class CommandsService {
     return command;
   }
 
+  async configureGuestPrepaid(
+    pcId: string,
+    amount: number,
+    requestedBy?: CommandRequestedBy,
+  ) {
+    const targetPc = await this.prisma.pc.findUnique({
+      where: { id: pcId },
+      include: {
+        sessions: {
+          where: { status: 'ACTIVE' },
+          orderBy: { startedAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+    if (!targetPc) {
+      throw new NotFoundException('PC not found');
+    }
+
+    const normalizedAmount = this.roundMoney(amount);
+
+    const latestGuestPresence = await this.prisma.eventLog.findFirst({
+      where: {
+        pcId: targetPc.id,
+        eventType: 'guest.pc.presence',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const parsedLatest = latestGuestPresence
+      ? (latestGuestPresence.payload as any)
+      : null;
+    const currentPrepaid = parsedLatest ? Number(parsedLatest.prepaidAmount || 0) : 0;
+    const totalPrepaid = currentPrepaid + normalizedAmount;
+
+    await this.logEvent(EventSource.ADMIN, 'guest.pc.presence', targetPc.id, {
+      isActive: true,
+      displayName: parsedLatest?.displayName || 'Khách vãng lai',
+      prepaidAmount: totalPrepaid,
+      requestedBy: requestedBy?.trim() || 'admin.desktop',
+      at: new Date().toISOString(),
+    });
+
+    await this.logEvent(EventSource.ADMIN, 'guest.prepaid.converted', targetPc.id, {
+      pcName: targetPc.name,
+      amount: normalizedAmount,
+      totalPrepaid,
+      requestedBy: requestedBy?.trim() || 'admin.desktop',
+      at: new Date().toISOString(),
+    });
+
+    const hourlyRate = await this.resolveHourlyRateForPc(targetPc.id);
+    this.realtime.emitToAgent(targetPc.agentId, 'guest.prepaid.configure', {
+      pcId: targetPc.id,
+      prepaidAmount: totalPrepaid,
+      hourlyRate,
+      issuedAt: new Date().toISOString(),
+    });
+
+    this.realtime.emitToAll('pc.status.changed', {
+      pcId: targetPc.id,
+      agentId: targetPc.agentId,
+      status: targetPc.status,
+    });
+
+    return {
+      ok: true,
+      pcId: targetPc.id,
+      prepaidAmount: totalPrepaid,
+      hourlyRate,
+    };
+  }
+
   async createLockCommand(pcId: string, requestedBy?: CommandRequestedBy) {
     return this.createAndDispatch(pcId, CommandType.LOCK, requestedBy);
   }

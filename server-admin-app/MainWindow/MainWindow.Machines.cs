@@ -1158,11 +1158,20 @@ public partial class MainWindow : Window
                 : Visibility.Visible;
         }
 
+        if (ContextSwitchGuestToPrepaidMenuItem is not null)
+        {
+            var isGuestAlreadyPrepaid = isGuestInUse && selectedMachine.ActiveGuestPrepaidAmount > 0;
+            ContextSwitchGuestToPrepaidMenuItem.Header = isGuestAlreadyPrepaid
+                ? "Nạp tiền..."
+                : "Chuyển sang trả tiền trước...";
+        }
+
         if (isOffline)
         {
             SetMachineContextMenuEnabled(
                 open: false,
                 openGuest: false,
+                switchGuestToPrepaid: false,
                 adminLogin: false,
                 lockMachine: false,
                 topupMember: false,
@@ -1187,6 +1196,7 @@ public partial class MainWindow : Window
         SetMachineContextMenuEnabled(
             open: !isInUse && !isLocked,
             openGuest: isReady,
+            switchGuestToPrepaid: isGuestInUse,
             adminLogin: !isInUse && !isOffline,
             lockMachine: !isLocked && !isGuestInUse && !selectedMachine.IsVipSession,
             topupMember: isInUse && hasActiveMember && !selectedMachine.IsVipSession,
@@ -1216,6 +1226,7 @@ public partial class MainWindow : Window
     private void SetMachineContextMenuEnabled(
         bool open,
         bool openGuest,
+        bool switchGuestToPrepaid,
         bool adminLogin,
         bool lockMachine,
         bool topupMember,
@@ -1243,6 +1254,11 @@ public partial class MainWindow : Window
         if (ContextOpenGuestMachineMenuItem is not null)
         {
             ContextOpenGuestMachineMenuItem.IsEnabled = openGuest;
+        }
+
+        if (ContextSwitchGuestToPrepaidMenuItem is not null)
+        {
+            ContextSwitchGuestToPrepaidMenuItem.IsEnabled = switchGuestToPrepaid;
         }
 
         if (ContextAdminLoginMachineMenuItem is not null)
@@ -1392,6 +1408,8 @@ public partial class MainWindow : Window
     private async void ContextOpenMachineMenuItem_Click(object sender, RoutedEventArgs e) => await SendCommandAsync("open");
 
     private async void ContextOpenGuestMachineMenuItem_Click(object sender, RoutedEventArgs e) => await OpenGuestMachineAsync();
+
+    private async void ContextSwitchGuestToPrepaidMenuItem_Click(object sender, RoutedEventArgs e) => await SwitchGuestToPrepaidAsync();
 
     private async void ContextAdminLoginMachineMenuItem_Click(object sender, RoutedEventArgs e) => await SendCommandAsync("admin-login");
 
@@ -3120,6 +3138,95 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show($"Mở máy khách vãng lai lỗi: {ex.Message}", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async Task SwitchGuestToPrepaidAsync(MachineRow? targetMachine = null)
+    {
+        var selected = targetMachine ?? MachinesDataGrid.SelectedItem as MachineRow;
+        if (selected is null)
+        {
+            MessageBox.Show(I18n.PleaseSelectPc, "Server Admin", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (!IsGuestInUseMachine(selected))
+        {
+            MessageBox.Show(
+                "Chỉ áp dụng chuyển sang trả tiền trước cho máy trạm đang có khách vãng lai sử dụng.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var currentPrepaid = selected.ActiveGuestPrepaidAmount;
+        var isAlreadyPrepaid = currentPrepaid > 0;
+        var actionLabel = isAlreadyPrepaid ? "Nạp tiền" : "Chuyển sang trả tiền trước";
+        var currentPrepaidText = isAlreadyPrepaid
+            ? $"Đã trả trước: {currentPrepaid:N0} VND"
+            : $"Đang chơi trả sau (Tạm tính: {selected.MoneyText} VND)";
+
+        var modalTitle = isAlreadyPrepaid
+            ? $"Nạp tiền - {selected.Name}"
+            : $"Chuyển sang trả tiền trước - {selected.Name}";
+        var memberPrompt = isAlreadyPrepaid
+            ? $"Máy trạm: {selected.Name} ({selected.UserName}) - nhập số tiền nạp thêm:"
+            : $"Máy trạm: {selected.Name} ({selected.UserName}) - nhập số tiền khách trả trước:";
+
+        var amount = await ShowTopupModalAsync(
+            member: null,
+            title: modalTitle,
+            memberPrompt: memberPrompt,
+            currentBalanceText: $"Trạng thái hiện tại: {currentPrepaidText}",
+            allowDeduct: false,
+            ratePerHour: selected.HourlyRate);
+
+        if (!amount.HasValue || amount.Value <= 0)
+        {
+            return;
+        }
+
+        if (amount.Value < 1000)
+        {
+            MessageBox.Show(
+                "Số tiền trả trước tối thiểu là 1.000 VND.",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            using var response = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl($"/pcs/{selected.Id}/guest-prepaid"),
+                new
+                {
+                    amount = Convert.ToDouble(amount.Value, CultureInfo.InvariantCulture),
+                    requestedBy = "admin.desktop",
+                });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                MessageBox.Show(
+                    string.IsNullOrWhiteSpace(error)
+                        ? $"{actionLabel} thất bại ({(int)response.StatusCode})"
+                        : error,
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] {actionLabel} máy {selected.Name} ({amount.Value:N0} VND)");
+            await RefreshMachinesAsync();
+            await RefreshTransactionLogsAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"{actionLabel} lỗi: {ex.Message}", "Server Admin", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
