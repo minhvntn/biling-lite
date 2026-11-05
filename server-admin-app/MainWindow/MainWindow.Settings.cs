@@ -184,6 +184,11 @@ public partial class MainWindow : Window
         return Math.Clamp(value, 11, 30);
     }
 
+    private static double ClampMachineTableIconSize(double value)
+    {
+        return Math.Clamp(value, 16, 48);
+    }
+
     private void ApplyUiFontSize(double value)
     {
         var clamped = ClampFontSize(value);
@@ -199,17 +204,39 @@ public partial class MainWindow : Window
     {
         var clamped = ClampMachineTableFontSize(value);
         MachinesDataGrid.FontSize = clamped;
-        MachinesDataGrid.RowHeight = Math.Max(44, clamped * 2.1);
+        _settings.MachineTableFontSize = clamped;
+        UpdateMachineTableRowHeight();
         if (MembersDataGrid != null)
         {
             MembersDataGrid.FontSize = clamped;
             MembersDataGrid.RowHeight = Math.Max(44, clamped * 2.1);
         }
-        _settings.MachineTableFontSize = clamped;
         if (MachineTableFontSizeValueTextBlock is not null)
         {
             MachineTableFontSizeValueTextBlock.Text = clamped.ToString("0");
         }
+    }
+
+    private void ApplyMachineTableIconSize(double value)
+    {
+        var clamped = ClampMachineTableIconSize(value);
+        _settings.MachineTableIconSize = clamped;
+        Resources["MachineTableIconSize"] = clamped;
+        UpdateMachineTableRowHeight();
+        if (MachineTableIconSizeValueTextBlock is not null)
+        {
+            MachineTableIconSizeValueTextBlock.Text = clamped.ToString("0");
+        }
+    }
+
+    private void UpdateMachineTableRowHeight()
+    {
+        var iconSize = _settings.MachineTableIconSize > 0 ? _settings.MachineTableIconSize : 32;
+        var fontSize = _settings.MachineTableFontSize > 0 ? _settings.MachineTableFontSize : 14;
+
+        // Row height matches icon size plus vertical spacing, or font size scaled
+        var calculated = Math.Max(iconSize + 8, fontSize * 2.0);
+        MachinesDataGrid.RowHeight = Math.Round(Math.Max(26, calculated));
     }
 
     private void ApplyColorSettings()
@@ -220,8 +247,8 @@ public partial class MainWindow : Window
         ApplyBrushSetting("ColorInUseFgBrush", _settings.ColorInUseFg, "#2563EB");
         ApplyBrushSetting("ColorAdminBgBrush", _settings.ColorAdminBg, "#FEF9C3");
         ApplyBrushSetting("ColorAdminFgBrush", _settings.ColorAdminFg, "#B45309");
-        ApplyBrushSetting("ColorOfflineBgBrush", _settings.ColorOfflineBg, "#F1F5F9");
-        ApplyBrushSetting("ColorOfflineFgBrush", _settings.ColorOfflineFg, "#64748B");
+        ApplyBrushSetting("ColorOfflineBgBrush", _settings.ColorOfflineBg, "#FEF2F2");
+        ApplyBrushSetting("ColorOfflineFgBrush", _settings.ColorOfflineFg, "#DC2626");
         ApplyBrushSetting("ColorUsedTimeBgBrush", _settings.ColorUsedTimeBg, "#FEF2F2");
         ApplyBrushSetting("ColorUsedTimeFgBrush", _settings.ColorUsedTimeFg, "#DC2626");
         ApplyBrushSetting("ColorRemainingTimeBgBrush", _settings.ColorRemainingTimeBg, "#EFF6FF");
@@ -316,7 +343,7 @@ public partial class MainWindow : Window
     {
         var clamped = ClampMachineContextMenuPadding(value);
         _settings.MachineContextMenuItemPadding = clamped;
-        Resources["MachineContextMenuItemPadding"] = new Thickness(clamped);
+        Resources["MachineContextMenuItemPadding"] = new Thickness(clamped, Math.Max(4, Math.Round(clamped * 0.6)), clamped, Math.Max(4, Math.Round(clamped * 0.6)));
         if (MachineContextMenuPaddingValueTextBlock is not null)
         {
             MachineContextMenuPaddingValueTextBlock.Text = clamped.ToString("0");
@@ -2454,6 +2481,16 @@ public partial class MainWindow : Window
         ApplyMachineTableFontSize(e.NewValue);
     }
 
+    private void MachineTableIconSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!_machineTableIconSizeInitialized)
+        {
+            return;
+        }
+
+        ApplyMachineTableIconSize(e.NewValue);
+    }
+
     private void MachineContextMenuPaddingSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (!_machineContextMenuPaddingInitialized)
@@ -2488,7 +2525,7 @@ public partial class MainWindow : Window
         await SaveLoyaltySettingsAsync();
         await SaveGuestLoginSettingsAsync();
         await SaveBackupSettingsAsync(appendSuccessLog: false);
-        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 l\u01b0u: c\u1ee1 ch\u1eef app = {_settings.UiFontSize:0}, b\u1ea3ng m\u00e1y = {_settings.MachineTableFontSize:0}, padding menu = {_settings.MachineContextMenuItemPadding:0}, ch\u1eef menu = {_settings.MachineContextMenuFontSize:0}, t\u1ef1 t\u1eaft = {_readyAutoShutdownMinutes} ph\u00fat");
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 l\u01b0u: c\u1ee1 ch\u1eef app = {_settings.UiFontSize:0}, b\u1ea3ng m\u00e1y = {_settings.MachineTableFontSize:0}, c\u1ee1 icon = {_settings.MachineTableIconSize:0}, padding menu = {_settings.MachineContextMenuItemPadding:0}, ch\u1eef menu = {_settings.MachineContextMenuFontSize:0}, t\u1ef1 t\u1eaft = {_readyAutoShutdownMinutes} ph\u00fat");
     }
 
     private void ResetFontSizeButton_Click(object sender, RoutedEventArgs e)
@@ -2503,6 +2540,14 @@ public partial class MainWindow : Window
         _machineTableFontSizeInitialized = true;
         ApplyMachineTableFontSize(14);
 
+        _machineTableIconSizeInitialized = false;
+        if (MachineTableIconSizeSlider is not null)
+        {
+            MachineTableIconSizeSlider.Value = 32;
+        }
+        _machineTableIconSizeInitialized = true;
+        ApplyMachineTableIconSize(32);
+
         _machineContextMenuPaddingInitialized = false;
         MachineContextMenuPaddingSlider.Value = 12;
         _machineContextMenuPaddingInitialized = true;
@@ -2513,8 +2558,29 @@ public partial class MainWindow : Window
         _machineContextMenuFontSizeInitialized = true;
         ApplyMachineContextMenuFontSize(14);
 
+        _settings.HideDisabledContextMenuItems = true;
+        if (HideDisabledContextMenuItemsCheckBox is not null)
+        {
+            HideDisabledContextMenuItemsCheckBox.IsChecked = true;
+        }
+
         SaveSettings();
         AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 \u0111\u1eb7t l\u1ea1i c\u1ee1 ch\u1eef m\u1eb7c \u0111\u1ecbnh");
+    }
+
+    private void HideDisabledContextMenuItemsCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.HideDisabledContextMenuItems = HideDisabledContextMenuItemsCheckBox.IsChecked == true;
+        SaveSettings();
+        if (!string.IsNullOrWhiteSpace(_selectedMachineId))
+        {
+            var selected = _machineRows.FirstOrDefault(x => x.Id == _selectedMachineId);
+            if (selected is not null)
+            {
+                ApplyMachineContextMenuState(selected);
+            }
+        }
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã {(_settings.HideDisabledContextMenuItems ? "bật" : "tắt")} ẩn mục không khả dụng trên menu chuột phải.");
     }
 
     private async void OpenAdminCredentialPopupButton_Click(object sender, RoutedEventArgs e)

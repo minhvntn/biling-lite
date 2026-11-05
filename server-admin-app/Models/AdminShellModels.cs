@@ -16,9 +16,15 @@ public sealed class AdminShellSettings
 
     public double MachineTableFontSize { get; set; } = 14;
 
+    public double MachineTableIconSize { get; set; } = 32;
+
     public double MachineContextMenuItemPadding { get; set; } = 12;
 
     public double MachineContextMenuFontSize { get; set; } = 14;
+
+    public bool HideDisabledContextMenuItems { get; set; } = true;
+
+    public bool ShowOfflineMachines { get; set; } = true;
 
     public Dictionary<string, WakeLanProfile> WakeLanProfiles { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
@@ -31,8 +37,8 @@ public sealed class AdminShellSettings
     public string ColorInUseFg { get; set; } = "#2563EB";
     public string ColorAdminBg { get; set; } = "#FEF9C3";
     public string ColorAdminFg { get; set; } = "#B45309";
-    public string ColorOfflineBg { get; set; } = "#F1F5F9";
-    public string ColorOfflineFg { get; set; } = "#64748B";
+    public string ColorOfflineBg { get; set; } = "#FEF2F2";
+    public string ColorOfflineFg { get; set; } = "#DC2626";
     public string ColorOnlineBg { get; set; } = "#ECFDF5";
     public string ColorOnlineFg { get; set; } = "#16A34A";
     public string ColorUsedTimeBg { get; set; } = "#FEF2F2";

@@ -396,7 +396,7 @@ public partial class MainWindow : Window
             var startedAt = now.AddMinutes(-usedMins);
 
             row.StatusCode = "IN_USE";
-            row.StatusText = "Admin đang nhập";
+            row.StatusText = "Admin";
             row.StatusSubText = string.Empty;
             row.IsAdminSession = true;
             row.StatusIconPath = "/Assets/pc-admin.svg";
@@ -579,7 +579,7 @@ public partial class MainWindow : Window
 
             case "admin-login":
                 selected.StatusCode = "IN_USE";
-                selected.StatusText = "Admin đang nhập";
+                selected.StatusText = "Admin";
                 selected.StatusSubText = string.Empty;
                 selected.IsAdminSession = true;
                 selected.StatusIconPath = "/Assets/pc-admin.svg";
@@ -647,14 +647,7 @@ public partial class MainWindow : Window
         UpdateVirtualPcSummaryBadges();
         _ = RefreshMachinesAsync();
 
-        if (action != "available" && action != "ready" && action != "checkout")
-        {
-            MessageBox.Show(
-                $"Đã thực hiện lệnh [{action}] trên máy trạm ảo {selected.Name} thành công.",
-                "Máy trạm ảo (Demo)",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-        }
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã thực hiện lệnh [{action}] trên máy trạm ảo {selected.Name} thành công.");
     }
 
     private void UpdateVirtualPcSummaryBadges()

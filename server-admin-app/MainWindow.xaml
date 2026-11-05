@@ -25,8 +25,198 @@
         <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="White" />
         <SolidColorBrush x:Key="PanelBorderBrush" Color="#E2E8F0" />
         <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#F8FAFC" />
-        <Thickness x:Key="MachineContextMenuItemPadding">12</Thickness>
+        <Thickness x:Key="MachineContextMenuItemPadding">12,7</Thickness>
+        <sys:Double x:Key="MachineTableIconSize">32</sys:Double>
         <sys:Double x:Key="MachineContextMenuFontSize">14</sys:Double>
+
+        <!-- ================= MODERN CONTEXT MENU & MENU ITEM STYLES ================= -->
+        <!-- ContextMenu: Bo tròn 10px, nền trắng sạch, đổ bóng mềm mượt -->
+        <Style TargetType="{x:Type ContextMenu}">
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Grid.IsSharedSizeScope" Value="True"/>
+            <Setter Property="HasDropShadow" Value="True"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ContextMenu}">
+                        <Border Background="Transparent" Padding="5">
+                            <Border Background="#FFFFFF"
+                                    BorderBrush="#E2E8F0"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="5"
+                                    SnapsToDevicePixels="True">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="18" ShadowDepth="4" Opacity="0.12" Color="#0F172A"/>
+                                </Border.Effect>
+                                <ScrollViewer CanContentScroll="True"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                                </ScrollViewer>
+                            </Border>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Separator phân cách mỏng nhẹ cho ContextMenu & Menu -->
+        <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="{x:Type Separator}">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Separator}">
+                        <Border Height="1" Background="#E2E8F0" Margin="6,4,6,4" SnapsToDevicePixels="True"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="{x:Type Separator}" BasedOn="{StaticResource {x:Static MenuItem.SeparatorStyleKey}}"/>
+
+        <!-- MenuItem: Bo tròn 6px, hover nền xanh #2563EB chữ trắng chuẩn hiện đại -->
+        <Style TargetType="{x:Type MenuItem}">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Foreground" Value="#1E293B"/>
+            <Setter Property="FontSize" Value="{DynamicResource MachineContextMenuFontSize}"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="Padding" Value="{DynamicResource MachineContextMenuItemPadding}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type MenuItem}">
+                        <Grid SnapsToDevicePixels="True">
+                            <Border x:Name="ItemBorder"
+                                    Background="Transparent"
+                                    CornerRadius="6"
+                                    Margin="0,1"
+                                    Padding="{TemplateBinding Padding}"
+                                    SnapsToDevicePixels="True">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" SharedSizeGroup="MenuItemIconCol"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto" SharedSizeGroup="MenuItemArrowCol"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Icon (nếu có) -->
+                                    <ContentPresenter x:Name="Icon"
+                                                      ContentSource="Icon"
+                                                      Grid.Column="0"
+                                                      Margin="0,0,10,0"
+                                                      VerticalAlignment="Center"/>
+
+                                    <!-- Nội dung menu -->
+                                    <ContentPresenter x:Name="HeaderHost"
+                                                      ContentSource="Header"
+                                                      Grid.Column="1"
+                                                      RecognizesAccessKey="True"
+                                                      VerticalAlignment="Center"/>
+
+                                    <!-- Mũi tên submenu › -->
+                                    <Path x:Name="Arrow"
+                                          Grid.Column="2"
+                                          Data="M 0,0 L 4,4 L 0,8"
+                                          Stroke="#94A3B8"
+                                          StrokeThickness="1.8"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          Margin="16,0,2,0"
+                                          VerticalAlignment="Center"
+                                          Visibility="Collapsed"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Submenu popup (Đặt offset ngay ngắn chuẩn hàng và mở tức thì) -->
+                            <Popup x:Name="PART_Popup"
+                                   AllowsTransparency="True"
+                                   IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                   Placement="Right"
+                                   HorizontalOffset="-4"
+                                   VerticalOffset="-6"
+                                   Focusable="False"
+                                   PopupAnimation="None">
+                                <Border Background="Transparent" Padding="5">
+                                    <Border Background="#FFFFFF"
+                                            BorderBrush="#E2E8F0"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="5"
+                                            MinWidth="190"
+                                            Grid.IsSharedSizeScope="True"
+                                            SnapsToDevicePixels="True">
+                                        <Border.Effect>
+                                            <DropShadowEffect BlurRadius="18" ShadowDepth="4" Opacity="0.12" Color="#0F172A"/>
+                                        </Border.Effect>
+                                        <ScrollViewer CanContentScroll="True"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled">
+                                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Border>
+                            </Popup>
+                        </Grid>
+
+                        <ControlTemplate.Triggers>
+                            <!-- Có submenu: hiện mũi tên -->
+                            <Trigger Property="HasItems" Value="True">
+                                <Setter TargetName="Arrow" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+
+                            <!-- Mở submenu ngay lập tức khi hover (không chờ độ trễ 400ms của Windows) -->
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="HasItems" Value="True"/>
+                                    <Condition Property="IsHighlighted" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="IsSubmenuOpen" Value="True"/>
+                            </MultiTrigger>
+
+                            <!-- Không có Icon: ẩn để sát lề đẹp -->
+                            <Trigger Property="Icon" Value="{x:Null}">
+                                <Setter TargetName="Icon" Property="Visibility" Value="Collapsed"/>
+                            </Trigger>
+
+                            <!-- Hover / Highlight: Bo tròn nền xanh #2563EB chữ trắng -->
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#2563EB"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                <Setter TargetName="Arrow" Property="Stroke" Value="#FFFFFF"/>
+                            </Trigger>
+
+                            <!-- Đang mở submenu: Giữ nền xanh -->
+                            <Trigger Property="IsSubmenuOpen" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#2563EB"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                <Setter TargetName="Arrow" Property="Stroke" Value="#FFFFFF"/>
+                            </Trigger>
+
+                            <!-- Khi nhấn chuột -->
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#1D4ED8"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                <Setter TargetName="Arrow" Property="Stroke" Value="#FFFFFF"/>
+                            </Trigger>
+
+                            <!-- Vô hiệu hóa (Disabled): Chữ xám mờ, không hover -->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="#94A3B8"/>
+                                <Setter TargetName="Arrow" Property="Stroke" Value="#CBD5E1"/>
+                                <Setter Property="Cursor" Value="Arrow"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <Style x:Key="BoldBlackDataGridText" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -532,19 +722,19 @@
                                 </MenuItem.Icon>
                                 <MenuItem x:Name="ViewModeListMenuItem" Header="Dạng danh sách" Click="ViewModeList_Click" FontWeight="Bold" Foreground="Black" FontSize="15" Padding="12,8">
                                     <MenuItem.Icon>
-                                        <TextBlock Text="✔" Foreground="Black" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="ViewModeListIcon" Text="✔" Foreground="Black" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                     </MenuItem.Icon>
                                 </MenuItem>
                                 <MenuItem x:Name="ViewModeIconMenuItem" Header="Dạng biểu tượng" Click="ViewModeIcon_Click" FontSize="15" Padding="12,8">
                                     <MenuItem.Icon>
-                                        <TextBlock Text="" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                        <TextBlock x:Name="ViewModeIconIcon" Text="" Foreground="Black" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                     </MenuItem.Icon>
                                 </MenuItem>
                             </MenuItem>
                             <Separator />
-                            <MenuItem x:Name="ShowOfflineMachinesMenuItem" Header="Hiển thị máy trạm mất kết nối" Click="ShowOfflineMachines_Click" Foreground="Black" FontSize="15" Padding="12,8">
+                            <MenuItem x:Name="ShowOfflineMachinesMenuItem" Header="Hiển thị máy trạm mất kết nối" Click="ShowOfflineMachines_Click" Foreground="Black" FontSize="15" Padding="12,8" FontWeight="Bold">
                                 <MenuItem.Icon>
-                                    <TextBlock x:Name="ShowOfflineMachinesIcon" Text="" Foreground="Black" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="ShowOfflineMachinesIcon" Text="✔" Foreground="Black" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                 </MenuItem.Icon>
                             </MenuItem>
                         </MenuItem>
@@ -685,9 +875,21 @@
                             <DataGrid.ContextMenu>
                                 <ContextMenu FontSize="{DynamicResource MachineContextMenuFontSize}">
                                     <ContextMenu.Resources>
-                                        <Style TargetType="MenuItem">
+                                        <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                                             <Setter Property="Padding" Value="{DynamicResource MachineContextMenuItemPadding}" />
                                         </Style>
+                                        <Style x:Key="{x:Static MenuItem.SeparatorStyleKey}" TargetType="{x:Type Separator}">
+                                            <Setter Property="OverridesDefaultStyle" Value="True"/>
+                                            <Setter Property="SnapsToDevicePixels" Value="True"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="{x:Type Separator}">
+                                                        <Border Height="1" Background="#E2E8F0" Margin="6,4,6,4" SnapsToDevicePixels="True"/>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                        <Style TargetType="{x:Type Separator}" BasedOn="{StaticResource {x:Static MenuItem.SeparatorStyleKey}}"/>
                                     </ContextMenu.Resources>
                                     <MenuItem x:Name="ContextOpenMachineMenuItem" Header="Mở máy" Click="ContextOpenMachineMenuItem_Click" />
                                     <MenuItem x:Name="ContextOpenGuestMachineMenuItem" Header="Đăng nhập trả tiền trước..." Click="ContextOpenGuestMachineMenuItem_Click" />
@@ -764,8 +966,8 @@
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                 <svgc:SvgViewbox Source="{Binding StatusIconPath}"
-                                                                 Width="32"
-                                                                 Height="32"
+                                                                 Width="{DynamicResource MachineTableIconSize}"
+                                                                 Height="{DynamicResource MachineTableIconSize}"
                                                                  Margin="4,0,8,0"
                                                                  VerticalAlignment="Center"
                                                                  ToolTip="{Binding StatusIconToolTip}" />
@@ -808,12 +1010,20 @@
                                                                     <Setter Property="BorderBrush" Value="#BFDBFE" />
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
-                                                                    <Setter Property="Background" Value="#F8FAFC" />
-                                                                    <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                                                    <Setter Property="Background" Value="#FEF2F2" />
+                                                                    <Setter Property="BorderBrush" Value="#FECACA" />
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
-                                                                    <Setter Property="Background" Value="{DynamicResource ColorOfflineBgBrush}" />
-                                                                    <Setter Property="BorderBrush" Value="#E2E8F0" />
+                                                                    <Setter Property="Background" Value="#FEF2F2" />
+                                                                    <Setter Property="BorderBrush" Value="#FECACA" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding StatusText}" Value="Đang tắt">
+                                                                    <Setter Property="Background" Value="#FEF2F2" />
+                                                                    <Setter Property="BorderBrush" Value="#FECACA" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding StatusText}" Value="Mất kết nối">
+                                                                    <Setter Property="Background" Value="#FEF2F2" />
+                                                                    <Setter Property="BorderBrush" Value="#FECACA" />
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
                                                                     <Setter Property="Background" Value="{DynamicResource ColorAdminBgBrush}" />
@@ -840,10 +1050,16 @@
                                                                             <Setter Property="Fill" Value="#3B82F6" />
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
-                                                                            <Setter Property="Fill" Value="#94A3B8" />
+                                                                            <Setter Property="Fill" Value="#EF4444" />
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
-                                                                            <Setter Property="Fill" Value="#94A3B8" />
+                                                                            <Setter Property="Fill" Value="#EF4444" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding StatusText}" Value="Đang tắt">
+                                                                            <Setter Property="Fill" Value="#EF4444" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding StatusText}" Value="Mất kết nối">
+                                                                            <Setter Property="Fill" Value="#EF4444" />
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
                                                                             <Setter Property="Fill" Value="#EAB308" />
@@ -873,10 +1089,16 @@
                                                                             <Setter Property="Foreground" Value="{DynamicResource ColorInUseFgBrush}" />
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
-                                                                            <Setter Property="Foreground" Value="#64748B" />
+                                                                            <Setter Property="Foreground" Value="#DC2626" />
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
-                                                                            <Setter Property="Foreground" Value="{DynamicResource ColorOfflineFgBrush}" />
+                                                                            <Setter Property="Foreground" Value="#DC2626" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding StatusText}" Value="Đang tắt">
+                                                                            <Setter Property="Foreground" Value="#DC2626" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding StatusText}" Value="Mất kết nối">
+                                                                            <Setter Property="Foreground" Value="#DC2626" />
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding IsAdminSession}" Value="True">
                                                                             <Setter Property="Foreground" Value="{DynamicResource ColorAdminFgBrush}" />
@@ -1307,7 +1529,10 @@
                                         BorderBrush="#E2E8F0"
                                         BorderThickness="1"
                                         CornerRadius="8"
-                                        VerticalAlignment="Center">
+                                        VerticalAlignment="Center"
+                                        Cursor="Hand"
+                                        ToolTip="Bấm để hiển thị tất cả máy"
+                                        MouseLeftButtonDown="SummaryBadgeTotal_Click">
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <TextBlock Text="🖥️" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center" />
                                         <TextBlock x:Name="SummaryTotalTextBlock"
@@ -1345,7 +1570,10 @@
                                         BorderBrush="#A7F3D0"
                                         BorderThickness="1"
                                         CornerRadius="8"
-                                        VerticalAlignment="Center">
+                                        VerticalAlignment="Center"
+                                        Cursor="Hand"
+                                        ToolTip="Bấm để lọc máy đang sử dụng"
+                                        MouseLeftButtonDown="SummaryBadgeUsing_Click">
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <Ellipse Width="7" Height="7" Fill="#10B981" Margin="0,0,6,0" VerticalAlignment="Center" />
                                         <TextBlock x:Name="SummaryUsingTextBlock"
@@ -1364,7 +1592,10 @@
                                         BorderBrush="#CBD5E1"
                                         BorderThickness="1"
                                         CornerRadius="8"
-                                        VerticalAlignment="Center">
+                                        VerticalAlignment="Center"
+                                        Cursor="Hand"
+                                        ToolTip="Bấm để lọc máy đang tắt"
+                                        MouseLeftButtonDown="SummaryBadgeLocked_Click">
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <Ellipse Width="7" Height="7" Fill="#94A3B8" Margin="0,0,6,0" VerticalAlignment="Center" />
                                         <TextBlock x:Name="SummaryLockedTextBlock"
@@ -1383,7 +1614,10 @@
                                         BorderBrush="#FECACA"
                                         BorderThickness="1"
                                         CornerRadius="8"
-                                        VerticalAlignment="Center">
+                                        VerticalAlignment="Center"
+                                        Cursor="Hand"
+                                        ToolTip="Bấm để lọc máy mất kết nối"
+                                        MouseLeftButtonDown="SummaryBadgeOffline_Click">
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <Ellipse Width="7" Height="7" Fill="#EF4444" Margin="0,0,6,0" VerticalAlignment="Center" />
                                         <TextBlock x:Name="SummaryOfflineTextBlock"
@@ -1698,7 +1932,7 @@
                                         <DataGrid.ContextMenu>
                                             <ContextMenu FontSize="{DynamicResource MachineContextMenuFontSize}">
                                                 <ContextMenu.Resources>
-                                                    <Style TargetType="MenuItem">
+                                                    <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                                                         <Setter Property="Padding" Value="{DynamicResource MachineContextMenuItemPadding}" />
                                                     </Style>
                                                 </ContextMenu.Resources>
@@ -2919,7 +3153,7 @@
                                         <ListBox.ContextMenu>
                                             <ContextMenu FontSize="{DynamicResource MachineContextMenuFontSize}">
                                                 <ContextMenu.Resources>
-                                                    <Style TargetType="MenuItem">
+                                                    <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                                                         <Setter Property="Padding" Value="{DynamicResource MachineContextMenuItemPadding}" />
                                                     </Style>
                                                 </ContextMenu.Resources>
@@ -3113,7 +3347,7 @@
                                         <DataGrid.ContextMenu>
                                             <ContextMenu FontSize="{DynamicResource MachineContextMenuFontSize}">
                                                 <ContextMenu.Resources>
-                                                    <Style TargetType="MenuItem">
+                                                    <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
                                                         <Setter Property="Padding" Value="{DynamicResource MachineContextMenuItemPadding}" />
                                                     </Style>
                                                 </ContextMenu.Resources>
@@ -7490,8 +7724,6 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="12" />
                                 <RowDefinition Height="Auto" />
-                                <RowDefinition Height="12" />
-                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
                             <Border Grid.Row="0"
@@ -7510,14 +7742,16 @@
 
                             <TabControl Grid.Row="2">
                                 <TabItem Header="Giao diện">
-                                    <Border Margin="0,8,0,0"
-                                            Background="White"
-                                            BorderBrush="#E2E8F0"
-                                            BorderThickness="1"
-                                            CornerRadius="10"
-                                            Padding="14,12">
+                                    <StackPanel Margin="0,8,0,0">
+                                        <Border Background="White"
+                                                BorderBrush="#E2E8F0"
+                                                BorderThickness="1"
+                                                CornerRadius="10"
+                                                Padding="14,12">
                                         <Grid>
                                             <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
@@ -7573,6 +7807,26 @@
                                                     <ColumnDefinition Width="340" />
                                                     <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Cỡ icon bảng Máy trạm:" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Slider x:Name="MachineTableIconSizeSlider"
+                                                            Width="260"
+                                                            Minimum="16"
+                                                            Maximum="48"
+                                                            TickFrequency="1"
+                                                            IsSnapToTickEnabled="True"
+                                                            ValueChanged="MachineTableIconSizeSlider_ValueChanged" />
+                                                    <Border Margin="10,0,0,0" Padding="8,3" Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="6">
+                                                        <TextBlock x:Name="MachineTableIconSizeValueTextBlock" VerticalAlignment="Center" Foreground="#3730A3" FontWeight="SemiBold" Text="32" />
+                                                    </Border>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <Grid Grid.Row="4" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="340" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
                                                 <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Padding menu chuột phải bảng Máy trạm:" />
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                                     <Slider x:Name="MachineContextMenuPaddingSlider"
@@ -7588,7 +7842,7 @@
                                                 </StackPanel>
                                             </Grid>
 
-                                            <Grid Grid.Row="4" Margin="0,10,0,0">
+                                            <Grid Grid.Row="5" Margin="0,10,0,0">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="340" />
                                                     <ColumnDefinition Width="*" />
@@ -7608,7 +7862,7 @@
                                                 </StackPanel>
                                             </Grid>
 
-                                             <Grid Grid.Row="5" Margin="0,12,0,0">
+                                             <Grid Grid.Row="6" Margin="0,12,0,0">
                                                  <Grid.ColumnDefinitions>
                                                      <ColumnDefinition Width="340" />
                                                      <ColumnDefinition Width="*" />
@@ -7616,11 +7870,39 @@
                                                  <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Điều chỉnh màu sắc trạng thái máy:" />
                                                  <Button Grid.Column="1" Content="Cấu hình màu sắc..." Width="220" Height="32" HorizontalAlignment="Left" Click="ConfigureColorsButton_Click" />
                                              </Grid>
+
+                                             <Grid Grid.Row="7" Margin="0,14,0,0">
+                                                 <Grid.ColumnDefinitions>
+                                                     <ColumnDefinition Width="340" />
+                                                     <ColumnDefinition Width="*" />
+                                                 </Grid.ColumnDefinitions>
+                                                 <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Menu chuột phải bảng Máy trạm:" />
+                                                 <CheckBox x:Name="HideDisabledContextMenuItemsCheckBox"
+                                                           Grid.Column="1"
+                                                           Content="Ẩn các chức năng không khả dụng (disabled)"
+                                                           IsChecked="True"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="13"
+                                                           FontWeight="Medium"
+                                                           Foreground="#1E293B"
+                                                           Cursor="Hand"
+                                                           Click="HideDisabledContextMenuItemsCheckBox_Click" />
+                                             </Grid>
                                         </Grid>
                                     </Border>
-                                </TabItem>
 
-                                <TabItem Header="Máy trạm">
+                                    <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                        <Button Padding="14,7" Margin="0,0,8,0" Click="SaveFontSizeButton_Click" Content="Lưu cài đặt" />
+                                        <Button Padding="14,7" Click="ResetFontSizeButton_Click" Content="Đặt lại mặc định" />
+                                    </StackPanel>
+
+                                    <TextBlock Margin="0,10,0,0"
+                                               Foreground="#64748B"
+                                               Text="Thông tin: Cỡ chữ được xem trước ngay khi kéo thanh trượt." />
+                                </StackPanel>
+                            </TabItem>
+
+                            <TabItem Header="Máy trạm">
                                     <Border Margin="0,8,0,0"
                                             Background="White"
                                             BorderBrush="#E2E8F0"
@@ -8602,6 +8884,7 @@
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
 
                                             <TextBlock Grid.Row="0"
@@ -9445,17 +9728,6 @@
                                     </Border>
                                 </TabItem>
                             </TabControl>
-
-                            <StackPanel Grid.Row="4">
-                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                                    <Button Padding="14,7" Margin="0,0,8,0" Click="SaveFontSizeButton_Click" Content="Lưu cài đặt" />
-                                    <Button Padding="14,7" Click="ResetFontSizeButton_Click" Content="Đặt lại mặc định" />
-                                </StackPanel>
-
-                                <TextBlock Margin="0,10,0,0"
-                                           Foreground="#64748B"
-                                           Text="Thông tin: Cỡ chữ được xem trước ngay khi kéo thanh trượt." />
-                            </StackPanel>
                         </Grid>
                     </ScrollViewer>
                 </TabItem>

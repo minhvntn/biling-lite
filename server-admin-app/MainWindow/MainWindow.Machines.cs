@@ -92,7 +92,7 @@ public partial class MainWindow : Window
         filteredRows = ApplyStatusFilter(filteredRows);
 
         var summaryRows = filteredRows.ToList();
-        if (!_showOfflineMachines)
+        if (!_showOfflineMachines && _statusFilter != "Offline" && _statusFilter != "Đang tắt")
         {
             filteredRows = filteredRows.Where(r => r.StatusCode != "OFFLINE").ToList();
         }
@@ -149,15 +149,16 @@ public partial class MainWindow : Window
         var activeGuest = item.ActiveGuest;
         var isAdminSession = item.Status == "IN_USE" && activeAdmin is not null;
         var isVipSession = item.ActiveSession is not null && activeMember?.MemberType == "VIP";
-        var isUnpaidGuestEligibleStatus = (item.Status == "OFFLINE" || isAdminSession) && item.ActiveSession is not null;
+        var isUnpaidGuestEligibleStatus = item.Status == "OFFLINE" && item.ActiveSession is not null && !isAdminSession;
         var hasUnpaidGuestSession =
             isUnpaidGuestEligibleStatus &&
             activeMember is null &&
-            (activeGuest is null || activeGuest.PrepaidAmount <= 0);
+            (activeGuest is null || activeGuest.PrepaidAmount <= 0) &&
+            !isAdminSession;
         var statusSubText = hasUnpaidGuestSession ? "Chưa thanh toán" : string.Empty;
         var statusText = item.Status switch
         {
-            "IN_USE" => isAdminSession ? "Admin đang nhập" : I18n.StatusInUse,
+            "IN_USE" => isAdminSession ? "Admin" : I18n.StatusInUse,
             "LOCKED" => "Đang khóa",
             "ONLINE" => I18n.StatusReady,
             "BOOTING" => "Đang khởi động",
@@ -970,6 +971,11 @@ public partial class MainWindow : Window
                 return;
 
             case "IN_USE":
+                if (selected.IsAdminSession || string.Equals(selected.UserName, "Admin", StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
                 if (selected.IsVipSession)
                 {
                     await ShowMachineBillingDetailsAsync(selected);
@@ -987,6 +993,10 @@ public partial class MainWindow : Window
                 return;
 
             case "OFFLINE":
+                if (selected.IsAdminSession || string.Equals(selected.UserName, "Admin", StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
                 if (selected.IsVipSession)
                 {
                     await ShowMachineBillingDetailsAsync(selected);
@@ -1230,6 +1240,69 @@ public partial class MainWindow : Window
         return status == "IN_USE" && machine.IsGuestSession;
     }
 
+    private void SetMenuItemState(MenuItem? item, bool isEnabled)
+    {
+        if (item is null) return;
+        item.IsEnabled = isEnabled;
+        if (_settings.HideDisabledContextMenuItems)
+        {
+            item.Visibility = isEnabled ? Visibility.Visible : Visibility.Collapsed;
+        }
+        else
+        {
+            item.Visibility = Visibility.Visible;
+        }
+    }
+
+    private void CleanContextMenuSeparators(ContextMenu? menu)
+    {
+        if (menu is null) return;
+
+        bool hasVisibleItemBefore = false;
+        Separator? pendingSeparator = null;
+
+        foreach (var item in menu.Items)
+        {
+            if (item is Separator sep)
+            {
+                if (!_settings.HideDisabledContextMenuItems)
+                {
+                    sep.Visibility = Visibility.Visible;
+                    continue;
+                }
+
+                if (!hasVisibleItemBefore)
+                {
+                    // No visible item above this separator, hide it
+                    sep.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    if (pendingSeparator is not null)
+                    {
+                        pendingSeparator.Visibility = Visibility.Collapsed;
+                    }
+                    pendingSeparator = sep;
+                    hasVisibleItemBefore = false;
+                }
+            }
+            else if (item is UIElement ui && ui.Visibility == Visibility.Visible)
+            {
+                if (pendingSeparator is not null)
+                {
+                    pendingSeparator.Visibility = Visibility.Visible;
+                    pendingSeparator = null;
+                }
+                hasVisibleItemBefore = true;
+            }
+        }
+
+        if (pendingSeparator is not null)
+        {
+            pendingSeparator.Visibility = Visibility.Collapsed;
+        }
+    }
+
     private void SetMachineContextMenuEnabled(
         bool open,
         bool openGuest,
@@ -1254,125 +1327,33 @@ public partial class MainWindow : Window
         bool payService,
         bool notify)
     {
-        if (ContextOpenMachineMenuItem is not null)
-        {
-            ContextOpenMachineMenuItem.IsEnabled = open;
-        }
+        SetMenuItemState(ContextOpenMachineMenuItem, open);
+        SetMenuItemState(ContextOpenGuestMachineMenuItem, openGuest);
+        SetMenuItemState(ContextSwitchGuestToPrepaidMenuItem, switchGuestToPrepaid);
+        SetMenuItemState(ContextAdminLoginMachineMenuItem, adminLogin);
+        SetMenuItemState(ContextLockMachineMenuItem, lockMachine);
+        SetMenuItemState(ContextTopupMachineMemberMenuItem, topupMember);
+        SetMenuItemState(ContextRestartMachineMenuItem, restart);
+        SetMenuItemState(ContextWakeRemoteMachineMenuItem, wakeRemote);
+        SetMenuItemState(ContextShutdownMachineMenuItem, shutdownSelected || shutdownReady);
+        SetMenuItemState(ContextShutdownSelectedMachineMenuItem, shutdownSelected);
+        SetMenuItemState(ContextShutdownReadyMachinesMenuItem, shutdownReady);
+        SetMenuItemState(ContextControlCloseAppsMenuItem, closeApps);
+        SetMenuItemState(ContextControlCloseAllAppsMenuItem, closeApps);
+        SetMenuItemState(ContextControlRemoteMenuItem, remoteControl);
+        SetMenuItemState(ContextControlScreenshotMenuItem, captureScreenshot);
+        SetMenuItemState(ContextControlMachineMenuItem, closeApps || remoteControl || captureScreenshot);
+        SetMenuItemState(ContextPauseMachineMenuItem, pause);
+        SetMenuItemState(ContextResumeMachineMenuItem, resume);
+        SetMenuItemState(ContextTransferMachineMenuItem, transfer);
+        SetMenuItemState(ContextAssignGroupMenuItem, assignGroup);
+        SetMenuItemState(ContextViewMachineBillingMenuItem, viewBilling);
+        SetMenuItemState(ContextTransferBillingToOtherPcMenuItem, transferBilling);
+        SetMenuItemState(ContextSelectServiceMenuItem, selectService);
+        SetMenuItemState(ContextPayServiceMenuItem, payService);
 
-        if (ContextOpenGuestMachineMenuItem is not null)
-        {
-            ContextOpenGuestMachineMenuItem.IsEnabled = openGuest;
-        }
-
-        if (ContextSwitchGuestToPrepaidMenuItem is not null)
-        {
-            ContextSwitchGuestToPrepaidMenuItem.IsEnabled = switchGuestToPrepaid;
-        }
-
-        if (ContextAdminLoginMachineMenuItem is not null)
-        {
-            ContextAdminLoginMachineMenuItem.IsEnabled = adminLogin;
-        }
-
-        if (ContextLockMachineMenuItem is not null)
-        {
-            ContextLockMachineMenuItem.IsEnabled = lockMachine;
-        }
-
-        if (ContextTopupMachineMemberMenuItem is not null)
-        {
-            ContextTopupMachineMemberMenuItem.IsEnabled = topupMember;
-        }
-
-        if (ContextRestartMachineMenuItem is not null)
-        {
-            ContextRestartMachineMenuItem.IsEnabled = restart;
-        }
-
-        if (ContextWakeRemoteMachineMenuItem is not null)
-        {
-            ContextWakeRemoteMachineMenuItem.IsEnabled = wakeRemote;
-        }
-
-        if (ContextShutdownMachineMenuItem is not null)
-        {
-            ContextShutdownMachineMenuItem.IsEnabled = shutdownSelected || shutdownReady;
-        }
-
-        if (ContextShutdownSelectedMachineMenuItem is not null)
-        {
-            ContextShutdownSelectedMachineMenuItem.IsEnabled = shutdownSelected;
-        }
-
-        if (ContextShutdownReadyMachinesMenuItem is not null)
-        {
-            ContextShutdownReadyMachinesMenuItem.IsEnabled = shutdownReady;
-        }
-
-        if (ContextControlCloseAppsMenuItem is not null)
-        {
-            ContextControlCloseAppsMenuItem.IsEnabled = closeApps;
-        }
-
-        if (ContextControlCloseAllAppsMenuItem is not null)
-        {
-            ContextControlCloseAllAppsMenuItem.IsEnabled = closeApps;
-        }
-
-        if (ContextControlRemoteMenuItem is not null)
-        {
-            ContextControlRemoteMenuItem.IsEnabled = remoteControl;
-        }
-
-        if (ContextControlScreenshotMenuItem is not null)
-        {
-            ContextControlScreenshotMenuItem.IsEnabled = captureScreenshot;
-        }
-
-        if (ContextControlMachineMenuItem is not null)
-        {
-            ContextControlMachineMenuItem.IsEnabled = closeApps || remoteControl || captureScreenshot;
-        }
-
-        if (ContextPauseMachineMenuItem is not null)
-        {
-            ContextPauseMachineMenuItem.IsEnabled = pause;
-        }
-
-        if (ContextResumeMachineMenuItem is not null)
-        {
-            ContextResumeMachineMenuItem.IsEnabled = resume;
-        }
-
-        if (ContextTransferMachineMenuItem is not null)
-        {
-            ContextTransferMachineMenuItem.IsEnabled = transfer;
-        }
-
-        if (ContextAssignGroupMenuItem is not null)
-        {
-            ContextAssignGroupMenuItem.IsEnabled = assignGroup;
-        }
-
-        if (ContextViewMachineBillingMenuItem is not null)
-        {
-            ContextViewMachineBillingMenuItem.IsEnabled = viewBilling;
-        }
-
-        if (ContextTransferBillingToOtherPcMenuItem is not null)
-        {
-            ContextTransferBillingToOtherPcMenuItem.IsEnabled = transferBilling;
-        }
-
-        if (ContextSelectServiceMenuItem is not null)
-        {
-            ContextSelectServiceMenuItem.IsEnabled = selectService;
-        }
-
-        if (ContextPayServiceMenuItem is not null)
-        {
-            ContextPayServiceMenuItem.IsEnabled = payService;
-        }
+        SetMenuItemState(ContextChatMenuItem, true);
+        CleanContextMenuSeparators(MachinesDataGrid.ContextMenu);
     }
 
     private void Window_PreviewMouseDown(object sender, MouseButtonEventArgs e)
@@ -2765,6 +2746,11 @@ public partial class MainWindow : Window
 
     private static bool IsGuestBillingEligibleMachine(MachineRow machine)
     {
+        if (machine.IsAdminSession || string.Equals(machine.UserName, "Admin", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
         var status = machine.StatusCode?.Trim().ToUpperInvariant();
         if (status is not ("IN_USE" or "OFFLINE"))
         {
@@ -2821,7 +2807,10 @@ public partial class MainWindow : Window
     private async Task<List<MachineBillingSummaryRow>> BuildMultiMachineBillingRowsAsync(
         IReadOnlyList<MachineRow> machines)
     {
-        var tasks = machines.Select(async machine =>
+        var nonAdminMachines = machines
+            .Where(m => !m.IsAdminSession && !string.Equals(m.UserName, "Admin", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var tasks = nonAdminMachines.Select(async machine =>
         {
             decimal serviceAmount = 0;
             var hasServiceLoadError = false;
@@ -2966,6 +2955,10 @@ public partial class MainWindow : Window
     private async Task ShowMachineBillingDetailsAsync(MachineRow machine)
     {
         var latestMachine = FindMachineRowById(machine.Id) ?? machine;
+        if (latestMachine.IsAdminSession || string.Equals(latestMachine.UserName, "Admin", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
         
         List<TimeBasedPromotionDto> allPromotions = new();
         try
@@ -4655,11 +4648,13 @@ public class LatestRunningAppsResponse
 public partial class MainWindow
 {
     private bool _isIconViewMode;
-    private bool _showOfflineMachines;
+    private bool _showOfflineMachines = true;
 
     private void ShowOfflineMachines_Click(object sender, RoutedEventArgs e)
     {
         _showOfflineMachines = !_showOfflineMachines;
+        _settings.ShowOfflineMachines = _showOfflineMachines;
+        SaveSettings();
         if (_showOfflineMachines)
         {
             ShowOfflineMachinesIcon.Text = "✔";
@@ -4669,6 +4664,66 @@ public partial class MainWindow
         {
             ShowOfflineMachinesIcon.Text = "";
             ShowOfflineMachinesMenuItem.FontWeight = FontWeights.Normal;
+        }
+        ApplyMachineFiltersToGrid(GetSelectedMachineIdsSnapshot());
+    }
+
+    private void SummaryBadgeTotal_Click(object sender, MouseButtonEventArgs e)
+    {
+        _statusFilter = I18n.StatusAll;
+        StatusFilterComboBox.SelectedIndex = 0;
+        ApplyMachineFiltersToGrid(GetSelectedMachineIdsSnapshot());
+    }
+
+    private void SummaryBadgeUsing_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_statusFilter == "Đang sử dụng")
+        {
+            _statusFilter = I18n.StatusAll;
+            StatusFilterComboBox.SelectedIndex = 0;
+        }
+        else
+        {
+            _statusFilter = "Đang sử dụng";
+            StatusFilterComboBox.SelectedIndex = 1;
+        }
+        ApplyMachineFiltersToGrid(GetSelectedMachineIdsSnapshot());
+    }
+
+    private void SummaryBadgeLocked_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_statusFilter == "Đang tắt")
+        {
+            _statusFilter = I18n.StatusAll;
+            StatusFilterComboBox.SelectedIndex = 0;
+        }
+        else
+        {
+            _statusFilter = "Đang tắt";
+            StatusFilterComboBox.SelectedIndex = 2;
+        }
+        ApplyMachineFiltersToGrid(GetSelectedMachineIdsSnapshot());
+    }
+
+    private void SummaryBadgeOffline_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_statusFilter == "Offline")
+        {
+            _statusFilter = I18n.StatusAll;
+            StatusFilterComboBox.SelectedIndex = 0;
+        }
+        else
+        {
+            _statusFilter = "Offline";
+            StatusFilterComboBox.SelectedIndex = 4;
+            if (!_showOfflineMachines)
+            {
+                _showOfflineMachines = true;
+                _settings.ShowOfflineMachines = true;
+                SaveSettings();
+                if (ShowOfflineMachinesIcon != null) ShowOfflineMachinesIcon.Text = "✔";
+                if (ShowOfflineMachinesMenuItem != null) ShowOfflineMachinesMenuItem.FontWeight = FontWeights.Bold;
+            }
         }
         ApplyMachineFiltersToGrid(GetSelectedMachineIdsSnapshot());
     }
@@ -4693,20 +4748,26 @@ public partial class MainWindow
             MachinesIconView.Visibility = Visibility.Visible;
             MachinesIconItemsControl.ItemsSource = _machineRows;
 
-            ViewModeListMenuItem.Header = "     Dạng danh sách";
+            ViewModeListMenuItem.Header = "Dạng danh sách";
             ViewModeListMenuItem.FontWeight = FontWeights.Normal;
-            ViewModeIconMenuItem.Header = "✔  Dạng biểu tượng";
+            if (ViewModeListIcon is not null) ViewModeListIcon.Text = "";
+
+            ViewModeIconMenuItem.Header = "Dạng biểu tượng";
             ViewModeIconMenuItem.FontWeight = FontWeights.Bold;
+            if (ViewModeIconIcon is not null) ViewModeIconIcon.Text = "✔";
         }
         else
         {
             MachinesDataGrid.Visibility = Visibility.Visible;
             MachinesIconView.Visibility = Visibility.Collapsed;
 
-            ViewModeListMenuItem.Header = "✔  Dạng danh sách";
+            ViewModeListMenuItem.Header = "Dạng danh sách";
             ViewModeListMenuItem.FontWeight = FontWeights.Bold;
-            ViewModeIconMenuItem.Header = "     Dạng biểu tượng";
+            if (ViewModeListIcon is not null) ViewModeListIcon.Text = "✔";
+
+            ViewModeIconMenuItem.Header = "Dạng biểu tượng";
             ViewModeIconMenuItem.FontWeight = FontWeights.Normal;
+            if (ViewModeIconIcon is not null) ViewModeIconIcon.Text = "";
         }
     }
 
@@ -4760,6 +4821,11 @@ public partial class MainWindow
 
             // Clear selection so we can select it again next time
             listBox.SelectedItem = null;
+
+            if (selectedMachine.IsAdminSession || string.Equals(selectedMachine.UserName, "Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
 
             // Select in datagrid to be consistent
             _selectedMachineId = selectedMachine.Id;

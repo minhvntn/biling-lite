@@ -74,6 +74,7 @@ public partial class MainWindow : Window
     private bool _isRefreshingMembersAuto;
     private bool _fontSizeInitialized;
     private bool _machineTableFontSizeInitialized;
+    private bool _machineTableIconSizeInitialized;
     private bool _machineContextMenuPaddingInitialized;
     private bool _machineContextMenuFontSizeInitialized;
     private bool _loyaltySettingsInitialized;
@@ -167,6 +168,7 @@ public partial class MainWindow : Window
             UpdateServerIpDisplay();
             ApplyUiFontSize(_settings.UiFontSize);
             ApplyMachineTableFontSize(_settings.MachineTableFontSize);
+            ApplyMachineTableIconSize(_settings.MachineTableIconSize);
             ApplyMachineContextMenuPadding(_settings.MachineContextMenuItemPadding);
             ApplyMachineContextMenuFontSize(_settings.MachineContextMenuFontSize);
 
@@ -190,10 +192,31 @@ public partial class MainWindow : Window
             FontSizeValueTextBlock.Text = _settings.UiFontSize.ToString("0");
             MachineTableFontSizeSlider.Value = _settings.MachineTableFontSize;
             MachineTableFontSizeValueTextBlock.Text = _settings.MachineTableFontSize.ToString("0");
+            if (MachineTableIconSizeSlider is not null)
+            {
+                MachineTableIconSizeSlider.Value = _settings.MachineTableIconSize;
+            }
+            if (MachineTableIconSizeValueTextBlock is not null)
+            {
+                MachineTableIconSizeValueTextBlock.Text = _settings.MachineTableIconSize.ToString("0");
+            }
             MachineContextMenuPaddingSlider.Value = _settings.MachineContextMenuItemPadding;
             MachineContextMenuPaddingValueTextBlock.Text = _settings.MachineContextMenuItemPadding.ToString("0");
             MachineContextMenuFontSizeSlider.Value = _settings.MachineContextMenuFontSize;
             MachineContextMenuFontSizeValueTextBlock.Text = _settings.MachineContextMenuFontSize.ToString("0");
+            if (HideDisabledContextMenuItemsCheckBox is not null)
+            {
+                HideDisabledContextMenuItemsCheckBox.IsChecked = _settings.HideDisabledContextMenuItems;
+            }
+            _showOfflineMachines = _settings.ShowOfflineMachines;
+            if (ShowOfflineMachinesIcon is not null)
+            {
+                ShowOfflineMachinesIcon.Text = _showOfflineMachines ? "✔" : "";
+            }
+            if (ShowOfflineMachinesMenuItem is not null)
+            {
+                ShowOfflineMachinesMenuItem.FontWeight = _showOfflineMachines ? FontWeights.Bold : FontWeights.Normal;
+            }
             RevenueAnchorDatePicker.SelectedDate = DateTime.Today;
             WebsiteLogFromDatePicker.SelectedDate = DateTime.Today.AddDays(-1);
             WebsiteLogToDatePicker.SelectedDate = DateTime.Today;
@@ -201,6 +224,7 @@ public partial class MainWindow : Window
             InitializeSystemLogMachineFilter();
             _fontSizeInitialized = true;
             _machineTableFontSizeInitialized = true;
+            _machineTableIconSizeInitialized = true;
             _machineContextMenuPaddingInitialized = true;
             _machineContextMenuFontSizeInitialized = true;
             _transactionReportInitialized = true;
