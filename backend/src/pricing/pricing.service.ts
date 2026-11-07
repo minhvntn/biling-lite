@@ -53,6 +53,12 @@ const LOCK_SCREEN_MEDIA_DIR = path.join(
   'lock-screen-media',
 );
 const MAX_LOCK_SCREEN_MEDIA_SIZE_BYTES = 100 * 1024 * 1024;
+const DESKTOP_WALLPAPER_DIR = path.join(
+  process.cwd(),
+  'storage',
+  'desktop-wallpapers',
+);
+const MAX_WALLPAPER_SIZE_BYTES = 25 * 1024 * 1024; // 25MB
 
 import { RealtimeService } from '../realtime/realtime.service';
 
@@ -533,6 +539,83 @@ export class PricingService {
     const contentType = this.getLockScreenMediaContentType(extension);
     response.setHeader('Content-Type', contentType);
     response.setHeader('Cache-Control', 'public, max-age=3600');
+    return response.sendFile(fullPath);
+  }
+
+  async uploadDesktopWallpaper(
+    file: Express.Multer.File,
+    apiBaseUrl: string,
+  ): Promise<string> {
+    if (!file || !file.buffer || !file.buffer.length) {
+      throw new BadRequestException('File upload không hợp lệ hoặc rỗng');
+    }
+
+    if (file.size <= 0 || file.size > MAX_WALLPAPER_SIZE_BYTES) {
+      throw new BadRequestException(
+        `Kích thước file không hợp lệ (tối đa ${Math.floor(MAX_WALLPAPER_SIZE_BYTES / (1024 * 1024))}MB)`,
+      );
+    }
+
+    const extFromName = path.extname(file.originalname || '').toLowerCase();
+    const extFromMime =
+      {
+        'image/jpeg': '.jpg',
+        'image/png': '.png',
+        'image/webp': '.webp',
+        'image/bmp': '.bmp',
+      }[file.mimetype?.toLowerCase()] || '';
+
+    const ext = extFromName || extFromMime;
+    const allowedExts = new Set(['.jpg', '.jpeg', '.png', '.webp', '.bmp']);
+    if (!allowedExts.has(ext)) {
+      throw new BadRequestException(
+        'Định dạng file không hỗ trợ cho hình nền máy trạm (chỉ hỗ trợ .jpg, .jpeg, .png, .webp, .bmp)',
+      );
+    }
+
+    await fs.mkdir(DESKTOP_WALLPAPER_DIR, { recursive: true });
+
+    const randomSuffix = Math.random().toString(36).substring(2, 8);
+    const fileName = `wallpaper_${Date.now()}_${randomSuffix}${ext}`;
+    const fullPath = path.join(DESKTOP_WALLPAPER_DIR, fileName);
+    await fs.writeFile(fullPath, file.buffer);
+
+    const normalizedBase = apiBaseUrl.replace(/\/+$/, '');
+    const url = normalizedBase.endsWith('/api/v1')
+      ? `${normalizedBase}/pricing/client-settings/desktop-wallpaper-media/${fileName}`
+      : `${normalizedBase}/api/v1/pricing/client-settings/desktop-wallpaper-media/${fileName}`;
+
+    return url;
+  }
+
+  async writeDesktopWallpaperToResponse(
+    fileNameRaw: string,
+    response: Response,
+  ) {
+    const safeFileName = path.basename(fileNameRaw ?? '').trim();
+    if (!safeFileName) {
+      throw new NotFoundException('Không tìm thấy file hình nền');
+    }
+
+    const fullPath = path.join(DESKTOP_WALLPAPER_DIR, safeFileName);
+    try {
+      await fs.access(fullPath);
+    } catch {
+      throw new NotFoundException('Không tìm thấy file hình nền');
+    }
+
+    const extension = path.extname(fullPath).toLowerCase();
+    const contentType =
+      {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.webp': 'image/webp',
+        '.bmp': 'image/bmp',
+      }[extension] ?? 'application/octet-stream';
+
+    response.setHeader('Content-Type', contentType);
+    response.setHeader('Cache-Control', 'public, max-age=86400');
     return response.sendFile(fullPath);
   }
 

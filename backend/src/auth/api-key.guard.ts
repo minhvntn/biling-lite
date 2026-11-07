@@ -15,12 +15,12 @@ export class ApiKeyGuard implements CanActivate {
       return true;
     }
 
-    // Public lock-screen media assets streamed/displayed on client workstations
-    // Public lock-screen media assets streamed/displayed on client workstations
+    // Public lock-screen and desktop wallpaper media assets streamed/displayed on client workstations
     const rawPath = (request.path || request.originalUrl || request.url || '').split('?')[0];
     if (
       (request.method === 'GET' || request.method === 'HEAD') &&
-      rawPath.includes('/pricing/client-settings/lock-screen-media/')
+      (rawPath.includes('/pricing/client-settings/lock-screen-media/') ||
+       rawPath.includes('/pricing/client-settings/desktop-wallpaper-media/'))
     ) {
       return true;
     }

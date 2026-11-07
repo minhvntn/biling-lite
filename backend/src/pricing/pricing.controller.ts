@@ -70,6 +70,32 @@ export class PricingController {
     return this.pricingService.writeLockScreenMediaToResponse(fileName, response);
   }
 
+  @Post('client-settings/desktop-wallpaper')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 25 * 1024 * 1024 },
+    }),
+  )
+  async uploadDesktopWallpaper(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: Request,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Missing file');
+    }
+    const baseUrl = this.resolveApiBaseUrl(req);
+    const url = await this.pricingService.uploadDesktopWallpaper(file, baseUrl);
+    return { success: true, url };
+  }
+
+  @Get('client-settings/desktop-wallpaper-media/:fileName')
+  async getDesktopWallpaperMedia(
+    @Param('fileName') fileName: string,
+    @Res() res: Response,
+  ) {
+    return this.pricingService.writeDesktopWallpaperToResponse(fileName, res);
+  }
+
   @Put('default-rate')
   async setDefaultRate(@Body() payload: SetDefaultRateDto) {
     return this.pricingService.setDefaultRate(payload);
@@ -124,51 +150,77 @@ export class PricingController {
     return this.pricingService.deletePromotion(id);
   }
 
-  private rewriteClientRuntimeMediaUrl<T extends { lockScreenBackgroundUrl?: string }>(
+  private rewriteClientRuntimeMediaUrl<
+    T extends { lockScreenBackgroundUrl?: string; desktopWallpaperUrl?: string }
+  >(
     settings: T,
     request: Request,
   ): T {
-    const rawUrl = settings.lockScreenBackgroundUrl?.trim();
-    if (!rawUrl) {
-      return settings;
+    let result = { ...settings };
+    const baseUrl = this.buildClientFacingApiBaseUrl(request);
+
+    const rawLockUrl = settings.lockScreenBackgroundUrl?.trim();
+    if (rawLockUrl) {
+      const urls = rawLockUrl.split(',').map((u) => u.trim()).filter(Boolean);
+      const rewrittenUrls = urls.map((u) => this.rewriteUrlHost(u, baseUrl));
+      result = {
+        ...result,
+        lockScreenBackgroundUrl: rewrittenUrls.join(','),
+      };
     }
 
-    const urls = rawUrl.split(',').map((u) => u.trim()).filter(Boolean);
-    const rewrittenUrls: string[] = [];
+    const rawWallpaperUrl = settings.desktopWallpaperUrl?.trim();
+    if (rawWallpaperUrl) {
+      result = {
+        ...result,
+        desktopWallpaperUrl: this.rewriteUrlHost(rawWallpaperUrl, baseUrl),
+      };
+    }
 
-    for (const urlStr of urls) {
-      let mediaUrl: URL;
-      try {
-        mediaUrl = new URL(urlStr);
-      } catch {
-        rewrittenUrls.push(urlStr);
-        continue;
-      }
+    return result;
+  }
 
-      if (!this.isLoopbackHost(mediaUrl.hostname)) {
-        rewrittenUrls.push(urlStr);
-        continue;
-      }
+  private rewriteUrlHost(urlStr: string, clientFacingBaseUrl: string): string {
+    const trimmed = (urlStr ?? '').trim();
+    if (!trimmed) {
+      return trimmed;
+    }
 
-      const baseUrl = this.buildClientFacingApiBaseUrl(request);
-      let apiBase: URL;
-      try {
-        apiBase = new URL(baseUrl);
-      } catch {
-        rewrittenUrls.push(urlStr);
-        continue;
-      }
+    let apiBase: URL;
+    try {
+      apiBase = new URL(clientFacingBaseUrl);
+    } catch {
+      return trimmed;
+    }
 
+    if (trimmed.startsWith('/')) {
+      const origin = `${apiBase.protocol}//${apiBase.host}`;
+      return `${origin}${trimmed}`;
+    }
+
+    let mediaUrl: URL;
+    try {
+      mediaUrl = new URL(trimmed);
+    } catch {
+      return trimmed;
+    }
+
+    const isInternalMedia =
+      mediaUrl.pathname.includes('/pricing/client-settings/desktop-wallpaper-media/') ||
+      mediaUrl.pathname.includes('/pricing/client-settings/lock-screen-media/');
+
+    if (this.isLoopbackHost(mediaUrl.hostname) || isInternalMedia) {
       mediaUrl.protocol = apiBase.protocol;
       mediaUrl.hostname = apiBase.hostname;
       mediaUrl.port = apiBase.port;
-      rewrittenUrls.push(mediaUrl.toString());
+      return mediaUrl.toString();
     }
 
-    return {
-      ...settings,
-      lockScreenBackgroundUrl: rewrittenUrls.join(','),
-    };
+    return trimmed;
+  }
+
+  private resolveApiBaseUrl(request: Request): string {
+    return this.buildClientFacingApiBaseUrl(request);
   }
 
   private buildClientFacingApiBaseUrl(request: Request): string {
