@@ -40,6 +40,8 @@ public sealed class AdminShellSettings
 
     public bool EnableMembersPagination { get; set; } = false;
 
+    public bool AutoBackupOnExit { get; set; } = true;
+
     public bool IsLiteMode { get; set; } = false;
 
     public string ColorInUseBg { get; set; } = "#EFF6FF";
@@ -376,7 +378,16 @@ public sealed class ClientRuntimeSettingsResponse
     public bool VpnEnabled { get; set; } = true;
     public string? VpnLocalInstallerPath { get; set; }
     public string? VpnDownloadUrl { get; set; }
+    public bool DesktopWallpaperEnabled { get; set; }
+    public string? DesktopWallpaperUrl { get; set; }
+    public string? DesktopWallpaperStyle { get; set; }
     public string ServerTime { get; set; } = string.Empty;
+}
+
+public sealed class DesktopWallpaperUploadResponse
+{
+    public bool Success { get; set; }
+    public string? Url { get; set; }
 }
 
 public sealed class MemberWithdrawRequestItem
@@ -442,6 +453,7 @@ public sealed class MemberTopupRequestResponse
 public sealed class BackupSettingsResponse
 {
     public bool Enabled { get; set; }
+    public bool BackupOnExit { get; set; } = true;
     public string ScheduleType { get; set; } = "daily";
     public string Time { get; set; } = "02:00";
     public int WeeklyDay { get; set; } = 1;

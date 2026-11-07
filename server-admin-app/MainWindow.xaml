@@ -2674,13 +2674,13 @@
 
                                                             <!-- Timeline Track & Glowing Dot -->
                                                             <Grid Grid.Column="1" HorizontalAlignment="Center">
-                                                                <Line X1="12" Y1="0" X2="12" Y2="300" Stroke="#E2E8F0" StrokeThickness="2" VerticalAlignment="Stretch" HorizontalAlignment="Center" />
+                                                                <Rectangle Width="2" Fill="#E2E8F0" HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,-4,0,-4" />
                                                                 <Ellipse Width="14" Height="14" Fill="#EFF6FF" Stroke="#3B82F6" StrokeThickness="2" VerticalAlignment="Top" Margin="0,6,0,0" HorizontalAlignment="Center" />
                                                                 <Ellipse Width="6" Height="6" Fill="#2563EB" VerticalAlignment="Top" Margin="0,10,0,0" HorizontalAlignment="Center" />
                                                             </Grid>
 
                                                             <!-- Event Content Card -->
-                                                            <Border Grid.Column="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,4,6">
+                                                            <Border Grid.Column="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,4,6" VerticalAlignment="Top">
                                                                 <StackPanel>
                                                                     <DockPanel LastChildFill="True">
                                                                         <TextBlock Text="{Binding EventIcon}" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center" />
@@ -8829,6 +8829,153 @@
                                                 </StackPanel>
                                             </Border>
 
+                                            <!-- CARD: HÌNH NỀN DESKTOP WINDOWS MÁY TRẠM -->
+                                            <Border Background="White"
+                                                    BorderBrush="#E2E8F0"
+                                                    BorderThickness="1"
+                                                    CornerRadius="10"
+                                                    Padding="16,14"
+                                                    Margin="0,0,0,12">
+                                                <StackPanel>
+                                                    <!-- Header -->
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                                        <TextBlock Text="🖥️" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                                        <TextBlock Text="Hình nền Desktop Windows máy trạm (Desktop Wallpaper)"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="14"
+                                                                   Foreground="#1E293B"
+                                                                   VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                    <TextBlock FontSize="12"
+                                                               Foreground="#64748B"
+                                                               Margin="0,0,0,12"
+                                                               TextWrapping="Wrap"
+                                                               Text="Tự động đồng bộ và cài đặt hình nền Desktop Windows cho máy trạm khi máy trạm hoạt động hoặc khi hội viên đang sử dụng." />
+
+                                                    <!-- Enabled CheckBox -->
+                                                    <CheckBox x:Name="DesktopWallpaperEnabledCheckBox"
+                                                              Content="Bật đồng bộ hình nền Desktop cho máy trạm"
+                                                              Margin="0,0,0,12"
+                                                              FontSize="13.5"
+                                                              FontWeight="SemiBold"
+                                                              Checked="DesktopWallpaperConfig_Changed"
+                                                              Unchecked="DesktopWallpaperConfig_Changed" />
+
+                                                    <!-- Main Settings & Preview Grid -->
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- Left Column: Controls -->
+                                                        <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                                <Button x:Name="ChooseDesktopWallpaperButton"
+                                                                        Content="📂 Chọn ảnh từ máy tính..."
+                                                                        Height="34"
+                                                                        Padding="14,0"
+                                                                        Background="#F1F5F9"
+                                                                        Foreground="#334155"
+                                                                        BorderBrush="#CBD5E1"
+                                                                        FontWeight="Medium"
+                                                                        FontSize="12.5"
+                                                                        Cursor="Hand"
+                                                                        Click="ChooseDesktopWallpaperButton_Click">
+                                                                    <Button.Resources>
+                                                                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                                                                    </Button.Resources>
+                                                                </Button>
+                                                                <TextBlock Text="hoặc dán đường dẫn ảnh / URL:"
+                                                                           VerticalAlignment="Center"
+                                                                           Foreground="#64748B"
+                                                                           FontSize="12"
+                                                                           Margin="10,0,0,0" />
+                                                            </StackPanel>
+
+                                                            <TextBox x:Name="DesktopWallpaperUrlTextBox"
+                                                                     Height="36"
+                                                                     FontSize="13"
+                                                                     VerticalContentAlignment="Center"
+                                                                     Padding="10,0"
+                                                                     Margin="0,0,0,12"
+                                                                     TextChanged="DesktopWallpaperUrlTextBox_TextChanged" />
+
+                                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                                                <TextBlock Text="Kiểu hiển thị:"
+                                                                           VerticalAlignment="Center"
+                                                                           Foreground="#475569"
+                                                                           FontWeight="Medium"
+                                                                           FontSize="12.5"
+                                                                           Margin="0,0,10,0" />
+                                                                <ComboBox x:Name="DesktopWallpaperStyleComboBox"
+                                                                          Width="300"
+                                                                          Height="34"
+                                                                          FontSize="12.5"
+                                                                          VerticalContentAlignment="Center"
+                                                                          SelectionChanged="DesktopWallpaperStyleComboBox_SelectionChanged">
+                                                                    <ComboBoxItem Content="🖼️  Cắt tràn màn hình (Fill - Khuyên dùng)" Tag="fill" IsSelected="True" />
+                                                                    <ComboBoxItem Content="📐  Vừa vặn khung hình (Fit)" Tag="fit" />
+                                                                    <ComboBoxItem Content="↔️  Kéo giãn toàn màn hình (Stretch)" Tag="stretch" />
+                                                                </ComboBox>
+                                                            </StackPanel>
+
+                                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                <Button x:Name="ApplyDesktopWallpaperNowButton"
+                                                                        Content="⚡ Áp dụng ngay cho máy trạm online"
+                                                                        Click="ApplyDesktopWallpaperNowButton_Click"
+                                                                        Background="#0284C7"
+                                                                        Foreground="White"
+                                                                        FontWeight="SemiBold"
+                                                                        FontSize="12.5"
+                                                                        Height="36"
+                                                                        Padding="16,0"
+                                                                        Cursor="Hand"
+                                                                        Margin="0,0,12,0">
+                                                                    <Button.Resources>
+                                                                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="6"/></Style>
+                                                                    </Button.Resources>
+                                                                </Button>
+                                                                <TextBlock x:Name="DesktopWallpaperStatusTextBlock"
+                                                                           VerticalAlignment="Center"
+                                                                           Foreground="#64748B"
+                                                                           FontSize="12"
+                                                                           TextWrapping="Wrap" />
+                                                            </StackPanel>
+                                                        </StackPanel>
+
+                                                        <!-- Right Column: Preview Box -->
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Top">
+                                                            <TextBlock Text="Xem trước (Preview):"
+                                                                       FontSize="12"
+                                                                       Foreground="#64748B"
+                                                                       FontWeight="Medium"
+                                                                       Margin="0,0,0,6" />
+                                                            <Border CornerRadius="8"
+                                                                    Background="#F1F5F9"
+                                                                    BorderBrush="#CBD5E1"
+                                                                    BorderThickness="1"
+                                                                    Width="300"
+                                                                    Height="170"
+                                                                    ClipToBounds="True">
+                                                                <Grid>
+                                                                    <Image x:Name="DesktopWallpaperPreviewImage"
+                                                                           Stretch="UniformToFill"
+                                                                           HorizontalAlignment="Center"
+                                                                           VerticalAlignment="Center" />
+                                                                    <TextBlock x:Name="DesktopWallpaperPlaceholderTextBlock"
+                                                                               Text="Chưa chọn hình nền"
+                                                                               Foreground="#94A3B8"
+                                                                               HorizontalAlignment="Center"
+                                                                               VerticalAlignment="Center"
+                                                                               FontSize="12" />
+                                                                </Grid>
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+
                                             <!-- CARD 4: THANH LƯU CÀI ĐẶT & TRẠNG THÁI -->
                                             <Border Background="#F8FAFC"
                                                     BorderBrush="#E2E8F0"
@@ -9164,13 +9311,20 @@
                                                        Foreground="#1E293B"
                                                        Text="Sao lưu dữ liệu tự động" />
 
-                                            <CheckBox x:Name="AutoBackupEnabledCheckBox"
-                                                      Grid.Row="1"
-                                                      Grid.ColumnSpan="2"
-                                                      Margin="0,10,0,0"
-                                                      Content="Bật backup tự động từ backend"
-                                                      Checked="AutoBackupConfigControl_Changed"
-                                                      Unchecked="AutoBackupConfigControl_Changed" />
+                                            <StackPanel Grid.Row="1"
+                                                        Grid.ColumnSpan="2"
+                                                        Orientation="Horizontal"
+                                                        Margin="0,10,0,0">
+                                                <CheckBox x:Name="AutoBackupEnabledCheckBox"
+                                                          Content="Bật backup tự động từ backend"
+                                                          Checked="AutoBackupConfigControl_Changed"
+                                                          Unchecked="AutoBackupConfigControl_Changed" />
+                                                <CheckBox x:Name="AutoBackupOnExitCheckBox"
+                                                          Margin="24,0,0,0"
+                                                          Content="Tự động sao lưu khi tắt ứng dụng"
+                                                          Checked="AutoBackupConfigControl_Changed"
+                                                          Unchecked="AutoBackupConfigControl_Changed" />
+                                            </StackPanel>
 
                                             <Grid Grid.Row="2" Grid.ColumnSpan="2" Margin="0,10,0,0">
                                                 <Grid.ColumnDefinitions>
@@ -10438,68 +10592,551 @@
             </TabControl>
         </DockPanel>
 
-        <Grid x:Name="MemberModalOverlay" Background="#80000000" Visibility="Collapsed" Panel.ZIndex="100">
-            <Border Width="460"
-                    MinHeight="420"
+        <Grid x:Name="MemberModalOverlay"
+              Background="#85091322"
+              Visibility="Collapsed"
+              Panel.ZIndex="110"
+              MouseDown="MemberModalOverlay_MouseDown">
+            <Grid.Resources>
+                <!-- Modern Input TextBox Style -->
+                <Style x:Key="MemberModalTextBoxStyle" TargetType="TextBox">
+                    <Setter Property="Height" Value="42" />
+                    <Setter Property="VerticalContentAlignment" Value="Center" />
+                    <Setter Property="Padding" Value="12,0" />
+                    <Setter Property="FontSize" Value="14" />
+                    <Setter Property="FontWeight" Value="Medium" />
+                    <Setter Property="Foreground" Value="#0F172A" />
+                    <Setter Property="Background" Value="#F8FAFC" />
+                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="TextBox">
+                                <Border x:Name="border"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="8"
+                                        SnapsToDevicePixels="True">
+                                    <ScrollViewer x:Name="PART_ContentHost"
+                                                  Focusable="False"
+                                                  HorizontalScrollBarVisibility="Hidden"
+                                                  VerticalScrollBarVisibility="Hidden"
+                                                  VerticalAlignment="Center"
+                                                  Padding="{TemplateBinding Padding}" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#94A3B8" />
+                                        <Setter TargetName="border" Property="Background" Value="White" />
+                                    </Trigger>
+                                    <Trigger Property="IsKeyboardFocused" Value="True">
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#2563EB" />
+                                        <Setter TargetName="border" Property="BorderThickness" Value="1.5" />
+                                        <Setter TargetName="border" Property="Background" Value="White" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+
+                <!-- Modern PasswordBox Style -->
+                <Style x:Key="MemberModalPasswordBoxStyle" TargetType="PasswordBox">
+                    <Setter Property="Height" Value="42" />
+                    <Setter Property="VerticalContentAlignment" Value="Center" />
+                    <Setter Property="Padding" Value="12,0" />
+                    <Setter Property="FontSize" Value="14" />
+                    <Setter Property="Foreground" Value="#0F172A" />
+                    <Setter Property="Background" Value="#F8FAFC" />
+                    <Setter Property="BorderBrush" Value="#CBD5E1" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="PasswordBox">
+                                <Border x:Name="border"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="8"
+                                        SnapsToDevicePixels="True">
+                                    <ScrollViewer x:Name="PART_ContentHost"
+                                                  Focusable="False"
+                                                  HorizontalScrollBarVisibility="Hidden"
+                                                  VerticalScrollBarVisibility="Hidden"
+                                                  VerticalAlignment="Center"
+                                                  Padding="{TemplateBinding Padding}" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#94A3B8" />
+                                        <Setter TargetName="border" Property="Background" Value="White" />
+                                    </Trigger>
+                                    <Trigger Property="IsKeyboardFocused" Value="True">
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#2563EB" />
+                                        <Setter TargetName="border" Property="BorderThickness" Value="1.5" />
+                                        <Setter TargetName="border" Property="Background" Value="White" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+
+                <!-- Modern Close Button Style -->
+                <Style x:Key="MemberModalCloseButtonStyle" TargetType="Button">
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Width" Value="34" />
+                    <Setter Property="Height" Value="34" />
+                    <Setter Property="Background" Value="#F1F5F9" />
+                    <Setter Property="BorderThickness" Value="0" />
+                    <Setter Property="Foreground" Value="#64748B" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border"
+                                        Background="{TemplateBinding Background}"
+                                        CornerRadius="17"
+                                        SnapsToDevicePixels="True">
+                                    <TextBlock Text="✕"
+                                               FontSize="13"
+                                               FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="{TemplateBinding Foreground}" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#E2E8F0" />
+                                        <Setter Property="Foreground" Value="#0F172A" />
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#CBD5E1" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+
+                <!-- Cancel / Ghost Button Style -->
+                <Style x:Key="MemberModalCancelButtonStyle" TargetType="Button">
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Height" Value="42" />
+                    <Setter Property="Padding" Value="22,0" />
+                    <Setter Property="FontSize" Value="13.5" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                    <Setter Property="Background" Value="#F1F5F9" />
+                    <Setter Property="Foreground" Value="#475569" />
+                    <Setter Property="BorderBrush" Value="#E2E8F0" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="8"
+                                        SnapsToDevicePixels="True">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#E2E8F0" />
+                                        <Setter Property="Foreground" Value="#0F172A" />
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#CBD5E1" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+
+                <!-- Primary Submit Button Style -->
+                <Style x:Key="MemberModalSubmitButtonStyle" TargetType="Button">
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Height" Value="42" />
+                    <Setter Property="Padding" Value="26,0" />
+                    <Setter Property="FontSize" Value="14" />
+                    <Setter Property="FontWeight" Value="Bold" />
+                    <Setter Property="Background" Value="#2563EB" />
+                    <Setter Property="Foreground" Value="White" />
+                    <Setter Property="BorderThickness" Value="0" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="border"
+                                        Background="{TemplateBinding Background}"
+                                        CornerRadius="8"
+                                        SnapsToDevicePixels="True">
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="12" ShadowDepth="3" Direction="270" Color="#2563EB" Opacity="0.32" />
+                                    </Border.Effect>
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#1D4ED8" />
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="#1E40AF" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </Grid.Resources>
+
+            <Border Width="640"
                     MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Grid}}"
                     Margin="0,16"
                     Background="White"
-                    BorderBrush="#CFCFCF"
+                    BorderBrush="#E2E8F0"
                     BorderThickness="1"
-                    CornerRadius="8"
+                    CornerRadius="16"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
-                    Padding="16">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" CanContentScroll="True">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
+                    Padding="30,26">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="36"
+                                      ShadowDepth="8"
+                                      Direction="270"
+                                      Color="#0F172A"
+                                      Opacity="0.25" />
+                </Border.Effect>
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              CanContentScroll="True"
+                              Focusable="False">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <!-- Row 0: Header with Icon, Title, Subtitle, Close Button -->
+                            <RowDefinition Height="Auto" />
+                            <!-- Row 1: Divider -->
+                            <RowDefinition Height="Auto" />
+                            <!-- Row 2: 2-Column Form Fields -->
+                            <RowDefinition Height="Auto" />
+                            <!-- Row 3: Error Alert Container -->
+                            <RowDefinition Height="Auto" />
+                            <!-- Row 4: Divider -->
+                            <RowDefinition Height="Auto" />
+                            <!-- Row 5: Footer Actions -->
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Text="Thêm hội viên" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <!-- Row 0: Header -->
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Row="1" Text="Tên đăng nhập" Margin="0,0,0,4" />
-                    <TextBox x:Name="MemberUsernameTextBox" CharacterCasing="Upper" Grid.Row="2" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,10" />
+                            <!-- Icon Badge -->
+                            <Border Grid.Column="0"
+                                    Width="46"
+                                    Height="46"
+                                    CornerRadius="12"
+                                    Background="#EFF6FF"
+                                    BorderBrush="#DBEAFE"
+                                    BorderThickness="1"
+                                    Margin="0,0,14,0"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="👤"
+                                           FontSize="22"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
 
-                    <TextBlock Grid.Row="3" Text="Mật khẩu" Margin="0,0,0,4" />
-                    <PasswordBox x:Name="MemberPasswordBox" Grid.Row="4" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,10" />
+                            <!-- Title & Subtitle -->
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="Thêm hội viên mới"
+                                           FontSize="20"
+                                           FontWeight="Bold"
+                                           Foreground="#0F172A" />
+                                <TextBlock Text="Nhập thông tin tài khoản và phân quyền cho hội viên phòng máy"
+                                           FontSize="12.5"
+                                           Foreground="#64748B"
+                                           Margin="0,3,0,0" />
+                            </StackPanel>
 
-                    <TextBlock Grid.Row="5" Text="Số điện thoại (không bắt buộc)" Margin="0,0,0,4" />
-                    <TextBox x:Name="MemberPhoneTextBox" Grid.Row="6" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,10" />
+                            <!-- Close Button -->
+                            <Button Grid.Column="2"
+                                    Style="{StaticResource MemberModalCloseButtonStyle}"
+                                    Click="CancelMemberModalButton_Click"
+                                    ToolTip="Đóng (Esc)" />
+                        </Grid>
 
-                    <TextBlock Grid.Row="7" Text="CCCD/CMND (không bắt buộc)" Margin="0,0,0,4" />
-                    <TextBox x:Name="MemberIdentityTextBox" Grid.Row="8" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,10" />
+                        <!-- Row 1: Divider -->
+                        <Border Grid.Row="1"
+                                Height="1"
+                                Background="#F1F5F9"
+                                Margin="0,18,0,18" />
 
-                    <TextBlock Grid.Row="9" Text="Loại hội viên" Margin="0,0,0,4" />
-                    <ComboBox x:Name="MemberTypeComboBox" Grid.Row="10" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,10" SelectedIndex="0">
-                        <ComboBoxItem Content="Thường" Tag="REGULAR" />
-                        <ComboBoxItem Content="VIP" Tag="VIP" />
-                    </ComboBox>
+                        <!-- Row 2: 2-Column Form Fields -->
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="18" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="11" Text="Mã giới thiệu (không bắt buộc)" Margin="0,0,0,4" />
-                    <TextBox x:Name="MemberReferredByCodeTextBox" Grid.Row="12" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,10" MaxLength="10" />
+                            <!-- Field Pair 1: Tên đăng nhập & Mật khẩu (Bắt buộc) -->
+                            <!-- Tên đăng nhập -->
+                            <StackPanel Grid.Row="0" Grid.Column="0">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="Tên đăng nhập"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="#334155" />
+                                    <TextBlock Text=" *"
+                                               FontWeight="Bold"
+                                               FontSize="13"
+                                               Foreground="#EF4444" />
+                                </StackPanel>
+                                <TextBox x:Name="MemberUsernameTextBox"
+                                         Style="{StaticResource MemberModalTextBoxStyle}"
+                                         CharacterCasing="Upper"
+                                         KeyDown="MemberModalInput_KeyDown" />
+                                <TextBlock Text="Ví dụ: HOIVIEN01, GAMER99"
+                                           FontSize="11.5"
+                                           Foreground="#94A3B8"
+                                           Margin="2,4,0,0" />
+                            </StackPanel>
 
-                    <TextBlock x:Name="MemberModalErrorTextBlock" Grid.Row="13" VerticalAlignment="Top" Foreground="#B42318" Margin="0,8,0,0" TextWrapping="Wrap" />
+                            <!-- Mật khẩu -->
+                            <StackPanel Grid.Row="0" Grid.Column="2">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="Mật khẩu"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="#334155" />
+                                    <TextBlock Text=" *"
+                                               FontWeight="Bold"
+                                               FontSize="13"
+                                               Foreground="#EF4444" />
+                                </StackPanel>
+                                <PasswordBox x:Name="MemberPasswordBox"
+                                             Style="{StaticResource MemberModalPasswordBoxStyle}"
+                                             KeyDown="MemberModalInput_KeyDown" />
+                                <TextBlock Text="Tối thiểu 1 ký tự trở lên"
+                                           FontSize="11.5"
+                                           Foreground="#94A3B8"
+                                           Margin="2,4,0,0" />
+                            </StackPanel>
 
-                    <StackPanel Grid.Row="14" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-                        <Button Padding="10,5" Margin="0,0,8,0" Click="CreateMemberConfirmButton_Click" Content="Tạo" />
-                        <Button Padding="10,5" Click="CancelMemberModalButton_Click" Content="Hủy" />
-                    </StackPanel>
-                </Grid>
+                            <!-- Field Pair 2: Số điện thoại & CCCD/CMND (Tùy chọn) -->
+                            <!-- Số điện thoại -->
+                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,14,0,0">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="Số điện thoại"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="#334155" />
+                                    <TextBlock Text=" (tùy chọn)"
+                                               FontSize="11.5"
+                                               Foreground="#94A3B8"
+                                               Margin="4,1,0,0" />
+                                </StackPanel>
+                                <TextBox x:Name="MemberPhoneTextBox"
+                                         Style="{StaticResource MemberModalTextBoxStyle}"
+                                         KeyDown="MemberModalInput_KeyDown" />
+                                <TextBlock Text="Dùng tra cứu tài khoản hoặc nạp ví"
+                                           FontSize="11.5"
+                                           Foreground="#94A3B8"
+                                           Margin="2,4,0,0" />
+                            </StackPanel>
+
+                            <!-- CCCD/CMND -->
+                            <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,14,0,0">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="CCCD / CMND"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="#334155" />
+                                    <TextBlock Text=" (tùy chọn)"
+                                               FontSize="11.5"
+                                               Foreground="#94A3B8"
+                                               Margin="4,1,0,0" />
+                                </StackPanel>
+                                <TextBox x:Name="MemberIdentityTextBox"
+                                         Style="{StaticResource MemberModalTextBoxStyle}"
+                                         KeyDown="MemberModalInput_KeyDown" />
+                                <TextBlock Text="Xác thực danh tính hội viên chính chủ"
+                                           FontSize="11.5"
+                                           Foreground="#94A3B8"
+                                           Margin="2,4,0,0" />
+                            </StackPanel>
+
+                            <!-- Field Pair 3: Loại hội viên & Mã giới thiệu -->
+                            <!-- Loại hội viên -->
+                            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,14,0,0">
+                                <TextBlock Text="Loại hội viên"
+                                           FontWeight="SemiBold"
+                                           FontSize="13"
+                                           Foreground="#334155"
+                                           Margin="0,0,0,6" />
+                                <ComboBox x:Name="MemberTypeComboBox"
+                                          Height="42"
+                                          FontSize="13.5"
+                                          VerticalContentAlignment="Center"
+                                          Padding="8,0"
+                                          SelectedIndex="0">
+                                    <ComboBox.ItemContainerStyle>
+                                        <Style TargetType="ComboBoxItem">
+                                            <Setter Property="Padding" Value="10,8" />
+                                            <Setter Property="FontSize" Value="13.5" />
+                                            <Setter Property="Cursor" Value="Hand" />
+                                        </Style>
+                                    </ComboBox.ItemContainerStyle>
+                                    <ComboBoxItem Content="⭐ Hội viên thường (Tiêu chuẩn)" Tag="REGULAR" />
+                                    <ComboBoxItem Content="👑 Hội viên VIP (Ưu đãi đặc quyền)" Tag="VIP" />
+                                </ComboBox>
+                                <TextBlock Text="Áp dụng bảng giá giờ chơi và tỷ lệ KM"
+                                           FontSize="11.5"
+                                           Foreground="#94A3B8"
+                                           Margin="2,4,0,0" />
+                            </StackPanel>
+
+                            <!-- Mã giới thiệu -->
+                            <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,14,0,0">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="Mã giới thiệu"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="#334155" />
+                                    <TextBlock Text=" (tùy chọn)"
+                                               FontSize="11.5"
+                                               Foreground="#94A3B8"
+                                               Margin="4,1,0,0" />
+                                </StackPanel>
+                                <TextBox x:Name="MemberReferredByCodeTextBox"
+                                         Style="{StaticResource MemberModalTextBoxStyle}"
+                                         CharacterCasing="Upper"
+                                         MaxLength="10"
+                                         KeyDown="MemberModalInput_KeyDown" />
+                                <TextBlock Text="Nhận hoa hồng hoặc quà tặng giới thiệu"
+                                           FontSize="11.5"
+                                           Foreground="#94A3B8"
+                                           Margin="2,4,0,0" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Row 3: Error Alert Container -->
+                        <Border x:Name="MemberModalErrorBorder"
+                                Grid.Row="3"
+                                Background="#FEF2F2"
+                                BorderBrush="#FECACA"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="14,10"
+                                Margin="0,16,0,0">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=MemberModalErrorTextBlock}" Value="">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Text, ElementName=MemberModalErrorTextBlock}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                           Text="⚠️"
+                                           FontSize="14"
+                                           Margin="0,0,10,0"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1"
+                                           x:Name="MemberModalErrorTextBlock"
+                                           Foreground="#DC2626"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Row 4: Divider -->
+                        <Border Grid.Row="4"
+                                Height="1"
+                                Background="#F1F5F9"
+                                Margin="0,20,0,16" />
+
+                        <!-- Row 5: Footer Actions -->
+                        <Grid Grid.Row="5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Keyboard Hints -->
+                            <StackPanel Grid.Column="0"
+                                        Orientation="Horizontal"
+                                        VerticalAlignment="Center">
+                                <Border Background="#F1F5F9"
+                                        CornerRadius="4"
+                                        Padding="6,2"
+                                        Margin="0,0,6,0">
+                                    <TextBlock Text="Enter"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
+                                               Foreground="#64748B" />
+                                </Border>
+                                <TextBlock Text="Tạo nhanh"
+                                           FontSize="12"
+                                           Foreground="#64748B"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,12,0" />
+
+                                <Border Background="#F1F5F9"
+                                        CornerRadius="4"
+                                        Padding="6,2"
+                                        Margin="0,0,6,0">
+                                    <TextBlock Text="Esc"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
+                                               Foreground="#64748B" />
+                                </Border>
+                                <TextBlock Text="Hủy"
+                                           FontSize="12"
+                                           Foreground="#64748B"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <!-- Action Buttons -->
+                            <StackPanel Grid.Column="1"
+                                        Orientation="Horizontal"
+                                        HorizontalAlignment="Right">
+                                <Button Style="{StaticResource MemberModalCancelButtonStyle}"
+                                        Click="CancelMemberModalButton_Click"
+                                        Content="Hủy bỏ"
+                                        Margin="0,0,10,0" />
+                                <Button Style="{StaticResource MemberModalSubmitButtonStyle}"
+                                        Click="CreateMemberConfirmButton_Click"
+                                        Content="Tạo hội viên" />
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
                 </ScrollViewer>
             </Border>
         </Grid>

@@ -23,6 +23,9 @@ namespace Server.Admin.App;
 public partial class MainWindow : Window
 {
     private readonly ObservableCollection<WakeLanProfileRow> _wakeLanProfileRows = new();
+    private bool _desktopWallpaperEnabled;
+    private string _desktopWallpaperUrl = string.Empty;
+    private string _desktopWallpaperStyle = "fill";
 
     private async Task CheckBackendHealthAsync()
     {
@@ -461,6 +464,8 @@ public partial class MainWindow : Window
                 LockScreenBackgroundStatusTextBlock.Foreground = Brushes.Firebrick;
                 AutoCollapseStatusTextBlock.Text = "Không tải được cấu hình tự động thu gọn.";
                 AutoCollapseStatusTextBlock.Foreground = Brushes.Firebrick;
+                DesktopWallpaperStatusTextBlock.Text = "Không tải được cài đặt hình nền desktop.";
+                DesktopWallpaperStatusTextBlock.Foreground = Brushes.Firebrick;
                 return;
             }
 
@@ -472,6 +477,9 @@ public partial class MainWindow : Window
             _vpnEnabled = response.VpnEnabled;
             _vpnLocalInstallerPath = (response.VpnLocalInstallerPath ?? @"D:\Games\Tools\Cloudflare_WARP_Release-x64.msi").Trim();
             _vpnDownloadUrl = (response.VpnDownloadUrl ?? "https://1111-releases.cloudflareclient.com/windows/Cloudflare_WARP_Release-x64.msi").Trim();
+            _desktopWallpaperEnabled = response.DesktopWallpaperEnabled;
+            _desktopWallpaperUrl = (response.DesktopWallpaperUrl ?? string.Empty).Trim();
+            _desktopWallpaperStyle = (response.DesktopWallpaperStyle ?? "fill").ToLowerInvariant().Trim();
             MemberWithdrawEnabledCheckBox.IsChecked = response.AllowMemberWithdraw;
             MemberTopupRequestEnabledCheckBox.IsChecked = response.AllowMemberTopupRequest;
 
@@ -483,6 +491,10 @@ public partial class MainWindow : Window
             VpnEnabledCheckBox.IsChecked = _vpnEnabled;
             VpnLocalInstallerPathTextBox.Text = _vpnLocalInstallerPath;
             VpnDownloadUrlTextBox.Text = _vpnDownloadUrl;
+            DesktopWallpaperEnabledCheckBox.IsChecked = _desktopWallpaperEnabled;
+            DesktopWallpaperUrlTextBox.Text = _desktopWallpaperUrl;
+            SetDesktopWallpaperStyleUi(_desktopWallpaperStyle);
+            UpdateDesktopWallpaperPreview(_desktopWallpaperUrl);
             VietQrBankIdTextBox.Text = (response.VietQrBankId ?? string.Empty).Trim();
             VietQrAccountNoTextBox.Text = (response.VietQrAccountNo ?? string.Empty).Trim();
             VietQrAccountNameTextBox.Text = (response.VietQrAccountName ?? string.Empty).Trim();
@@ -493,6 +505,11 @@ public partial class MainWindow : Window
             ReadyAutoShutdownStatusTextBlock.Text =
                 $"Dang bat: may San sang khong login qua {_readyAutoShutdownMinutes} phut se tu tat.";
             ReadyAutoShutdownStatusTextBlock.Foreground = Brushes.DarkGreen;
+
+            DesktopWallpaperStatusTextBlock.Text = _desktopWallpaperEnabled
+                ? $"Đang bật: tự động đồng bộ hình nền desktop ({_desktopWallpaperStyle})."
+                : "Đang tắt đồng bộ hình nền desktop.";
+            DesktopWallpaperStatusTextBlock.Foreground = _desktopWallpaperEnabled ? Brushes.DarkGreen : Brushes.Gray;
 
             if (_autoCollapseIntervalSeconds > 0)
             {
@@ -526,6 +543,8 @@ public partial class MainWindow : Window
             GameLauncherPathStatusTextBlock.Foreground = Brushes.Firebrick;
             VpnSettingsStatusTextBlock.Text = "Không kết nối được backend để tải cấu hình VPN.";
             VpnSettingsStatusTextBlock.Foreground = Brushes.Firebrick;
+            DesktopWallpaperStatusTextBlock.Text = "Không kết nối được backend để tải cấu hình hình nền desktop.";
+            DesktopWallpaperStatusTextBlock.Foreground = Brushes.Firebrick;
         }
         finally
         {
@@ -587,6 +606,15 @@ public partial class MainWindow : Window
             decimal.TryParse(MaxMemberTopupAmountTextBox.Text.Replace(",", "").Replace(".", "").Trim(), out var maxTopup);
             if (maxTopup <= 0) maxTopup = 100000m;
 
+            var effectiveWallpaperUrl = DesktopWallpaperUrlTextBox.Text.Trim();
+            if (TryResolveLocalLockScreenFile(effectiveWallpaperUrl, out var localWallpaperPath))
+            {
+                DesktopWallpaperStatusTextBlock.Text = $"Đang upload file {Path.GetFileName(localWallpaperPath)}...";
+                DesktopWallpaperStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+                effectiveWallpaperUrl = await UploadDesktopWallpaperAsync(localWallpaperPath);
+                DesktopWallpaperUrlTextBox.Text = effectiveWallpaperUrl;
+            }
+
             using var response = await _httpClient.PatchAsJsonAsync(
                 BuildApiUrl("/pricing/client-settings"),
                 new
@@ -606,6 +634,9 @@ public partial class MainWindow : Window
                     vietQrAccountNo = VietQrAccountNoTextBox.Text.Trim(),
                     vietQrAccountName = VietQrAccountNameTextBox.Text.Trim(),
                     maxMemberTopupAmount = maxTopup,
+                    desktopWallpaperEnabled = DesktopWallpaperEnabledCheckBox.IsChecked == true,
+                    desktopWallpaperUrl = effectiveWallpaperUrl,
+                    desktopWallpaperStyle = GetSelectedDesktopWallpaperStyle(),
                 });
 
             if (!response.IsSuccessStatusCode)
@@ -622,6 +653,9 @@ public partial class MainWindow : Window
                 VpnSettingsStatusTextBlock.Text =
                     $"Lưu cấu hình VPN thất bại ({(int)response.StatusCode}).";
                 VpnSettingsStatusTextBlock.Foreground = Brushes.Firebrick;
+                DesktopWallpaperStatusTextBlock.Text =
+                    $"Lưu cài đặt hình nền desktop thất bại ({(int)response.StatusCode}).";
+                DesktopWallpaperStatusTextBlock.Foreground = Brushes.Firebrick;
                 AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Luu cai dat runtime client that bai");
                 return;
             }
@@ -635,6 +669,9 @@ public partial class MainWindow : Window
             _vpnEnabled = payload?.VpnEnabled ?? (VpnEnabledCheckBox.IsChecked == true);
             _vpnLocalInstallerPath = (payload?.VpnLocalInstallerPath ?? VpnLocalInstallerPathTextBox.Text.Trim()).Trim();
             _vpnDownloadUrl = (payload?.VpnDownloadUrl ?? VpnDownloadUrlTextBox.Text.Trim()).Trim();
+            _desktopWallpaperEnabled = payload?.DesktopWallpaperEnabled ?? (DesktopWallpaperEnabledCheckBox.IsChecked == true);
+            _desktopWallpaperUrl = (payload?.DesktopWallpaperUrl ?? effectiveWallpaperUrl).Trim();
+            _desktopWallpaperStyle = (payload?.DesktopWallpaperStyle ?? GetSelectedDesktopWallpaperStyle()).ToLowerInvariant().Trim();
             MemberWithdrawEnabledCheckBox.IsChecked = payload?.AllowMemberWithdraw ?? (MemberWithdrawEnabledCheckBox.IsChecked == true);
             MemberTopupRequestEnabledCheckBox.IsChecked = payload?.AllowMemberTopupRequest ?? (MemberTopupRequestEnabledCheckBox.IsChecked == true);
 
@@ -646,6 +683,10 @@ public partial class MainWindow : Window
             VpnEnabledCheckBox.IsChecked = _vpnEnabled;
             VpnLocalInstallerPathTextBox.Text = _vpnLocalInstallerPath;
             VpnDownloadUrlTextBox.Text = _vpnDownloadUrl;
+            DesktopWallpaperEnabledCheckBox.IsChecked = _desktopWallpaperEnabled;
+            DesktopWallpaperUrlTextBox.Text = _desktopWallpaperUrl;
+            SetDesktopWallpaperStyleUi(_desktopWallpaperStyle);
+            UpdateDesktopWallpaperPreview(_desktopWallpaperUrl);
             VietQrBankIdTextBox.Text = (payload?.VietQrBankId ?? string.Empty).Trim();
             VietQrAccountNoTextBox.Text = (payload?.VietQrAccountNo ?? string.Empty).Trim();
             VietQrAccountNameTextBox.Text = (payload?.VietQrAccountName ?? string.Empty).Trim();
@@ -668,6 +709,11 @@ public partial class MainWindow : Window
                 AutoCollapseStatusTextBlock.Foreground = Brushes.Gray;
             }
 
+            DesktopWallpaperStatusTextBlock.Text = _desktopWallpaperEnabled
+                ? $"Đã lưu: đồng bộ hình nền desktop ({_desktopWallpaperStyle})."
+                : "Đã lưu: tắt đồng bộ hình nền desktop.";
+            DesktopWallpaperStatusTextBlock.Foreground = Brushes.DarkGreen;
+
             LockScreenBackgroundStatusTextBlock.Foreground = Brushes.DarkGreen;
             
             GameLauncherPathStatusTextBlock.Text = "Đã lưu đường dẫn Menu Game.";
@@ -683,7 +729,7 @@ public partial class MainWindow : Window
             }
 
             AppendServiceLog(
-                $"[{DateTime.Now:HH:mm:ss}] Da luu runtime client: auto-shutdown={_readyAutoShutdownMinutes}m, auto-collapse={_autoCollapseIntervalSeconds}s, lockscreen={_lockScreenBackgroundMode}, vpn={(_vpnEnabled ? "ON" : "OFF")}, member-withdraw={(MemberWithdrawEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}, member-topup-request={(MemberTopupRequestEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}");
+                $"[{DateTime.Now:HH:mm:ss}] Da luu runtime client: auto-shutdown={_readyAutoShutdownMinutes}m, auto-collapse={_autoCollapseIntervalSeconds}s, lockscreen={_lockScreenBackgroundMode}, wallpaper={(_desktopWallpaperEnabled ? "ON" : "OFF")}, vpn={(_vpnEnabled ? "ON" : "OFF")}, member-withdraw={(MemberWithdrawEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}, member-topup-request={(MemberTopupRequestEnabledCheckBox.IsChecked == true ? "ON" : "OFF")}");
         }
         catch
         {
@@ -697,6 +743,8 @@ public partial class MainWindow : Window
             GameLauncherPathStatusTextBlock.Foreground = Brushes.Firebrick;
             VpnSettingsStatusTextBlock.Text = "Không kết nối được backend khi lưu cấu hình VPN.";
             VpnSettingsStatusTextBlock.Foreground = Brushes.Firebrick;
+            DesktopWallpaperStatusTextBlock.Text = "Không kết nối được backend khi lưu cài đặt hình nền desktop.";
+            DesktopWallpaperStatusTextBlock.Foreground = Brushes.Firebrick;
             AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Loi ket noi khi luu runtime client");
         }
     }
@@ -1479,6 +1527,235 @@ public partial class MainWindow : Window
             : $"Nen video file: {url}";
     }
 
+    private string GetSelectedDesktopWallpaperStyle()
+    {
+        if (DesktopWallpaperStyleComboBox?.SelectedItem is ComboBoxItem item &&
+            item.Tag is string tag && !string.IsNullOrWhiteSpace(tag))
+        {
+            return tag.ToLowerInvariant().Trim();
+        }
+        return "fill";
+    }
+
+    private void SetDesktopWallpaperStyleUi(string style)
+    {
+        var normalized = (style ?? "fill").ToLowerInvariant().Trim();
+        foreach (var item in DesktopWallpaperStyleComboBox.Items.OfType<ComboBoxItem>())
+        {
+            if (string.Equals(item.Tag?.ToString(), normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                DesktopWallpaperStyleComboBox.SelectedItem = item;
+                return;
+            }
+        }
+
+        if (DesktopWallpaperStyleComboBox.Items.Count > 0)
+        {
+            DesktopWallpaperStyleComboBox.SelectedIndex = 0;
+        }
+    }
+
+    private void UpdateDesktopWallpaperPreview(string? rawUrl)
+    {
+        var trimmed = (rawUrl ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            DesktopWallpaperPreviewImage.Source = null;
+            DesktopWallpaperPlaceholderTextBlock.Visibility = Visibility.Visible;
+            return;
+        }
+
+        try
+        {
+            Uri? uri = null;
+            if (Uri.TryCreate(trimmed, UriKind.Absolute, out var parsedUri) &&
+                (parsedUri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+                 parsedUri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+                 parsedUri.Scheme.Equals(Uri.UriSchemeFile, StringComparison.OrdinalIgnoreCase)))
+            {
+                uri = parsedUri;
+            }
+            else if (File.Exists(trimmed))
+            {
+                uri = new Uri(Path.GetFullPath(trimmed));
+            }
+
+            if (uri is null)
+            {
+                DesktopWallpaperPreviewImage.Source = null;
+                DesktopWallpaperPlaceholderTextBlock.Visibility = Visibility.Visible;
+                return;
+            }
+
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+            bitmap.UriSource = uri;
+            bitmap.DownloadCompleted += (s, e) =>
+            {
+                DesktopWallpaperPlaceholderTextBlock.Visibility = Visibility.Collapsed;
+            };
+            bitmap.DownloadFailed += (s, e) =>
+            {
+                DesktopWallpaperPreviewImage.Source = null;
+                DesktopWallpaperPlaceholderTextBlock.Visibility = Visibility.Visible;
+            };
+            bitmap.EndInit();
+
+            if (bitmap.IsDownloading)
+            {
+                DesktopWallpaperPlaceholderTextBlock.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                DesktopWallpaperPlaceholderTextBlock.Visibility = Visibility.Collapsed;
+            }
+            DesktopWallpaperPreviewImage.Source = bitmap;
+        }
+        catch
+        {
+            DesktopWallpaperPreviewImage.Source = null;
+            DesktopWallpaperPlaceholderTextBlock.Visibility = Visibility.Visible;
+        }
+    }
+
+    private async Task<string> UploadDesktopWallpaperAsync(string localFilePath)
+    {
+        if (!File.Exists(localFilePath))
+        {
+            throw new FileNotFoundException("Không tìm thấy tệp ảnh hình nền", localFilePath);
+        }
+
+        using var content = new MultipartFormDataContent();
+        using var stream = File.OpenRead(localFilePath);
+        using var fileContent = new StreamContent(stream);
+
+        var extension = Path.GetExtension(localFilePath).ToLowerInvariant();
+        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(GuessImageContentType(extension));
+        content.Add(fileContent, "file", Path.GetFileName(localFilePath));
+
+        using var uploadResponse = await _httpClient.PostAsync(
+            BuildApiUrl("/pricing/client-settings/desktop-wallpaper"),
+            content);
+
+        if (!uploadResponse.IsSuccessStatusCode)
+        {
+            var err = await uploadResponse.Content.ReadAsStringAsync();
+            throw new InvalidOperationException(
+                $"Upload hình nền desktop thất bại ({(int)uploadResponse.StatusCode}): {err}");
+        }
+
+        using var doc = JsonDocument.Parse(await uploadResponse.Content.ReadAsStringAsync());
+        if (doc.RootElement.TryGetProperty("url", out var urlElement))
+        {
+            var mediaUrl = urlElement.GetString()?.Trim();
+            if (!string.IsNullOrWhiteSpace(mediaUrl))
+            {
+                return mediaUrl;
+            }
+        }
+
+        throw new InvalidOperationException("Backend không trả về URL hình nền desktop.");
+    }
+
+    private async void ChooseDesktopWallpaperButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Chọn ảnh hình nền Desktop cho máy trạm",
+            Filter = "Ảnh hình nền (*.jpg;*.jpeg;*.png;*.webp;*.bmp)|*.jpg;*.jpeg;*.png;*.webp;*.bmp|Tất cả tệp (*.*)|*.*",
+            Multiselect = false
+        };
+
+        if (dialog.ShowDialog() != true) return;
+
+        var selectedFilePath = dialog.FileName;
+        try
+        {
+            DesktopWallpaperStatusTextBlock.Text = $"Đang tải lên {Path.GetFileName(selectedFilePath)}...";
+            DesktopWallpaperStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+            ChooseDesktopWallpaperButton.IsEnabled = false;
+
+            var uploadedUrl = await UploadDesktopWallpaperAsync(selectedFilePath);
+            DesktopWallpaperUrlTextBox.Text = uploadedUrl;
+            UpdateDesktopWallpaperPreview(uploadedUrl);
+
+            DesktopWallpaperStatusTextBlock.Text = "Tải ảnh lên thành công. Hãy bấm \"Áp dụng ngay\" hoặc \"Lưu cài đặt\" để phát tới máy trạm.";
+            DesktopWallpaperStatusTextBlock.Foreground = Brushes.DarkGreen;
+        }
+        catch (Exception ex)
+        {
+            DesktopWallpaperStatusTextBlock.Text = $"Lỗi tải ảnh lên: {ex.Message}";
+            DesktopWallpaperStatusTextBlock.Foreground = Brushes.Firebrick;
+        }
+        finally
+        {
+            ChooseDesktopWallpaperButton.IsEnabled = true;
+        }
+    }
+
+    private async void ApplyDesktopWallpaperNowButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            ApplyDesktopWallpaperNowButton.IsEnabled = false;
+            DesktopWallpaperStatusTextBlock.Text = "Đang lưu và đồng bộ tới máy trạm...";
+            DesktopWallpaperStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+
+            await SaveClientRuntimeSettingsAsync();
+
+            DesktopWallpaperStatusTextBlock.Text = "Đã áp dụng và phát realtime tới toàn bộ máy trạm online!";
+            DesktopWallpaperStatusTextBlock.Foreground = Brushes.DarkGreen;
+        }
+        catch (Exception ex)
+        {
+            DesktopWallpaperStatusTextBlock.Text = $"Lỗi khi áp dụng hình nền: {ex.Message}";
+            DesktopWallpaperStatusTextBlock.Foreground = Brushes.Firebrick;
+        }
+        finally
+        {
+            ApplyDesktopWallpaperNowButton.IsEnabled = true;
+        }
+    }
+
+    private void DesktopWallpaperConfig_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!_readyShutdownSettingsInitialized || _isLoadingReadyShutdownSettings)
+        {
+            return;
+        }
+
+        var isEnabled = DesktopWallpaperEnabledCheckBox.IsChecked == true;
+        DesktopWallpaperStatusTextBlock.Text = isEnabled
+            ? "Đã bật hình nền desktop. Bấm \"Lưu cài đặt hình nền\" hoặc \"Áp dụng ngay\" để áp dụng."
+            : "Đã tắt hình nền desktop. Bấm \"Lưu cài đặt hình nền\" hoặc \"Áp dụng ngay\" để áp dụng.";
+        DesktopWallpaperStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+    }
+
+    private void DesktopWallpaperUrlTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_readyShutdownSettingsInitialized || _isLoadingReadyShutdownSettings)
+        {
+            return;
+        }
+
+        UpdateDesktopWallpaperPreview(DesktopWallpaperUrlTextBox.Text);
+        DesktopWallpaperStatusTextBlock.Text = "Đã thay đổi đường dẫn hình nền. Bấm \"Lưu cài đặt hình nền\" hoặc \"Áp dụng ngay\" để áp dụng.";
+        DesktopWallpaperStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+    }
+
+    private void DesktopWallpaperStyleComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_readyShutdownSettingsInitialized || _isLoadingReadyShutdownSettings)
+        {
+            return;
+        }
+
+        DesktopWallpaperStatusTextBlock.Text = "Đã thay đổi kiểu hiển thị hình nền. Bấm \"Lưu cài đặt hình nền\" hoặc \"Áp dụng ngay\" để áp dụng.";
+        DesktopWallpaperStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
+    }
+
     private async Task LoadLoyaltySettingsAsync()
     {
         try
@@ -1864,6 +2141,9 @@ public partial class MainWindow : Window
             }
 
             AutoBackupEnabledCheckBox.IsChecked = response.Enabled;
+            AutoBackupOnExitCheckBox.IsChecked = response.BackupOnExit;
+            _settings.AutoBackupOnExit = response.BackupOnExit;
+            SaveSettings();
             SetBackupScheduleTypeUi(response.ScheduleType);
             SetBackupWeekdayUi(response.WeeklyDay);
             AutoBackupTimeTextBox.Text = NormalizeBackupTime(response.Time);
@@ -2083,6 +2363,7 @@ public partial class MainWindow : Window
     {
         if (!TryReadBackupForm(
                 out var enabled,
+                out var backupOnExit,
                 out var scheduleType,
                 out var time,
                 out var weeklyDay,
@@ -2097,11 +2378,15 @@ public partial class MainWindow : Window
 
         try
         {
+            _settings.AutoBackupOnExit = backupOnExit;
+            SaveSettings();
+
             using var response = await _httpClient.PatchAsJsonAsync(
                 BuildApiUrl("/settings/backup"),
                 new
                 {
                     enabled,
+                    backupOnExit,
                     scheduleType,
                     time,
                     weeklyDay,
@@ -2277,8 +2562,14 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (AutoBackupOnExitCheckBox is not null && AutoBackupOnExitCheckBox.IsChecked.HasValue)
+        {
+            _settings.AutoBackupOnExit = AutoBackupOnExitCheckBox.IsChecked.Value;
+            SaveSettings();
+        }
+
         UpdateBackupWeekdayEnableState();
-        AutoBackupStatusTextBlock.Text = "Da thay doi cau hinh backup. Bam \"Luu lich backup\" de ap dung.";
+        AutoBackupStatusTextBlock.Text = "Đã thay đổi cấu hình backup. Bấm \"Lưu lịch backup\" để áp dụng.";
         AutoBackupStatusTextBlock.Foreground = Brushes.DarkGoldenrod;
     }
 
@@ -2433,6 +2724,7 @@ public partial class MainWindow : Window
 
     private bool TryReadBackupForm(
         out bool enabled,
+        out bool backupOnExit,
         out string scheduleType,
         out string time,
         out int weeklyDay,
@@ -2441,6 +2733,7 @@ public partial class MainWindow : Window
         out string error)
     {
         enabled = AutoBackupEnabledCheckBox.IsChecked == true;
+        backupOnExit = AutoBackupOnExitCheckBox.IsChecked == true;
         scheduleType = GetBackupScheduleTypeFromUi();
         weeklyDay = GetBackupWeekdayFromUi();
         directory = (AutoBackupDirectoryTextBox.Text ?? string.Empty).Trim();
