@@ -803,6 +803,14 @@ export class PricingService {
       include: { group: true },
     });
 
+    this.realtime.emitToAgent(updatedPc.agentId, 'agent.machine_info', {
+      pcId: updatedPc.id,
+      agentId: updatedPc.agentId,
+      pcName: updatedPc.name,
+      groupName: updatedPc.group?.name ?? 'Mặc định',
+      hourlyRate: Number(updatedPc.group?.hourlyRate ?? 12000),
+    });
+
     return {
       pcId: updatedPc.id,
       agentId: updatedPc.agentId,

@@ -173,9 +173,17 @@ public partial class LockScreenWindow : Window
         _idleTimer.Start();
     }
 
-    public void SetAgentId(string agentId)
+    public void SetAgentId(string agentId, string? groupName = null)
     {
-        AgentIdTextBlock.Text = string.IsNullOrWhiteSpace(agentId) ? System.Environment.MachineName : agentId;
+        var pcText = string.IsNullOrWhiteSpace(agentId) ? System.Environment.MachineName : agentId;
+        if (!string.IsNullOrWhiteSpace(groupName))
+        {
+            AgentIdTextBlock.Text = $"{pcText} • {groupName.Trim()}";
+        }
+        else
+        {
+            AgentIdTextBlock.Text = pcText;
+        }
     }
 
     public void SetGuestLoginEnabled(bool isEnabled)

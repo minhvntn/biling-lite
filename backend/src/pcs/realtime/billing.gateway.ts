@@ -145,6 +145,8 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
     client.emit('agent.hello.ack', {
       ok: true,
       pcId: transition.pc.id,
+      pcName: transition.pc.name,
+      groupName: transition.pc.group?.name ?? 'Mặc định',
       status: transition.pc.status,
       hourlyRate: effectiveHourlyRate,
       isGuestLoginEnabled,
@@ -203,6 +205,8 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
 
     client.emit('agent.heartbeat.ack', {
       ok: true,
+      pcName: transition.pc.name,
+      groupName: transition.pc.group?.name ?? 'Mặc định',
       status: transition.pc.status,
       hourlyRate: effectiveHourlyRate,
       isGuestLoginEnabled,
@@ -368,17 +372,21 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
 
   @Cron(CronExpression.EVERY_10_SECONDS)
   async markOfflineByTimeout(): Promise<void> {
-    const timeoutSeconds = this.getOfflineTimeoutSeconds();
-    const transitions = await this.pcsService.markStaleAgentsOffline(
-      timeoutSeconds,
-    );
-
-    for (const transition of transitions) {
-      this.emitStatusTransition(transition, 'presence.timeout');
-      await this.sessionsService.closeActiveSessionForOfflinePc(
-        transition.pc.id,
-        'presence.timeout',
+    try {
+      const timeoutSeconds = this.getOfflineTimeoutSeconds();
+      const transitions = await this.pcsService.markStaleAgentsOffline(
+        timeoutSeconds,
       );
+
+      for (const transition of transitions) {
+        this.emitStatusTransition(transition, 'presence.timeout');
+        await this.sessionsService.closeActiveSessionForOfflinePc(
+          transition.pc.id,
+          'presence.timeout',
+        );
+      }
+    } catch (err) {
+      // Ignore database errors to avoid crashing backend during temporary connection loss
     }
   }
 

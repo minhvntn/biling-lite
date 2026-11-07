@@ -19,6 +19,11 @@ public sealed class FileLogger
         await WriteLineAsync("INFO", message);
     }
 
+    public async Task WarnAsync(string message)
+    {
+        await WriteLineAsync("WARN", message);
+    }
+
     public async Task ErrorAsync(string message, Exception? exception = null)
     {
         var details = exception is null ? message : $"{message} | {exception}";

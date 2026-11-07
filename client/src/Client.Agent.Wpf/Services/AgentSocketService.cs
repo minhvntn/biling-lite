@@ -38,6 +38,9 @@ public sealed class AgentSocketService : IAsyncDisposable
     public Action? SupportClearedHandler { get; set; }
     public Action<int, decimal?>? SessionBillingHandler { get; set; }
     public Func<Task>? ClientSettingsChangedHandler { get; set; }
+    public Action<string?, string?>? MachineInfoHandler { get; set; }
+    public Action? WebsiteLogSettingsChangedHandler { get; set; }
+    public Action? WebsiteLogsClearedHandler { get; set; }
 
     public AgentSocketService(
         AgentSettings settings,
@@ -213,6 +216,12 @@ public sealed class AgentSocketService : IAsyncDisposable
         _socket.On("agent.hello.ack", response =>
         {
             var element = response.GetValue<System.Text.Json.JsonElement>();
+            if (element.TryGetProperty("groupName", out var grpProp))
+            {
+                var groupName = grpProp.GetString();
+                var pcName = element.TryGetProperty("pcName", out var nameProp) ? nameProp.GetString() : null;
+                MachineInfoHandler?.Invoke(pcName, groupName);
+            }
             var rate = element.GetProperty("hourlyRate").GetDecimal();
             _hourlyRateHandler?.Invoke(rate);
 
@@ -326,6 +335,12 @@ public sealed class AgentSocketService : IAsyncDisposable
         _socket.On("agent.heartbeat.ack", response =>
         {
             var element = response.GetValue<System.Text.Json.JsonElement>();
+            if (element.TryGetProperty("groupName", out var grpProp))
+            {
+                var groupName = grpProp.GetString();
+                var pcName = element.TryGetProperty("pcName", out var nameProp) ? nameProp.GetString() : null;
+                MachineInfoHandler?.Invoke(pcName, groupName);
+            }
             var rate = element.GetProperty("hourlyRate").GetDecimal();
             _hourlyRateHandler?.Invoke(rate);
 
@@ -492,6 +507,24 @@ public sealed class AgentSocketService : IAsyncDisposable
             }
         });
 
+        _socket.On("agent.machine_info", response =>
+        {
+            try
+            {
+                var element = response.GetValue<System.Text.Json.JsonElement>();
+                string? groupName = element.TryGetProperty("groupName", out var g) ? g.GetString() : null;
+                string? pcName = element.TryGetProperty("pcName", out var p) ? p.GetString() : null;
+                if (!string.IsNullOrWhiteSpace(groupName))
+                {
+                    MachineInfoHandler?.Invoke(pcName, groupName);
+                }
+            }
+            catch (Exception ex)
+            {
+                _ = _logger.ErrorAsync("Failed to handle agent.machine_info event", ex);
+            }
+        });
+
         _socket.On("guest.prepaid.configure", async response =>
         {
             try
@@ -532,6 +565,32 @@ public sealed class AgentSocketService : IAsyncDisposable
             catch (Exception ex)
             {
                 await _logger.ErrorAsync("Failed to handle admin.support_cleared", ex);
+            }
+        });
+
+        _socket.On("website.log.settings.changed", async _ =>
+        {
+            try
+            {
+                await _logger.InfoAsync("Received website.log.settings.changed");
+                WebsiteLogSettingsChangedHandler?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync("Failed to handle website.log.settings.changed", ex);
+            }
+        });
+
+        _socket.On("website.logs.cleared", async _ =>
+        {
+            try
+            {
+                await _logger.InfoAsync("Received website.logs.cleared");
+                WebsiteLogsClearedHandler?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync("Failed to handle website.logs.cleared", ex);
             }
         });
 

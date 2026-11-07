@@ -147,8 +147,28 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock x:Name="AgentIdTextBlock" Foreground="#0F172A" FontWeight="Bold" FontSize="26" Margin="0,0,10,0" />
-                        <Border Width="12" Height="12" CornerRadius="6" Background="#10B981" x:Name="ConnectionIndicator" VerticalAlignment="Center" Margin="0,4,0,0">
+                        <TextBlock x:Name="AgentIdTextBlock" Foreground="#0F172A" FontWeight="Bold" FontSize="26" Margin="0,0,8,0" />
+
+                        <!-- Machine Group Badge -->
+                        <Border x:Name="MachineGroupBadgeBorder"
+                                CornerRadius="8"
+                                Padding="8,3"
+                                Margin="0,0,10,0"
+                                VerticalAlignment="Center"
+                                Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock x:Name="MachineGroupIconTextBlock"
+                                           FontSize="11"
+                                           Margin="0,0,4,0"
+                                           VerticalAlignment="Center" />
+                                <TextBlock x:Name="MachineGroupNameTextBlock"
+                                           FontSize="12"
+                                           FontWeight="Bold"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Width="12" Height="12" CornerRadius="6" Background="#10B981" x:Name="ConnectionIndicator" VerticalAlignment="Center" Margin="0,2,0,0">
                             <Border.Effect>
                                 <DropShadowEffect RenderingBias="Performance" Color="#10B981" BlurRadius="8" ShadowDepth="0" Opacity="0.8" />
                             </Border.Effect>

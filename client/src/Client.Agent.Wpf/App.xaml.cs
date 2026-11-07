@@ -416,6 +416,18 @@ public partial class App : Application
         {
             await RefreshClientRuntimeSettingsAsync();
         };
+        _socketService.MachineInfoHandler = (pcName, groupName) =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (!string.IsNullOrWhiteSpace(pcName))
+                {
+                    _mainWindow?.SetAgentId(pcName);
+                }
+                _mainWindow?.SetMachineGroup(groupName);
+                _lockScreenWindow?.SetAgentId(_settings.AgentId ?? string.Empty, groupName);
+            });
+        };
         _socketService.GuestPrepaidConfigureHandler = payload =>
         {
             if (payload.PrepaidAmount > 0 && payload.HourlyRate > 0)
@@ -1279,6 +1291,14 @@ public async Task<LoginAttemptResult> TryUnlockAsGuestAsync()
 
         _cachedPcId = selected.Id;
         var pcName = string.IsNullOrWhiteSpace(selected.Name) ? selected.AgentId : selected.Name;
+        if (!string.IsNullOrWhiteSpace(selected.GroupName))
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _mainWindow?.SetMachineGroup(selected.GroupName);
+                _lockScreenWindow?.SetAgentId(_settings.AgentId ?? string.Empty, selected.GroupName);
+            });
+        }
         return (selected.Id, pcName, selected.ActiveSession?.Id);
     }
 

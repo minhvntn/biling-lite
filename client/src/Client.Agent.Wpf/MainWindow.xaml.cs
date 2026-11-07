@@ -209,12 +209,16 @@ public static decimal PricingStep { get; set; } = 1000m;
         var visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
         
         ActionButtonsGrid.Visibility = visibility;
-        PromotionsContainer.Visibility = visibility;
-        FooterContainer.Visibility = visibility;
+        PromotionsContainer.Visibility = _isAdminSession ? Visibility.Collapsed : visibility;
+        FooterContainer.Visibility = _isAdminSession ? Visibility.Collapsed : visibility;
         
-        if (_hasTopupPromotion)
+        if (_hasTopupPromotion && !_isAdminSession)
         {
             TopupPromotionBannerBorder.Visibility = visibility;
+        }
+        else
+        {
+            TopupPromotionBannerBorder.Visibility = Visibility.Collapsed;
         }
         
         if (_isCollapsed)
@@ -485,6 +489,48 @@ public static decimal PricingStep { get; set; } = 1000m;
         AgentIdTextBlock.Text = string.IsNullOrWhiteSpace(agentId) ? Environment.MachineName : agentId;
     }
 
+    public void SetMachineGroup(string? groupName)
+    {
+        if (string.IsNullOrWhiteSpace(groupName))
+        {
+            MachineGroupBadgeBorder.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var trimmed = groupName.Trim();
+        MachineGroupBadgeBorder.Visibility = Visibility.Visible;
+        MachineGroupNameTextBlock.Text = trimmed;
+
+        var lower = trimmed.ToLowerInvariant();
+        if (lower.Contains("vip") || lower.Contains("pro"))
+        {
+            // Gold / Luxury Amber
+            MachineGroupBadgeBorder.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FEF3C7"));
+            MachineGroupBadgeBorder.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FBBF24"));
+            MachineGroupBadgeBorder.BorderThickness = new Thickness(1);
+            MachineGroupIconTextBlock.Text = "👑";
+            MachineGroupNameTextBlock.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#B45309"));
+        }
+        else if (lower.Contains("thi đấu") || lower.Contains("arena") || lower.Contains("esport"))
+        {
+            // Fiery Red / Esports
+            MachineGroupBadgeBorder.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FEE2E2"));
+            MachineGroupBadgeBorder.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F87171"));
+            MachineGroupBadgeBorder.BorderThickness = new Thickness(1);
+            MachineGroupIconTextBlock.Text = "⚡";
+            MachineGroupNameTextBlock.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#B91C1C"));
+        }
+        else
+        {
+            // Clean Blue / Normal / Default
+            MachineGroupBadgeBorder.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EFF6FF"));
+            MachineGroupBadgeBorder.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#BFDBFE"));
+            MachineGroupBadgeBorder.BorderThickness = new Thickness(1);
+            MachineGroupIconTextBlock.Text = "🖥️";
+            MachineGroupNameTextBlock.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1D4ED8"));
+        }
+    }
+
     public void SetConnectionStatus(string status)
     {
         var normalized = status?.Trim() ?? string.Empty;
@@ -603,24 +649,40 @@ public static decimal PricingStep { get; set; } = 1000m;
         _currentAvatarId = avatarId;
         _currentComboExpiresAt = comboExpiresAt;
 
-        _isMemberSession = !string.IsNullOrWhiteSpace(username);
         _isAdminSession = string.Equals(username, "Admin", StringComparison.OrdinalIgnoreCase) ||
                            string.Equals(username, "Administrator", StringComparison.OrdinalIgnoreCase) ||
                            string.Equals(rank, "ADMIN", StringComparison.OrdinalIgnoreCase);
-        _isVipSession = string.Equals(memberType, "VIP", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(rank, "VIP", StringComparison.OrdinalIgnoreCase);
+        _isMemberSession = !string.IsNullOrWhiteSpace(username) && !_isAdminSession;
+        _isVipSession = !_isAdminSession && (string.Equals(memberType, "VIP", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(rank, "VIP", StringComparison.OrdinalIgnoreCase));
         UpdateExternalInfoVisibility();
-        SetLogoutActionVisible((_isMemberSession || _isAdminSession) && !_isVipSession);
-        SetTransferActionVisible(_isMemberSession && !_isAdminSession);
-        SetWithdrawActionVisible(_withdrawActionEnabledSetting);
-        SetTopupRequestActionVisible(_topupActionEnabledSetting);
-        LoyaltyActionButton.Visibility = (_isMemberSession && !_isCollapsed) ? Visibility.Visible : Visibility.Collapsed;
-        PasswordActionButton.Visibility = (_isMemberSession && !_isCollapsed) ? Visibility.Visible : Visibility.Collapsed;
-        ChangeWallpaperButton.Visibility = Visibility.Collapsed; // (_isVipSession && !_isCollapsed) ? Visibility.Visible : Visibility.Collapsed;
-        FooterContainer.Visibility = (_isMemberSession && !_isCollapsed) ? Visibility.Visible : Visibility.Collapsed;
-        UpdateActionButtonsLayout();
-        
-        if (string.Equals(_currentMemberType, "COMBO", StringComparison.OrdinalIgnoreCase))
+
+        if (_isAdminSession)
+        {
+            MessagesActionButton.Visibility = Visibility.Collapsed;
+            ServicesActionButton.Visibility = Visibility.Collapsed;
+            TopupRequestActionButton.Visibility = Visibility.Collapsed;
+            GameLauncherActionButton.Visibility = Visibility.Collapsed;
+            ComboPackagesActionButton.Visibility = Visibility.Collapsed;
+            LoyaltyActionButton.Visibility = Visibility.Collapsed;
+            LockActionButton.Visibility = Visibility.Collapsed;
+            if (TransferActionButton != null) TransferActionButton.Visibility = Visibility.Collapsed;
+            if (WithdrawActionButton != null) WithdrawActionButton.Visibility = Visibility.Collapsed;
+            if (PasswordActionButton != null) PasswordActionButton.Visibility = Visibility.Collapsed;
+            if (ChangeWallpaperButton != null) ChangeWallpaperButton.Visibility = Visibility.Collapsed;
+            if (MoreActionButton != null) MoreActionButton.Visibility = Visibility.Collapsed;
+            if (MoreActionsOverlay != null) MoreActionsOverlay.Visibility = Visibility.Collapsed;
+
+            LogoutActionButton.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
+
+            FooterContainer.Visibility = Visibility.Collapsed;
+            PromotionsContainer.Visibility = Visibility.Collapsed;
+            TopupPromotionBannerBorder.Visibility = Visibility.Collapsed;
+            MemberRankContainer.Visibility = Visibility.Collapsed;
+
+            UpdateActionButtonsLayout();
+        }
+        else if (string.Equals(_currentMemberType, "COMBO", StringComparison.OrdinalIgnoreCase))
         {
             MessagesActionButton.Visibility = Visibility.Collapsed;
             ServicesActionButton.Visibility = Visibility.Collapsed;
@@ -634,15 +696,34 @@ public static decimal PricingStep { get; set; } = 1000m;
             FooterContainer.Visibility = Visibility.Collapsed;
             PromotionsContainer.Visibility = Visibility.Collapsed;
             MemberRankContainer.Visibility = Visibility.Collapsed;
+
+            GameLauncherActionButton.Visibility = Visibility.Visible;
+            ComboPackagesActionButton.Visibility = Visibility.Visible;
+            LockActionButton.Visibility = Visibility.Visible;
+            SetLogoutActionVisible(false);
+            UpdateActionButtonsLayout();
         }
         else
         {
             MessagesActionButton.Visibility = Visibility.Visible;
             ServicesActionButton.Visibility = Visibility.Visible;
+            GameLauncherActionButton.Visibility = Visibility.Visible;
+            ComboPackagesActionButton.Visibility = Visibility.Visible;
+            LockActionButton.Visibility = Visibility.Visible;
+            SetLogoutActionVisible(_isMemberSession && !_isVipSession);
+            SetTransferActionVisible(_isMemberSession);
+            SetWithdrawActionVisible(_withdrawActionEnabledSetting);
+            SetTopupRequestActionVisible(_topupActionEnabledSetting);
+            LoyaltyActionButton.Visibility = (_isMemberSession && !_isCollapsed) ? Visibility.Visible : Visibility.Collapsed;
+            PasswordActionButton.Visibility = (_isMemberSession && !_isCollapsed) ? Visibility.Visible : Visibility.Collapsed;
+            ChangeWallpaperButton.Visibility = Visibility.Collapsed;
+            FooterContainer.Visibility = (_isMemberSession && !_isCollapsed) ? Visibility.Visible : Visibility.Collapsed;
             if (MoreActionButton is not null) MoreActionButton.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
             PromotionsContainer.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
             MemberRankContainer.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
+            UpdateActionButtonsLayout();
         }
+
         if (string.IsNullOrWhiteSpace(username))
         {
             UserInfoPanel.Visibility = Visibility.Collapsed;
@@ -657,9 +738,13 @@ public static decimal PricingStep { get; set; } = 1000m;
         }
 
         UserInfoPanel.Visibility = Visibility.Visible;
-        if (!string.Equals(_currentMemberType, "COMBO", StringComparison.OrdinalIgnoreCase))
+        if (!_isAdminSession && !string.Equals(_currentMemberType, "COMBO", StringComparison.OrdinalIgnoreCase))
         {
             MemberRankContainer.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        }
+        else
+        {
+            MemberRankContainer.Visibility = Visibility.Collapsed;
         }
         MemberUsernameTextBlock.Text = username?.ToUpperInvariant() ?? string.Empty;
         
@@ -1070,6 +1155,13 @@ public static decimal PricingStep { get; set; } = 1000m;
             return;
         }
 
+        if (_isAdminSession)
+        {
+            LogoutActionButton.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
+            UpdateActionButtonsLayout();
+            return;
+        }
+
         bool isCombo = string.Equals(_currentMemberType, "COMBO", StringComparison.OrdinalIgnoreCase);
         LogoutActionButton.Visibility = (visible && !isCombo) ? Visibility.Visible : Visibility.Collapsed;
         UpdateActionButtonsLayout();
@@ -1116,6 +1208,11 @@ public static decimal PricingStep { get; set; } = 1000m;
     private void UpdateActionButtonsLayout()
     {
         if (ActionButtonsGrid is null) return;
+        if (_isAdminSession)
+        {
+            ActionButtonsGrid.Columns = 1;
+            return;
+        }
         int visibleCount = 0;
         foreach (System.Windows.UIElement child in ActionButtonsGrid.Children)
         {
@@ -1526,6 +1623,11 @@ public static decimal PricingStep { get; set; } = 1000m;
 
     public void UpdatePromotions(List<(string Name, decimal Discount)> promotions)
     {
+        if (_isAdminSession)
+        {
+            PromotionsContainer.Visibility = Visibility.Collapsed;
+            return;
+        }
         var toRemove = new List<UIElement>();
         foreach (UIElement child in PromotionsContainer.Children)
         {
@@ -1713,6 +1815,11 @@ public static decimal PricingStep { get; set; } = 1000m;
         
         if (_hasTopupPromotion)
         {
+            if (_isAdminSession)
+            {
+                TopupPromotionBannerBorder.Visibility = Visibility.Collapsed;
+                return;
+            }
             var sb = new StringBuilder();
             sb.AppendLine("Đang có chương trình khuyến mãi nạp tiền:");
             TopupPromotionTiersPanel.Children.Clear();
@@ -2254,7 +2361,7 @@ public static decimal PricingStep { get; set; } = 1000m;
         var hasValidPath = !string.IsNullOrWhiteSpace(_gameLauncherPath);
         if (GameLauncherActionButton is not null)
         {
-            GameLauncherActionButton.Visibility = Visibility.Visible;
+            GameLauncherActionButton.Visibility = _isAdminSession ? Visibility.Collapsed : Visibility.Visible;
         }
         UpdateActionButtonsLayout();
     }
