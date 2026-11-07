@@ -92,4 +92,18 @@ export class SetClientRuntimeSettingsDto {
   @IsString()
   @MaxLength(2048)
   vpnDownloadUrl?: string;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  desktopWallpaperEnabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  desktopWallpaperUrl?: string;
+
+  @IsOptional()
+  @IsIn(['fill', 'fit', 'stretch'])
+  desktopWallpaperStyle?: 'fill' | 'fit' | 'stretch';
 }

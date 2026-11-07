@@ -43,6 +43,10 @@ const VIETQR_ACCOUNT_NO_KEY = '__VIETQR_ACCOUNT_NO__';
 const VIETQR_ACCOUNT_NAME_KEY = '__VIETQR_ACCOUNT_NAME__';
 const CLIENT_MAX_MEMBER_TOPUP_AMOUNT_KEY = '__CLIENT_MAX_MEMBER_TOPUP_AMOUNT__';
 const DEFAULT_MAX_MEMBER_TOPUP_AMOUNT = 100000;
+const CLIENT_DESKTOP_WALLPAPER_ENABLED_KEY = '__CLIENT_DESKTOP_WALLPAPER_ENABLED__';
+const CLIENT_DESKTOP_WALLPAPER_URL_KEY = '__CLIENT_DESKTOP_WALLPAPER_URL__';
+const CLIENT_DESKTOP_WALLPAPER_STYLE_KEY = '__CLIENT_DESKTOP_WALLPAPER_STYLE__';
+const DEFAULT_DESKTOP_WALLPAPER_STYLE = 'fill';
 const LOCK_SCREEN_MEDIA_DIR = path.join(
   process.cwd(),
   'storage',
@@ -107,6 +111,9 @@ export class PricingService {
       vpnEnabledSetting,
       vpnLocalInstallerPathSetting,
       vpnDownloadUrlSetting,
+      desktopWallpaperEnabledSetting,
+      desktopWallpaperUrlSetting,
+      desktopWallpaperStyleSetting,
     ] = await Promise.all([
       this.ensureClientRuntimeSettings(),
       this.prisma.appSetting.findUnique({
@@ -159,6 +166,15 @@ export class PricingService {
       this.prisma.appSetting.findUnique({
         where: { key: CLIENT_VPN_DOWNLOAD_URL_KEY },
       }),
+      this.prisma.appSetting.findUnique({
+        where: { key: CLIENT_DESKTOP_WALLPAPER_ENABLED_KEY },
+      }),
+      this.prisma.appSetting.findUnique({
+        where: { key: CLIENT_DESKTOP_WALLPAPER_URL_KEY },
+      }),
+      this.prisma.appSetting.findUnique({
+        where: { key: CLIENT_DESKTOP_WALLPAPER_STYLE_KEY },
+      }),
     ]);
 
     return {
@@ -203,6 +219,12 @@ export class PricingService {
       ),
       vpnLocalInstallerPath: (vpnLocalInstallerPathSetting?.value ?? DEFAULT_VPN_LOCAL_INSTALLER_PATH).trim(),
       vpnDownloadUrl: (vpnDownloadUrlSetting?.value ?? DEFAULT_VPN_DOWNLOAD_URL).trim(),
+      desktopWallpaperEnabled: this.parseBooleanSetting(
+        desktopWallpaperEnabledSetting?.value,
+        false,
+      ),
+      desktopWallpaperUrl: (desktopWallpaperUrlSetting?.value ?? '').trim(),
+      desktopWallpaperStyle: (desktopWallpaperStyleSetting?.value ?? DEFAULT_DESKTOP_WALLPAPER_STYLE).trim(),
       adminOnline: this.realtime.hasAdminSocket(),
       serverTime: new Date().toISOString(),
     };
@@ -224,6 +246,9 @@ export class PricingService {
     const hasVpnEnabled = payload.vpnEnabled !== undefined;
     const hasVpnLocalInstallerPath = payload.vpnLocalInstallerPath !== undefined;
     const hasVpnDownloadUrl = payload.vpnDownloadUrl !== undefined;
+    const hasDesktopWallpaperEnabled = payload.desktopWallpaperEnabled !== undefined;
+    const hasDesktopWallpaperUrl = payload.desktopWallpaperUrl !== undefined;
+    const hasDesktopWallpaperStyle = payload.desktopWallpaperStyle !== undefined;
 
     if (
       !hasReadyMinutes &&
@@ -240,7 +265,10 @@ export class PricingService {
       !hasMaxMemberTopupAmount &&
       !hasVpnEnabled &&
       !hasVpnLocalInstallerPath &&
-      !hasVpnDownloadUrl
+      !hasVpnDownloadUrl &&
+      !hasDesktopWallpaperEnabled &&
+      !hasDesktopWallpaperUrl &&
+      !hasDesktopWallpaperStyle
     ) {
       throw new BadRequestException('Khong co du lieu cai dat de cap nhat');
     }
@@ -398,6 +426,39 @@ export class PricingService {
         where: { key: CLIENT_VPN_DOWNLOAD_URL_KEY },
         update: { value: urlValue },
         create: { key: CLIENT_VPN_DOWNLOAD_URL_KEY, value: urlValue },
+      });
+    }
+
+    if (hasDesktopWallpaperEnabled) {
+      const desktopWallpaperEnabled = payload.desktopWallpaperEnabled === true;
+      await this.prisma.appSetting.upsert({
+        where: { key: CLIENT_DESKTOP_WALLPAPER_ENABLED_KEY },
+        update: { value: desktopWallpaperEnabled ? 'true' : 'false' },
+        create: {
+          key: CLIENT_DESKTOP_WALLPAPER_ENABLED_KEY,
+          value: desktopWallpaperEnabled ? 'true' : 'false',
+        },
+      });
+    }
+
+    if (hasDesktopWallpaperUrl) {
+      const urlValue = (payload.desktopWallpaperUrl ?? '').trim().slice(0, 2048);
+      await this.prisma.appSetting.upsert({
+        where: { key: CLIENT_DESKTOP_WALLPAPER_URL_KEY },
+        update: { value: urlValue },
+        create: { key: CLIENT_DESKTOP_WALLPAPER_URL_KEY, value: urlValue },
+      });
+    }
+
+    if (hasDesktopWallpaperStyle) {
+      const rawStyle = (payload.desktopWallpaperStyle ?? DEFAULT_DESKTOP_WALLPAPER_STYLE).trim().toLowerCase();
+      const style = ['fill', 'fit', 'stretch'].includes(rawStyle)
+        ? rawStyle
+        : DEFAULT_DESKTOP_WALLPAPER_STYLE;
+      await this.prisma.appSetting.upsert({
+        where: { key: CLIENT_DESKTOP_WALLPAPER_STYLE_KEY },
+        update: { value: style },
+        create: { key: CLIENT_DESKTOP_WALLPAPER_STYLE_KEY, value: style },
       });
     }
 
