@@ -1,6 +1,6 @@
 # Workstation Desktop Wallpaper Synchronization Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Centralize workstation Windows Desktop Wallpaper management in Server Admin App and automatically synchronize it in realtime to all running and newly connecting client workstations.
 
@@ -17,7 +17,7 @@
 - Modify: `backend/src/pricing/pricing.service.ts`
 - Modify: `backend/src/pricing/pricing.controller.ts`
 
-- [ ] **Step 1: Update DTO with desktop wallpaper fields**
+- [x] **Step 1: Update DTO with desktop wallpaper fields**
 
 In `backend/src/pricing/dto/set-client-runtime-settings.dto.ts`, add:
 ```typescript
@@ -34,7 +34,7 @@ In `backend/src/pricing/dto/set-client-runtime-settings.dto.ts`, add:
   desktopWallpaperStyle?: 'fill' | 'fit' | 'stretch';
 ```
 
-- [ ] **Step 2: Add setting constants and read/write logic in `pricing.service.ts`**
+- [x] **Step 2: Add setting constants and read/write logic in `pricing.service.ts`**
 
 Define setting keys:
 ```typescript
@@ -50,12 +50,12 @@ Fetch `desktopWallpaperEnabledSetting`, `desktopWallpaperUrlSetting`, `desktopWa
 In `setClientRuntimeSettings(payload)`:
 Handle persisting each if defined, then emit `pricing.client_settings.changed` via `this.realtime.emitToAll`.
 
-- [ ] **Step 3: Verify backend compilation**
+- [x] **Step 3: Verify backend compilation**
 
 Run: `npm run build` inside `backend/`
 Expected: Build succeeds with 0 errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/src/pricing/
@@ -71,7 +71,7 @@ git commit -m "feat(backend): add desktop wallpaper fields to client runtime set
 - Modify: `backend/src/pricing/pricing.controller.ts`
 - Modify: `backend/src/auth/api-key.guard.ts` (if path needs white-listing for static media download)
 
-- [ ] **Step 1: Create upload handler in `pricing.service.ts`**
+- [x] **Step 1: Create upload handler in `pricing.service.ts`**
 
 ```typescript
 const DESKTOP_WALLPAPER_DIR = path.join(process.cwd(), 'storage', 'desktop-wallpapers');
@@ -92,7 +92,7 @@ async uploadDesktopWallpaper(file: Express.Multer.File, apiBaseUrl: string) {
 }
 ```
 
-- [ ] **Step 2: Add controller routes in `pricing.controller.ts`**
+- [x] **Step 2: Add controller routes in `pricing.controller.ts`**
 
 Add endpoint to upload:
 ```typescript
@@ -119,15 +119,15 @@ async getDesktopWallpaperMedia(
 }
 ```
 
-- [ ] **Step 3: Whitelist media path in `api-key.guard.ts`**
+- [x] **Step 3: Whitelist media path in `api-key.guard.ts`**
 
 Ensure `client-settings/desktop-wallpaper-media/` is accessible publicly without requiring an API key so Windows clients can download wallpaper images cleanly.
 
-- [ ] **Step 4: Test upload endpoint with curl/PowerShell**
+- [x] **Step 4: Test upload endpoint with curl/PowerShell**
 
 Run a POST request with sample image to `/api/v1/pricing/client-settings/desktop-wallpaper` and verify that file is saved and URL is returned.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/src/pricing/ backend/src/auth/
@@ -143,7 +143,7 @@ git commit -m "feat(backend): implement desktop wallpaper upload and media servi
 - Modify: `client/src/Client.Agent.Wpf/App.xaml.cs`
 - Modify: `client/src/Client.Agent.Wpf/MainWindow.xaml.cs`
 
-- [ ] **Step 1: Add DTO properties in `App.ClientModels.cs`**
+- [x] **Step 1: Add DTO properties in `App.ClientModels.cs`**
 
 In `ClientRuntimeSettingsResponse`:
 ```csharp
@@ -152,7 +152,7 @@ public string DesktopWallpaperUrl { get; set; } = string.Empty;
 public string DesktopWallpaperStyle { get; set; } = "fill";
 ```
 
-- [ ] **Step 2: Implement `DesktopWallpaperHelper` in Client Agent**
+- [x] **Step 2: Implement `DesktopWallpaperHelper` in Client Agent**
 
 Implement method in `App.xaml.cs` (or helper class):
 ```csharp
@@ -166,18 +166,18 @@ public static async Task ApplyDesktopWallpaperAsync(string url, string style)
 }
 ```
 
-- [ ] **Step 3: Wire into `RefreshClientRuntimeSettingsAsync()`**
+- [x] **Step 3: Wire into `RefreshClientRuntimeSettingsAsync()`**
 
 In `App.xaml.cs`:
 When `payload.DesktopWallpaperEnabled == true` and `!string.IsNullOrWhiteSpace(payload.DesktopWallpaperUrl)`:
 Call `_ = ApplyDesktopWallpaperAsync(payload.DesktopWallpaperUrl, payload.DesktopWallpaperStyle);`.
 
-- [ ] **Step 4: Verify build of Client Agent**
+- [x] **Step 4: Verify build of Client Agent**
 
 Run: `dotnet build client/src/Client.Agent.Wpf/Client.Agent.Wpf.csproj`
 Expected: Build succeeds with 0 errors.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add client/src/Client.Agent.Wpf/
@@ -193,7 +193,7 @@ git commit -m "feat(client): implement cached desktop wallpaper downloader and W
 - Modify: `server-admin-app/MainWindow.xaml`
 - Modify: `server-admin-app/MainWindow/MainWindow.Settings.cs`
 
-- [ ] **Step 1: Update `ClientRuntimeSettingsResponse` in `AdminShellModels.cs`**
+- [x] **Step 1: Update `ClientRuntimeSettingsResponse` in `AdminShellModels.cs`**
 
 Add:
 ```csharp
@@ -202,7 +202,7 @@ public string? DesktopWallpaperUrl { get; set; }
 public string? DesktopWallpaperStyle { get; set; }
 ```
 
-- [ ] **Step 2: Add modern UI card to `MainWindow.xaml` in "Cài đặt hình nền" tab**
+- [x] **Step 2: Add modern UI card to `MainWindow.xaml` in "Cài đặt hình nền" tab**
 
 Add a styled card below Lock Screen media cards:
 - Header: `🖼️ Hình nền Desktop Windows máy trạm (Desktop Wallpaper)`
@@ -214,7 +214,7 @@ Add a styled card below Lock Screen media cards:
 - Action Button: `x:Name="ApplyDesktopWallpaperNowButton" Content="⚡ Áp dụng ngay cho máy trạm online"`
 - Status Text: `x:Name="DesktopWallpaperStatusTextBlock"`
 
-- [ ] **Step 3: Implement loading and saving in `MainWindow.Settings.cs`**
+- [x] **Step 3: Implement loading and saving in `MainWindow.Settings.cs`**
 
 - In `LoadClientRuntimeSettingsAsync()`:
   Read `response.DesktopWallpaperEnabled`, `DesktopWallpaperUrl`, `DesktopWallpaperStyle`, populate UI controls and load preview image.
@@ -225,12 +225,12 @@ Add a styled card below Lock Screen media cards:
 - Implement `ApplyDesktopWallpaperNowButton_Click`:
   Saves settings and broadcasts realtime update with visual confirmation.
 
-- [ ] **Step 4: Verify build of Server Admin App**
+- [x] **Step 4: Verify build of Server Admin App**
 
 Run: `dotnet build server-admin-app/Server.Admin.App.csproj`
 Expected: Build succeeds with 0 errors.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add server-admin-app/
@@ -245,15 +245,16 @@ git commit -m "feat(admin): add desktop wallpaper configuration card with previe
 - Deploy to `releasePackage/Server/Server-Admin-App`
 - Deploy to `releasePackage/Client/Client-Agent`
 
-- [ ] **Step 1: Rebuild and sync binaries**
+- [x] **Step 1: Rebuild and sync binaries**
 
 Build both `server-admin-app` and `client/src/Client.Agent.Wpf`, then copy compiled output into `releasePackage/Server/Server-Admin-App` and `releasePackage/Client/Client-Agent`.
 
-- [ ] **Step 2: Launch and verify Server Admin App**
+- [x] **Step 2: Launch and verify Server Admin App**
 
 Launch `Server.Admin.App.exe` in interactive user session, open **Cài đặt > Cài đặt hình nền**, verify new Desktop Wallpaper card appears and controls function properly.
 
-- [ ] **Step 3: Final verification and commit**
+- [x] **Step 3: Final verification and commit**
 
 Verify backend responds cleanly to settings PATCH and GET.
 Commit any final configuration adjustments.
+
