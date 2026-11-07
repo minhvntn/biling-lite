@@ -109,6 +109,10 @@ public sealed class ClientRuntimeSettingsResponse
     public string? VpnLocalInstallerPath { get; set; }
     public string? VpnDownloadUrl { get; set; }
 
+    public bool DesktopWallpaperEnabled { get; set; } = false;
+    public string DesktopWallpaperUrl { get; set; } = string.Empty;
+    public string DesktopWallpaperStyle { get; set; } = "fill";
+
     public string ServerTime { get; set; } = string.Empty;
 }
 
@@ -130,6 +134,17 @@ public sealed class WebsiteLogSettingsResponse
     public string UpdatedAt { get; set; } = string.Empty;
 
     public string UpdatedBy { get; set; } = string.Empty;
+}
+
+public sealed class WebsiteLogIngestResponse
+{
+    public int Accepted { get; set; }
+
+    public bool Ignored { get; set; }
+
+    public string? Reason { get; set; }
+
+    public string? ServerTime { get; set; }
 }
 
 public sealed class MemberLoyaltyResponse

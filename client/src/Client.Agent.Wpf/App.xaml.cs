@@ -34,11 +34,11 @@ public partial class App : Application
 {
     private const string WebFilterStartMarker = "# SMB_WEB_FILTER_START";
     private const string WebFilterEndMarker = "# SMB_WEB_FILTER_END";
-    private static readonly TimeSpan WebsiteLogEnabledSyncInterval = TimeSpan.FromMinutes(20);
-    private static readonly TimeSpan WebsiteLogDisabledSyncInterval = TimeSpan.FromMinutes(30);
-    private static readonly TimeSpan WebsiteLogSettingsRefreshInterval = TimeSpan.FromMinutes(20);
-    private static readonly TimeSpan WebsiteLogDomainDedupeWindow = TimeSpan.FromMinutes(20);
-    private const int WebsiteLogInitialLookbackMinutes = 8;
+    private static readonly TimeSpan WebsiteLogEnabledSyncInterval = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan WebsiteLogDisabledSyncInterval = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan WebsiteLogSettingsRefreshInterval = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan WebsiteLogDomainDedupeWindow = TimeSpan.FromSeconds(15);
+    private const int WebsiteLogInitialLookbackMinutes = 120;
     private const int WebsiteLogOverlapSeconds = 30;
     private const int WebsiteLogCollectMaxItems = 120;
     private const int WebsiteLogPerBrowserLimit = 80;
@@ -64,6 +64,7 @@ public partial class App : Application
     private bool _isPostpaidGuestSession;
     private int? _guestPrepaidTotalMinutes;
     private bool _isAdminSession;
+    private string? _adminUsername;
     private bool _isMemberWithdrawEnabled = true;
     private bool _isMemberTopupRequestEnabled = true;
     private string _vietQrBankId = "MB";
@@ -87,6 +88,10 @@ public partial class App : Application
     private string _lockScreenBackgroundMode = "none";
     private string _lockScreenBackgroundUrl = string.Empty;
     private int _lockScreenIntervalSeconds = 5;
+    private bool _desktopWallpaperEnabled;
+    private string _desktopWallpaperUrl = string.Empty;
+    private string _desktopWallpaperStyle = "fill";
+    private string? _lastAppliedDesktopWallpaperPath;
     private DateTime _lastRuntimeSettingsFetchUtc = DateTime.MinValue;
     private int _autoCollapseIntervalSeconds = 0;
     private string _currentMachineState = "LOCKED";
@@ -460,6 +465,17 @@ public partial class App : Application
             });
         };
 
+        _socketService.WebsiteLogSettingsChangedHandler = () =>
+        {
+            _ = SyncWebsiteLogsAsync(force: true);
+        };
+        _socketService.WebsiteLogsClearedHandler = () =>
+        {
+            _websiteDomainLastSentAt.Clear();
+            _lastWebsiteHistoryScanUtc = DateTime.MinValue;
+            _ = SyncWebsiteLogsAsync(force: true);
+        };
+
         _ = Task.Run(async () =>
         {
             try
@@ -716,6 +732,7 @@ public partial class App : Application
         ClearManualLockState();
         _lockScreenWindow?.Hide();
         _mainWindow?.SetLastCommand($"M\u1ede KH\u00d3A TH\u1ee6 C\u00d4NG @ {DateTime.Now:HH:mm:ss}");
+        EnsureDesktopWallpaperApplied();
         return new LoginAttemptResult(true, "M\u1edf kh\u00f3a th\u00e0nh c\u00f4ng.");
     }
 
@@ -2580,6 +2597,15 @@ public async void OpenLoyaltyPanelFromClientUi()
             _topupPromoEnabled = payload.TopupPromoEnabled;
             _topupPromoTiers = payload.TopupPromoTiers ?? "[]";
             _adminOnline = payload.AdminOnline;
+            _desktopWallpaperEnabled = payload.DesktopWallpaperEnabled;
+            _desktopWallpaperUrl = (payload.DesktopWallpaperUrl ?? string.Empty).Trim();
+            _desktopWallpaperStyle = (payload.DesktopWallpaperStyle ?? "fill").Trim();
+
+            if (_desktopWallpaperEnabled && !string.IsNullOrWhiteSpace(_desktopWallpaperUrl))
+            {
+                _ = ApplyDesktopWallpaperAsync(_desktopWallpaperUrl, _desktopWallpaperStyle);
+            }
+
             Dispatcher.Invoke(() =>
             {
                 _lockScreenWindow?.ApplyBackgroundConfiguration(
@@ -3061,6 +3087,12 @@ public async void OpenLoyaltyPanelFromClientUi()
                 return;
             }
 
+            if (force)
+            {
+                _lastWebsiteHistoryScanUtc = DateTime.MinValue;
+                _websiteDomainLastSentAt.Clear();
+            }
+
             var settings = await GetWebsiteLogSettingsAsync(force);
             if (settings is null)
             {
@@ -3087,7 +3119,17 @@ public async void OpenLoyaltyPanelFromClientUi()
 
             var browserEntries = await Task.Run(() =>
                 CollectBrowserHistoryEntriesAsync(fromUtc, WebsiteLogCollectMaxItems));
-            _lastWebsiteHistoryScanUtc = now;
+            
+            var maxVisitedUtc = browserEntries.Count > 0 ? browserEntries.Max(x => x.VisitedAtUtc) : DateTime.MinValue;
+            if (maxVisitedUtc > _lastWebsiteHistoryScanUtc)
+            {
+                _lastWebsiteHistoryScanUtc = maxVisitedUtc;
+            }
+            else if (_lastWebsiteHistoryScanUtc == DateTime.MinValue)
+            {
+                _lastWebsiteHistoryScanUtc = now;
+            }
+
             if (browserEntries.Count == 0)
             {
                 return;
@@ -3097,7 +3139,7 @@ public async void OpenLoyaltyPanelFromClientUi()
             var stagedSentAt = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
             foreach (var entry in browserEntries.OrderByDescending(x => x.VisitedAtUtc))
             {
-                var dedupeKey = $"{entry.Browser}|{entry.Domain}";
+                var dedupeKey = $"{entry.Browser}|{entry.Url}";
                 if (_websiteDomainLastSentAt.TryGetValue(dedupeKey, out var lastSentAt) &&
                     (now - lastSentAt) < WebsiteLogDomainDedupeWindow)
                 {
@@ -3135,7 +3177,28 @@ public async void OpenLoyaltyPanelFromClientUi()
 
             if (!response.IsSuccessStatusCode)
             {
+                if (_logger is not null)
+                {
+                    await _logger.WarnAsync($"Website log ingest HTTP error {(int)response.StatusCode}");
+                }
                 return;
+            }
+
+            var ingestResult = await response.Content.ReadFromJsonAsync<WebsiteLogIngestResponse>(
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (ingestResult is not null && ingestResult.Ignored)
+            {
+                if (_logger is not null)
+                {
+                    await _logger.WarnAsync($"Website log ingest ignored: {ingestResult.Reason}");
+                }
+                return;
+            }
+
+            if (_logger is not null && ingestResult is not null)
+            {
+                await _logger.InfoAsync($"Successfully synced {ingestResult.Accepted} website visit entries to server");
             }
 
             foreach (var item in stagedSentAt)
@@ -3239,6 +3302,11 @@ public async void OpenLoyaltyPanelFromClientUi()
         allEntries.AddRange(await CollectFirefoxHistoryEntriesAsync(
             "firefox",
             Path.Combine(roamingAppData, "Mozilla", "Firefox", "Profiles"),
+            fromUtc,
+            WebsiteLogPerBrowserLimit));
+        allEntries.AddRange(await CollectChromiumHistoryEntriesAsync(
+            "coccoc",
+            Path.Combine(localAppData, "CocCoc", "Browser", "User Data"),
             fromUtc,
             WebsiteLogPerBrowserLimit));
 
@@ -3574,6 +3642,20 @@ LIMIT $limit;";
         }
     }
 
+    private static void SafeCopyFile(string source, string destination)
+    {
+        try
+        {
+            using var sourceStream = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var destinationStream = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None);
+            sourceStream.CopyTo(destinationStream);
+        }
+        catch
+        {
+            File.Copy(source, destination, true);
+        }
+    }
+
     private static string? CreateSqliteSnapshot(string sourcePath)
     {
         try
@@ -3593,7 +3675,7 @@ LIMIT $limit;";
                 snapshotDir,
                 $"{Path.GetFileName(sourcePath)}.{Guid.NewGuid():N}.db");
 
-            File.Copy(sourcePath, snapshotPath, true);
+            SafeCopyFile(sourcePath, snapshotPath);
 
             var sourceWal = sourcePath + "-wal";
             var sourceShm = sourcePath + "-shm";
@@ -3603,7 +3685,7 @@ LIMIT $limit;";
             {
                 try
                 {
-                    File.Copy(sourceWal, snapshotWal, true);
+                    SafeCopyFile(sourceWal, snapshotWal);
                 }
                 catch
                 {
@@ -3615,7 +3697,7 @@ LIMIT $limit;";
             {
                 try
                 {
-                    File.Copy(sourceShm, snapshotShm, true);
+                    SafeCopyFile(sourceShm, snapshotShm);
                 }
                 catch
                 {
@@ -3861,7 +3943,7 @@ LIMIT $limit;";
         }
     }
 
-    private async Task ReportAdminPresenceAsync(bool isActive, string? username = null)
+    private async Task<bool> ReportAdminPresenceAsync(bool isActive, string? username = null)
     {
         try
         {
@@ -3881,12 +3963,18 @@ LIMIT $limit;";
                     fullName = "Admin",
                 });
 
-            if (!response.IsSuccessStatusCode && _logger is not null)
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
+            }
+
+            if (_logger is not null)
             {
                 var err = await ReadErrorMessageAsync(response);
                 await _logger.ErrorAsync(
                     $"Report admin presence failed ({(isActive ? "ACTIVE" : "INACTIVE")}): {(int)response.StatusCode} {err}");
             }
+            return false;
         }
         catch (Exception ex)
         {
@@ -3894,6 +3982,7 @@ LIMIT $limit;";
             {
                 await _logger.ErrorAsync("Report admin presence failed", ex);
             }
+            return false;
         }
     }
 
@@ -4525,6 +4614,8 @@ LIMIT $limit;";
         _mainWindow?.SetMachineState("LOCKED");
         _mainWindow?.SetLastCommand($"LOCK @ {DateTime.Now:HH:mm:ss}");
         TrackMachineState("LOCKED");
+
+        EnsureDesktopWallpaperApplied();
     }
 
     private void UnlockMachine()
@@ -4538,6 +4629,8 @@ LIMIT $limit;";
 
         // Clean up stale website-log snapshot files from previous runs
         _ = Task.Run(CleanupStaleWebsiteLogSnapshots);
+
+        EnsureDesktopWallpaperApplied();
     }
 
     private void ResumeGuestSessionFromServer()
@@ -4614,8 +4707,13 @@ LIMIT $limit;";
 
         if (!wasConnected && _isBillingServerConnected)
         {
+            if (_isAdminSession)
+            {
+                _ = ReportAdminPresenceAsync(true, _adminUsername ?? "Administrator");
+            }
             _ = RefreshAndApplyWebFilterAsync(force: true);
             _ = RefreshServiceCostUiAsync(force: true);
+            _ = SyncWebsiteLogsAsync(force: true);
         }
     }
 
@@ -4627,7 +4725,53 @@ LIMIT $limit;";
 
     private async Task ActivateAdminSessionFromLockScreenAsync(string username, string auditReason)
     {
+        // 1. Clean up previous member or guest session if any
+        if (_activeMemberSession != null)
+        {
+            var oldSession = _activeMemberSession;
+            _activeMemberSession = null;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await SyncActiveMemberUsageAsync(auditReason, true);
+                    _ = await ReportMemberPresenceAsync(oldSession, false);
+                    if (_cloudSaveService != null)
+                    {
+                        await _cloudSaveService.BackupSaveGameAsync(oldSession.MemberId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (_logger is not null)
+                    {
+                        await _logger.WarnAsync($"Cleanup previous member session error: {ex.Message}");
+                    }
+                }
+            });
+        }
+        else if (_isPostpaidGuestSession)
+        {
+            _isPostpaidGuestSession = false;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await ReportGuestPresenceAsync(false);
+                }
+                catch (Exception ex)
+                {
+                    if (_logger is not null)
+                    {
+                        await _logger.WarnAsync($"Cleanup previous guest session error: {ex.Message}");
+                    }
+                }
+            });
+        }
+
+        // 2. Set admin session state
         _isAdminSession = true;
+        _adminUsername = string.IsNullOrWhiteSpace(username) ? "Administrator" : username;
         _guestPrepaidTotalMinutes = null;
         _suppressGuestPresenceForAutoResumedUnpaidSession = false;
         _activeMemberSession = null;
@@ -4641,24 +4785,31 @@ LIMIT $limit;";
                 _settings.TotalSessionMinutes,
                 _currentHourlyRate,
                 true,
-                isPostpaid: _isPostpaidGuestSession);
-            _mainWindow?.SetMemberInfo("Administrator", "ADMIN");
+                isPostpaid: false);
+            _mainWindow?.SetMemberInfo(_adminUsername, "ADMIN");
             UnlockMachine();
             _mainWindow?.SetLastCommand($"ADMIN LOGIN @ {DateTime.Now:HH:mm:ss}");
         });
 
-        // Run network reporting and member session cleanup in background
-        // so machine unlocks instantly without being delayed by offline server/network timeouts
+        // 3. Report admin presence with retry
+        var adminName = _adminUsername;
         _ = Task.Run(async () =>
         {
-            try
+            for (int attempt = 1; attempt <= 3; attempt++)
             {
-                await TrackAndClearMemberSessionAsync(auditReason);
-                await ReportAdminPresenceAsync(true, username);
-            }
-            catch
-            {
-                // Ignore network issues when server is not started yet
+                try
+                {
+                    var ok = await ReportAdminPresenceAsync(true, adminName);
+                    if (ok)
+                    {
+                        break;
+                    }
+                }
+                catch
+                {
+                    // Ignore network issues and retry
+                }
+                await Task.Delay(1000);
             }
         });
 
@@ -5473,6 +5624,99 @@ LIMIT $limit;";
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern int GetSystemMetrics(int nIndex);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    private static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
+    private const int SPI_SETDESKWALLPAPER = 20;
+    private const int SPIF_UPDATEINIFILE = 0x01;
+    private const int SPIF_SENDWININICHANGE = 0x02;
+
+    public async Task ApplyDesktopWallpaperAsync(string url, string style)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return;
+        try
+        {
+            var cacheDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "ServerManagerBilling",
+                "Cache",
+                "Wallpapers");
+            Directory.CreateDirectory(cacheDir);
+
+            // Compute MD5/SHA256 of url to determine local filename
+            var ext = Path.GetExtension(url.Split('?')[0]);
+            if (string.IsNullOrWhiteSpace(ext)) ext = ".jpg";
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            var hashBytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(url));
+            var hashStr = Convert.ToHexString(hashBytes).ToLowerInvariant().Substring(0, 16);
+            var localPath = Path.Combine(cacheDir, $"wp_{hashStr}{ext}");
+
+            if (!File.Exists(localPath) || new FileInfo(localPath).Length == 0)
+            {
+                var tempPath = $"{localPath}.{Guid.NewGuid():N}.tmp";
+                var downloadUrl = url;
+                if (!downloadUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                    !downloadUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    downloadUrl = BuildApiUrl(downloadUrl);
+                }
+                using var response = await _httpClient.GetAsync(downloadUrl);
+                if (response.IsSuccessStatusCode)
+                {
+                    await using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                    {
+                        await response.Content.CopyToAsync(fs);
+                    }
+                    if (File.Exists(localPath)) File.Delete(localPath);
+                    File.Move(tempPath, localPath);
+                }
+                else
+                {
+                    return;
+                }
+            }
+
+            // Set Windows Registry WallpaperStyle & TileWallpaper
+            using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Control Panel\Desktop", true))
+            {
+                if (key != null)
+                {
+                    var normalizedStyle = (style ?? "fill").ToLowerInvariant().Trim();
+                    var styleCode = normalizedStyle switch
+                    {
+                        "fit" => "6",
+                        "stretch" => "2",
+                        _ => "10" // "fill"
+                    };
+                    key.SetValue("WallpaperStyle", styleCode);
+                    key.SetValue("TileWallpaper", "0");
+                }
+            }
+
+            // Apply to Windows
+            var result = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, localPath, SPIF_UPDATEINIFILE | SPIF_SENDWININICHANGE);
+            _lastAppliedDesktopWallpaperPath = localPath;
+            if (_logger != null)
+            {
+                await _logger.InfoAsync($"Applied Windows desktop wallpaper: {localPath} (style={style}, result={result})");
+            }
+        }
+        catch (Exception ex)
+        {
+            if (_logger != null)
+            {
+                await _logger.ErrorAsync($"Failed to apply desktop wallpaper from {url}", ex);
+            }
+        }
+    }
+
+    private void EnsureDesktopWallpaperApplied()
+    {
+        if (_desktopWallpaperEnabled && !string.IsNullOrWhiteSpace(_desktopWallpaperUrl))
+        {
+            _ = ApplyDesktopWallpaperAsync(_desktopWallpaperUrl, _desktopWallpaperStyle);
+        }
+    }
 
     internal string BuildApiUrl(string path)
     {
