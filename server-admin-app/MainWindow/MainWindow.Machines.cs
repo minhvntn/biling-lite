@@ -1209,6 +1209,8 @@ public partial class MainWindow : Window
             return;
         }
 
+        var isServiceOrderEligible = IsServiceOrderEligibleMachine(selectedMachine);
+
         SetMachineContextMenuEnabled(
             open: !isInUse && !isLocked,
             openGuest: isReady,
@@ -1229,9 +1231,32 @@ public partial class MainWindow : Window
             assignGroup: true,
             viewBilling: canViewGuestBilling,
             transferBilling: canTransferBilling,
-            selectService: true,
-            payService: isInUse && selectedMachine.ServiceAmountRaw > 0,
+            selectService: isServiceOrderEligible,
+            payService: isServiceOrderEligible && selectedMachine.ServiceAmountRaw > 0,
             notify: true);
+    }
+
+    public static bool IsServiceOrderEligibleMachine(MachineRow? machine)
+    {
+        if (machine is null) return false;
+        if (machine.IsAdminSession || string.Equals(machine.UserName, "Admin", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var status = machine.StatusCode?.Trim().ToUpperInvariant() ?? string.Empty;
+        var isActiveSession = status is "IN_USE" or "PAUSED";
+        if (!isActiveSession)
+        {
+            return false;
+        }
+
+        var isGuest = machine.IsGuestSession ||
+                      (machine.UserName?.StartsWith("Khách", StringComparison.OrdinalIgnoreCase) ?? false);
+        var isVip = machine.IsVipSession ||
+                    (machine.UserName?.StartsWith("VIP", StringComparison.OrdinalIgnoreCase) ?? false);
+
+        return isGuest || isVip;
     }
 
     private static bool IsGuestInUseMachine(MachineRow machine)

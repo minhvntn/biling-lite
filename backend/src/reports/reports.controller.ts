@@ -50,4 +50,29 @@ export class ReportsController {
   async getPcAnalytics(@Query('period') period?: string) {
     return this.reportsService.getPcAnalytics(period);
   }
+
+  @Get('tax')
+  async getTaxReport(
+    @Query('type') type?: string,
+    @Query('year') year?: string,
+    @Query('month') month?: string,
+    @Query('quarter') quarter?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('ratio') ratio?: string,
+    @Query('vatRate') vatRate?: string,
+    @Query('pitRate') pitRate?: string,
+  ) {
+    return this.reportsService.getTaxReport({
+      type,
+      year: year ? parseInt(year, 10) : undefined,
+      month: month ? parseInt(month, 10) : undefined,
+      quarter: quarter ? parseInt(quarter, 10) : undefined,
+      startDate,
+      endDate,
+      ratio: ratio ? parseFloat(ratio) : undefined,
+      vatRate: vatRate ? parseFloat(vatRate) : undefined,
+      pitRate: pitRate ? parseFloat(pitRate) : undefined,
+    });
+  }
 }

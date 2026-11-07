@@ -1,3 +1,6 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Globalization;
 using System.Windows.Media;
 
 namespace Server.Admin.App;
@@ -13,6 +16,10 @@ public sealed class AdminShellSettings
     public int MachineRefreshSeconds { get; set; } = 3;
 
     public double UiFontSize { get; set; } = 13;
+
+    public string UiFontFamily { get; set; } = "Segoe UI";
+
+    public double MainMenuTabIconSize { get; set; } = 18;
 
     public double MachineTableFontSize { get; set; } = 14;
 
@@ -54,6 +61,12 @@ public sealed class AdminShellSettings
     public string ColorTransferPayBg { get; set; } = "#F59E0B";
     public string ColorVipBg { get; set; } = "#FEF3C7";
     public string ColorVipFg { get; set; } = "#D97706";
+
+    public string TaxBusinessOwner { get; set; } = "Nguyễn Văn A";
+    public string TaxIdNumber { get; set; } = "0312345678";
+    public string TaxAddress { get; set; } = "12 Đường Mẫu, Quận 1, TP. Hồ Chí Minh";
+    public string TaxStoreLocation { get; set; } = "Phòng máy CyberS";
+    public string TaxCircularReference { get; set; } = "Kèm theo Thông tư số 152/2025/TT-BTC ngày 31 tháng 12 năm 2025 của Bộ trưởng Bộ Tài chính";
 }
 
 public sealed class WakeLanProfile
@@ -735,6 +748,13 @@ public sealed class SessionItem
 
 public sealed class SessionLogRow
 {
+    public string TransactionType { get; set; } = "SESSION";
+    public string TypeLabel { get; set; } = "Phiên máy";
+    public string TypeIcon { get; set; } = "🖥";
+    public string TypeBg { get; set; } = "#EFF6FF";
+    public string TypeFg { get; set; } = "#2563EB";
+    public string TypeBorder { get; set; } = "#BFDBFE";
+
     public string PcName { get; set; } = "-";
     public string AgentId { get; set; } = "-";
     public string StartedAtText { get; set; } = "-";
@@ -742,14 +762,20 @@ public sealed class SessionLogRow
     public string BillableMinutesText { get; set; } = "-";
     public decimal AmountRaw { get; set; }
     public string AmountText { get; set; } = "0";
+    public string AmountDisplay => AmountRaw > 0 ? $"+{AmountText}" : AmountText;
+    public string AmountFg => TransactionType.StartsWith("TOPUP") && AmountRaw > 0 ? "#059669" : (AmountRaw < 0 ? "#DC2626" : (AmountRaw == 0 ? "#64748B" : "#2563EB"));
     public string Status { get; set; } = "-";
     public string ClosedReason { get; set; } = "-";
+    public DateTime CreatedAt { get; set; } = DateTime.MinValue;
 
     public string StatusBg => Status?.ToUpperInvariant() switch
     {
         "ACTIVE" => "#ECFDF5",
         "RUNNING" => "#ECFDF5",
-        "COMPLETED" => "#EFF6FF",
+        "COMPLETED" => "#ECFDF5",
+        "APPROVED" => "#ECFDF5",
+        "PENDING" => "#FEF3C7",
+        "REJECTED" => "#FEF2F2",
         "CLOSED" => "#F8FAFC",
         _ => "#F1F5F9"
     };
@@ -758,7 +784,10 @@ public sealed class SessionLogRow
     {
         "ACTIVE" => "#15803D",
         "RUNNING" => "#15803D",
-        "COMPLETED" => "#2563EB",
+        "COMPLETED" => "#059669",
+        "APPROVED" => "#059669",
+        "PENDING" => "#D97706",
+        "REJECTED" => "#DC2626",
         "CLOSED" => "#475569",
         _ => "#64748B"
     };
@@ -767,7 +796,10 @@ public sealed class SessionLogRow
     {
         "ACTIVE" => "#A7F3D0",
         "RUNNING" => "#A7F3D0",
-        "COMPLETED" => "#BFDBFE",
+        "COMPLETED" => "#A7F3D0",
+        "APPROVED" => "#A7F3D0",
+        "PENDING" => "#FDE68A",
+        "REJECTED" => "#FECACA",
         "CLOSED" => "#E2E8F0",
         _ => "#CBD5E1"
     };
@@ -1428,4 +1460,345 @@ public sealed class TransferBillingResponse
     public decimal TotalTransferredToTarget { get; set; }
 }
 
+public sealed class ServiceOrderBatchInput
+{
+    public List<ServiceOrderLineInput> Lines { get; init; } = new();
+    public string? Note { get; init; }
+    public decimal Total { get; init; }
+    public List<string> AcknowledgedClientOrderIds { get; init; } = new();
+    public List<string> CanceledClientOrderIds { get; init; } = new();
+}
+
+public sealed class ServiceOrderLineInput
+{
+    public string ServiceItemId { get; init; } = string.Empty;
+    public string ServiceName { get; init; } = string.Empty;
+    public int Quantity { get; init; }
+    public decimal UnitPrice { get; init; }
+    public decimal LineTotal { get; init; }
+}
+
+public sealed class ExistingServiceOrderSummary
+{
+    public int Quantity { get; set; }
+    public decimal Amount { get; set; }
+    public int ClientQuantity { get; set; }
+    public decimal ClientAmount { get; set; }
+    public int ServerQuantity { get; set; }
+    public decimal ServerAmount { get; set; }
+
+    public void AddFromOrder(int quantity, decimal amount, bool fromClient)
+    {
+        var safeQuantity = Math.Max(0, quantity);
+        var safeAmount = Math.Max(0, amount);
+        Quantity += safeQuantity;
+        Amount += safeAmount;
+
+        if (fromClient)
+        {
+            ClientQuantity += safeQuantity;
+            ClientAmount += safeAmount;
+            return;
+        }
+
+        ServerQuantity += safeQuantity;
+        ServerAmount += safeAmount;
+    }
+}
+
+public sealed class PreviouslyOrderedDisplayItem
+{
+    public string ServiceItemId { get; init; } = string.Empty;
+    public string ServiceName { get; init; } = string.Empty;
+    public string Category { get; init; } = "-";
+    public ImageSource? ServiceImageSource { get; init; }
+    public bool HasImage => ServiceImageSource is not null;
+    public int Quantity { get; init; }
+    public decimal Amount { get; init; }
+    public int ClientQuantity { get; init; }
+    public decimal ClientAmount { get; init; }
+    public int ServerQuantity { get; init; }
+    public decimal ServerAmount { get; init; }
+    
+    public string QuantityText => $"x{Quantity:N0}";
+    public string AmountText => $"{Amount:N0} đ";
+    public string SourceDetailText => $"Khách: {ClientQuantity:N0} ({ClientAmount:N0} đ) • Server: {ServerQuantity:N0} ({ServerAmount:N0} đ)";
+}
+
+public sealed class CategoryFilterChip : INotifyPropertyChanged
+{
+    private bool _isSelected;
+    public string Name { get; init; } = string.Empty;
+    public int Count { get; init; }
+    public string DisplayText => Count > 0 ? $"{Name} ({Count})" : Name;
+    
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected == value) return;
+            _isSelected = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Background)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Foreground)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(BorderBrush)));
+        }
+    }
+    
+    public Brush Background => IsSelected
+        ? new SolidColorBrush(Color.FromRgb(37, 99, 235)) // #2563EB
+        : new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
+
+    public Brush Foreground => IsSelected
+        ? Brushes.White
+        : new SolidColorBrush(Color.FromRgb(51, 65, 85)); // #334155
+
+    public Brush BorderBrush => IsSelected
+        ? new SolidColorBrush(Color.FromRgb(29, 78, 216)) // #1D4ED8
+        : new SolidColorBrush(Color.FromRgb(226, 232, 240)); // #E2E8F0
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+}
+
+public sealed class ServiceOrderSelectionRow : INotifyPropertyChanged
+{
+    private int _quantity;
+    public int MinQuantity => -Math.Max(0, PreviouslyOrderedQuantity);
+
+    public string ServiceItemId { get; init; } = string.Empty;
+    public string ServiceName { get; init; } = string.Empty;
+    public string Category { get; init; } = "-";
+    public ImageSource? ServiceImageSource { get; init; }
+    public bool HasImage => ServiceImageSource is not null;
+    public decimal UnitPrice { get; init; }
+    public int PreviouslyOrderedQuantity { get; init; }
+    public decimal PreviouslyOrderedAmount { get; init; }
+    public string UnitPriceText => UnitPrice.ToString("N0", CultureInfo.InvariantCulture);
+    public string PreviouslyOrderedText =>
+        PreviouslyOrderedQuantity <= 0
+            ? "-"
+            : $"{PreviouslyOrderedQuantity:N0} ({PreviouslyOrderedAmount:N0} đ)";
+
+    public int Quantity
+    {
+        get => _quantity;
+        set
+        {
+            var clamped = Math.Clamp(value, MinQuantity, 999);
+            if (_quantity == clamped) return;
+            _quantity = clamped;
+            NotifyQuantityChanged();
+        }
+    }
+
+    public decimal LineTotal => UnitPrice * Quantity;
+    public string LineTotalText => LineTotal == 0 ? "0 đ" : (LineTotal > 0 ? $"+{LineTotal:N0} đ" : $"{LineTotal:N0} đ");
+
+    public bool IsSelectedForAdd => Quantity > 0;
+    public bool IsSelectedForCancel => Quantity < 0;
+    public bool HasPreviousOrders => PreviouslyOrderedQuantity > 0;
+
+    public Brush QuantityForeground
+    {
+        get
+        {
+            if (Quantity > 0) return new SolidColorBrush(Color.FromRgb(22, 163, 74)); // Green-600
+            if (Quantity < 0) return new SolidColorBrush(Color.FromRgb(220, 38, 38)); // Red-600
+            return new SolidColorBrush(Color.FromRgb(148, 163, 184)); // Slate-400
+        }
+    }
+
+    public Brush LineTotalForeground
+    {
+        get
+        {
+            if (Quantity > 0) return new SolidColorBrush(Color.FromRgb(22, 163, 74));
+            if (Quantity < 0) return new SolidColorBrush(Color.FromRgb(220, 38, 38));
+            return new SolidColorBrush(Color.FromRgb(148, 163, 184));
+        }
+    }
+
+    public Brush CategoryBgBrush
+    {
+        get
+        {
+            var cat = Category.ToLowerInvariant();
+            if (cat.Contains("nước") || cat.Contains("nuoc") || cat.Contains("uống")) return new SolidColorBrush(Color.FromRgb(239, 246, 255)); // #EFF6FF
+            if (cat.Contains("ăn") || cat.Contains("cơm") || cat.Contains("mì") || cat.Contains("đồ ăn")) return new SolidColorBrush(Color.FromRgb(254, 243, 199)); // #FEF3C7
+            if (cat.Contains("vặt") || cat.Contains("snack")) return new SolidColorBrush(Color.FromRgb(236, 253, 245)); // #ECFDF5
+            return new SolidColorBrush(Color.FromRgb(241, 245, 249)); // #F1F5F9
+        }
+    }
+
+    public Brush CategoryFgBrush
+    {
+        get
+        {
+            var cat = Category.ToLowerInvariant();
+            if (cat.Contains("nước") || cat.Contains("nuoc") || cat.Contains("uống")) return new SolidColorBrush(Color.FromRgb(37, 99, 235)); // #2563EB
+            if (cat.Contains("ăn") || cat.Contains("cơm") || cat.Contains("mì") || cat.Contains("đồ ăn")) return new SolidColorBrush(Color.FromRgb(180, 83, 9)); // #B45309
+            if (cat.Contains("vặt") || cat.Contains("snack")) return new SolidColorBrush(Color.FromRgb(5, 150, 105)); // #059669
+            return new SolidColorBrush(Color.FromRgb(71, 85, 105)); // #475569
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public static ServiceOrderSelectionRow FromServiceItem(
+        ServiceItemRow item,
+        ExistingServiceOrderSummary? existingSummary = null)
+    {
+        var previouslyOrderedQuantity = existingSummary?.Quantity ?? 0;
+        var previouslyOrderedAmount = existingSummary?.Amount ?? 0;
+        return new ServiceOrderSelectionRow
+        {
+            ServiceItemId = item.Id,
+            ServiceName = item.Name,
+            Category = string.IsNullOrWhiteSpace(item.Category) ? "-" : item.Category,
+            ServiceImageSource = item.ServiceImageSource,
+            UnitPrice = item.UnitPrice,
+            PreviouslyOrderedQuantity = previouslyOrderedQuantity,
+            PreviouslyOrderedAmount = previouslyOrderedAmount,
+            Quantity = 0,
+        };
+    }
+
+    public void IncreaseQuantity()
+    {
+        Quantity = Math.Min(999, Quantity + 1);
+    }
+
+    public void DecreaseQuantity()
+    {
+        Quantity = Math.Max(MinQuantity, Quantity - 1);
+    }
+
+    private void NotifyQuantityChanged()
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Quantity)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LineTotal)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LineTotalText)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelectedForAdd)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelectedForCancel)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(QuantityForeground)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(LineTotalForeground)));
+    }
+}
+
+public sealed class PendingClientServiceOrderRow : INotifyPropertyChanged
+{
+    private bool _isSelected = true;
+
+    public string OrderId { get; init; } = string.Empty;
+    public string ServiceName { get; init; } = string.Empty;
+    public int Quantity { get; init; }
+    public decimal Amount { get; init; }
+    public string CreatedAtText { get; init; } = "-";
+    public string QuantityText => $"x{Quantity:N0}";
+    public string AmountText => $"{Amount:N0} đ";
+
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected == value) return;
+            _isSelected = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public static PendingClientServiceOrderRow FromOrder(PcServiceOrderDto order)
+    {
+        var timeStr = "-";
+        if (!string.IsNullOrWhiteSpace(order.CreatedAt))
+        {
+            if (DateTime.TryParse(order.CreatedAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed))
+            {
+                timeStr = parsed.ToLocalTime().ToString("HH:mm:ss");
+            }
+            else
+            {
+                timeStr = order.CreatedAt;
+            }
+        }
+
+        return new PendingClientServiceOrderRow
+        {
+            OrderId = order.Id,
+            ServiceName = string.IsNullOrWhiteSpace(order.ServiceItem?.Name) ? "Dịch vụ" : order.ServiceItem.Name,
+            Quantity = Math.Max(0, order.Quantity),
+            Amount = Math.Max(0, order.LineTotal),
+            CreatedAtText = timeStr,
+            IsSelected = true,
+        };
+    }
+}
+
+public sealed class TaxReportResponse
+{
+    public string PeriodType { get; set; } = "month";
+    public string PeriodLabel { get; set; } = "";
+    public string StartDate { get; set; } = "";
+    public string EndDate { get; set; } = "";
+    public double TaxRatio { get; set; } = 100;
+    public double VatRate { get; set; } = 5;
+    public double PitRate { get; set; } = 2;
+    public decimal TotalActualPlaytime { get; set; }
+    public decimal TotalActualService { get; set; }
+    public decimal TotalActualRevenue { get; set; }
+    public decimal TotalTaxablePlaytime { get; set; }
+    public decimal TotalTaxableService { get; set; }
+    public decimal TotalTaxableRevenue { get; set; }
+    public decimal TotalVatAmount { get; set; }
+    public decimal TotalPitAmount { get; set; }
+    public decimal TotalTaxAmount { get; set; }
+    public List<TaxReportDailyItemResponse> DailyBreakdown { get; set; } = new();
+    public string ServerTime { get; set; } = "";
+}
+
+public sealed class TaxReportDailyItemResponse
+{
+    public string Date { get; set; } = "";
+    public string DayOfWeek { get; set; } = "";
+    public int SessionCount { get; set; }
+    public decimal ActualPlaytime { get; set; }
+    public decimal ActualService { get; set; }
+    public decimal ActualTotal { get; set; }
+    public decimal TaxablePlaytime { get; set; }
+    public decimal TaxableService { get; set; }
+    public decimal TaxableTotal { get; set; }
+    public decimal VatAmount { get; set; }
+    public decimal PitAmount { get; set; }
+    public decimal TotalTax { get; set; }
+}
+
+public sealed class TaxReportDailyRow
+{
+    public int Index { get; set; }
+    public string DateText { get; set; } = "-";
+    public string DayOfWeekText { get; set; } = "-";
+    public int SessionCount { get; set; }
+    public decimal ActualPlaytimeRevenue { get; set; }
+    public decimal ActualServiceRevenue { get; set; }
+    public decimal ActualTotalRevenue => ActualPlaytimeRevenue + ActualServiceRevenue;
+    public decimal TaxablePlaytimeRevenue { get; set; }
+    public decimal TaxableServiceRevenue { get; set; }
+    public decimal TaxableTotalRevenue => TaxablePlaytimeRevenue + TaxableServiceRevenue;
+    public decimal VatAmount { get; set; }
+    public decimal PitAmount { get; set; }
+    public decimal TotalTaxAmount => VatAmount + PitAmount;
+
+    public string ActualPlaytimeText => ActualPlaytimeRevenue.ToString("N0", CultureInfo.InvariantCulture);
+    public string ActualServiceText => ActualServiceRevenue.ToString("N0", CultureInfo.InvariantCulture);
+    public string ActualTotalText => ActualTotalRevenue.ToString("N0", CultureInfo.InvariantCulture);
+    public string TaxableTotalText => TaxableTotalRevenue.ToString("N0", CultureInfo.InvariantCulture);
+    public string VatAmountText => VatAmount.ToString("N0", CultureInfo.InvariantCulture);
+    public string PitAmountText => PitAmount.ToString("N0", CultureInfo.InvariantCulture);
+    public string TotalTaxText => TotalTaxAmount.ToString("N0", CultureInfo.InvariantCulture);
+    public DateTime Date { get; set; }
+}
 

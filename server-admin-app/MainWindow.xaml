@@ -19,8 +19,10 @@
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display"
-        TextOptions.TextRenderingMode="ClearType">
+        TextOptions.TextRenderingMode="ClearType"
+        FontFamily="{DynamicResource AppFontFamily}">
     <Window.Resources>
+        <FontFamily x:Key="AppFontFamily">Segoe UI</FontFamily>
         <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#2563EB" />
         <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="White" />
         <SolidColorBrush x:Key="PanelBorderBrush" Color="#E2E8F0" />
@@ -29,6 +31,7 @@
         <sys:Double x:Key="MachineTableIconSize">32</sys:Double>
         <Thickness x:Key="MachineCardMargin">6</Thickness>
         <sys:Double x:Key="MachineContextMenuFontSize">14</sys:Double>
+        <sys:Double x:Key="MainMenuTabIconSize">18</sys:Double>
 
         <!-- ================= MODERN CONTEXT MENU & MENU ITEM STYLES ================= -->
         <!-- ContextMenu: Bo tròn 10px, nền trắng sạch, đổ bóng mềm mượt -->
@@ -390,6 +393,7 @@
         <!-- Style cho TextBlock Icon trong Tab Header -->
         <Style x:Key="TabIconStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#64748B" /> <!-- Mặc định màu Slate dịu mắt -->
+            <Setter Property="FontSize" Value="{DynamicResource MainMenuTabIconSize}" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=TabItem}}" Value="True">
                     <Setter Property="Foreground" Value="#2563EB" /> <!-- Màu xanh Primary khi active -->
@@ -404,7 +408,7 @@
         <Style x:Key="TabHeaderTextStyle" TargetType="TextBlock">
             <Setter Property="Foreground" Value="#475569" /> <!-- Mặc định màu Slate trung tính thanh lịch -->
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontFamily" Value="{DynamicResource AppFontFamily}" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=TabItem}}" Value="True">
                     <Setter Property="Foreground" Value="#2563EB" /> <!-- Màu xanh Primary khi active -->
@@ -419,7 +423,7 @@
         <!-- Main TabItem Style -->
         <Style x:Key="MainTabItemStyle" TargetType="TabItem">
             <Setter Property="Padding" Value="14,0" />
-            <Setter Property="Height" Value="42" />
+            <Setter Property="MinHeight" Value="42" />
             <Setter Property="Foreground" Value="#475569" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="FontSize" Value="13" />
@@ -796,7 +800,7 @@
                 <TabItem x:Name="WorkstationsTab" Style="{StaticResource MainTabItemStyle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x1F5A5;" Margin="0,0,6,0" FontSize="18" />
+                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x1F5A5;" Margin="0,0,6,0" FontSize="{DynamicResource MainMenuTabIconSize}" />
                             <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="{x:Static local:I18n.WorkstationsTab}" FontSize="12.5" />
                         </StackPanel>
                     </TabItem.Header>
@@ -1655,7 +1659,7 @@
                 <TabItem x:Name="MembersTab" Style="{StaticResource MainTabItemStyle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x1F464;" Margin="0,0,6,0" FontSize="18" />
+                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x1F464;" Margin="0,0,6,0" FontSize="{DynamicResource MainMenuTabIconSize}" />
                             <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="Hội viên" FontSize="12.5" />
                         </StackPanel>
                     </TabItem.Header>
@@ -2314,12 +2318,213 @@
                 <TabItem x:Name="LogsTabItem" Style="{StaticResource MainTabItemStyle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x1F4CB;" Margin="0,0,6,0" FontSize="18" />
+                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x1F4CB;" Margin="0,0,6,0" FontSize="{DynamicResource MainMenuTabIconSize}" />
                             <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="Nhật ký" FontSize="12.5" />
                         </StackPanel>
                     </TabItem.Header>
-                    <TabControl x:Name="LogsTabControl" Margin="6" SelectionChanged="MainTabControl_SelectionChanged">
-                        <!-- SubTab 1: System Logs & Timeline -->
+                    <TabControl x:Name="LogsTabControl" Margin="6" SelectedIndex="0" SelectionChanged="MainTabControl_SelectionChanged">
+                        <!-- SubTab 1: Transaction Logs -->
+                        <TabItem x:Name="TransactionLogsTabItem" IsSelected="True">
+                            <TabItem.Header>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock VerticalAlignment="Center" Text="&#x1F4B3;" Margin="0,0,8,0" FontSize="16" />
+                                    <TextBlock VerticalAlignment="Center" Text="Nhật ký giao dịch" FontWeight="SemiBold" FontSize="13" />
+                                </StackPanel>
+                            </TabItem.Header>
+                            <Grid Margin="12,10,12,12">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <!-- Top Toolbar Bento Card -->
+                                <Border Grid.Row="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16,12" Margin="0,0,0,12">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Filter Controls -->
+                                        <WrapPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <Button Padding="14,6" Height="32" Click="RefreshTransactionLogsButton_Click" Margin="0,0,12,0">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="📊" Margin="0,0,6,0" FontSize="12" VerticalAlignment="Center" />
+                                                    <TextBlock Text="Xem báo cáo" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Button>
+
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                                                <TextBlock VerticalAlignment="Center" Text="Kỳ:" FontSize="12" Foreground="#475569" FontWeight="Medium" Margin="0,0,6,0" />
+                                                <ComboBox x:Name="RevenuePeriodComboBox"
+                                                          Width="120"
+                                                          Height="32"
+                                                          VerticalContentAlignment="Center"
+                                                          Margin="0,0,8,0"
+                                                          SelectionChanged="RevenuePeriodComboBox_SelectionChanged">
+                                                    <ComboBoxItem Content="Ngày" Tag="day" />
+                                                    <ComboBoxItem Content="Tuần" Tag="week" />
+                                                    <ComboBoxItem Content="Tháng" Tag="month" IsSelected="True" />
+                                                </ComboBox>
+                                            </StackPanel>
+
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                                                <TextBlock VerticalAlignment="Center" Text="Ngày mốc:" FontSize="12" Foreground="#475569" FontWeight="Medium" Margin="0,0,6,0" />
+                                                <DatePicker x:Name="RevenueAnchorDatePicker"
+                                                            Width="140"
+                                                            Height="32"
+                                                            VerticalContentAlignment="Center"
+                                                            SelectedDateChanged="RevenueAnchorDatePicker_SelectedDateChanged" />
+                                            </StackPanel>
+                                        </WrapPanel>
+
+                                        <!-- Revenue Summary Banner -->
+                                        <Border Grid.Column="2" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="8" Padding="14,6" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="💰" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                                <TextBlock x:Name="TransactionSummaryTextBlock" VerticalAlignment="Center" Text="Tổng doanh thu: 0" FontWeight="Bold" FontSize="13" Foreground="#047857" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Session Logs DataGrid -->
+                                <Border Grid.Row="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" ClipToBounds="True">
+                                    <DataGrid x:Name="SessionLogsDataGrid"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              CanUserAddRows="False"
+                                              HeadersVisibility="Column"
+                                              GridLinesVisibility="Horizontal"
+                                              RowHeaderWidth="0"
+                                              SelectionMode="Single"
+                                              HorizontalGridLinesBrush="#F1F5F9"
+                                              VerticalGridLinesBrush="Transparent"
+                                              BorderThickness="0"
+                                              Background="Transparent"
+                                              RowBackground="White"
+                                              AlternatingRowBackground="#F8FAFC"
+                                              RowHeight="42">
+                                        <DataGrid.ColumnHeaderStyle>
+                                            <Style TargetType="DataGridColumnHeader">
+                                                <Setter Property="Background" Value="#F8FAFC"/>
+                                                <Setter Property="Foreground" Value="#64748B"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="FontSize" Value="12"/>
+                                                <Setter Property="Padding" Value="14,10"/>
+                                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                                <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                            </Style>
+                                        </DataGrid.ColumnHeaderStyle>
+                                        <DataGrid.RowStyle>
+                                            <Style TargetType="DataGridRow">
+                                                <Setter Property="BorderThickness" Value="0"/>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#F1F5F9"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter Property="Background" Value="#2563EB"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DataGrid.RowStyle>
+                                        <DataGrid.Columns>
+                                            <!-- Máy -->
+                                            <DataGridTemplateColumn Header="Máy" Width="130">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
+                                                            <TextBlock Text="🖥" FontSize="12" Margin="0,0,6,0" Foreground="#64748B" VerticalAlignment="Center" />
+                                                            <TextBlock Text="{Binding PcName}" FontWeight="Bold" Foreground="#0F172A" FontSize="12" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+
+                                            <!-- Agent -->
+                                            <DataGridTemplateColumn Header="Agent" Width="130">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding AgentId}" Foreground="#475569" FontSize="12" VerticalAlignment="Center" Margin="8,0" />
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+
+                                            <!-- Bắt đầu -->
+                                            <DataGridTemplateColumn Header="Bắt đầu" Width="160">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding StartedAtText}" Foreground="#475569" FontSize="12" VerticalAlignment="Center" Margin="8,0" />
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+
+                                            <!-- Kết thúc -->
+                                            <DataGridTemplateColumn Header="Kết thúc" Width="160">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding EndedAtText}" Foreground="#475569" FontSize="12" VerticalAlignment="Center" Margin="8,0" />
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+
+                                            <!-- Số phút -->
+                                            <DataGridTemplateColumn Header="Số phút" Width="100">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="8,2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0">
+                                                            <TextBlock Text="{Binding BillableMinutesText}" Foreground="#1E293B" FontWeight="SemiBold" FontSize="11" />
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+
+                                            <!-- Tiền -->
+                                            <DataGridTemplateColumn Header="Số tiền" Width="130">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding AmountText}" Foreground="#059669" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" Margin="8,0" />
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+
+                                            <!-- Trạng thái Badge -->
+                                            <DataGridTemplateColumn Header="Trạng thái" Width="110">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="{Binding StatusBg}" BorderBrush="{Binding StatusBorder}" BorderThickness="1" CornerRadius="6" Padding="8,2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0">
+                                                            <TextBlock Text="{Binding Status}" Foreground="{Binding StatusFg}" FontWeight="Bold" FontSize="10" />
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+
+                                            <!-- Lý do -->
+                                            <DataGridTemplateColumn Header="Lý do" Width="*">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding ClosedReason}" Foreground="#64748B" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding ClosedReason}" Margin="8,0,12,0" />
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Border>
+
+                                <!-- Bottom Status Pill -->
+                                <Border Grid.Row="2" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,6" HorizontalAlignment="Left" Margin="0,10,0,0">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="ℹ️" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="TransactionsInfoTextBlock" Text="Chưa tải giao dịch" Foreground="#475569" FontSize="11" FontWeight="Medium" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </TabItem>
+
+                        <!-- SubTab 2: System Logs & Timeline -->
                         <TabItem x:Name="SystemLogsTabItem">
                             <TabItem.Header>
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -2595,207 +2800,6 @@
                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                         <TextBlock Text="ℹ️" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center" />
                                         <TextBlock x:Name="SystemLogInfoTextBlock" Text="Chưa tải log" Foreground="#475569" FontSize="11" FontWeight="Medium" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                </Border>
-                            </Grid>
-                        </TabItem>
-
-                        <!-- SubTab 2: Transaction Logs -->
-                        <TabItem x:Name="TransactionLogsTabItem">
-                            <TabItem.Header>
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock VerticalAlignment="Center" Text="&#x1F4B3;" Margin="0,0,8,0" FontSize="16" />
-                                    <TextBlock VerticalAlignment="Center" Text="Nhật ký giao dịch" FontWeight="SemiBold" FontSize="13" />
-                                </StackPanel>
-                            </TabItem.Header>
-                            <Grid Margin="12,10,12,12">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="*" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
-
-                                <!-- Top Toolbar Bento Card -->
-                                <Border Grid.Row="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16,12" Margin="0,0,0,12">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <!-- Filter Controls -->
-                                        <WrapPanel Grid.Column="0" VerticalAlignment="Center">
-                                            <Button Padding="14,6" Height="32" Click="RefreshTransactionLogsButton_Click" Margin="0,0,12,0">
-                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <TextBlock Text="📊" Margin="0,0,6,0" FontSize="12" VerticalAlignment="Center" />
-                                                    <TextBlock Text="Xem báo cáo" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                </StackPanel>
-                                            </Button>
-
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
-                                                <TextBlock VerticalAlignment="Center" Text="Kỳ:" FontSize="12" Foreground="#475569" FontWeight="Medium" Margin="0,0,6,0" />
-                                                <ComboBox x:Name="RevenuePeriodComboBox"
-                                                          Width="120"
-                                                          Height="32"
-                                                          VerticalContentAlignment="Center"
-                                                          Margin="0,0,8,0"
-                                                          SelectionChanged="RevenuePeriodComboBox_SelectionChanged">
-                                                    <ComboBoxItem Content="Ngày" Tag="day" />
-                                                    <ComboBoxItem Content="Tuần" Tag="week" />
-                                                    <ComboBoxItem Content="Tháng" Tag="month" IsSelected="True" />
-                                                </ComboBox>
-                                            </StackPanel>
-
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
-                                                <TextBlock VerticalAlignment="Center" Text="Ngày mốc:" FontSize="12" Foreground="#475569" FontWeight="Medium" Margin="0,0,6,0" />
-                                                <DatePicker x:Name="RevenueAnchorDatePicker"
-                                                            Width="140"
-                                                            Height="32"
-                                                            VerticalContentAlignment="Center"
-                                                            SelectedDateChanged="RevenueAnchorDatePicker_SelectedDateChanged" />
-                                            </StackPanel>
-                                        </WrapPanel>
-
-                                        <!-- Revenue Summary Banner -->
-                                        <Border Grid.Column="2" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="8" Padding="14,6" VerticalAlignment="Center">
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="💰" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center" />
-                                                <TextBlock x:Name="TransactionSummaryTextBlock" VerticalAlignment="Center" Text="Tổng doanh thu: 0" FontWeight="Bold" FontSize="13" Foreground="#047857" />
-                                            </StackPanel>
-                                        </Border>
-                                    </Grid>
-                                </Border>
-
-                                <!-- Session Logs DataGrid -->
-                                <Border Grid.Row="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" ClipToBounds="True">
-                                    <DataGrid x:Name="SessionLogsDataGrid"
-                                              AutoGenerateColumns="False"
-                                              IsReadOnly="True"
-                                              CanUserAddRows="False"
-                                              HeadersVisibility="Column"
-                                              GridLinesVisibility="Horizontal"
-                                              RowHeaderWidth="0"
-                                              SelectionMode="Single"
-                                              HorizontalGridLinesBrush="#F1F5F9"
-                                              VerticalGridLinesBrush="Transparent"
-                                              BorderThickness="0"
-                                              Background="Transparent"
-                                              RowBackground="White"
-                                              AlternatingRowBackground="#F8FAFC"
-                                              RowHeight="42">
-                                        <DataGrid.ColumnHeaderStyle>
-                                            <Style TargetType="DataGridColumnHeader">
-                                                <Setter Property="Background" Value="#F8FAFC"/>
-                                                <Setter Property="Foreground" Value="#64748B"/>
-                                                <Setter Property="FontWeight" Value="SemiBold"/>
-                                                <Setter Property="FontSize" Value="12"/>
-                                                <Setter Property="Padding" Value="14,10"/>
-                                                <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                                                <Setter Property="BorderBrush" Value="#E2E8F0"/>
-                                            </Style>
-                                        </DataGrid.ColumnHeaderStyle>
-                                        <DataGrid.RowStyle>
-                                            <Style TargetType="DataGridRow">
-                                                <Setter Property="BorderThickness" Value="0"/>
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="#F1F5F9"/>
-                                                    </Trigger>
-                                                    <Trigger Property="IsSelected" Value="True">
-                                                        <Setter Property="Background" Value="#2563EB"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </DataGrid.RowStyle>
-                                        <DataGrid.Columns>
-                                            <!-- Máy -->
-                                            <DataGridTemplateColumn Header="Máy" Width="130">
-                                                <DataGridTemplateColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
-                                                            <TextBlock Text="🖥" FontSize="12" Margin="0,0,6,0" Foreground="#64748B" VerticalAlignment="Center" />
-                                                            <TextBlock Text="{Binding PcName}" FontWeight="Bold" Foreground="#0F172A" FontSize="12" VerticalAlignment="Center" />
-                                                        </StackPanel>
-                                                    </DataTemplate>
-                                                </DataGridTemplateColumn.CellTemplate>
-                                            </DataGridTemplateColumn>
-
-                                            <!-- Agent -->
-                                            <DataGridTemplateColumn Header="Agent" Width="130">
-                                                <DataGridTemplateColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <TextBlock Text="{Binding AgentId}" Foreground="#475569" FontSize="12" VerticalAlignment="Center" Margin="8,0" />
-                                                    </DataTemplate>
-                                                </DataGridTemplateColumn.CellTemplate>
-                                            </DataGridTemplateColumn>
-
-                                            <!-- Bắt đầu -->
-                                            <DataGridTemplateColumn Header="Bắt đầu" Width="160">
-                                                <DataGridTemplateColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <TextBlock Text="{Binding StartedAtText}" Foreground="#475569" FontSize="12" VerticalAlignment="Center" Margin="8,0" />
-                                                    </DataTemplate>
-                                                </DataGridTemplateColumn.CellTemplate>
-                                            </DataGridTemplateColumn>
-
-                                            <!-- Kết thúc -->
-                                            <DataGridTemplateColumn Header="Kết thúc" Width="160">
-                                                <DataGridTemplateColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <TextBlock Text="{Binding EndedAtText}" Foreground="#475569" FontSize="12" VerticalAlignment="Center" Margin="8,0" />
-                                                    </DataTemplate>
-                                                </DataGridTemplateColumn.CellTemplate>
-                                            </DataGridTemplateColumn>
-
-                                            <!-- Số phút -->
-                                            <DataGridTemplateColumn Header="Số phút" Width="100">
-                                                <DataGridTemplateColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <Border Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="8,2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0">
-                                                            <TextBlock Text="{Binding BillableMinutesText, StringFormat='{}{0}p'}" Foreground="#1E293B" FontWeight="SemiBold" FontSize="11" />
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </DataGridTemplateColumn.CellTemplate>
-                                            </DataGridTemplateColumn>
-
-                                            <!-- Tiền -->
-                                            <DataGridTemplateColumn Header="Số tiền" Width="130">
-                                                <DataGridTemplateColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <TextBlock Text="{Binding AmountText}" Foreground="#059669" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" Margin="8,0" />
-                                                    </DataTemplate>
-                                                </DataGridTemplateColumn.CellTemplate>
-                                            </DataGridTemplateColumn>
-
-                                            <!-- Trạng thái Badge -->
-                                            <DataGridTemplateColumn Header="Trạng thái" Width="110">
-                                                <DataGridTemplateColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <Border Background="{Binding StatusBg}" BorderBrush="{Binding StatusBorder}" BorderThickness="1" CornerRadius="6" Padding="8,2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0">
-                                                            <TextBlock Text="{Binding Status}" Foreground="{Binding StatusFg}" FontWeight="Bold" FontSize="10" />
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </DataGridTemplateColumn.CellTemplate>
-                                            </DataGridTemplateColumn>
-
-                                            <!-- Lý do -->
-                                            <DataGridTemplateColumn Header="Lý do" Width="*">
-                                                <DataGridTemplateColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <TextBlock Text="{Binding ClosedReason}" Foreground="#64748B" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding ClosedReason}" Margin="8,0,12,0" />
-                                                    </DataTemplate>
-                                                </DataGridTemplateColumn.CellTemplate>
-                                            </DataGridTemplateColumn>
-                                        </DataGrid.Columns>
-                                    </DataGrid>
-                                </Border>
-
-                                <!-- Bottom Status Pill -->
-                                <Border Grid.Row="2" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,6" HorizontalAlignment="Left" Margin="0,10,0,0">
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock Text="ℹ️" FontSize="11" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                        <TextBlock x:Name="TransactionsInfoTextBlock" Text="Chưa tải giao dịch" Foreground="#475569" FontSize="11" FontWeight="Medium" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Border>
                             </Grid>
@@ -3089,7 +3093,7 @@
                 <TabItem x:Name="GroupsTab" Style="{StaticResource MainTabItemStyle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x2699;" Margin="0,0,6,0" FontSize="18" />
+                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x2699;" Margin="0,0,6,0" FontSize="{DynamicResource MainMenuTabIconSize}" />
                             <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="Nhóm máy" FontSize="12.5" />
                         </StackPanel>
                     </TabItem.Header>
@@ -3399,7 +3403,7 @@
                 <TabItem x:Name="ServicesTab" Style="{StaticResource MainTabItemStyle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x1F6CE;" Margin="0,0,6,0" FontSize="18" />
+                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x1F6CE;" Margin="0,0,6,0" FontSize="{DynamicResource MainMenuTabIconSize}" />
                             <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="Dịch vụ" FontSize="12.5" />
                         </StackPanel>
                     </TabItem.Header>
@@ -3829,7 +3833,7 @@
                 <TabItem x:Name="BlockTab" Style="{StaticResource MainTabItemStyle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x1F6AB;" Margin="0,0,6,0" FontSize="18" />
+                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x1F6AB;" Margin="0,0,6,0" FontSize="{DynamicResource MainMenuTabIconSize}" />
                             <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="Chặn" FontSize="12.5" />
                         </StackPanel>
                     </TabItem.Header>
@@ -4244,7 +4248,7 @@
                 <TabItem x:Name="VipTab" Style="{StaticResource MainTabItemStyle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x1F451;" Margin="0,0,6,0" FontSize="18" />
+                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x1F451;" Margin="0,0,6,0" FontSize="{DynamicResource MainMenuTabIconSize}" />
                             <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="Hệ thống VIP" FontSize="12.5" />
                         </StackPanel>
                     </TabItem.Header>
@@ -4574,7 +4578,7 @@
                 <TabItem x:Name="ComboTab" Style="{StaticResource MainTabItemStyle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="🎟️" Margin="0,0,6,0" FontSize="18" />
+                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="🎟️" Margin="0,0,6,0" FontSize="{DynamicResource MainMenuTabIconSize}" />
                             <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="Thẻ Combo" FontSize="12.5" />
                         </StackPanel>
                     </TabItem.Header>
@@ -4586,7 +4590,7 @@
                 <TabItem x:Name="StatisticsTabItem" Style="{StaticResource MainTabItemStyle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="📊" Margin="0,0,6,0" FontSize="18" />
+                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="📊" Margin="0,0,6,0" FontSize="{DynamicResource MainMenuTabIconSize}" />
                             <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="Thống kê" FontSize="12.5" />
                         </StackPanel>
                     </TabItem.Header>
@@ -6778,13 +6782,437 @@
                         </Grid>
                     </Grid>
                 </TabItem>
+
+                <!-- ==================== TAB 7: BÁO CÁO THUẾ ==================== -->
+                <TabItem x:Name="TaxReportTabItem">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock VerticalAlignment="Center" Text="🧾" Margin="0,0,6,0" FontSize="18" />
+                            <TextBlock VerticalAlignment="Center" Text="Báo cáo thuế" />
+                        </StackPanel>
+                    </TabItem.Header>
+                    <ScrollViewer x:Name="TaxReportScrollViewer"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  PreviewMouseWheel="TaxReportScrollViewer_PreviewMouseWheel">
+                        <Grid Margin="16,12,16,24">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Row 0: Business Info & S1a-HKD Standard Header Card -->
+                            <Border Grid.Row="0" Background="White" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="12" Padding="20,16" Margin="0,0,0,14">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Top Section: Business Details (Left) & Circular Template Code (Right) -->
+                                    <Grid Grid.Row="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="6*" />
+                                            <ColumnDefinition Width="4*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Left: Hộ, Cá nhân kinh doanh info -->
+                                        <StackPanel Grid.Column="0">
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                <TextBlock Text="HỘ, CÁ NHÂN KINH DOANH:" FontWeight="Bold" FontSize="12.5" Foreground="#0F172A" VerticalAlignment="Center" Width="185" />
+                                                <TextBox x:Name="TaxBusinessOwnerTextBox" Text="Nguyễn Văn A" FontWeight="SemiBold" FontSize="12.5" Padding="6,3" MinWidth="220" MaxWidth="320" LostFocus="TaxBusinessInfoTextBox_LostFocus" ToolTip="Nhập tên Hộ / Cá nhân kinh doanh đại diện pháp lý" />
+                                            </StackPanel>
+
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                <TextBlock Text="Mã số thuế:" FontWeight="Bold" FontSize="12.5" Foreground="#0F172A" VerticalAlignment="Center" Width="185" />
+                                                <TextBox x:Name="TaxIdNumberTextBox" Text="0312345678" FontWeight="SemiBold" FontSize="12.5" Padding="6,3" MinWidth="220" MaxWidth="320" LostFocus="TaxBusinessInfoTextBox_LostFocus" ToolTip="Nhập mã số thuế hộ kinh doanh" />
+                                            </StackPanel>
+
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="Địa chỉ:" FontWeight="Bold" FontSize="12.5" Foreground="#0F172A" VerticalAlignment="Center" Width="185" />
+                                                <TextBox x:Name="TaxAddressTextBox" Text="12 Đường Mẫu, Quận 1, TP. Hồ Chí Minh" FontSize="12.5" Padding="6,3" MinWidth="280" MaxWidth="450" LostFocus="TaxBusinessInfoTextBox_LostFocus" ToolTip="Nhập địa chỉ đăng ký kinh doanh" />
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <!-- Right: Mẫu số S1a-HKD theo Thông tư 152/2025/TT-BTC -->
+                                        <Border Grid.Column="1" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,10" VerticalAlignment="Top" HorizontalAlignment="Right">
+                                            <StackPanel HorizontalAlignment="Center">
+                                                <TextBlock Text="&quot;Mẫu số S1a-HKD" FontWeight="Bold" FontSize="13" Foreground="#0F172A" HorizontalAlignment="Center" />
+                                                <TextBlock Text="(Kèm theo Thông tư số 152/2025/TT-BTC" FontStyle="Italic" FontSize="11" Foreground="#475569" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                                <TextBlock Text="ngày 31 tháng 12 năm 2025 của Bộ trưởng Bộ Tài chính)&quot;" FontStyle="Italic" FontSize="11" Foreground="#475569" HorizontalAlignment="Center" />
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- Center Title & Store Location / Period Section -->
+                                    <Border Grid.Row="1" Margin="0,14,0,0" Padding="0,12,0,0" BorderBrush="#F1F5F9" BorderThickness="0,1,0,0">
+                                        <StackPanel HorizontalAlignment="Center">
+                                            <TextBlock Text="SỔ CHI TIẾT DOANH THU BÁN HÀNG HÓA, DỊCH VỤ" FontWeight="Bold" FontSize="16" Foreground="#1E293B" HorizontalAlignment="Center" />
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,6,0,0">
+                                                <TextBlock Text="Địa điểm kinh doanh:" FontWeight="SemiBold" FontSize="12.5" Foreground="#334155" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <TextBox x:Name="TaxStoreLocationTextBox" Text="Phòng máy CyberS" FontWeight="SemiBold" FontSize="12.5" Padding="6,2" MinWidth="180" LostFocus="TaxBusinessInfoTextBox_LostFocus" />
+                                                <TextBlock Text="  |  Kỳ kê khai: " FontWeight="SemiBold" FontSize="12.5" Foreground="#334155" VerticalAlignment="Center" Margin="10,0,0,0" />
+                                                <TextBlock x:Name="TaxHeaderPeriodTextBlock" Text="Tháng 11/2026" FontWeight="Bold" FontSize="13" Foreground="#2563EB" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <!-- Row 1: Filter &amp; Settings Bento Card -->
+                            <Border Grid.Row="1" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16,14" Margin="0,0,0,14">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Top Line: Period Selection &amp; Action Buttons -->
+                                    <DockPanel Grid.Row="0" LastChildFill="False">
+                                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                                            <TextBlock Text="Kỳ báo cáo:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="13" Foreground="#334155" Margin="0,0,8,0" />
+                                            <ComboBox x:Name="TaxPeriodTypeComboBox"
+                                                      Width="130"
+                                                      Height="32"
+                                                      VerticalContentAlignment="Center"
+                                                      SelectionChanged="TaxPeriodTypeComboBox_SelectionChanged">
+                                                <ComboBoxItem Tag="month" Content="Theo tháng" IsSelected="True" />
+                                                <ComboBoxItem Tag="quarter" Content="Theo quý" />
+                                                <ComboBoxItem Tag="year" Content="Theo năm" />
+                                                <ComboBoxItem Tag="custom" Content="Tùy chọn ngày" />
+                                            </ComboBox>
+
+                                            <!-- Year Filter -->
+                                            <StackPanel x:Name="TaxYearPanel" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                                                <TextBlock Text="Năm:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="13" Foreground="#334155" Margin="0,0,6,0" />
+                                                <ComboBox x:Name="TaxYearComboBox" Width="100" Height="32" VerticalContentAlignment="Center" SelectionChanged="TaxFilterControl_Changed" />
+                                            </StackPanel>
+
+                                            <!-- Month/Quarter Filter -->
+                                            <StackPanel x:Name="TaxMonthQuarterPanel" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                                                <TextBlock x:Name="TaxMonthQuarterLabelTextBlock" Text="Chọn tháng:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="13" Foreground="#334155" Margin="0,0,6,0" />
+                                                <ComboBox x:Name="TaxMonthQuarterComboBox" Width="145" Height="32" VerticalContentAlignment="Center" SelectionChanged="TaxFilterControl_Changed" />
+                                            </StackPanel>
+
+                                            <!-- Custom Date Range -->
+                                            <StackPanel x:Name="TaxCustomDatePanel" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0" Visibility="Collapsed">
+                                                <TextBlock Text="Từ:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="13" Foreground="#334155" Margin="0,0,6,0" />
+                                                <DatePicker x:Name="TaxFromDatePicker" Width="120" Height="32" SelectedDateChanged="TaxFilterControl_Changed" />
+                                                <TextBlock Text="Đến:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="13" Foreground="#334155" Margin="8,0,6,0" />
+                                                <DatePicker x:Name="TaxToDatePicker" Width="120" Height="32" SelectedDateChanged="TaxFilterControl_Changed" />
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <!-- Right: Action Buttons -->
+                                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                                            <Button x:Name="RefreshTaxReportButton"
+                                                    Click="RefreshTaxReportButton_Click"
+                                                    Padding="12,6"
+                                                    Height="32"
+                                                    Margin="0,0,8,0"
+                                                    Background="#2563EB"
+                                                    Foreground="White"
+                                                    FontWeight="SemiBold"
+                                                    BorderThickness="0"
+                                                    Cursor="Hand">
+                                                <Button.Resources>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="CornerRadius" Value="7" />
+                                                    </Style>
+                                                </Button.Resources>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="🔄" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                                    <TextBlock Text="Xem báo cáo" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Button>
+
+                                            <Button x:Name="ExportTaxReportCsvButton"
+                                                    Click="ExportTaxReportCsvButton_Click"
+                                                    Padding="12,6"
+                                                    Height="32"
+                                                    Margin="0,0,8,0"
+                                                    Background="#059669"
+                                                    Foreground="White"
+                                                    FontWeight="SemiBold"
+                                                    BorderThickness="0"
+                                                    Cursor="Hand">
+                                                <Button.Resources>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="CornerRadius" Value="7" />
+                                                    </Style>
+                                                </Button.Resources>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="📥" FontSize="12" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                                    <TextBlock Text="Xuất Excel CSV" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Button>
+
+                                            <Button x:Name="ExportTaxReportPdfButton"
+                                                    Click="ExportTaxReportPdfButton_Click"
+                                                    Padding="13,6"
+                                                    Height="32"
+                                                    Background="#DC2626"
+                                                    Foreground="White"
+                                                    FontWeight="Bold"
+                                                    BorderThickness="0"
+                                                    Cursor="Hand">
+                                                <Button.Resources>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="CornerRadius" Value="7" />
+                                                    </Style>
+                                                </Button.Resources>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="📄" FontSize="12.5" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                                    <TextBlock Text="Xuất PDF (Mẫu S1a-HKD)" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                    </DockPanel>
+
+                                    <!-- Bottom Line: Tax Configuration Parameters (Ratio Slider, VAT rate, PIT rate) -->
+                                    <Border Grid.Row="1" Margin="0,12,0,0" Padding="12,10" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8">
+                                        <DockPanel LastChildFill="False">
+                                            <!-- Ratio Slider -->
+                                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                                                <TextBlock Text="⚙️ Tỷ lệ kê khai thuế:" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12.5" Foreground="#1E293B" Margin="0,0,8,0" />
+                                                <Slider x:Name="TaxRatioSlider"
+                                                        Minimum="10"
+                                                        Maximum="100"
+                                                        Value="100"
+                                                        TickFrequency="5"
+                                                        IsSnapToTickEnabled="True"
+                                                        Width="130"
+                                                        VerticalAlignment="Center"
+                                                        ValueChanged="TaxRatioSlider_ValueChanged" />
+                                                <Border Background="#DBEAFE" CornerRadius="6" Padding="6,2" Margin="8,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock x:Name="TaxRatioValueTextBlock" Text="100%" FontWeight="Bold" FontSize="12" Foreground="#1D4ED8" />
+                                                </Border>
+                                            </StackPanel>
+
+                                            <!-- VAT &amp; PIT Rate Selectors -->
+                                            <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center" Margin="24,0,0,0">
+                                                <TextBlock Text="Thuế suất GTGT:" VerticalAlignment="Center" FontSize="12.5" Foreground="#475569" Margin="0,0,6,0" />
+                                                <ComboBox x:Name="TaxVatRateComboBox" Width="135" Height="28" VerticalContentAlignment="Center" SelectionChanged="TaxFilterControl_Changed">
+                                                    <ComboBoxItem Tag="0" Content="0% (Miễn thuế)" />
+                                                    <ComboBoxItem Tag="5.0" Content="5% (Dịch vụ Net)" IsSelected="True" />
+                                                    <ComboBoxItem Tag="10.0" Content="10% (DN chuẩn)" />
+                                                </ComboBox>
+
+                                                <TextBlock Text="Thuế suất TNCN/TNDN:" VerticalAlignment="Center" FontSize="12.5" Foreground="#475569" Margin="14,0,6,0" />
+                                                <ComboBox x:Name="TaxPitRateComboBox" Width="145" Height="28" VerticalContentAlignment="Center" SelectionChanged="TaxFilterControl_Changed">
+                                                    <ComboBoxItem Tag="0" Content="0% (Miễn thuế)" />
+                                                    <ComboBoxItem Tag="1.5" Content="1.5% (Tỷ lệ ưu đãi)" />
+                                                    <ComboBoxItem Tag="2.0" Content="2% (Hộ kinh doanh)" IsSelected="True" />
+                                                    <ComboBoxItem Tag="5.0" Content="5% (DN dịch vụ)" />
+                                                </ComboBox>
+                                            </StackPanel>
+
+                                            <!-- Period Badge -->
+                                            <Border DockPanel.Dock="Right" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="6" Padding="8,4" VerticalAlignment="Center">
+                                                <TextBlock x:Name="TaxReportPeriodBadgeTextBlock" Text="Kỳ: Đang tải..." FontSize="12" FontWeight="SemiBold" Foreground="#1E40AF" />
+                                            </Border>
+                                        </DockPanel>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <!-- Row 2: 4 Bento KPI Metric Cards -->
+                            <Grid Grid.Row="2" Margin="0,0,0,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="14" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="14" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="14" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Card 1: Doanh thu thực tế (Thực thu) -->
+                                <Border Grid.Column="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16,14">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <DockPanel Grid.Row="0" LastChildFill="False">
+                                            <TextBlock Text="DOANH THU THỰC TẾ" Foreground="#64748B" FontSize="11" FontWeight="Bold" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                            <Border DockPanel.Dock="Right" Background="#F1F5F9" CornerRadius="8" Width="30" Height="30" VerticalAlignment="Center">
+                                                <TextBlock Text="💰" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                        </DockPanel>
+                                        <TextBlock Grid.Row="1" x:Name="TaxActualTotalTextBlock" Text="0 đ" FontSize="22" FontWeight="Bold" Foreground="#0F172A" Margin="0,8,0,4" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Row="2" x:Name="TaxActualDetailTextBlock" Text="Giờ chơi: 0 đ  |  Dịch vụ: 0 đ" FontSize="11.5" Foreground="#64748B" TextTrimming="CharacterEllipsis" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- Card 2: Doanh thu kê khai tính thuế -->
+                                <Border Grid.Column="2" Background="White" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="12" Padding="16,14">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <DockPanel Grid.Row="0" LastChildFill="False">
+                                            <TextBlock Text="DOANH THU KÊ KHAI TÍNH THUẾ" Foreground="#1D4ED8" FontSize="11" FontWeight="Bold" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                            <Border DockPanel.Dock="Right" Background="#EFF6FF" CornerRadius="8" Width="30" Height="30" VerticalAlignment="Center">
+                                                <TextBlock Text="📋" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                        </DockPanel>
+                                        <TextBlock Grid.Row="1" x:Name="TaxDeclaredTotalTextBlock" Text="0 đ" FontSize="22" FontWeight="Bold" Foreground="#1D4ED8" Margin="0,8,0,4" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Row="2" x:Name="TaxDeclaredRatioTextBlock" Text="Áp dụng tỷ lệ khai thuế: 100%" FontSize="11.5" Foreground="#2563EB" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- Card 3: Thuế GTGT tạm tính -->
+                                <Border Grid.Column="4" Background="White" BorderBrush="#FED7AA" BorderThickness="1" CornerRadius="12" Padding="16,14">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <DockPanel Grid.Row="0" LastChildFill="False">
+                                            <TextBlock Text="THUẾ GTGT TẠM TÍNH" Foreground="#C2410C" FontSize="11" FontWeight="Bold" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                            <Border DockPanel.Dock="Right" Background="#FFF7ED" CornerRadius="8" Width="30" Height="30" VerticalAlignment="Center">
+                                                <TextBlock Text="🧾" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                        </DockPanel>
+                                        <TextBlock Grid.Row="1" x:Name="TaxVatAmountTextBlock" Text="0 đ" FontSize="22" FontWeight="Bold" Foreground="#EA580C" Margin="0,8,0,4" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Row="2" x:Name="TaxVatRateLabelTextBlock" Text="Thuế suất GTGT: 5%" FontSize="11.5" Foreground="#9A3412" TextTrimming="CharacterEllipsis" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- Card 4: Tổng nghĩa vụ thuế phải nộp -->
+                                <Border Grid.Column="6" Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="12" Padding="16,14">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <DockPanel Grid.Row="0" LastChildFill="False">
+                                            <TextBlock Text="TỔNG NGHĨA VỤ THUẾ PHẢI NỘP" Foreground="#B91C1C" FontSize="11" FontWeight="Bold" DockPanel.Dock="Left" VerticalAlignment="Center" />
+                                            <Border DockPanel.Dock="Right" Background="#FEE2E2" CornerRadius="8" Width="30" Height="30" VerticalAlignment="Center">
+                                                <TextBlock Text="🏛️" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                        </DockPanel>
+                                        <TextBlock Grid.Row="1" x:Name="TaxTotalAmountTextBlock" Text="0 đ" FontSize="22" FontWeight="Bold" Foreground="#DC2626" Margin="0,8,0,4" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Row="2" x:Name="TaxPitAmountDetailTextBlock" Text="Thuế TNCN/TNDN (2%): 0 đ" FontSize="11.5" Foreground="#991B1B" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <!-- Row 3: Policy &amp; Compliance Notice -->
+                            <Border Grid.Row="3" Background="#F0FDF4" BorderBrush="#BBF7D0" BorderThickness="1" CornerRadius="10" Padding="14,10" Margin="0,0,0,14">
+                                <DockPanel LastChildFill="True">
+                                    <Border DockPanel.Dock="Left" Background="#DCFCE7" CornerRadius="6" Padding="6,3" Margin="0,0,10,0" VerticalAlignment="Center">
+                                        <TextBlock Text="💡 CƠ CHẾ TÍNH THUẾ" FontSize="11" FontWeight="Bold" Foreground="#15803D" />
+                                    </Border>
+                                    <TextBlock VerticalAlignment="Center" Foreground="#166534" FontSize="12" TextWrapping="Wrap">
+                                        Căn cứ Thông tư 40/2021/TT-BTC: Hộ kinh doanh dịch vụ internet / phòng máy áp dụng tỷ lệ thuế GTGT 5% và TNCN 2% trên doanh thu kê khai tính thuế. Bạn có thể kéo thanh trượt "Tỷ lệ kê khai" để điều chỉnh dữ liệu đầu ra phù hợp với tình hình nộp thuế thực tế của cơ sở kinh doanh.
+                                    </TextBlock>
+                                </DockPanel>
+                            </Border>
+
+                            <!-- Row 4: Loading Progress Bar -->
+                            <ProgressBar Grid.Row="4" x:Name="TaxReportLoadingProgressBar" Height="3" IsIndeterminate="True" Foreground="#2563EB" Background="#E2E8F0" BorderThickness="0" Margin="0,0,0,6" Visibility="Collapsed" />
+
+                            <!-- Row 5: Detailed Daily Breakdown DataGrid Card -->
+                            <Border Grid.Row="5" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="16">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="12" />
+                                        <RowDefinition Height="*" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Table Header Info -->
+                                    <DockPanel Grid.Row="0" LastChildFill="False">
+                                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                                            <TextBlock Text="📅" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="BẢNG CHI TIẾT DOANH THU &amp; NGHĨA VỤ THUẾ THEO NGÀY" FontSize="13.5" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="* Dữ liệu tự động phân bổ theo lịch ngày trong kỳ kê khai" FontSize="11.5" Foreground="#64748B" VerticalAlignment="Center" />
+                                    </DockPanel>
+
+                                    <!-- DataGrid -->
+                                    <DataGrid Grid.Row="2"
+                                              x:Name="TaxDailyReportDataGrid"
+                                              AutoGenerateColumns="False"
+                                              IsReadOnly="True"
+                                              HeadersVisibility="Column"
+                                              CanUserAddRows="False"
+                                              CanUserDeleteRows="False"
+                                              CanUserResizeColumns="True"
+                                              CanUserReorderColumns="False"
+                                              GridLinesVisibility="Horizontal"
+                                              HorizontalGridLinesBrush="#F1F5F9"
+                                              VerticalGridLinesBrush="Transparent"
+                                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                              ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                              ScrollViewer.CanContentScroll="False"
+                                              PreviewMouseWheel="TaxDailyReportDataGrid_PreviewMouseWheel"
+                                              MinColumnWidth="50"
+                                              FontSize="12.5"
+                                              RowHeight="36"
+                                              RowHeaderWidth="0"
+                                              BorderThickness="0"
+                                              Background="White">
+                                        <DataGrid.Columns>
+                                            <DataGridTemplateColumn Header="STT" Width="55">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Border Width="22" Height="22" CornerRadius="11" Background="#F1F5F9" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding Index}" FontWeight="Bold" FontSize="11" Foreground="#475569" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+
+                                            <DataGridTextColumn Header="Ngày" Width="105" Binding="{Binding DateText}" FontWeight="SemiBold" Foreground="#0F172A" />
+                                            <DataGridTextColumn Header="Thứ" Width="75" Binding="{Binding DayOfWeekText}" Foreground="#64748B" />
+                                            <DataGridTextColumn Header="Số phiên" Width="80" Binding="{Binding SessionCount}" Foreground="#334155" />
+
+                                            <DataGridTextColumn Header="DT Giờ chơi thực" Width="135" Binding="{Binding ActualPlaytimeText, StringFormat='{}{0} đ'}" Foreground="#475569" />
+                                            <DataGridTextColumn Header="DT Dịch vụ thực" Width="135" Binding="{Binding ActualServiceText, StringFormat='{}{0} đ'}" Foreground="#475569" />
+                                            <DataGridTextColumn Header="Tổng DT thực tế" Width="145" Binding="{Binding ActualTotalText, StringFormat='{}{0} đ'}" FontWeight="SemiBold" Foreground="#0F172A" />
+
+                                            <DataGridTextColumn Header="DT Kê khai tính thuế" Width="160" Binding="{Binding TaxableTotalText, StringFormat='{}{0} đ'}" FontWeight="Bold" Foreground="#1D4ED8" />
+                                            <DataGridTextColumn Header="Thuế GTGT" Width="125" Binding="{Binding VatAmountText, StringFormat='{}{0} đ'}" Foreground="#C2410C" />
+                                            <DataGridTextColumn Header="Thuế TNCN" Width="125" Binding="{Binding PitAmountText, StringFormat='{}{0} đ'}" Foreground="#B91C1C" />
+                                            <DataGridTextColumn Header="Tổng thuế phải nộp" Width="150" Binding="{Binding TotalTaxText, StringFormat='{}{0} đ'}" FontWeight="Bold" Foreground="#DC2626" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+
+                                    <!-- Footer Summary -->
+                                    <Border Grid.Row="3" Margin="0,12,0,0" Padding="12,10" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8">
+                                        <TextBlock x:Name="TaxReportSummaryFooterTextBlock"
+                                                   Text="Chưa có dữ liệu báo cáo thuế."
+                                                   FontSize="12"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#334155"
+                                                   TextWrapping="Wrap" />
+                                    </Border>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </ScrollViewer>
+                </TabItem>
             </TabControl>
         </TabItem>
 
                 <TabItem x:Name="MiniGameTabItem" Style="{StaticResource MainTabItemStyle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="🎲" Margin="0,0,6,0" FontSize="18" />
+                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="🎲" Margin="0,0,6,0" FontSize="{DynamicResource MainMenuTabIconSize}" />
                             <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="Cấu hình Games" FontSize="12.5" />
                         </StackPanel>
                     </TabItem.Header>
@@ -7715,7 +8143,7 @@
                 <TabItem x:Name="SettingsTab" Style="{StaticResource MainTabItemStyle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="⚙" Margin="0,0,6,0" FontSize="18" />
+                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="⚙" Margin="0,0,6,0" FontSize="{DynamicResource MainMenuTabIconSize}" />
                             <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="Cài đặt" FontSize="12.5" />
                         </StackPanel>
                     </TabItem.Header>
@@ -7760,6 +8188,8 @@
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
 
                                             <TextBlock Grid.Row="0" FontSize="17" FontWeight="SemiBold" Foreground="#1E293B" Text="Giao diện và menu thao tác" />
@@ -7789,6 +8219,49 @@
                                                     <ColumnDefinition Width="340" />
                                                     <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Phông chữ toàn bộ app (Font Family):" />
+                                                <ComboBox x:Name="AppFontFamilyComboBox"
+                                                          Grid.Column="1"
+                                                          Width="260"
+                                                          Height="32"
+                                                          HorizontalAlignment="Left"
+                                                          VerticalContentAlignment="Center"
+                                                          SelectionChanged="AppFontFamilyComboBox_SelectionChanged">
+                                                    <ComboBoxItem Tag="Segoe UI" Content="Segoe UI (Mặc định)" FontFamily="Segoe UI" IsSelected="True" />
+                                                    <ComboBoxItem Tag="Inter" Content="Inter" FontFamily="./Assets/Fonts/#Inter, Inter, Segoe UI" />
+                                                    <ComboBoxItem Tag="Noto Sans" Content="Noto Sans" FontFamily="./Assets/Fonts/#Noto Sans, Noto Sans, Segoe UI" />
+                                                    <ComboBoxItem Tag="Open Sans" Content="Open Sans" FontFamily="./Assets/Fonts/#Open Sans, Open Sans, Segoe UI" />
+                                                    <ComboBoxItem Tag="Roboto" Content="Roboto" FontFamily="./Assets/Fonts/#Roboto, Roboto, Segoe UI" />
+                                                    <ComboBoxItem Tag="Manrope" Content="Manrope" FontFamily="./Assets/Fonts/#Manrope, Manrope, Segoe UI" />
+                                                    <ComboBoxItem Tag="Montserrat" Content="Montserrat" FontFamily="./Assets/Fonts/#Montserrat, Montserrat, Segoe UI" />
+                                                </ComboBox>
+                                            </Grid>
+
+                                            <Grid Grid.Row="3" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="340" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Cỡ icon trên các tab menu:" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Slider x:Name="MainMenuTabIconSizeSlider"
+                                                            Width="260"
+                                                            Minimum="12"
+                                                            Maximum="32"
+                                                            TickFrequency="1"
+                                                            IsSnapToTickEnabled="True"
+                                                            ValueChanged="MainMenuTabIconSizeSlider_ValueChanged" />
+                                                    <Border Margin="10,0,0,0" Padding="8,3" Background="#EEF2FF" BorderBrush="#C7D2FE" BorderThickness="1" CornerRadius="6">
+                                                        <TextBlock x:Name="MainMenuTabIconSizeValueTextBlock" VerticalAlignment="Center" Foreground="#3730A3" FontWeight="SemiBold" Text="18" />
+                                                    </Border>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <Grid Grid.Row="4" Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="340" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
                                                 <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Cỡ chữ bảng Máy trạm:" />
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                                     <Slider x:Name="MachineTableFontSizeSlider"
@@ -7804,7 +8277,7 @@
                                                 </StackPanel>
                                             </Grid>
 
-                                            <Grid Grid.Row="3" Margin="0,10,0,0">
+                                            <Grid Grid.Row="5" Margin="0,10,0,0">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="340" />
                                                     <ColumnDefinition Width="*" />
@@ -7824,7 +8297,7 @@
                                                 </StackPanel>
                                             </Grid>
 
-                                            <Grid Grid.Row="4" Margin="0,10,0,0">
+                                            <Grid Grid.Row="6" Margin="0,10,0,0">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="340" />
                                                     <ColumnDefinition Width="*" />
@@ -7844,7 +8317,7 @@
                                                 </StackPanel>
                                             </Grid>
 
-                                            <Grid Grid.Row="5" Margin="0,10,0,0">
+                                            <Grid Grid.Row="7" Margin="0,10,0,0">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="340" />
                                                     <ColumnDefinition Width="*" />
@@ -7864,7 +8337,7 @@
                                                 </StackPanel>
                                             </Grid>
 
-                                            <Grid Grid.Row="6" Margin="0,10,0,0">
+                                            <Grid Grid.Row="8" Margin="0,10,0,0">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="340" />
                                                     <ColumnDefinition Width="*" />
@@ -7884,21 +8357,21 @@
                                                 </StackPanel>
                                             </Grid>
 
-                                             <Grid Grid.Row="7" Margin="0,12,0,0">
-                                                 <Grid.ColumnDefinitions>
-                                                     <ColumnDefinition Width="340" />
-                                                     <ColumnDefinition Width="*" />
-                                                 </Grid.ColumnDefinitions>
-                                                 <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Điều chỉnh màu sắc trạng thái máy:" />
-                                                 <Button Grid.Column="1" Content="Cấu hình màu sắc..." Width="220" Height="32" HorizontalAlignment="Left" Click="ConfigureColorsButton_Click" />
-                                             </Grid>
+                                            <Grid Grid.Row="9" Margin="0,12,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="340" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Điều chỉnh màu sắc trạng thái máy:" />
+                                                <Button Grid.Column="1" Content="Cấu hình màu sắc..." Width="220" Height="32" HorizontalAlignment="Left" Click="ConfigureColorsButton_Click" />
+                                            </Grid>
 
-                                             <Grid Grid.Row="8" Margin="0,14,0,0">
-                                                 <Grid.ColumnDefinitions>
-                                                     <ColumnDefinition Width="340" />
-                                                     <ColumnDefinition Width="*" />
-                                                 </Grid.ColumnDefinitions>
-                                                 <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Menu chuột phải bảng Máy trạm:" />
+                                            <Grid Grid.Row="10" Margin="0,14,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="340" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" VerticalAlignment="Center" Foreground="#334155" Text="Menu chuột phải bảng Máy trạm:" />
                                                  <CheckBox x:Name="HideDisabledContextMenuItemsCheckBox"
                                                            Grid.Column="1"
                                                            Content="Ẩn các chức năng không khả dụng (disabled)"
@@ -9756,7 +10229,7 @@
                 <TabItem x:Name="AdminTab" Style="{StaticResource MainTabItemStyle}">
                     <TabItem.Header>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x1F510;" Margin="0,0,6,0" FontSize="18" />
+                            <TextBlock Style="{StaticResource TabIconStyle}" VerticalAlignment="Center" Text="&#x1F510;" Margin="0,0,6,0" FontSize="{DynamicResource MainMenuTabIconSize}" />
                             <TextBlock Style="{StaticResource TabHeaderTextStyle}" VerticalAlignment="Center" Text="Admin" FontSize="12.5" />
                         </StackPanel>
                     </TabItem.Header>

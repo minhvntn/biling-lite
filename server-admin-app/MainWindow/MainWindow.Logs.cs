@@ -722,34 +722,297 @@ public partial class MainWindow : Window
                 $"/sessions?status=CLOSED&endedFrom={Uri.EscapeDataString(ToApiDateTime(rangeStart))}&endedTo={Uri.EscapeDataString(ToApiDateTime(rangeEndExclusive))}");
             var revenueUrl = BuildApiUrl(
                 $"/reports/revenue/summary?period={Uri.EscapeDataString(period)}&date={Uri.EscapeDataString(periodDate)}");
+            var eventsUrl = BuildApiUrl("/reports/events/system?limit=500");
 
             var sessionsTask = _httpClient.GetFromJsonAsync<SessionsListResponse>(sessionsUrl, JsonOptions());
             var revenueTask = _httpClient.GetFromJsonAsync<RevenueSummaryResponse>(revenueUrl, JsonOptions());
-            await Task.WhenAll(sessionsTask!, revenueTask!);
+            var eventsTask = _httpClient.GetFromJsonAsync<SystemEventsResponse>(eventsUrl, JsonOptions());
+
+            await Task.WhenAll(sessionsTask!, revenueTask!, eventsTask!);
 
             var sessionsResponse = await sessionsTask!;
             var revenueResponse = await revenueTask!;
+            var eventsResponse = await eventsTask!;
 
             if (sessionsResponse is null || revenueResponse is null)
             {
                 return;
             }
 
-            var rows = sessionsResponse.Items.Select(ToSessionLogRow).ToList();
+            var sessionRows = sessionsResponse.Items.Select(ToSessionLogRow).ToList();
+
+            var financialRows = new List<SessionLogRow>();
+            if (eventsResponse?.Items != null)
+            {
+                foreach (var evt in eventsResponse.Items)
+                {
+                    var eventType = evt.EventType?.Trim().ToLowerInvariant() ?? string.Empty;
+
+                    // 1. Nạp tiền trực tiếp từ Admin
+                    if (eventType == "member.topup" && evt.Payload is JsonElement json)
+                    {
+                        var atStr = ReadJsonString(json, "at");
+                        var createdAt = ParseDateLocal(string.IsNullOrWhiteSpace(atStr) ? evt.CreatedAt : atStr) ?? DateTime.MinValue;
+                        if (createdAt >= rangeStart && createdAt < rangeEndExclusive)
+                        {
+                            var username = ReadJsonString(json, "username");
+                            var amount = ReadJsonDecimal(json, "amount");
+                            var note = ReadJsonString(json, "note");
+                            var createdBy = ReadJsonString(json, "createdBy");
+                            if (string.IsNullOrWhiteSpace(createdBy)) createdBy = "admin";
+
+                            financialRows.Add(new SessionLogRow
+                            {
+                                TransactionType = "TOPUP",
+                                TypeLabel = "Nạp tiền hội viên",
+                                TypeIcon = "💵",
+                                TypeBg = "#ECFDF5",
+                                TypeFg = "#047857",
+                                TypeBorder = "#A7F3D0",
+                                PcName = $"Hội viên {username}",
+                                AgentId = username,
+                                StartedAtText = createdAt != DateTime.MinValue ? createdAt.ToString("dd-MM-yyyy HH:mm:ss") : "-",
+                                EndedAtText = "-",
+                                BillableMinutesText = "-",
+                                AmountRaw = amount,
+                                AmountText = amount.ToString("N0", CultureInfo.InvariantCulture),
+                                Status = "COMPLETED",
+                                ClosedReason = string.IsNullOrWhiteSpace(note) ? $"Nạp tiền ({createdBy})" : $"{note} ({createdBy})",
+                                CreatedAt = createdAt,
+                            });
+                        }
+                    }
+                    // 2. Yêu cầu nạp tiền từ Máy trạm (Client)
+                    else if (eventType == "member.topup.requested" && evt.Payload is JsonElement topupReqJson)
+                    {
+                        var reqStatus = ReadJsonString(topupReqJson, "status")?.Trim().ToUpperInvariant() ?? "PENDING";
+                        var approvedAtStr = ReadJsonString(topupReqJson, "approvedAt");
+                        var requestedAtStr = ReadJsonString(topupReqJson, "requestedAt");
+                        var dateStr = !string.IsNullOrWhiteSpace(approvedAtStr) ? approvedAtStr : (!string.IsNullOrWhiteSpace(requestedAtStr) ? requestedAtStr : evt.CreatedAt);
+                        var createdAt = ParseDateLocal(dateStr) ?? DateTime.MinValue;
+
+                        if (createdAt >= rangeStart && createdAt < rangeEndExclusive)
+                        {
+                            var username = ReadJsonString(topupReqJson, "username");
+                            var agentId = ReadJsonString(topupReqJson, "agentId");
+                            var pcName = ReadJsonString(topupReqJson, "pcName");
+                            var amount = ReadJsonDecimal(topupReqJson, "amount");
+                            var approvedBy = ReadJsonString(topupReqJson, "approvedBy");
+                            var note = ReadJsonString(topupReqJson, "note");
+                            var rejectNote = ReadJsonString(topupReqJson, "rejectNote");
+
+                            var pcTarget = !string.IsNullOrWhiteSpace(agentId) 
+                                ? $"{agentId} (Hội viên {username})" 
+                                : (!string.IsNullOrWhiteSpace(pcName) ? $"{pcName} (Hội viên {username})" : $"Hội viên {username}");
+
+                            if (reqStatus == "APPROVED")
+                            {
+                                financialRows.Add(new SessionLogRow
+                                {
+                                    TransactionType = "TOPUP",
+                                    TypeLabel = "Nạp tại máy trạm",
+                                    TypeIcon = "💻",
+                                    TypeBg = "#ECFDF5",
+                                    TypeFg = "#047857",
+                                    TypeBorder = "#A7F3D0",
+                                    PcName = pcTarget,
+                                    AgentId = !string.IsNullOrWhiteSpace(agentId) ? agentId : username,
+                                    StartedAtText = createdAt != DateTime.MinValue ? createdAt.ToString("dd-MM-yyyy HH:mm:ss") : "-",
+                                    EndedAtText = "-",
+                                    BillableMinutesText = "-",
+                                    AmountRaw = amount,
+                                    AmountText = amount.ToString("N0", CultureInfo.InvariantCulture),
+                                    Status = "COMPLETED",
+                                    ClosedReason = string.IsNullOrWhiteSpace(note) 
+                                        ? $"Yêu cầu từ máy trạm (Duyệt: {(!string.IsNullOrWhiteSpace(approvedBy) ? approvedBy : "admin")})" 
+                                        : $"{note} (Duyệt: {(!string.IsNullOrWhiteSpace(approvedBy) ? approvedBy : "admin")})",
+                                    CreatedAt = createdAt,
+                                });
+                            }
+                            else if (reqStatus == "REJECTED")
+                            {
+                                financialRows.Add(new SessionLogRow
+                                {
+                                    TransactionType = "TOPUP_REJECTED",
+                                    TypeLabel = "Từ chối nạp máy",
+                                    TypeIcon = "❌",
+                                    TypeBg = "#FEF2F2",
+                                    TypeFg = "#DC2626",
+                                    TypeBorder = "#FECACA",
+                                    PcName = pcTarget,
+                                    AgentId = !string.IsNullOrWhiteSpace(agentId) ? agentId : username,
+                                    StartedAtText = createdAt != DateTime.MinValue ? createdAt.ToString("dd-MM-yyyy HH:mm:ss") : "-",
+                                    EndedAtText = "-",
+                                    BillableMinutesText = "-",
+                                    AmountRaw = 0,
+                                    AmountText = amount.ToString("N0", CultureInfo.InvariantCulture),
+                                    Status = "REJECTED",
+                                    ClosedReason = string.IsNullOrWhiteSpace(rejectNote) ? $"Từ chối bởi {approvedBy}" : rejectNote,
+                                    CreatedAt = createdAt,
+                                });
+                            }
+                            else
+                            {
+                                financialRows.Add(new SessionLogRow
+                                {
+                                    TransactionType = "TOPUP_PENDING",
+                                    TypeLabel = "Chờ duyệt nạp",
+                                    TypeIcon = "⏳",
+                                    TypeBg = "#FEF3C7",
+                                    TypeFg = "#D97706",
+                                    TypeBorder = "#FDE68A",
+                                    PcName = pcTarget,
+                                    AgentId = !string.IsNullOrWhiteSpace(agentId) ? agentId : username,
+                                    StartedAtText = createdAt != DateTime.MinValue ? createdAt.ToString("dd-MM-yyyy HH:mm:ss") : "-",
+                                    EndedAtText = "-",
+                                    BillableMinutesText = "-",
+                                    AmountRaw = amount,
+                                    AmountText = amount.ToString("N0", CultureInfo.InvariantCulture),
+                                    Status = "PENDING",
+                                    ClosedReason = "Yêu cầu nạp tiền đang chờ thu ngân duyệt",
+                                    CreatedAt = createdAt,
+                                });
+                            }
+                        }
+                    }
+                    // 3. Yêu cầu rút tiền từ Máy trạm (Client)
+                    else if (eventType == "member.withdraw.requested" && evt.Payload is JsonElement withdrawJson)
+                    {
+                        var wStatus = ReadJsonString(withdrawJson, "status")?.Trim().ToUpperInvariant() ?? "PENDING";
+                        var approvedAtStr = ReadJsonString(withdrawJson, "approvedAt");
+                        var requestedAtStr = ReadJsonString(withdrawJson, "requestedAt");
+                        var dateStr = !string.IsNullOrWhiteSpace(approvedAtStr) ? approvedAtStr : (!string.IsNullOrWhiteSpace(requestedAtStr) ? requestedAtStr : evt.CreatedAt);
+                        var createdAt = ParseDateLocal(dateStr) ?? DateTime.MinValue;
+
+                        if (createdAt >= rangeStart && createdAt < rangeEndExclusive)
+                        {
+                            var username = ReadJsonString(withdrawJson, "username");
+                            var agentId = ReadJsonString(withdrawJson, "agentId");
+                            var pcName = ReadJsonString(withdrawJson, "pcName");
+                            var amount = ReadJsonDecimal(withdrawJson, "amount");
+                            var approvedBy = ReadJsonString(withdrawJson, "approvedBy");
+                            var note = ReadJsonString(withdrawJson, "note");
+
+                            var pcTarget = !string.IsNullOrWhiteSpace(agentId) 
+                                ? $"{agentId} (Hội viên {username})" 
+                                : (!string.IsNullOrWhiteSpace(pcName) ? $"{pcName} (Hội viên {username})" : $"Hội viên {username}");
+
+                            if (wStatus == "APPROVED")
+                            {
+                                financialRows.Add(new SessionLogRow
+                                {
+                                    TransactionType = "WITHDRAW",
+                                    TypeLabel = "Rút tiền tại máy",
+                                    TypeIcon = "💸",
+                                    TypeBg = "#FEF2F2",
+                                    TypeFg = "#DC2626",
+                                    TypeBorder = "#FECACA",
+                                    PcName = pcTarget,
+                                    AgentId = !string.IsNullOrWhiteSpace(agentId) ? agentId : username,
+                                    StartedAtText = createdAt != DateTime.MinValue ? createdAt.ToString("dd-MM-yyyy HH:mm:ss") : "-",
+                                    EndedAtText = "-",
+                                    BillableMinutesText = "-",
+                                    AmountRaw = -amount,
+                                    AmountText = amount.ToString("N0", CultureInfo.InvariantCulture),
+                                    Status = "COMPLETED",
+                                    ClosedReason = string.IsNullOrWhiteSpace(note) ? $"Rút tiền tại máy (Duyệt: {approvedBy})" : note,
+                                    CreatedAt = createdAt,
+                                });
+                            }
+                        }
+                    }
+                    // 4. Điều chỉnh số dư
+                    else if (eventType == "member.balance.adjusted" && evt.Payload is JsonElement adjJson)
+                    {
+                        var atStr = ReadJsonString(adjJson, "at");
+                        var createdAt = ParseDateLocal(string.IsNullOrWhiteSpace(atStr) ? evt.CreatedAt : atStr) ?? DateTime.MinValue;
+                        if (createdAt >= rangeStart && createdAt < rangeEndExclusive)
+                        {
+                            var username = ReadJsonString(adjJson, "username");
+                            var amountDelta = ReadJsonDecimal(adjJson, "amountDelta");
+                            var note = ReadJsonString(adjJson, "note");
+                            var createdBy = ReadJsonString(adjJson, "createdBy");
+
+                            financialRows.Add(new SessionLogRow
+                            {
+                                TransactionType = "ADJUST",
+                                TypeLabel = amountDelta >= 0 ? "Cộng tiền" : "Trừ tiền",
+                                TypeIcon = amountDelta >= 0 ? "➕" : "➖",
+                                TypeBg = amountDelta >= 0 ? "#EFF6FF" : "#FEF2F2",
+                                TypeFg = amountDelta >= 0 ? "#2563EB" : "#DC2626",
+                                TypeBorder = amountDelta >= 0 ? "#BFDBFE" : "#FECACA",
+                                PcName = $"Hội viên {username}",
+                                AgentId = username,
+                                StartedAtText = createdAt != DateTime.MinValue ? createdAt.ToString("dd-MM-yyyy HH:mm:ss") : "-",
+                                EndedAtText = "-",
+                                BillableMinutesText = "-",
+                                AmountRaw = amountDelta,
+                                AmountText = Math.Abs(amountDelta).ToString("N0", CultureInfo.InvariantCulture),
+                                Status = "COMPLETED",
+                                ClosedReason = string.IsNullOrWhiteSpace(note) ? "Điều chỉnh số dư" : note,
+                                CreatedAt = createdAt,
+                            });
+                        }
+                    }
+                    // 5. Chuyển tiền hội viên
+                    else if (eventType == "member.balance.transferred" && evt.Payload is JsonElement transJson)
+                    {
+                        var transAtStr = ReadJsonString(transJson, "transferredAt");
+                        var createdAt = ParseDateLocal(string.IsNullOrWhiteSpace(transAtStr) ? evt.CreatedAt : transAtStr) ?? DateTime.MinValue;
+                        if (createdAt >= rangeStart && createdAt < rangeEndExclusive)
+                        {
+                            var sourceUsername = ReadJsonString(transJson, "sourceUsername");
+                            var targetUsername = ReadJsonString(transJson, "targetUsername");
+                            var amount = ReadJsonDecimal(transJson, "amount");
+                            var note = ReadJsonString(transJson, "note");
+
+                            financialRows.Add(new SessionLogRow
+                            {
+                                TransactionType = "TRANSFER",
+                                TypeLabel = "Chuyển tiền hội viên",
+                                TypeIcon = "🔄",
+                                TypeBg = "#F3E8FF",
+                                TypeFg = "#7E22CE",
+                                TypeBorder = "#E9D5FF",
+                                PcName = $"{sourceUsername} ➔ {targetUsername}",
+                                AgentId = sourceUsername,
+                                StartedAtText = createdAt != DateTime.MinValue ? createdAt.ToString("dd-MM-yyyy HH:mm:ss") : "-",
+                                EndedAtText = "-",
+                                BillableMinutesText = "-",
+                                AmountRaw = amount,
+                                AmountText = amount.ToString("N0", CultureInfo.InvariantCulture),
+                                Status = "COMPLETED",
+                                ClosedReason = string.IsNullOrWhiteSpace(note) ? $"Chuyển số dư sang {targetUsername}" : note,
+                                CreatedAt = createdAt,
+                            });
+                        }
+                    }
+                }
+            }
+
+            var allRows = sessionRows.Concat(financialRows)
+                .OrderByDescending(x => x.CreatedAt)
+                .ToList();
+
             _sessionLogRows.Clear();
-            foreach (var row in rows)
+            foreach (var row in allRows)
             {
                 _sessionLogRows.Add(row);
             }
 
+            var totalTopupAmount = allRows.Where(x => x.TransactionType == "TOPUP").Sum(x => x.AmountRaw);
+            var totalSessionAmount = allRows.Where(x => x.TransactionType == "SESSION").Sum(x => x.AmountRaw);
+            var totalServiceAmount = revenueResponse.ServiceAmount;
+            var totalGrand = totalTopupAmount + totalSessionAmount + totalServiceAmount;
+
             TransactionSummaryTextBlock.Text =
-                $"{revenueResponse.PeriodLabel}: {revenueResponse.TotalAmount:N0} VND " +
-                $"(Giờ chơi: {revenueResponse.SessionAmount:N0} + Dịch vụ: {revenueResponse.ServiceAmount:N0}) - " +
-                $"{I18n.SessionCountPrefix}: {revenueResponse.ClosedSessions} - Đơn dịch vụ: {revenueResponse.ServiceOrders}";
+                $"{revenueResponse.PeriodLabel}: {totalGrand:N0} VND " +
+                $"(Nạp hội viên: {totalTopupAmount:N0} + Giờ chơi: {totalSessionAmount:N0} + Dịch vụ: {totalServiceAmount:N0}) - " +
+                $"Tổng: {allRows.Count} giao dịch";
 
             var rangeEndDisplay = rangeEndExclusive.AddSeconds(-1);
             TransactionsInfoTextBlock.Text =
-                $"{I18n.UpdatedAtPrefix} lúc {DateTime.Now:HH:mm:ss} - " +
+                $"{I18n.UpdatedAtPrefix} lúc {DateTime.Now:HH:mm:ss} (Realtime) - " +
                 $"Khoảng: {rangeStart:dd-MM-yyyy HH:mm} đến {rangeEndDisplay:dd-MM-yyyy HH:mm}";
         }
         catch
@@ -760,17 +1023,28 @@ public partial class MainWindow : Window
 
     private static SessionLogRow ToSessionLogRow(SessionItem item)
     {
+        var endedAt = ParseDateLocal(item.EndedAt);
+        var startedAt = ParseDateLocal(item.StartedAt);
+        var createdAt = endedAt ?? startedAt ?? DateTime.MinValue;
+
         return new SessionLogRow
         {
-            PcName = item.PcName,
+            TransactionType = "SESSION",
+            TypeLabel = "Phiên máy",
+            TypeIcon = "🖥",
+            TypeBg = "#EFF6FF",
+            TypeFg = "#2563EB",
+            TypeBorder = "#BFDBFE",
+            PcName = string.IsNullOrWhiteSpace(item.PcName) ? item.AgentId : item.PcName,
             AgentId = item.AgentId,
             StartedAtText = FormatDateTime(item.StartedAt),
             EndedAtText = FormatDateTime(item.EndedAt),
-            BillableMinutesText = item.BillableMinutes?.ToString() ?? "-",
+            BillableMinutesText = item.BillableMinutes.HasValue ? $"{item.BillableMinutes.Value}p" : "-",
             AmountRaw = item.Amount ?? 0,
             AmountText = (item.Amount ?? 0).ToString("N0", CultureInfo.InvariantCulture),
             Status = item.Status,
             ClosedReason = string.IsNullOrWhiteSpace(item.ClosedReason) ? "-" : item.ClosedReason,
+            CreatedAt = createdAt,
         };
     }
 
@@ -842,12 +1116,19 @@ public partial class MainWindow : Window
 
     private async void SystemLogsTimer_Tick(object? sender, EventArgs e)
     {
-        if (!IsSystemLogsTabActive() || WindowState == WindowState.Minimized)
+        if (WindowState == WindowState.Minimized)
         {
             return;
         }
 
-        await RefreshSystemLogsAsync();
+        if (IsSystemLogsTabActive())
+        {
+            await RefreshSystemLogsAsync();
+        }
+        else if (IsTransactionLogsTabActive())
+        {
+            await RefreshTransactionLogsAsync();
+        }
     }
 
     private async void SystemLogLimitComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)

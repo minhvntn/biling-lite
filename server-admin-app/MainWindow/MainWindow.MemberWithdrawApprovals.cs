@@ -262,6 +262,7 @@ public partial class MainWindow : Window
 
                     _ = RefreshMembersAsync();
                     _ = RefreshMachinesAsync();
+                    _ = RefreshTransactionLogsAsync();
                     decisionSubmitted = true;
                     dialog.DialogResult = true;
                     dialog.Close();

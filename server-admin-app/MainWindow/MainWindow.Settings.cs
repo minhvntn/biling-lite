@@ -179,6 +179,32 @@ public partial class MainWindow : Window
         return Math.Clamp(value, 10, 22);
     }
 
+    private static double ClampMainMenuTabIconSize(double value)
+    {
+        return Math.Clamp(value, 12, 32);
+    }
+
+    private void ApplyMainMenuTabIconSize(double value)
+    {
+        var clamped = ClampMainMenuTabIconSize(value);
+        _settings.MainMenuTabIconSize = clamped;
+        Resources["MainMenuTabIconSize"] = clamped;
+        if (MainMenuTabIconSizeValueTextBlock is not null)
+        {
+            MainMenuTabIconSizeValueTextBlock.Text = clamped.ToString("0");
+        }
+    }
+
+    private void MainMenuTabIconSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!_mainMenuTabIconSizeInitialized)
+        {
+            return;
+        }
+
+        ApplyMainMenuTabIconSize(e.NewValue);
+    }
+
     private static double ClampMachineTableFontSize(double value)
     {
         return Math.Clamp(value, 11, 30);
@@ -203,6 +229,39 @@ public partial class MainWindow : Window
         {
             FontSizeValueTextBlock.Text = clamped.ToString("0");
         }
+    }
+
+    public static FontFamily ResolveFontFamily(string fontName)
+    {
+        if (string.IsNullOrWhiteSpace(fontName) || string.Equals(fontName, "Segoe UI", StringComparison.OrdinalIgnoreCase))
+        {
+            return new FontFamily("Segoe UI");
+        }
+
+        var baseUri = new Uri("pack://application:,,,/");
+        return fontName switch
+        {
+            "Inter" => new FontFamily(baseUri, "./Assets/Fonts/#Inter, Inter, Segoe UI"),
+            "Noto Sans" => new FontFamily(baseUri, "./Assets/Fonts/#Noto Sans, Noto Sans, Segoe UI"),
+            "Open Sans" => new FontFamily(baseUri, "./Assets/Fonts/#Open Sans, Open Sans, Segoe UI"),
+            "Roboto" => new FontFamily(baseUri, "./Assets/Fonts/#Roboto, Roboto, Segoe UI"),
+            "Manrope" => new FontFamily(baseUri, "./Assets/Fonts/#Manrope, Manrope, Segoe UI"),
+            "Montserrat" => new FontFamily(baseUri, "./Assets/Fonts/#Montserrat, Montserrat, Segoe UI"),
+            _ => new FontFamily(fontName + ", Segoe UI")
+        };
+    }
+
+    private void ApplyUiFontFamily(string fontName)
+    {
+        if (string.IsNullOrWhiteSpace(fontName))
+        {
+            fontName = "Segoe UI";
+        }
+
+        var resolved = ResolveFontFamily(fontName);
+        FontFamily = resolved;
+        Resources["AppFontFamily"] = resolved;
+        _settings.UiFontFamily = fontName;
     }
 
     private void ApplyMachineTableFontSize(double value)
@@ -2490,6 +2549,19 @@ public partial class MainWindow : Window
         ApplyUiFontSize(e.NewValue);
     }
 
+    private void AppFontFamilyComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_fontFamilyInitialized || AppFontFamilyComboBox?.SelectedItem is not ComboBoxItem selected)
+        {
+            return;
+        }
+
+        var fontName = selected.Tag?.ToString() ?? "Segoe UI";
+        ApplyUiFontFamily(fontName);
+        SaveSettings();
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã đổi phông chữ giao diện sang: {fontName}");
+    }
+
     private void MachineTableFontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (!_machineTableFontSizeInitialized)
@@ -2554,7 +2626,7 @@ public partial class MainWindow : Window
         await SaveLoyaltySettingsAsync();
         await SaveGuestLoginSettingsAsync();
         await SaveBackupSettingsAsync(appendSuccessLog: false);
-        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] \u0110\u00e3 l\u01b0u: c\u1ee1 ch\u1eef app = {_settings.UiFontSize:0}, b\u1ea3ng m\u00e1y = {_settings.MachineTableFontSize:0}, c\u1ee1 icon = {_settings.MachineTableIconSize:0}, kho\u1ea3ng c\u00e1ch item = {_settings.MachineTableItemSpacing:0}, padding menu = {_settings.MachineContextMenuItemPadding:0}, ch\u1eef menu = {_settings.MachineContextMenuFontSize:0}, t\u1ef1 t\u1eaft = {_readyAutoShutdownMinutes} ph\u00fat");
+        AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã lưu: cỡ chữ app = {_settings.UiFontSize:0}, icon tab menu = {_settings.MainMenuTabIconSize:0}, bảng máy = {_settings.MachineTableFontSize:0}, cỡ icon = {_settings.MachineTableIconSize:0}, khoảng cách item = {_settings.MachineTableItemSpacing:0}, padding menu = {_settings.MachineContextMenuItemPadding:0}, chữ menu = {_settings.MachineContextMenuFontSize:0}, tự tắt = {_readyAutoShutdownMinutes} phút");
     }
 
     private void ResetFontSizeButton_Click(object sender, RoutedEventArgs e)
@@ -2563,6 +2635,14 @@ public partial class MainWindow : Window
         FontSizeSlider.Value = 13;
         _fontSizeInitialized = true;
         ApplyUiFontSize(13);
+
+        _mainMenuTabIconSizeInitialized = false;
+        if (MainMenuTabIconSizeSlider is not null)
+        {
+            MainMenuTabIconSizeSlider.Value = 18;
+        }
+        _mainMenuTabIconSizeInitialized = true;
+        ApplyMainMenuTabIconSize(18);
 
         _machineTableFontSizeInitialized = false;
         MachineTableFontSizeSlider.Value = 14;
@@ -2599,6 +2679,12 @@ public partial class MainWindow : Window
         if (HideDisabledContextMenuItemsCheckBox is not null)
         {
             HideDisabledContextMenuItemsCheckBox.IsChecked = true;
+        }
+
+        ApplyUiFontFamily("Segoe UI");
+        if (AppFontFamilyComboBox != null)
+        {
+            AppFontFamilyComboBox.SelectedIndex = 0;
         }
 
         SaveSettings();

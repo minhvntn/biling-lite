@@ -88,6 +88,79 @@ public partial class MainWindow : Window
             socket.On("pc.status.changed", _ =>
             {
                 QueueRealtimeMachineRefresh();
+                QueueRealtimeUi(async () =>
+                {
+                    if (IsTransactionLogsTabActive())
+                    {
+                        await RefreshTransactionLogsAsync();
+                    }
+                });
+            });
+
+            socket.On("member.topup.resolved", _ =>
+            {
+                QueueRealtimeUi(async () =>
+                {
+                    if (IsTransactionLogsTabActive())
+                    {
+                        await RefreshTransactionLogsAsync();
+                    }
+                });
+            });
+
+            socket.On("member.topup.requested", _ =>
+            {
+                QueueRealtimeUi(async () =>
+                {
+                    if (IsTransactionLogsTabActive())
+                    {
+                        await RefreshTransactionLogsAsync();
+                    }
+                });
+            });
+
+            socket.On("member.withdraw.resolved", _ =>
+            {
+                QueueRealtimeUi(async () =>
+                {
+                    if (IsTransactionLogsTabActive())
+                    {
+                        await RefreshTransactionLogsAsync();
+                    }
+                });
+            });
+
+            socket.On("member.topup.requested", _ =>
+            {
+                QueueRealtimeUi(async () =>
+                {
+                    if (IsTransactionLogsTabActive())
+                    {
+                        await RefreshTransactionLogsAsync();
+                    }
+                });
+            });
+
+            socket.On("member.withdraw.resolved", _ =>
+            {
+                QueueRealtimeUi(async () =>
+                {
+                    if (IsTransactionLogsTabActive())
+                    {
+                        await RefreshTransactionLogsAsync();
+                    }
+                });
+            });
+
+            socket.On("session.closed", _ =>
+            {
+                QueueRealtimeUi(async () =>
+                {
+                    if (IsTransactionLogsTabActive())
+                    {
+                        await RefreshTransactionLogsAsync();
+                    }
+                });
             });
 
             socket.On("pc.hardware_updated", async _ =>

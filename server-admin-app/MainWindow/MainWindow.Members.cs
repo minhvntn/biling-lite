@@ -864,6 +864,7 @@ public partial class MainWindow : Window
 
         InvalidateMembersCache();
         await RefreshMembersAsync(forceRefresh: true);
+        _ = RefreshTransactionLogsAsync();
     }
 
     private void ResetMemberModalTimer()
@@ -1398,6 +1399,7 @@ public partial class MainWindow : Window
         AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] {actionLabel} {amount:N0} cho hội viên {_selectedMemberId}");
         InvalidateMembersCache();
         await RefreshMembersAsync(forceRefresh: true);
+        _ = RefreshTransactionLogsAsync();
     }
 
     private async Task BuyHoursForMemberAsync()
@@ -1465,6 +1467,7 @@ public partial class MainWindow : Window
         AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Mua giờ {boughtHours:0.##}h cho hội viên {_selectedMemberId}");
         InvalidateMembersCache();
         await RefreshMembersAsync(forceRefresh: true);
+        _ = RefreshTransactionLogsAsync();
     }
 
     private async Task RefundMemberAsync()
@@ -1518,6 +1521,7 @@ public partial class MainWindow : Window
         AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Trả lại {amount.Value:N0} cho hội viên {_selectedMemberId}");
         InvalidateMembersCache();
         await RefreshMembersAsync(forceRefresh: true);
+        _ = RefreshTransactionLogsAsync();
     }
 
     private async Task DeleteMemberAsync()
@@ -2704,6 +2708,7 @@ public partial class MainWindow : Window
         AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã cập nhật hội viên {member.Username}");
         InvalidateMembersCache();
         await RefreshMembersAsync(forceRefresh: true);
+        _ = RefreshTransactionLogsAsync();
     }
 
     private async Task TransferMemberBalanceAsync()
@@ -2760,6 +2765,7 @@ public partial class MainWindow : Window
             $"[{DateTime.Now:HH:mm:ss}] Đã chuyển {transferPayload.Value.Amount:N0} từ {sourceMember.Username} sang {transferPayload.Value.TargetMember.Username}");
         InvalidateMembersCache();
         await RefreshMembersAsync(forceRefresh: true);
+        _ = RefreshTransactionLogsAsync();
     }
 
     private (MemberRow TargetMember, decimal Amount, string? Note)? ShowTransferMemberModal(

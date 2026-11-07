@@ -73,6 +73,8 @@ public partial class MainWindow : Window
     private bool _isRefreshingSystemLogs;
     private bool _isRefreshingMembersAuto;
     private bool _fontSizeInitialized;
+    private bool _fontFamilyInitialized;
+    private bool _mainMenuTabIconSizeInitialized;
     private bool _machineTableFontSizeInitialized;
     private bool _machineTableIconSizeInitialized;
     private bool _machineTableItemSpacingInitialized;
@@ -168,6 +170,8 @@ public partial class MainWindow : Window
             ApplyColorSettings();
             UpdateServerIpDisplay();
             ApplyUiFontSize(_settings.UiFontSize);
+            ApplyUiFontFamily(_settings.UiFontFamily);
+            ApplyMainMenuTabIconSize(_settings.MainMenuTabIconSize);
             ApplyMachineTableFontSize(_settings.MachineTableFontSize);
             ApplyMachineTableIconSize(_settings.MachineTableIconSize);
             ApplyMachineTableItemSpacing(_settings.MachineTableItemSpacing);
@@ -192,6 +196,14 @@ public partial class MainWindow : Window
             TopupPromoTiersDataGrid.ItemsSource = _topupPromoTierRows;
             FontSizeSlider.Value = _settings.UiFontSize;
             FontSizeValueTextBlock.Text = _settings.UiFontSize.ToString("0");
+            if (MainMenuTabIconSizeSlider is not null)
+            {
+                MainMenuTabIconSizeSlider.Value = _settings.MainMenuTabIconSize;
+            }
+            if (MainMenuTabIconSizeValueTextBlock is not null)
+            {
+                MainMenuTabIconSizeValueTextBlock.Text = _settings.MainMenuTabIconSize.ToString("0");
+            }
             MachineTableFontSizeSlider.Value = _settings.MachineTableFontSize;
             MachineTableFontSizeValueTextBlock.Text = _settings.MachineTableFontSize.ToString("0");
             if (MachineTableIconSizeSlider is not null)
@@ -233,6 +245,19 @@ public partial class MainWindow : Window
             RefreshWebsiteLogMachineFilterOptions();
             InitializeSystemLogMachineFilter();
             _fontSizeInitialized = true;
+            if (AppFontFamilyComboBox is not null)
+            {
+                foreach (ComboBoxItem item in AppFontFamilyComboBox.Items)
+                {
+                    if (string.Equals(item.Tag?.ToString(), _settings.UiFontFamily, StringComparison.OrdinalIgnoreCase))
+                    {
+                        AppFontFamilyComboBox.SelectedItem = item;
+                        break;
+                    }
+                }
+            }
+            _fontFamilyInitialized = true;
+            _mainMenuTabIconSizeInitialized = true;
             _machineTableFontSizeInitialized = true;
             _machineTableIconSizeInitialized = true;
             _machineTableItemSpacingInitialized = true;
@@ -240,6 +265,7 @@ public partial class MainWindow : Window
             _machineContextMenuFontSizeInitialized = true;
             _transactionReportInitialized = true;
             InitializeWakeLanProfilesUi();
+            InitializeTaxReportUi();
             InitializeChatbot();
             if (!_settings.IsLiteMode)
             {
@@ -732,6 +758,10 @@ public partial class MainWindow : Window
             {
                 await RefreshPcAnalyticsAsync();
             }
+            else if (StatsTabControl.SelectedItem == TaxReportTabItem)
+            {
+                await RefreshTaxReportAsync();
+            }
         }
     }
 
@@ -908,6 +938,11 @@ public partial class MainWindow : Window
     private bool IsSystemLogsTabActive()
     {
         return IsLoaded && MainTabControl.SelectedItem == LogsTabItem && LogsTabControl.SelectedItem == SystemLogsTabItem;
+    }
+
+    private bool IsTransactionLogsTabActive()
+    {
+        return IsLoaded && MainTabControl.SelectedItem == LogsTabItem && LogsTabControl.SelectedItem == TransactionLogsTabItem;
     }
 
     private static bool IsCacheValid(DateTime cachedAtUtc, int ttlSeconds)

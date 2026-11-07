@@ -1346,5 +1346,160 @@ export class ReportsService {
       serverTime: new Date().toISOString(),
     };
   }
+
+  async getTaxReport(params: {
+    type?: string;
+    year?: number;
+    month?: number;
+    quarter?: number;
+    startDate?: string;
+    endDate?: string;
+    ratio?: number;
+    vatRate?: number;
+    pitRate?: number;
+  }) {
+    const type = (params.type || 'month').toLowerCase();
+    const now = new Date();
+    const year = params.year && params.year >= 2000 ? params.year : now.getFullYear();
+    const month = params.month && params.month >= 1 && params.month <= 12 ? params.month : now.getMonth() + 1;
+    const quarter = params.quarter && params.quarter >= 1 && params.quarter <= 4 ? params.quarter : Math.floor(now.getMonth() / 3) + 1;
+    const ratio = Math.max(1, Math.min(100, typeof params.ratio === 'number' && !isNaN(params.ratio) ? params.ratio : 100));
+    const vatRate = typeof params.vatRate === 'number' && !isNaN(params.vatRate) ? Math.max(0, params.vatRate) : 5;
+    const pitRate = typeof params.pitRate === 'number' && !isNaN(params.pitRate) ? Math.max(0, params.pitRate) : 2;
+
+    let start: Date;
+    let endExclusive: Date;
+    let periodLabel: string;
+
+    if (type === 'quarter') {
+      start = new Date(Date.UTC(year, (quarter - 1) * 3, 1, 0, 0, 0, 0));
+      endExclusive = new Date(Date.UTC(year, quarter * 3, 1, 0, 0, 0, 0));
+      periodLabel = `Quý ${quarter}/${year}`;
+    } else if (type === 'year') {
+      start = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
+      endExclusive = new Date(Date.UTC(year + 1, 0, 1, 0, 0, 0, 0));
+      periodLabel = `Năm ${year}`;
+    } else if (type === 'custom' && params.startDate && params.endDate) {
+      start = new Date(params.startDate + 'T00:00:00.000Z');
+      const end = new Date(params.endDate + 'T00:00:00.000Z');
+      end.setUTCDate(end.getUTCDate() + 1);
+      endExclusive = end;
+      periodLabel = `${params.startDate} đến ${params.endDate}`;
+    } else {
+      // month default
+      start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+      endExclusive = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+      periodLabel = `Tháng ${month}/${year}`;
+    }
+
+    const range = { start, endExclusive };
+
+    const [sessions, paidServiceRecords] = await Promise.all([
+      this.prisma.session.findMany({
+        where: {
+          status: 'CLOSED',
+          endedAt: {
+            gte: range.start,
+            lt: range.endExclusive,
+          },
+        },
+        select: {
+          amount: true,
+          endedAt: true,
+        },
+      }),
+      this.getPaidServiceOrderRecords(range),
+    ]);
+
+    const sessionsByDay = new Map<string, { count: number; amount: number }>();
+    for (const session of sessions) {
+      if (!session.endedAt) continue;
+      const dayKey = session.endedAt.toISOString().slice(0, 10);
+      const curr = sessionsByDay.get(dayKey) || { count: 0, amount: 0 };
+      curr.count += 1;
+      curr.amount += Number(session.amount ?? 0);
+      sessionsByDay.set(dayKey, curr);
+    }
+
+    const servicesByDay = new Map<string, number>();
+    for (const record of paidServiceRecords) {
+      if (!record.paidAt) continue;
+      const dayKey = record.paidAt.toISOString().slice(0, 10);
+      const curr = servicesByDay.get(dayKey) || 0;
+      servicesByDay.set(dayKey, curr + Number(record.lineTotal ?? 0));
+    }
+
+    const dayOfWeekNames = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+    const dailyBreakdown = [];
+    const iter = new Date(start);
+
+    let totalActualPlaytime = 0;
+    let totalActualService = 0;
+
+    while (iter < endExclusive) {
+      const dayKey = iter.toISOString().slice(0, 10);
+      const dayOfWeek = dayOfWeekNames[iter.getUTCDay()];
+      const sData = sessionsByDay.get(dayKey) || { count: 0, amount: 0 };
+      const srvAmount = servicesByDay.get(dayKey) || 0;
+      const actualTotal = sData.amount + srvAmount;
+
+      const taxablePlaytime = Math.round(sData.amount * (ratio / 100));
+      const taxableService = Math.round(srvAmount * (ratio / 100));
+      const taxableTotal = taxablePlaytime + taxableService;
+
+      const vatAmount = Math.round(taxableTotal * (vatRate / 100));
+      const pitAmount = Math.round(taxableTotal * (pitRate / 100));
+      const totalTax = vatAmount + pitAmount;
+
+      totalActualPlaytime += sData.amount;
+      totalActualService += srvAmount;
+
+      dailyBreakdown.push({
+        date: dayKey,
+        dayOfWeek,
+        sessionCount: sData.count,
+        actualPlaytime: sData.amount,
+        actualService: srvAmount,
+        actualTotal,
+        taxablePlaytime,
+        taxableService,
+        taxableTotal,
+        vatAmount,
+        pitAmount,
+        totalTax,
+      });
+
+      iter.setUTCDate(iter.getUTCDate() + 1);
+    }
+
+    const totalActualRevenue = totalActualPlaytime + totalActualService;
+    const totalTaxablePlaytime = Math.round(totalActualPlaytime * (ratio / 100));
+    const totalTaxableService = Math.round(totalActualService * (ratio / 100));
+    const totalTaxableRevenue = totalTaxablePlaytime + totalTaxableService;
+    const totalVatAmount = Math.round(totalTaxableRevenue * (vatRate / 100));
+    const totalPitAmount = Math.round(totalTaxableRevenue * (pitRate / 100));
+    const totalTaxAmount = totalVatAmount + totalPitAmount;
+
+    return {
+      periodType: type,
+      periodLabel,
+      startDate: start.toISOString(),
+      endDate: endExclusive.toISOString(),
+      taxRatio: ratio,
+      vatRate,
+      pitRate,
+      totalActualPlaytime,
+      totalActualService,
+      totalActualRevenue,
+      totalTaxablePlaytime,
+      totalTaxableService,
+      totalTaxableRevenue,
+      totalVatAmount,
+      totalPitAmount,
+      totalTaxAmount,
+      dailyBreakdown,
+      serverTime: new Date().toISOString(),
+    };
+  }
 }
 
