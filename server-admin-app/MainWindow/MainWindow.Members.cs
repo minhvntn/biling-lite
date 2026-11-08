@@ -2064,6 +2064,29 @@ public partial class MainWindow : Window
 
     private void CancelMemberModalButton_Click(object sender, RoutedEventArgs e) => HideAddMemberModal();
 
+    private void MemberModalOverlay_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource == MemberModalOverlay)
+        {
+            HideAddMemberModal();
+        }
+    }
+
+    private async void MemberModalInput_KeyDown(object sender, KeyEventArgs e)
+    {
+        ResetMemberModalTimer();
+        if (e.Key == Key.Enter)
+        {
+            e.Handled = true;
+            await CreateMemberAsync();
+        }
+        else if (e.Key == Key.Escape)
+        {
+            e.Handled = true;
+            HideAddMemberModal();
+        }
+    }
+
     private async Task OpenMemberTransactionsDialogAsync(MemberRow member)
     {
         var startDate = DateTime.Now.AddMonths(-1).Date;
