@@ -743,6 +743,97 @@
                                 </MenuItem.Icon>
                             </MenuItem>
                         </MenuItem>
+                        <MenuItem Header="Hiển thị" Style="{StaticResource TopLevelMenuItemStyle}" Padding="12,5" Height="32" VerticalContentAlignment="Center" Foreground="White">
+                            <MenuItem Header="CHẾ ĐỘ XEM MÁY TRẠM" IsEnabled="False" Foreground="#64748B" FontSize="10.5" FontWeight="SemiBold" Padding="10,3,10,2"/>
+                            <MenuItem x:Name="ViewModeListMenuItem2" Header="Dạng danh sách" Click="ViewModeList_Click" FontWeight="Medium" Foreground="#1E293B" FontSize="13" Padding="10,4.5">
+                                <MenuItem.Icon>
+                                    <TextBlock x:Name="ViewModeListIcon2" Text="✔" Foreground="#2563EB" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem x:Name="ViewModeIconMenuItem2" Header="Dạng biểu tượng" Click="ViewModeIcon_Click" FontWeight="Normal" Foreground="#1E293B" FontSize="13" Padding="10,4.5">
+                                <MenuItem.Icon>
+                                    <TextBlock x:Name="ViewModeIconIcon2" Text="" Foreground="#2563EB" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem x:Name="ShowOfflineMachinesMenuItem2" Header="Hiển thị máy trạm mất kết nối" Click="ShowOfflineMachines_Click" Foreground="#1E293B" FontSize="13" Padding="10,4.5" FontWeight="Medium">
+                                <MenuItem.Icon>
+                                    <TextBlock x:Name="ShowOfflineMachinesIcon2" Text="✔" Foreground="#2563EB" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator />
+                            <MenuItem Header="CỘT BẢNG MÁY TRẠM (BẬT / TẮT)" IsEnabled="False" Foreground="#64748B" FontSize="10.5" FontWeight="SemiBold" Padding="10,4,10,2"/>
+                            <MenuItem x:Name="ToggleColNameMenuItem" Header="Tên máy" Click="ToggleMachineColumn_Click" Tag="Name" StaysOpenOnClick="True" Foreground="#1E293B" FontSize="13" Padding="10,4">
+                                <MenuItem.Icon>
+                                    <TextBlock x:Name="ToggleColNameIcon" Text="✔" Foreground="#2563EB" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem x:Name="ToggleColStatusMenuItem" Header="Tình trạng" Click="ToggleMachineColumn_Click" Tag="Status" StaysOpenOnClick="True" Foreground="#1E293B" FontSize="13" Padding="10,4">
+                                <MenuItem.Icon>
+                                    <TextBlock x:Name="ToggleColStatusIcon" Text="✔" Foreground="#2563EB" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem x:Name="ToggleColUserMenuItem" Header="Người sử dụng" Click="ToggleMachineColumn_Click" Tag="User" StaysOpenOnClick="True" Foreground="#1E293B" FontSize="13" Padding="10,4">
+                                <MenuItem.Icon>
+                                    <TextBlock x:Name="ToggleColUserIcon" Text="✔" Foreground="#2563EB" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem x:Name="ToggleColStartTimeMenuItem" Header="Bắt đầu" Click="ToggleMachineColumn_Click" Tag="StartTime" StaysOpenOnClick="True" Foreground="#1E293B" FontSize="13" Padding="10,4">
+                                <MenuItem.Icon>
+                                    <TextBlock x:Name="ToggleColStartTimeIcon" Text="✔" Foreground="#2563EB" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem x:Name="ToggleColUsedTimeMenuItem" Header="Đã sử dụng" Click="ToggleMachineColumn_Click" Tag="UsedTime" StaysOpenOnClick="True" Foreground="#1E293B" FontSize="13" Padding="10,4">
+                                <MenuItem.Icon>
+                                    <TextBlock x:Name="ToggleColUsedTimeIcon" Text="✔" Foreground="#2563EB" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem x:Name="ToggleColRemainingTimeMenuItem" Header="Còn lại" Click="ToggleMachineColumn_Click" Tag="RemainingTime" StaysOpenOnClick="True" Foreground="#1E293B" FontSize="13" Padding="10,4">
+                                <MenuItem.Icon>
+                                    <TextBlock x:Name="ToggleColRemainingTimeIcon" Text="✔" Foreground="#2563EB" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem x:Name="ToggleColFeeMenuItem" Header="Tiền" Click="ToggleMachineColumn_Click" Tag="Fee" StaysOpenOnClick="True" Foreground="#1E293B" FontSize="13" Padding="10,4">
+                                <MenuItem.Icon>
+                                    <TextBlock x:Name="ToggleColFeeIcon" Text="✔" Foreground="#2563EB" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem x:Name="ToggleColServiceFeeMenuItem" Header="Tiền dịch vụ" Click="ToggleMachineColumn_Click" Tag="ServiceFee" StaysOpenOnClick="True" Foreground="#1E293B" FontSize="13" Padding="10,4">
+                                <MenuItem.Icon>
+                                    <TextBlock x:Name="ToggleColServiceFeeIcon" Text="✔" Foreground="#2563EB" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem x:Name="ToggleColDateMenuItem" Header="Ngày" Click="ToggleMachineColumn_Click" Tag="Date" StaysOpenOnClick="True" Foreground="#1E293B" FontSize="13" Padding="10,4">
+                                <MenuItem.Icon>
+                                    <TextBlock x:Name="ToggleColDateIcon" Text="✔" Foreground="#2563EB" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem x:Name="ToggleColIpMenuItem" Header="IP" Click="ToggleMachineColumn_Click" Tag="Ip" StaysOpenOnClick="True" Foreground="#1E293B" FontSize="13" Padding="10,4">
+                                <MenuItem.Icon>
+                                    <TextBlock x:Name="ToggleColIpIcon" Text="✔" Foreground="#2563EB" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem x:Name="ToggleColGroupMenuItem" Header="Nhóm" Click="ToggleMachineColumn_Click" Tag="Group" StaysOpenOnClick="True" Foreground="#1E293B" FontSize="13" Padding="10,4">
+                                <MenuItem.Icon>
+                                    <TextBlock x:Name="ToggleColGroupIcon" Text="✔" Foreground="#2563EB" FontSize="12" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <Separator />
+                            <MenuItem Header="Hiện tất cả cột" Click="ShowAllMachineColumns_Click" Foreground="#059669" FontWeight="Medium" FontSize="13" Padding="10,5">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="👁" Foreground="#059669" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Thu gọn nhanh (Tối giản)" Click="SetCompactMachineColumns_Click" Foreground="#D97706" FontWeight="Medium" FontSize="13" Padding="10,5" ToolTip="Ẩn bớt Ngày, IP, Nhóm, Tiền dịch vụ để bảng máy trạm hiển thị gọn gàng nhất">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="📐" Foreground="#D97706" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                            <MenuItem Header="Đặt lại mặc định" Click="ResetMachineColumns_Click" Foreground="#64748B" FontWeight="Normal" FontSize="13" Padding="10,5">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="↺" Foreground="#64748B" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </MenuItem.Icon>
+                            </MenuItem>
+                        </MenuItem>
                         <MenuItem Header="Giới thiệu" Style="{StaticResource TopLevelMenuItemStyle}" Padding="12,5" Height="32" VerticalContentAlignment="Center" Foreground="White" Click="AboutMenuItem_Click" Cursor="Hand" ToolTip="Thông tin phần mềm &amp; phiên bản"/>
                     </Menu>
 
@@ -966,7 +1057,7 @@
                                 </Style>
                             </DataGrid.ColumnHeaderStyle>
                             <DataGrid.Columns>
-                                <DataGridTemplateColumn Header="Tên" Width="1.2*">
+                                <DataGridTemplateColumn x:Name="MachineNameColumn" Header="Tên" Width="1.2*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -995,7 +1086,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Tình trạng" Width="1.1*">
+                                <DataGridTemplateColumn x:Name="MachineStatusColumn" Header="Tình trạng" Width="1.1*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Vertical" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,3">
@@ -1015,8 +1106,8 @@
                                                                     <Setter Property="BorderBrush" Value="#BFDBFE" />
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
-                                                                    <Setter Property="Background" Value="#FEF2F2" />
-                                                                    <Setter Property="BorderBrush" Value="#FECACA" />
+                                                                    <Setter Property="Background" Value="{DynamicResource ColorOnlineBgBrush}" />
+                                                                    <Setter Property="BorderBrush" Value="#A7F3D0" />
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
                                                                     <Setter Property="Background" Value="#FEF2F2" />
@@ -1055,7 +1146,7 @@
                                                                             <Setter Property="Fill" Value="#3B82F6" />
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
-                                                                            <Setter Property="Fill" Value="#EF4444" />
+                                                                            <Setter Property="Fill" Value="#10B981" />
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
                                                                             <Setter Property="Fill" Value="#EF4444" />
@@ -1094,7 +1185,7 @@
                                                                             <Setter Property="Foreground" Value="{DynamicResource ColorInUseFgBrush}" />
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
-                                                                            <Setter Property="Foreground" Value="#DC2626" />
+                                                                            <Setter Property="Foreground" Value="{DynamicResource ColorOnlineFgBrush}" />
                                                                         </DataTrigger>
                                                                         <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
                                                                             <Setter Property="Foreground" Value="#DC2626" />
@@ -1149,7 +1240,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Người sử dụng" Width="1.1*">
+                                <DataGridTemplateColumn x:Name="MachineUserColumn" Header="Người sử dụng" Width="1.1*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="6,4">
@@ -1194,7 +1285,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Bắt đầu" Width="0.95*">
+                                <DataGridTemplateColumn x:Name="MachineStartTimeColumn" Header="Bắt đầu" Width="0.95*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding StartedAtText}"
@@ -1205,7 +1296,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Đã sử dụng" Width="0.95*">
+                                <DataGridTemplateColumn x:Name="MachineUsedTimeColumn" Header="Đã sử dụng" Width="0.95*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border CornerRadius="6" 
@@ -1247,7 +1338,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Còn lại" Width="0.95*">
+                                <DataGridTemplateColumn x:Name="MachineRemainingTimeColumn" Header="Còn lại" Width="0.95*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border CornerRadius="6" 
@@ -1289,7 +1380,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Tiền" Width="0.8*">
+                                <DataGridTemplateColumn x:Name="MachineFeeColumn" Header="Tiền" Width="0.8*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding MoneyText}"
@@ -1300,7 +1391,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Tiền dịch vụ" Width="0.9*">
+                                <DataGridTemplateColumn x:Name="MachineServiceFeeColumn" Header="Tiền dịch vụ" Width="0.9*">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border Padding="6,2"
@@ -1478,8 +1569,8 @@
                                                 <Setter TargetName="IconCard" Property="BorderBrush" Value="#86EFAC" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding StatusCode}" Value="LOCKED">
-                                                <Setter TargetName="IconCard" Property="Background" Value="#FEF2F2" />
-                                                <Setter TargetName="IconCard" Property="BorderBrush" Value="#FCA5A5" />
+                                                <Setter TargetName="IconCard" Property="Background" Value="#ECFDF5" />
+                                                <Setter TargetName="IconCard" Property="BorderBrush" Value="#86EFAC" />
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding StatusCode}" Value="OFFLINE">
                                                 <Setter TargetName="IconCard" Property="Background" Value="#F1F5F9" />
@@ -10389,203 +10480,1441 @@
                     </TabItem.Header>
                     <TabControl Margin="8">
                         <TabItem Header="Server">
-                            <Grid Margin="12">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
-                                <StackPanel Grid.Row="0" Margin="0,0,0,10">
-                                    <DockPanel LastChildFill="False">
-                                        <TextBlock FontSize="18" FontWeight="SemiBold" Text="Danh sách tài khoản Server Admin" DockPanel.Dock="Left" />
-                                        <Button Content="Đổi tài khoản ADMIN mặc định"
-                                                DockPanel.Dock="Right"
-                                                Padding="10,4"
-                                                Click="ChangeAdminCredentialsButton_Click"
-                                                Background="#F59E0B"
-                                                BorderBrush="#D97706"
-                                                Foreground="White" />
-                                    </DockPanel>
-                                    <TextBlock Margin="0,6,0,0" Foreground="#666" Text="Bạn có thể tạo thêm tài khoản nhân viên. Tài khoản ADMIN không thể bị xóa." />
-                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                        <StackPanel Margin="0,0,8,0">
-                                            <TextBlock Text="Tên đăng nhập" FontSize="11" Foreground="#666" Margin="0,0,0,2"/>
-                                            <TextBox x:Name="NewStaffUsernameTextBox" Width="180" Height="30" Padding="5,0" VerticalContentAlignment="Center" />
-                                        </StackPanel>
-                                        <StackPanel Margin="0,0,8,0">
-                                            <TextBlock Text="Mật khẩu" FontSize="11" Foreground="#666" Margin="0,0,0,2"/>
-                                            <PasswordBox x:Name="NewStaffPasswordBox" Width="180" Height="30" Padding="5,0" VerticalContentAlignment="Center" />
-                                        </StackPanel>
-                                        <Button Content="Tạo tài khoản nhân viên" Width="170" Height="30" Click="CreateStaffButton_Click" VerticalAlignment="Bottom"/>
-                                    </StackPanel>
-                                    <TextBlock x:Name="StaffActionStatusTextBlock" Margin="0,8,0,0" Foreground="#555" />
-                                </StackPanel>
-                                <DataGrid x:Name="ServerUsersDataGrid" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single">
-                                    <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Tên đăng nhập" Binding="{Binding Username}" Width="200" />
-                                        <DataGridTextColumn Header="Quyền" Binding="{Binding Role}" Width="120" />
-                                        <DataGridTextColumn Header="Ngày tạo" Binding="{Binding CreatedAt, StringFormat=dd/MM/yyyy HH:mm}" Width="180" />
-                                        <DataGridTemplateColumn Header="Hành động" Width="190">
-                                            <DataGridTemplateColumn.CellTemplate>
-                                                <DataTemplate>
-                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                                        <Button Content="Đổi mật khẩu" Click="ResetStaffPasswordButton_Click" Tag="{Binding}" Margin="4,2" Padding="10,4" Background="#3B82F6" Foreground="White" BorderThickness="0" Cursor="Hand">
-                                                            <Button.Resources>
-                                                                <Style TargetType="Border">
-                                                                    <Setter Property="CornerRadius" Value="4"/>
-                                                                </Style>
-                                                            </Button.Resources>
-                                                        </Button>
-                                                        <Button Content="Xóa" Click="DeleteStaffButton_Click" Tag="{Binding Id}" Margin="4,2" Padding="10,4" Background="#EF4444" Foreground="White" BorderThickness="0" Cursor="Hand">
-                                                            <Button.Resources>
-                                                                <Style TargetType="Border">
-                                                                    <Setter Property="CornerRadius" Value="4"/>
-                                                                </Style>
-                                                            </Button.Resources>
-                                                        </Button>
-                                                    </StackPanel>
-                                                </DataTemplate>
-                                            </DataGridTemplateColumn.CellTemplate>
-                                        </DataGridTemplateColumn>
-                                    </DataGrid.Columns>
-                                </DataGrid>
-                            </Grid>
-                        </TabItem>
-                        <TabItem Header="{x:Static local:I18n.DatabaseTab}">
-                            <Grid Margin="12">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="12" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="12" />
-                                    <RowDefinition Height="*" />
-                                </Grid.RowDefinitions>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" CanContentScroll="False" PanningMode="VerticalOnly">
+                                <Grid Margin="16,14,16,24">
+                                    <Grid.RowDefinitions>
+                                        <!-- Row 0: Header & Action Bar -->
+                                        <RowDefinition Height="Auto" />
+                                        <!-- Row 1: Bento KPI Cards -->
+                                        <RowDefinition Height="Auto" />
+                                        <!-- Row 2: Main Work Area (Add Staff Form + User DataGrid) -->
+                                        <RowDefinition Height="Auto" />
+                                        <!-- Row 3: Security & RBAC Guidance -->
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
 
-                                <Border Grid.Row="0"
-                                        Background="#F8FAFC"
-                                        BorderBrush="#E2E8F0"
-                                        BorderThickness="1"
-                                        CornerRadius="10"
-                                        Padding="14,12">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <StackPanel Grid.Column="0">
-                                            <TextBlock x:Name="DbStorageSizeTextBlock"
-                                                       Text="{x:Static local:I18n.DbLoading}"
-                                                       FontSize="18"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="#0F172A" />
-                                            <TextBlock x:Name="DbStorageUpdatedAtTextBlock"
-                                                       Margin="0,6,0,0"
-                                                       Text="{x:Static local:I18n.DbUpdatedLoading}"
-                                                       Foreground="#64748B" />
-                                            <TextBlock x:Name="DbStorageDeltaTextBlock"
-                                                       Margin="0,6,0,0"
-                                                       Text="{x:Static local:I18n.DbDeltaDefault}"
-                                                       Foreground="#64748B"
-                                                       FontWeight="SemiBold" />
-                                        </StackPanel>
-
-                                        <Button Grid.Column="1"
-                                                Padding="12,6"
-                                                Content="Làm mới"
-                                                Click="RefreshDatabaseStorageButton_Click" />
-                                    </Grid>
-                                </Border>
-
-                                <Grid Grid.Row="2">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="1.4*" />
-                                        <ColumnDefinition Width="12" />
-                                        <ColumnDefinition Width="1*" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <Border Grid.Column="0"
+                                    <!-- 0. Header & Action Bar -->
+                                    <Border Grid.Row="0"
                                             Background="White"
                                             BorderBrush="#E2E8F0"
                                             BorderThickness="1"
-                                            CornerRadius="10"
-                                            Padding="10">
+                                            CornerRadius="12"
+                                            Padding="18,14"
+                                            Margin="0,0,0,14">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Left Title & Subtitle -->
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <!-- Server Shield Icon -->
+                                                    <Border Width="34" Height="34" CornerRadius="8" Background="#EFF6FF" Margin="0,0,10,0">
+                                                        <Path Data="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"
+                                                              Fill="#2563EB" Width="18" Height="18" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <TextBlock Text="DANH SÁCH TÀI KHOẢN SERVER ADMIN" FontSize="18" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center" />
+                                                    <Border Margin="12,0,0,0" Background="#F1F5F9" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                                                        <TextBlock Text="RBAC • Phân quyền hệ thống" FontSize="11" FontWeight="SemiBold" Foreground="#475569" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Margin="44,4,0,0" Text="Quản lý tài khoản quản trị viên tối cao và nhân viên ca trực đăng nhập vào phần mềm Server" FontSize="12" Foreground="#64748B" />
+                                            </StackPanel>
+
+                                            <!-- Right Action Panel -->
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,6" Margin="0,0,10,0">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Ellipse Width="7" Height="7" Fill="#10B981" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                        <TextBlock x:Name="StaffActionStatusTextBlock" Text="Đã tải tài khoản" FontSize="11" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- Đổi tài khoản ADMIN mặc định -->
+                                                <Button Padding="13,7"
+                                                        Margin="0,0,8,0"
+                                                        Background="#FEF3C7"
+                                                        BorderBrush="#FDE68A"
+                                                        BorderThickness="1"
+                                                        Foreground="#B45309"
+                                                        FontWeight="SemiBold"
+                                                        FontSize="12"
+                                                        Cursor="Hand"
+                                                        ToolTip="Đổi mật khẩu tài khoản quản trị viên tối cao (admin)"
+                                                        Click="ChangeAdminCredentialsButton_Click">
+                                                    <Button.Resources>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="CornerRadius" Value="8"/>
+                                                        </Style>
+                                                    </Button.Resources>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Path Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+                                                              Fill="#B45309" Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Đổi tài khoản ADMIN mặc định" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Button>
+
+                                                <!-- Làm mới -->
+                                                <Button Padding="14,7"
+                                                        Background="#2563EB"
+                                                        Foreground="White"
+                                                        FontWeight="SemiBold"
+                                                        FontSize="12"
+                                                        BorderThickness="0"
+                                                        Cursor="Hand"
+                                                        Click="RefreshServerUsersButton_Click">
+                                                    <Button.Resources>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="CornerRadius" Value="8"/>
+                                                        </Style>
+                                                    </Button.Resources>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Path Data="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+                                                              Fill="White" Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Làm mới" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- 1. Bento KPI Cards (Row of 4 Cards) -->
+                                    <Grid Grid.Row="1" Margin="0,0,0,14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- KPI Card 1: Tổng số tài khoản -->
+                                        <Border Grid.Column="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="14,12">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid Grid.Row="0">
+                                                    <TextBlock Text="TỔNG TÀI KHOẢN" FontSize="11" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center" />
+                                                    <Border HorizontalAlignment="Right" Width="28" Height="28" CornerRadius="6" Background="#EFF6FF">
+                                                        <Path Data="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"
+                                                              Fill="#2563EB" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </Grid>
+                                                <TextBlock Grid.Row="1" x:Name="ServerTotalUsersTextBlock" Text="3 Tài khoản" FontSize="22" FontWeight="Bold" Foreground="#0F172A" Margin="0,6,0,2"/>
+                                                <TextBlock Grid.Row="2" Text="Đang kích hoạt trên hệ thống" FontSize="11" Foreground="#64748B"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- KPI Card 2: Quản trị viên tối cao -->
+                                        <Border Grid.Column="2" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="14,12">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid Grid.Row="0">
+                                                    <TextBlock Text="QUẢN TRỊ VIÊN" FontSize="11" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center" />
+                                                    <Border HorizontalAlignment="Right" Width="28" Height="28" CornerRadius="6" Background="#FEF2F2">
+                                                        <Path Data="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"
+                                                              Fill="#DC2626" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </Grid>
+                                                <TextBlock Grid.Row="1" x:Name="ServerAdminCountTextBlock" Text="1 Admin" FontSize="22" FontWeight="Bold" Foreground="#0F172A" Margin="0,6,0,2"/>
+                                                <Border Grid.Row="2" HorizontalAlignment="Left" Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                                    <TextBlock Text="Toàn quyền hệ thống" FontSize="10" FontWeight="Bold" Foreground="#DC2626"/>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- KPI Card 3: Tài khoản nhân viên -->
+                                        <Border Grid.Column="4" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="14,12">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid Grid.Row="0">
+                                                    <TextBlock Text="NHÂN VIÊN (STAFF)" FontSize="11" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center" />
+                                                    <Border HorizontalAlignment="Right" Width="28" Height="28" CornerRadius="6" Background="#EFF6FF">
+                                                        <Path Data="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"
+                                                              Fill="#2563EB" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </Grid>
+                                                <TextBlock Grid.Row="1" x:Name="ServerStaffCountTextBlock" Text="2 Nhân viên" FontSize="22" FontWeight="Bold" Foreground="#0F172A" Margin="0,6,0,2"/>
+                                                <Border Grid.Row="2" HorizontalAlignment="Left" Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                                    <TextBlock Text="Quyền thu ngân &amp; ca trực" FontSize="10" FontWeight="Bold" Foreground="#2563EB"/>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- KPI Card 4: Bảo mật & Mã hóa -->
+                                        <Border Grid.Column="6" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="14,12">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid Grid.Row="0">
+                                                    <TextBlock Text="BẢO MẬT &amp; MÃ HÓA" FontSize="11" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center" />
+                                                    <Border HorizontalAlignment="Right" Width="28" Height="28" CornerRadius="6" Background="#ECFDF5">
+                                                        <Path Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+                                                              Fill="#059669" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </Grid>
+                                                <TextBlock Grid.Row="1" Text="Bcrypt Salted" FontSize="22" FontWeight="Bold" Foreground="#0F172A" Margin="0,6,0,2"/>
+                                                <Border Grid.Row="2" HorizontalAlignment="Left" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                                    <TextBlock Text="An toàn &amp; Chống rò rỉ" FontSize="10" FontWeight="Bold" Foreground="#059669"/>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- 2. Main Work Area (Add Staff Form [Left] + Account Table [Right]) -->
+                                    <Grid Grid.Row="2" Margin="0,0,0,14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="340" />
+                                            <ColumnDefinition Width="14" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Left Card: Thêm tài khoản nhân viên mới -->
+                                        <Border Grid.Column="0"
+                                                Background="White"
+                                                BorderBrush="#E2E8F0"
+                                                BorderThickness="1"
+                                                CornerRadius="12"
+                                                Padding="18,16">
+                                            <StackPanel>
+                                                <!-- Card Header -->
+                                                <Grid Margin="0,0,0,14">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Border Width="28" Height="28" CornerRadius="6" Background="#EFF6FF" Margin="0,0,8,0">
+                                                            <Path Data="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                                                                  Fill="#2563EB" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <StackPanel VerticalAlignment="Center">
+                                                            <TextBlock Text="Thêm Nhân viên mới" FontSize="14" FontWeight="Bold" Foreground="#0F172A" />
+                                                            <TextBlock Text="Cấp quyền nhân viên ca trực" FontSize="11" Foreground="#64748B" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    <Border HorizontalAlignment="Right" Background="#EFF6FF" CornerRadius="6" Padding="8,4">
+                                                        <TextBlock Text="STAFF ROLE" FontSize="10" FontWeight="Bold" Foreground="#2563EB" />
+                                                    </Border>
+                                                </Grid>
+
+                                                <!-- Username Input -->
+                                                <TextBlock Text="TÊN ĐĂNG NHẬP" FontSize="11" FontWeight="Bold" Foreground="#475569" Margin="0,0,0,4"/>
+                                                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="2" Margin="0,0,0,12">
+                                                    <TextBox x:Name="NewStaffUsernameTextBox"
+                                                             Height="32"
+                                                             BorderThickness="0"
+                                                             Background="Transparent"
+                                                             Padding="8,0"
+                                                             VerticalContentAlignment="Center"
+                                                             FontSize="13"
+                                                             FontWeight="SemiBold"
+                                                             Foreground="#0F172A"/>
+                                                </Border>
+
+                                                <!-- Password Input -->
+                                                <TextBlock Text="MẬT KHẨU KHỞI TẠO" FontSize="11" FontWeight="Bold" Foreground="#475569" Margin="0,0,0,4"/>
+                                                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="2" Margin="0,0,0,14">
+                                                    <PasswordBox x:Name="NewStaffPasswordBox"
+                                                                 Height="32"
+                                                                 BorderThickness="0"
+                                                                 Background="Transparent"
+                                                                 Padding="8,0"
+                                                                 VerticalContentAlignment="Center"
+                                                                 FontSize="13"
+                                                                 Foreground="#0F172A"/>
+                                                </Border>
+
+                                                <!-- Button Create -->
+                                                <Button Height="38"
+                                                        Background="#2563EB"
+                                                        Foreground="White"
+                                                        FontWeight="Bold"
+                                                        FontSize="12.5"
+                                                        BorderThickness="0"
+                                                        Cursor="Hand"
+                                                        ToolTip="Khởi tạo tài khoản nhân viên mới cho phần mềm Server"
+                                                        Click="CreateStaffButton_Click">
+                                                    <Button.Resources>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="CornerRadius" Value="8"/>
+                                                        </Style>
+                                                    </Button.Resources>
+                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                        <Path Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" Fill="White" Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Tạo tài khoản nhân viên" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Button>
+
+                                                <!-- Note Box -->
+                                                <Border Background="#F8FAFC" BorderBrush="#F1F5F9" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,14,0,0">
+                                                    <StackPanel>
+                                                        <TextBlock Text="💡 Lưu ý phân quyền nhân viên:" FontSize="11" FontWeight="SemiBold" Foreground="#334155" Margin="0,0,0,4"/>
+                                                        <TextBlock Text="• Tài khoản Staff có quyền nạp tiền hội viên, bán dịch vụ và quản lý mở/tắt máy trạm." FontSize="11" Foreground="#64748B" TextWrapping="Wrap" LineHeight="16"/>
+                                                        <TextBlock Text="• Nhân viên KHÔNG THỂ xóa tài khoản Admin hoặc can thiệp cài đặt hệ thống." FontSize="11" Foreground="#64748B" TextWrapping="Wrap" Margin="0,4,0,0" LineHeight="16"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Right Card: Bảng danh sách tài khoản Server -->
+                                        <Border Grid.Column="2"
+                                                Background="White"
+                                                BorderBrush="#E2E8F0"
+                                                BorderThickness="1"
+                                                CornerRadius="12"
+                                                Padding="18,16">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="*"/>
+                                                </Grid.RowDefinitions>
+
+                                                <!-- Card Header -->
+                                                <Grid Grid.Row="0" Margin="0,0,0,4">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Border Width="28" Height="28" CornerRadius="6" Background="#EFF6FF" Margin="0,0,8,0">
+                                                            <Path Data="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"
+                                                                  Fill="#2563EB" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <StackPanel VerticalAlignment="Center">
+                                                            <TextBlock Text="Danh sách tài khoản quản trị &amp; Nhân viên" FontSize="14" FontWeight="Bold" Foreground="#0F172A" />
+                                                            <TextBlock Text="Quản lý thông tin đăng nhập, vai trò truy cập và thao tác cấp lại mật khẩu" FontSize="11" Foreground="#64748B" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    <Border HorizontalAlignment="Right" Background="#F1F5F9" CornerRadius="6" Padding="8,4">
+                                                        <TextBlock Text="DANH SÁCH HOẠT ĐỘNG" FontSize="10" FontWeight="Bold" Foreground="#475569" />
+                                                    </Border>
+                                                </Grid>
+
+                                                <TextBlock Grid.Row="1" Text="Bấm [Đổi mật khẩu] để cấp lại mật khẩu mới hoặc [Xóa] đối với các tài khoản nhân viên đã nghỉ việc:" FontSize="11" Foreground="#64748B" Margin="0,4,0,12"/>
+
+                                                <!-- DataGrid -->
+                                                <DataGrid x:Name="ServerUsersDataGrid"
+                                                          Grid.Row="2"
+                                                          MinHeight="250"
+                                                          AutoGenerateColumns="False"
+                                                          IsReadOnly="True"
+                                                          CanUserAddRows="False"
+                                                          HeadersVisibility="Column"
+                                                          GridLinesVisibility="Horizontal"
+                                                          HorizontalGridLinesBrush="#F1F5F9"
+                                                          RowHeaderWidth="0"
+                                                          RowHeight="48"
+                                                          AlternationCount="2"
+                                                          AlternatingRowBackground="#FBFCFD"
+                                                          Background="White"
+                                                          BorderThickness="1"
+                                                          BorderBrush="#F1F5F9"
+                                                          FontSize="12"
+                                                          ScrollViewer.CanContentScroll="False"
+                                                          PreviewMouseWheel="AdminTabSubDataGrid_PreviewMouseWheel">
+                                                    <DataGrid.ColumnHeaderStyle>
+                                                        <Style TargetType="DataGridColumnHeader">
+                                                            <Setter Property="Background" Value="#F8FAFC"/>
+                                                            <Setter Property="Foreground" Value="#475569"/>
+                                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                                            <Setter Property="FontSize" Value="11"/>
+                                                            <Setter Property="Padding" Value="12,10"/>
+                                                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                                            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                                        </Style>
+                                                    </DataGrid.ColumnHeaderStyle>
+                                                    <DataGrid.Columns>
+                                                        <!-- Username & Avatar Column -->
+                                                        <DataGridTemplateColumn Header="TÀI KHOẢN ĐĂNG NHẬP" Width="220">
+                                                            <DataGridTemplateColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0">
+                                                                        <Border Width="28" Height="28" CornerRadius="14" Background="{Binding AvatarBg}" Margin="0,0,10,0">
+                                                                            <Path Data="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                                                                                  Fill="{Binding AvatarFg}" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                        </Border>
+                                                                        <StackPanel VerticalAlignment="Center">
+                                                                            <TextBlock Text="{Binding Username}" FontWeight="Bold" FontSize="13" Foreground="#0F172A"/>
+                                                                            <TextBlock Text="Đang hoạt động" FontSize="10" Foreground="#059669"/>
+                                                                        </StackPanel>
+                                                                    </StackPanel>
+                                                                </DataTemplate>
+                                                            </DataGridTemplateColumn.CellTemplate>
+                                                        </DataGridTemplateColumn>
+
+                                                        <!-- Role Column -->
+                                                        <DataGridTemplateColumn Header="VAI TRÒ / QUYỀN HẠN" Width="180">
+                                                            <DataGridTemplateColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <StackPanel VerticalAlignment="Center" Margin="6,0">
+                                                                        <Border Background="{Binding RoleBadgeBg}" BorderBrush="{Binding RoleBadgeBorder}" BorderThickness="1" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                                                                            <TextBlock Text="{Binding RoleDisplay}" FontSize="10" FontWeight="Bold" Foreground="{Binding RoleBadgeFg}"/>
+                                                                        </Border>
+                                                                        <TextBlock Text="{Binding PermissionsSummary}" FontSize="10" Foreground="#64748B" Margin="0,2,0,0"/>
+                                                                    </StackPanel>
+                                                                </DataTemplate>
+                                                            </DataGridTemplateColumn.CellTemplate>
+                                                        </DataGridTemplateColumn>
+
+                                                        <!-- CreatedAt Column -->
+                                                        <DataGridTemplateColumn Header="NGÀY KHỞI TẠO" Width="160">
+                                                            <DataGridTemplateColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0">
+                                                                        <Border Width="16" Height="16" CornerRadius="3" Background="#F1F5F9" Margin="0,0,6,0" VerticalAlignment="Center">
+                                                                            <Path Data="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 002 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"
+                                                                                  Fill="#64748B" Width="9" Height="9" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                        </Border>
+                                                                        <TextBlock Text="{Binding CreatedAtDisplay}" FontSize="12" FontWeight="SemiBold" Foreground="#334155"/>
+                                                                    </StackPanel>
+                                                                </DataTemplate>
+                                                            </DataGridTemplateColumn.CellTemplate>
+                                                        </DataGridTemplateColumn>
+
+                                                        <!-- Action Buttons Column -->
+                                                        <DataGridTemplateColumn Header="THAO TÁC" Width="*">
+                                                            <DataGridTemplateColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0">
+                                                                        <!-- Đổi mật khẩu -->
+                                                                        <Button Padding="10,5"
+                                                                                Margin="0,0,6,0"
+                                                                                Background="#F1F5F9"
+                                                                                BorderBrush="#CBD5E1"
+                                                                                BorderThickness="1"
+                                                                                Foreground="#1E293B"
+                                                                                FontWeight="SemiBold"
+                                                                                FontSize="11"
+                                                                                Cursor="Hand"
+                                                                                ToolTip="Cấp lại mật khẩu mới cho tài khoản này"
+                                                                                Click="ResetStaffPasswordButton_Click"
+                                                                                Tag="{Binding}">
+                                                                            <Button.Resources>
+                                                                                <Style TargetType="Border">
+                                                                                    <Setter Property="CornerRadius" Value="6"/>
+                                                                                </Style>
+                                                                            </Button.Resources>
+                                                                            <StackPanel Orientation="Horizontal">
+                                                                                <Path Data="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"
+                                                                                      Fill="#475569" Width="11" Height="11" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                                                <TextBlock Text="Đổi mật khẩu" VerticalAlignment="Center"/>
+                                                                            </StackPanel>
+                                                                        </Button>
+
+                                                                        <!-- Xóa (Chỉ cho phép xóa Staff) -->
+                                                                        <Button Padding="10,5"
+                                                                                Background="#FEF2F2"
+                                                                                BorderBrush="#FECACA"
+                                                                                BorderThickness="1"
+                                                                                Foreground="#DC2626"
+                                                                                FontWeight="SemiBold"
+                                                                                FontSize="11"
+                                                                                Cursor="Hand"
+                                                                                ToolTip="Xóa vĩnh viễn tài khoản nhân viên này"
+                                                                                Click="DeleteStaffButton_Click"
+                                                                                Tag="{Binding Id}"
+                                                                                IsEnabled="{Binding CanDelete}">
+                                                                            <Button.Resources>
+                                                                                <Style TargetType="Border">
+                                                                                    <Setter Property="CornerRadius" Value="6"/>
+                                                                                </Style>
+                                                                            </Button.Resources>
+                                                                            <StackPanel Orientation="Horizontal">
+                                                                                <Path Data="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+                                                                                      Fill="#DC2626" Width="11" Height="11" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                                                <TextBlock Text="Xóa" VerticalAlignment="Center"/>
+                                                                            </StackPanel>
+                                                                        </Button>
+                                                                    </StackPanel>
+                                                                </DataTemplate>
+                                                            </DataGridTemplateColumn.CellTemplate>
+                                                        </DataGridTemplateColumn>
+                                                    </DataGrid.Columns>
+                                                </DataGrid>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- 3. Security & RBAC Guidance (Bottom Section) -->
+                                    <Grid Grid.Row="3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="14" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Card A: Nguyên tắc Phân quyền (RBAC) -->
+                                        <Border Grid.Column="0"
+                                                Background="White"
+                                                BorderBrush="#E2E8F0"
+                                                BorderThickness="1"
+                                                CornerRadius="12"
+                                                Padding="16,14">
+                                            <StackPanel>
+                                                <TextBlock Text="Nguyên tắc Phân quyền Vai trò (RBAC)" FontSize="13" FontWeight="Bold" Foreground="#0F172A" />
+                                                <TextBlock Text="Đảm bảo an toàn tài chính và minh bạch trách nhiệm trong ca trực" FontSize="11" Foreground="#64748B" Margin="0,2,0,10" />
+
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,4">
+                                                    <Path Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" Fill="#10B981" Width="12" Height="12" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Admin: Toàn quyền cấu hình bảng giá, tài khoản, cơ sở dữ liệu và sao lưu." FontSize="11" Foreground="#334155"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                    <Path Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" Fill="#10B981" Width="12" Height="12" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Staff: Thao tác nạp tiền, thu ngân và giám sát máy trạm trong ca trực." FontSize="11" Foreground="#334155"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Card B: Khuyến nghị Bảo mật -->
+                                        <Border Grid.Column="2"
+                                                Background="White"
+                                                BorderBrush="#E2E8F0"
+                                                BorderThickness="1"
+                                                CornerRadius="12"
+                                                Padding="16,14">
+                                            <StackPanel>
+                                                <TextBlock Text="Khuyến nghị An toàn Mật khẩu" FontSize="13" FontWeight="Bold" Foreground="#0F172A" />
+                                                <TextBlock Text="Quy chuẩn bảo vệ tài khoản quản trị hệ thống phòng máy" FontSize="11" Foreground="#64748B" Margin="0,2,0,8" />
+
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,4">
+                                                    <Path Data="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" Fill="#2563EB" Width="12" Height="12" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Đổi mật khẩu tài khoản ADMIN mặc định ngay sau khi lắp đặt phòng máy." FontSize="11" Foreground="#334155"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                    <Path Data="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" Fill="#2563EB" Width="12" Height="12" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Mỗi nhân viên nên có một tài khoản riêng để đối soát ca làm việc chính xác." FontSize="11" Foreground="#334155"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </Grid>
+                            </ScrollViewer>
+                        </TabItem>
+                        <TabItem Header="{x:Static local:I18n.DatabaseTab}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" CanContentScroll="False" PanningMode="VerticalOnly">
+                                <Grid Margin="16,14,16,24">
+                                    <Grid.RowDefinitions>
+                                        <!-- Row 0: Header & Action Bar -->
+                                        <RowDefinition Height="Auto" />
+                                        <!-- Row 1: Bento KPI Cards -->
+                                        <RowDefinition Height="Auto" />
+                                        <!-- Row 2: Main Content DataGrids -->
+                                        <RowDefinition Height="Auto" />
+                                        <!-- Row 3: Storage Breakdown & Recommendations -->
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <!-- 0. Header & Action Bar -->
+                                    <Border Grid.Row="0"
+                                            Background="White"
+                                            BorderBrush="#E2E8F0"
+                                            BorderThickness="1"
+                                            CornerRadius="12"
+                                            Padding="18,14"
+                                            Margin="0,0,0,14">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <!-- Database Icon -->
+                                                    <Border Width="34" Height="34" CornerRadius="8" Background="#EFF6FF" Margin="0,0,10,0">
+                                                        <Path Data="M4 6c0-1.66 3.58-3 8-3s8 1.34 8 3v12c0 1.66-3.58 3-8 3s-8-1.34-8-3V6zm8 1c3.87 0 6-1.12 6-1.5S15.87 4 12 4 6 5.12 6 5.5 8.13 7 12 7zm6 3.5c-.75.46-2.04.88-4 1.13V9.5c0-.28-.22-.5-.5-.5s-.5.22-.5.5v2.13c-1.96-.25-3.25-.67-4-1.13V8.2c1.23.51 2.89.8 4.5.8s3.27-.29 4.5-.8v2.3zm0 4.5c-.75.46-2.04.88-4 1.13V14c0-.28-.22-.5-.5-.5s-.5.22-.5.5v2.13c-1.96-.25-3.25-.67-4-1.13v-2.3c1.23.51 2.89.8 4.5.8s3.27-.29 4.5-.8v2.3z"
+                                                              Fill="#2563EB" Width="18" Height="18" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <TextBlock Text="THỐNG KÊ CƠ SỞ DỮ LIỆU" FontSize="18" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center" />
+                                                    <Border Margin="12,0,0,0" Background="#F1F5F9" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                                                        <TextBlock Text="PostgreSQL" FontSize="11" FontWeight="SemiBold" Foreground="#475569" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Margin="44,4,0,0" Text="Giám sát dung lượng lưu trữ, thống kê các bảng dữ liệu và xu hướng tăng trưởng" FontSize="12" Foreground="#64748B" />
+                                            </StackPanel>
+
+                                            <!-- Right Action Panel -->
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="10,6" Margin="0,0,10,0">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Ellipse Width="7" Height="7" Fill="#10B981" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Cập nhật: " FontSize="11" Foreground="#64748B" VerticalAlignment="Center" />
+                                                        <TextBlock x:Name="DbStorageUpdatedAtTextBlock" Text="Đang tải..." FontSize="11" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- Nút Dọn dẹp log an toàn -->
+                                                <Button Padding="12,7"
+                                                        Margin="0,0,8,0"
+                                                        Background="#FEF3C7"
+                                                        BorderBrush="#FDE68A"
+                                                        BorderThickness="1"
+                                                        Foreground="#B45309"
+                                                        FontWeight="SemiBold"
+                                                        FontSize="12"
+                                                        Cursor="Hand"
+                                                        ToolTip="Xóa các log tạm thời, ảnh chụp màn hình cũ để giải phóng dung lượng (100% an toàn cho tài khoản hội viên)"
+                                                        Click="ClearSafeDatabaseLogsButton_Click">
+                                                    <Button.Resources>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="CornerRadius" Value="8"/>
+                                                        </Style>
+                                                    </Button.Resources>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Path Data="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+                                                              Fill="#B45309" Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Dọn dẹp log an toàn" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Button>
+
+                                                <Button Padding="14,7"
+                                                        Background="#2563EB"
+                                                        Foreground="White"
+                                                        FontWeight="SemiBold"
+                                                        FontSize="12"
+                                                        BorderThickness="0"
+                                                        Cursor="Hand"
+                                                        Click="RefreshDatabaseStorageButton_Click">
+                                                    <Button.Resources>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="CornerRadius" Value="8"/>
+                                                        </Style>
+                                                    </Button.Resources>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Path Data="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+                                                              Fill="White" Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Làm mới" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- 1. Bento KPI Cards (Row of 4 Cards) -->
+                                    <Grid Grid.Row="1" Margin="0,0,0,14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- KPI Card 1: Tổng dung lượng -->
+                                        <Border Grid.Column="0" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="14,12">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid Grid.Row="0">
+                                                    <TextBlock Text="TỔNG DUNG LƯỢNG" FontSize="11" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center" />
+                                                    <Border HorizontalAlignment="Right" Width="28" Height="28" CornerRadius="6" Background="#EFF6FF">
+                                                        <Path Data="M4 6c0-1.66 3.58-3 8-3s8 1.34 8 3v12c0 1.66-3.58 3-8 3s-8-1.34-8-3V6zm8 1c3.87 0 6-1.12 6-1.5S15.87 4 12 4 6 5.12 6 5.5 8.13 7 12 7z"
+                                                              Fill="#2563EB" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </Grid>
+                                                <TextBlock Grid.Row="1" x:Name="DbStorageSizeTextBlock" Text="15 MB" FontSize="22" FontWeight="Bold" Foreground="#0F172A" Margin="0,6,0,2"/>
+                                                <TextBlock Grid.Row="2" x:Name="DbStorageDatabaseNameTextBlock" Text="Database: servermanagerbilling" FontSize="11" Foreground="#64748B" TextTrimming="CharacterEllipsis"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- KPI Card 2: Biến động hôm nay -->
+                                        <Border Grid.Column="2" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="14,12">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid Grid.Row="0">
+                                                    <TextBlock Text="BIẾN ĐỘNG HÔM NAY" FontSize="11" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center" />
+                                                    <Border HorizontalAlignment="Right" Width="28" Height="28" CornerRadius="6" Background="#ECFDF5">
+                                                        <Path Data="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"
+                                                              Fill="#059669" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </Grid>
+                                                <Border Grid.Row="1" x:Name="DbStorageDeltaPillBorder" HorizontalAlignment="Left" CornerRadius="6" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1" Padding="8,3" Margin="0,6,0,4">
+                                                    <TextBlock x:Name="DbStorageDeltaTextBlock" Text="-32 KB (-0.21%)" FontSize="13" FontWeight="Bold" Foreground="#059669"/>
+                                                </Border>
+                                                <TextBlock Grid.Row="2" Text="So với 24 giờ trước" FontSize="11" Foreground="#64748B"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- KPI Card 3: Bảng lớn nhất -->
+                                        <Border Grid.Column="4" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="14,12">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid Grid.Row="0">
+                                                    <TextBlock Text="BẢNG LỚN NHẤT" FontSize="11" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center" />
+                                                    <Border HorizontalAlignment="Right" Width="28" Height="28" CornerRadius="6" Background="#EEF2FF">
+                                                        <Path Data="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H5v-4h9v4zm0-6H5V7h9v4zm5 6h-3v-4h3v4zm0-6h-3V7h3v4z"
+                                                              Fill="#4F46E5" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </Grid>
+                                                <TextBlock Grid.Row="1" x:Name="DbStorageTopTableTextBlock" Text="service_items (1.5 MB)" FontSize="15" FontWeight="Bold" Foreground="#1E293B" Margin="0,6,0,2" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Row="2" Text="Chiếm dung lượng hàng đầu" FontSize="11" Foreground="#64748B"/>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- KPI Card 4: Tình trạng hệ thống -->
+                                        <Border Grid.Column="6" Background="White" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="12" Padding="14,12">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid Grid.Row="0">
+                                                    <TextBlock Text="TÌNH TRẠNG LƯU TRỮ" FontSize="11" FontWeight="Bold" Foreground="#64748B" VerticalAlignment="Center" />
+                                                    <Border HorizontalAlignment="Right" Width="28" Height="28" CornerRadius="6" Background="#F0FDFA">
+                                                        <Path Data="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"
+                                                              Fill="#0D9488" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </Grid>
+                                                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,6,0,2">
+                                                    <Ellipse Width="8" Height="8" Fill="#10B981" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="An toàn &amp; Ổn định" FontSize="15" FontWeight="Bold" Foreground="#0D9488" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                <TextBlock Grid.Row="2" Text="Dung lượng tối ưu (&lt; 50 MB)" FontSize="11" Foreground="#64748B"/>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- 2. Main Content DataGrids (2 Columns) -->
+                                    <Grid Grid.Row="2" Margin="0,0,0,14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="1.4*" />
+                                            <ColumnDefinition Width="14" />
+                                            <ColumnDefinition Width="1*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Left Card: Top Tables -->
+                                        <Border Grid.Column="0"
+                                                Background="White"
+                                                BorderBrush="#E2E8F0"
+                                                BorderThickness="1"
+                                                CornerRadius="12"
+                                                Padding="16,14">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="12" />
+                                                    <RowDefinition Height="340" />
+                                                </Grid.RowDefinitions>
+
+                                                <!-- Card Header -->
+                                                <Grid Grid.Row="0">
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock Text="Bảng dữ liệu nặng nhất" FontSize="14" FontWeight="Bold" Foreground="#0F172A" />
+                                                        <TextBlock Text="Chi tiết phân bổ Data &amp; Index của các bảng chiếm nhiều bộ nhớ nhất" FontSize="11" Foreground="#64748B" Margin="0,2,0,0" />
+                                                    </StackPanel>
+                                                    <Border HorizontalAlignment="Right" Background="#F1F5F9" CornerRadius="6" Padding="8,4">
+                                                        <TextBlock Text="TOP 12 BẢNG" FontSize="10" FontWeight="Bold" Foreground="#475569" />
+                                                    </Border>
+                                                </Grid>
+
+                                                <!-- DataGrid for Tables -->
+                                                <DataGrid x:Name="DbStorageTablesDataGrid"
+                                                          Grid.Row="2"
+                                                          ScrollViewer.CanContentScroll="False"
+                                                          PreviewMouseWheel="AdminTabSubDataGrid_PreviewMouseWheel"
+                                                          AutoGenerateColumns="False"
+                                                          IsReadOnly="True"
+                                                          CanUserAddRows="False"
+                                                          HeadersVisibility="Column"
+                                                          GridLinesVisibility="Horizontal"
+                                                          HorizontalGridLinesBrush="#F1F5F9"
+                                                          RowHeaderWidth="0"
+                                                          RowHeight="34"
+                                                          AlternationCount="2"
+                                                          AlternatingRowBackground="#FBFCFD"
+                                                          Background="White"
+                                                          BorderThickness="1"
+                                                          BorderBrush="#F1F5F9"
+                                                          FontSize="12">
+                                                    <DataGrid.ColumnHeaderStyle>
+                                                        <Style TargetType="DataGridColumnHeader">
+                                                            <Setter Property="Background" Value="#F8FAFC"/>
+                                                            <Setter Property="Foreground" Value="#475569"/>
+                                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                                            <Setter Property="FontSize" Value="11"/>
+                                                            <Setter Property="Padding" Value="10,8"/>
+                                                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                                            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                                        </Style>
+                                                    </DataGrid.ColumnHeaderStyle>
+                                                    <DataGrid.Columns>
+                                                        <!-- Table Name Column -->
+                                                        <DataGridTemplateColumn Header="TÊN BẢNG" Width="1.5*">
+                                                            <DataGridTemplateColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                                                        <Border Width="18" Height="18" CornerRadius="4" Background="#F1F5F9" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                                            <Path Data="M3 4h18v16H3V4zm0 5h18M3 11h18M9 4v16M15 4v16"
+                                                                                  Stroke="#64748B" StrokeThickness="1" Width="10" Height="10" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                        </Border>
+                                                                        <TextBlock Text="{Binding TableName}" FontWeight="SemiBold" Foreground="#0F172A" VerticalAlignment="Center"/>
+                                                                    </StackPanel>
+                                                                </DataTemplate>
+                                                            </DataGridTemplateColumn.CellTemplate>
+                                                        </DataGridTemplateColumn>
+
+                                                        <!-- Total Size Column -->
+                                                        <DataGridTemplateColumn Header="TỔNG DUNG LƯỢNG" Width="*">
+                                                            <DataGridTemplateColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="{Binding DisplayTotal}" FontWeight="Bold" Foreground="#1E40AF" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                                </DataTemplate>
+                                                            </DataGridTemplateColumn.CellTemplate>
+                                                        </DataGridTemplateColumn>
+
+                                                        <!-- Percentage Column -->
+                                                        <DataGridTemplateColumn Header="TỶ LỆ" Width="70">
+                                                            <DataGridTemplateColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <Border Background="#EFF6FF" CornerRadius="4" Padding="6,2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding PercentText}" FontSize="10" FontWeight="Bold" Foreground="#2563EB" HorizontalAlignment="Center"/>
+                                                                    </Border>
+                                                                </DataTemplate>
+                                                            </DataGridTemplateColumn.CellTemplate>
+                                                        </DataGridTemplateColumn>
+
+                                                        <!-- Data Size Column -->
+                                                        <DataGridTemplateColumn Header="DATA" Width="0.9*">
+                                                            <DataGridTemplateColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="{Binding DisplayData}" Foreground="#475569" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                                </DataTemplate>
+                                                            </DataGridTemplateColumn.CellTemplate>
+                                                        </DataGridTemplateColumn>
+
+                                                        <!-- Index/Toast Size Column -->
+                                                        <DataGridTemplateColumn Header="INDEX / TOAST" Width="*">
+                                                            <DataGridTemplateColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="{Binding DisplayIndex}" Foreground="#64748B" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                                </DataTemplate>
+                                                            </DataGridTemplateColumn.CellTemplate>
+                                                        </DataGridTemplateColumn>
+                                                    </DataGrid.Columns>
+                                                </DataGrid>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Right Card: 14-Day History -->
+                                        <Border Grid.Column="2"
+                                                Background="White"
+                                                BorderBrush="#E2E8F0"
+                                                BorderThickness="1"
+                                                CornerRadius="12"
+                                                Padding="16,14">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="12" />
+                                                    <RowDefinition Height="340" />
+                                                </Grid.RowDefinitions>
+
+                                                <!-- Card Header -->
+                                                <Grid Grid.Row="0">
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock Text="Lịch sử dung lượng" FontSize="14" FontWeight="Bold" Foreground="#0F172A" />
+                                                        <TextBlock Text="Theo dõi xu hướng biến động 14 ngày qua" FontSize="11" Foreground="#64748B" Margin="0,2,0,0" />
+                                                    </StackPanel>
+                                                    <Border HorizontalAlignment="Right" Background="#EFF6FF" CornerRadius="6" Padding="8,4">
+                                                        <TextBlock Text="14 NGÀY" FontSize="10" FontWeight="Bold" Foreground="#2563EB" />
+                                                    </Border>
+                                                </Grid>
+
+                                                <!-- DataGrid for History -->
+                                                <DataGrid x:Name="DbStorageHistoryDataGrid"
+                                                          Grid.Row="2"
+                                                          ScrollViewer.CanContentScroll="False"
+                                                          PreviewMouseWheel="AdminTabSubDataGrid_PreviewMouseWheel"
+                                                          AutoGenerateColumns="False"
+                                                          IsReadOnly="True"
+                                                          CanUserAddRows="False"
+                                                          HeadersVisibility="Column"
+                                                          GridLinesVisibility="Horizontal"
+                                                          HorizontalGridLinesBrush="#F1F5F9"
+                                                          RowHeaderWidth="0"
+                                                          RowHeight="34"
+                                                          AlternationCount="2"
+                                                          AlternatingRowBackground="#FBFCFD"
+                                                          Background="White"
+                                                          BorderThickness="1"
+                                                          BorderBrush="#F1F5F9"
+                                                          FontSize="12">
+                                                    <DataGrid.ColumnHeaderStyle>
+                                                        <Style TargetType="DataGridColumnHeader">
+                                                            <Setter Property="Background" Value="#F8FAFC"/>
+                                                            <Setter Property="Foreground" Value="#475569"/>
+                                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                                            <Setter Property="FontSize" Value="11"/>
+                                                            <Setter Property="Padding" Value="10,8"/>
+                                                            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                                            <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                                        </Style>
+                                                    </DataGrid.ColumnHeaderStyle>
+                                                    <DataGrid.Columns>
+                                                        <!-- Date Column -->
+                                                        <DataGridTemplateColumn Header="NGÀY GHI NHẬN" Width="1.2*">
+                                                            <DataGridTemplateColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                                                                        <Border Width="16" Height="16" CornerRadius="3" Background="#F1F5F9" Margin="0,0,6,0" VerticalAlignment="Center">
+                                                                            <Path Data="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 002 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10z"
+                                                                                  Fill="#64748B" Width="9" Height="9" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                        </Border>
+                                                                        <TextBlock Text="{Binding DisplayDate}" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center"/>
+                                                                    </StackPanel>
+                                                                </DataTemplate>
+                                                            </DataGridTemplateColumn.CellTemplate>
+                                                        </DataGridTemplateColumn>
+
+                                                        <!-- Size Column -->
+                                                        <DataGridTemplateColumn Header="DUNG LƯỢNG" Width="*">
+                                                            <DataGridTemplateColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="{Binding SizePretty}" FontWeight="Bold" Foreground="#0F172A" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                                </DataTemplate>
+                                                            </DataGridTemplateColumn.CellTemplate>
+                                                        </DataGridTemplateColumn>
+
+                                                        <!-- Delta Column -->
+                                                        <DataGridTemplateColumn Header="BIẾN ĐỘNG" Width="*">
+                                                            <DataGridTemplateColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="{Binding DeltaText}" Foreground="{Binding DeltaColor}" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                                                </DataTemplate>
+                                                            </DataGridTemplateColumn.CellTemplate>
+                                                        </DataGridTemplateColumn>
+                                                    </DataGrid.Columns>
+                                                </DataGrid>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- 3. Storage Breakdown & Health Guidance (Bottom Section) -->
+                                    <Grid Grid.Row="3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="14" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Card A: Tỷ lệ phân bổ dữ liệu -->
+                                        <Border Grid.Column="0"
+                                                Background="White"
+                                                BorderBrush="#E2E8F0"
+                                                BorderThickness="1"
+                                                CornerRadius="12"
+                                                Padding="16,14">
+                                            <StackPanel>
+                                                <TextBlock Text="Phân bổ thành phần lưu trữ" FontSize="13" FontWeight="Bold" Foreground="#0F172A" />
+                                                <TextBlock Text="So sánh giữa dữ liệu bản ghi gốc (Data) và chỉ mục tìm kiếm (Index/Toast)" FontSize="11" Foreground="#64748B" Margin="0,2,0,10" />
+
+                                                <!-- Progress Bar -->
+                                                <ProgressBar x:Name="DbStorageDataProgressBar" Height="8" Minimum="0" Maximum="100" Value="15" Foreground="#10B981" Background="#3B82F6" BorderThickness="0">
+                                                    <ProgressBar.Resources>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="CornerRadius" Value="4"/>
+                                                        </Style>
+                                                    </ProgressBar.Resources>
+                                                </ProgressBar>
+
+                                                <!-- Legend & Breakdown Text -->
+                                                <Grid Margin="0,8,0,0">
+                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                                                        <Ellipse Width="8" Height="8" Fill="#10B981" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Data" FontSize="11" FontWeight="SemiBold" Foreground="#475569" Margin="0,0,12,0"/>
+                                                        <Ellipse Width="8" Height="8" Fill="#3B82F6" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Index / Toast" FontSize="11" FontWeight="SemiBold" Foreground="#475569"/>
+                                                    </StackPanel>
+                                                    <TextBlock x:Name="DbStorageBreakdownTextBlock" Text="Data: 1.8 MB  •  Index/Toast: 13.8 MB" FontSize="11" Foreground="#64748B" HorizontalAlignment="Right"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Card B: Khuyến nghị & Tối ưu hóa -->
+                                        <Border Grid.Column="2"
+                                                Background="White"
+                                                BorderBrush="#E2E8F0"
+                                                BorderThickness="1"
+                                                CornerRadius="12"
+                                                Padding="16,14">
+                                            <StackPanel>
+                                                <TextBlock Text="Tình trạng &amp; Khuyến nghị bảo trì" FontSize="13" FontWeight="Bold" Foreground="#0F172A" />
+                                                <TextBlock Text="Đánh giá hiệu năng và an toàn cơ sở dữ liệu" FontSize="11" Foreground="#64748B" Margin="0,2,0,8" />
+
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,4">
+                                                    <Path Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" Fill="#10B981" Width="12" Height="12" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Dung lượng rất nhẹ (&lt; 50 MB), truy vấn tốc độ cao tức thì." FontSize="11" Foreground="#334155"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                    <Path Data="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" Fill="#10B981" Width="12" Height="12" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="Đã bật chế độ tự động sao lưu dữ liệu an toàn khi tắt máy chủ." FontSize="11" Foreground="#334155"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </Grid>
+                            </ScrollViewer>
+                        </TabItem>
+                        <TabItem Header="Client">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" CanContentScroll="False" PanningMode="VerticalOnly">
+                                <Grid Margin="16,14,16,24">
+                                    <Grid.RowDefinitions>
+                                        <!-- Row 0: Header & Action Bar -->
+                                        <RowDefinition Height="Auto" />
+                                        <!-- Row 1: Top Bento Row (Account + Security) -->
+                                        <RowDefinition Height="Auto" />
+                                        <!-- Row 2: Middle Bento Row (Expiry & Experience + Audit Log) -->
+                                        <RowDefinition Height="Auto" />
+                                        <!-- Row 3: Bottom Status Bar -->
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+
+                                    <!-- 0. Header & Action Bar -->
+                                    <Border Grid.Row="0"
+                                            Background="White"
+                                            BorderBrush="#E2E8F0"
+                                            BorderThickness="1"
+                                            CornerRadius="12"
+                                            Padding="18,14"
+                                            Margin="0,0,0,14">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Left Title & Subtitle -->
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <!-- Client Screen Icon -->
+                                                    <Border Width="34" Height="34" CornerRadius="8" Background="#EFF6FF" Margin="0,0,10,0">
+                                                        <Path Data="M20 18c1.1 0 1.99-.9 1.99-2L22 5c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2H0c0 1.1.9 2 2 2h20c1.1 0 2-.9 2-2h-4zM4 5h16v11H4V5z"
+                                                              Fill="#2563EB" Width="18" Height="18" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <TextBlock Text="TRUNG TÂM QUẢN TRỊ MÁY TRẠM (CLIENT AGENT)" FontSize="18" FontWeight="Bold" Foreground="#0F172A" VerticalAlignment="Center" />
+                                                    <Border Margin="12,0,0,0" Background="#F1F5F9" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                                                        <TextBlock Text="Client v2.4 • Realtime" FontSize="11" FontWeight="SemiBold" Foreground="#475569" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Margin="44,4,0,0" Text="Thiết lập quyền quản trị bảo trì, chính sách chống can thiệp hệ điều hành và quy tắc trải nghiệm người chơi" FontSize="12" Foreground="#64748B" />
+                                            </StackPanel>
+
+                                            <!-- Right Action Panel -->
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <!-- Broadcast Sync Button -->
+                                                <Button Padding="13,7"
+                                                        Margin="0,0,8,0"
+                                                        Background="#F1F5F9"
+                                                        BorderBrush="#CBD5E1"
+                                                        BorderThickness="1"
+                                                        Foreground="#1E293B"
+                                                        FontWeight="SemiBold"
+                                                        FontSize="12"
+                                                        Cursor="Hand"
+                                                        ToolTip="Gửi cấu hình thời gian thực (Realtime socket) tới toàn bộ máy trạm online"
+                                                        Click="BroadcastClientSettingsButton_Click">
+                                                    <Button.Resources>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="CornerRadius" Value="8"/>
+                                                        </Style>
+                                                    </Button.Resources>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Path Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"
+                                                              Fill="#334155" Width="14" Height="14" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Đồng bộ tới dàn máy" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Button>
+
+                                                <!-- Save Settings Button -->
+                                                <Button Padding="15,7"
+                                                        Background="#2563EB"
+                                                        Foreground="White"
+                                                        FontWeight="SemiBold"
+                                                        FontSize="12"
+                                                        BorderThickness="0"
+                                                        Cursor="Hand"
+                                                        Click="SaveClientManagementSettingsButton_Click">
+                                                    <Button.Resources>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="CornerRadius" Value="8"/>
+                                                        </Style>
+                                                    </Button.Resources>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Path Data="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"
+                                                              Fill="White" Width="13" Height="13" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Lưu cài đặt" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- 1. Top Bento Row (Account + Security) -->
+                                    <Grid Grid.Row="1" Margin="0,0,0,14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="14" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Card 1: Tài khoản Quản trị Máy trạm -->
+                                        <Border Grid.Column="0"
+                                                Background="White"
+                                                BorderBrush="#E2E8F0"
+                                                BorderThickness="1"
+                                                CornerRadius="12"
+                                                Padding="18,16">
+                                            <StackPanel>
+                                                <!-- Card Header -->
+                                                <Grid Margin="0,0,0,14">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Border Width="28" Height="28" CornerRadius="6" Background="#EFF6FF" Margin="0,0,8,0">
+                                                            <Path Data="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"
+                                                                  Fill="#2563EB" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <StackPanel VerticalAlignment="Center">
+                                                            <TextBlock Text="Tài khoản Admin Máy trạm" FontSize="14" FontWeight="Bold" Foreground="#0F172A" />
+                                                            <TextBlock Text="Quyền đăng nhập bảo trì máy trực tiếp" FontSize="11" Foreground="#64748B" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    <Border HorizontalAlignment="Right" Background="#EFF6FF" CornerRadius="6" Padding="8,4">
+                                                        <TextBlock Text="ROOT ADMIN" FontSize="10" FontWeight="Bold" Foreground="#2563EB" />
+                                                    </Border>
+                                                </Grid>
+
+                                                <!-- User Info Badge Box -->
+                                                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="10" Padding="14,12" Margin="0,0,0,12">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- Avatar Icon -->
+                                                        <Border Grid.Column="0" Width="44" Height="44" CornerRadius="22" Background="#DBEAFE" Margin="0,0,12,0">
+                                                            <Path Data="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                                                                  Fill="#1D4ED8" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+
+                                                        <!-- Username & Status -->
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <TextBlock Text="TÊN ĐĂNG NHẬP (USERNAME)" FontSize="10" FontWeight="Bold" Foreground="#64748B" />
+                                                            <TextBlock x:Name="ClientAdminUsernameTextBlock" Text="admin" FontSize="16" FontWeight="Bold" Foreground="#0F172A" Margin="0,2,0,2" />
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <Ellipse Width="7" Height="7" Fill="#10B981" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                                                <TextBlock Text="Đã kích hoạt mật khẩu bảo vệ" FontSize="11" Foreground="#059669" FontWeight="SemiBold" />
+                                                            </StackPanel>
+                                                        </StackPanel>
+
+                                                        <!-- Quick Change Button -->
+                                                        <Button Grid.Column="2"
+                                                                Padding="12,6"
+                                                                Background="White"
+                                                                BorderBrush="#CBD5E1"
+                                                                BorderThickness="1"
+                                                                Foreground="#2563EB"
+                                                                FontWeight="SemiBold"
+                                                                FontSize="12"
+                                                                Cursor="Hand"
+                                                                VerticalAlignment="Center"
+                                                                Click="OpenAdminCredentialPopupButton_Click">
+                                                            <Button.Resources>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="CornerRadius" Value="6"/>
+                                                                </Style>
+                                                            </Button.Resources>
+                                                            <TextBlock Text="Đổi mật khẩu"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </Border>
+
+                                                <!-- Shortcut Guide (Keycaps) -->
+                                                <Border Background="#FEFCE8" BorderBrush="#FEF08A" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,12">
+                                                    <Grid>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
+                                                        <TextBlock Grid.Row="0" Text="Phím tắt mở form Admin khi máy trạm bị khóa:" FontSize="11" FontWeight="SemiBold" Foreground="#854D0E" Margin="0,0,0,6"/>
+                                                        <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <!-- Keycap F11 -->
+                                                            <Border Background="White" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Padding="8,3" Margin="0,0,6,0">
+                                                                <TextBlock Text="F11" FontSize="11" FontWeight="Bold" Foreground="#0F172A"/>
+                                                            </Border>
+                                                            <TextBlock Text="hoặc" FontSize="11" Foreground="#713F12" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                                            <!-- Keycaps Ctrl + Alt + A -->
+                                                            <Border Background="White" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Padding="6,3" Margin="0,0,4,0">
+                                                                <TextBlock Text="Ctrl" FontSize="11" FontWeight="Bold" Foreground="#0F172A"/>
+                                                            </Border>
+                                                            <TextBlock Text="+" FontSize="11" Foreground="#713F12" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                            <Border Background="White" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Padding="6,3" Margin="0,0,4,0">
+                                                                <TextBlock Text="Alt" FontSize="11" FontWeight="Bold" Foreground="#0F172A"/>
+                                                            </Border>
+                                                            <TextBlock Text="+" FontSize="11" Foreground="#713F12" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                            <Border Background="White" BorderBrush="#CBD5E1" BorderThickness="1" CornerRadius="4" Padding="6,3">
+                                                                <TextBlock Text="A" FontSize="11" FontWeight="Bold" Foreground="#0F172A"/>
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+
+                                                <!-- Description & Reset Button -->
+                                                <Grid>
+                                                    <TextBlock Text="💡 Đăng nhập tài khoản này trên máy trạm để vào Windows cài game, test máy mà không bị tính tiền giờ."
+                                                               FontSize="11" Foreground="#64748B" TextWrapping="Wrap" VerticalAlignment="Center" Width="300" HorizontalAlignment="Left" LineHeight="16"/>
+                                                    <Button HorizontalAlignment="Right"
+                                                            Padding="10,5"
+                                                            Background="Transparent"
+                                                            BorderBrush="#E2E8F0"
+                                                            BorderThickness="1"
+                                                            Foreground="#64748B"
+                                                            FontSize="11"
+                                                            Cursor="Hand"
+                                                            ToolTip="Đặt lại username và password về admin / admin"
+                                                            Click="ResetClientAdminCredentialsButton_Click">
+                                                        <Button.Resources>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="CornerRadius" Value="6"/>
+                                                            </Style>
+                                                        </Button.Resources>
+                                                        <TextBlock Text="Đặt lại mặc định"/>
+                                                    </Button>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Card 2: Chính sách Bảo mật & Chống phá hoại -->
+                                        <Border Grid.Column="2"
+                                                Background="White"
+                                                BorderBrush="#E2E8F0"
+                                                BorderThickness="1"
+                                                CornerRadius="12"
+                                                Padding="18,16">
+                                            <StackPanel>
+                                                <!-- Card Header -->
+                                                <Grid Margin="0,0,0,14">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Border Width="28" Height="28" CornerRadius="6" Background="#ECFDF5" Margin="0,0,8,0">
+                                                            <Path Data="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+                                                                  Fill="#059669" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <StackPanel VerticalAlignment="Center">
+                                                            <TextBlock Text="Chính sách Bảo mật &amp; Chống phá hoại" FontSize="14" FontWeight="Bold" Foreground="#0F172A" />
+                                                            <TextBlock Text="Ngăn ngừa khách can thiệp sâu vào Windows" FontSize="11" Foreground="#64748B" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                    <Border HorizontalAlignment="Right" Background="#ECFDF5" CornerRadius="6" Padding="8,4">
+                                                        <TextBlock Text="KHUYÊN DÙNG" FontSize="10" FontWeight="Bold" Foreground="#059669" />
+                                                    </Border>
+                                                </Grid>
+
+                                                <!-- Security Checkbox 1 -->
+                                                <Border Background="#F8FAFC" BorderBrush="#F1F5F9" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,6">
+                                                    <CheckBox x:Name="ClientBlockTaskmgrCheckBox" IsChecked="True">
+                                                        <StackPanel Margin="6,-2,0,0">
+                                                            <TextBlock Text="Chặn Task Manager &amp; Trình giám sát tiến trình" FontWeight="SemiBold" FontSize="12" Foreground="#1E293B"/>
+                                                            <TextBlock Text="Vô hiệu hóa Ctrl+Shift+Esc, Ctrl+Alt+Del, Taskmgr, Resmon" FontSize="11" Foreground="#64748B"/>
+                                                        </StackPanel>
+                                                    </CheckBox>
+                                                </Border>
+
+                                                <!-- Security Checkbox 2 -->
+                                                <Border Background="#F8FAFC" BorderBrush="#F1F5F9" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,6">
+                                                    <CheckBox x:Name="ClientBlockWinKeysCheckBox" IsChecked="True">
+                                                        <StackPanel Margin="6,-2,0,0">
+                                                            <TextBlock Text="Khóa phím tắt Windows khi chưa đăng nhập" FontWeight="SemiBold" FontSize="12" Foreground="#1E293B"/>
+                                                            <TextBlock Text="Chặn Windows Key, Alt+Tab, Alt+F4 tại màn hình khóa" FontSize="11" Foreground="#64748B"/>
+                                                        </StackPanel>
+                                                    </CheckBox>
+                                                </Border>
+
+                                                <!-- Security Checkbox 3 -->
+                                                <Border Background="#F8FAFC" BorderBrush="#F1F5F9" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,6">
+                                                    <CheckBox x:Name="ClientBlockSystemToolsCheckBox" IsChecked="True">
+                                                        <StackPanel Margin="6,-2,0,0">
+                                                            <TextBlock Text="Chặn công cụ dòng lệnh (Cmd, PowerShell, Regedit)" FontWeight="SemiBold" FontSize="12" Foreground="#1E293B"/>
+                                                            <TextBlock Text="Ngăn chặn mở cửa sổ console và chỉnh sửa registry hệ thống" FontSize="11" Foreground="#64748B"/>
+                                                        </StackPanel>
+                                                    </CheckBox>
+                                                </Border>
+
+                                                <!-- Security Checkbox 4 -->
+                                                <Border Background="#F8FAFC" BorderBrush="#F1F5F9" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,6">
+                                                    <CheckBox x:Name="ClientBlockControlPanelCheckBox" IsChecked="True">
+                                                        <StackPanel Margin="6,-2,0,0">
+                                                            <TextBlock Text="Chặn Control Panel &amp; Cài đặt card mạng" FontWeight="SemiBold" FontSize="12" Foreground="#1E293B"/>
+                                                            <TextBlock Text="Ngăn ngừa khách tự ý chỉnh sửa IP, DNS card mạng máy trạm" FontSize="11" Foreground="#64748B"/>
+                                                        </StackPanel>
+                                                    </CheckBox>
+                                                </Border>
+
+                                                <!-- Security Checkbox 5 -->
+                                                <Border Background="#F8FAFC" BorderBrush="#F1F5F9" BorderThickness="1" CornerRadius="8" Padding="12,8">
+                                                    <CheckBox x:Name="ClientBlockUsbAutorunCheckBox" IsChecked="False">
+                                                        <StackPanel Margin="6,-2,0,0">
+                                                            <TextBlock Text="Chống lây lan mã độc từ USB (AutoRun)" FontWeight="SemiBold" FontSize="12" Foreground="#1E293B"/>
+                                                            <TextBlock Text="Vô hiệu hóa tính năng tự động chạy tệp tin khi cắm USB ngoài" FontSize="11" Foreground="#64748B"/>
+                                                        </StackPanel>
+                                                    </CheckBox>
+                                                </Border>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- 2. Audit Log (Full Width) -->
+                                    <Border Grid.Row="2"
+                                            Background="White"
+                                            BorderBrush="#E2E8F0"
+                                            BorderThickness="1"
+                                            CornerRadius="12"
+                                            Padding="18,16"
+                                            Margin="0,0,0,14">
                                         <Grid>
                                             <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="8" />
-                                                <RowDefinition Height="240" />
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
                                             </Grid.RowDefinitions>
-                                            <TextBlock Text="Bảng nặng nhất (top 12)" FontWeight="SemiBold" Foreground="#0F172A" />
-                                            <DataGrid x:Name="DbStorageTablesDataGrid"
+
+                                            <!-- Card Header -->
+                                            <Grid Grid.Row="0" Margin="0,0,0,4">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Border Width="28" Height="28" CornerRadius="6" Background="#F0FDFA" Margin="0,0,8,0">
+                                                        <Path Data="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"
+                                                              Fill="#0D9488" Width="14" Height="14" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <StackPanel VerticalAlignment="Center">
+                                                        <TextBlock Text="Nhật ký Đăng nhập Admin Máy trạm" FontSize="14" FontWeight="Bold" Foreground="#0F172A" />
+                                                        <TextBlock Text="Giám sát kỹ thuật viên &amp; nhân viên mở máy trạm bằng tài khoản Admin (chống chơi game trộm)" FontSize="11" Foreground="#64748B" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                                <Border HorizontalAlignment="Right" Background="#F0FDFA" CornerRadius="6" Padding="8,4">
+                                                    <TextBlock Text="GIÁM SÁT THỜI GIAN THỰC" FontSize="10" FontWeight="Bold" Foreground="#0D9488" />
+                                                </Border>
+                                            </Grid>
+
+                                            <TextBlock Grid.Row="1" Text="Lịch sử các lần mở khóa máy bảo trì, cài đặt phần mềm hoặc can thiệp kỹ thuật trực tiếp tại máy trạm:" FontSize="11" Foreground="#64748B" Margin="0,4,0,12"/>
+
+                                            <!-- DataGrid for Admin Audit -->
+                                            <DataGrid x:Name="ClientAdminAuditDataGrid"
                                                       Grid.Row="2"
+                                                      ScrollViewer.CanContentScroll="False"
+                                                      PreviewMouseWheel="AdminTabSubDataGrid_PreviewMouseWheel"
+                                                      MinHeight="220"
                                                       AutoGenerateColumns="False"
                                                       IsReadOnly="True"
                                                       CanUserAddRows="False"
                                                       HeadersVisibility="Column"
                                                       GridLinesVisibility="Horizontal"
+                                                      HorizontalGridLinesBrush="#F1F5F9"
                                                       RowHeaderWidth="0"
-                                                      AlternationCount="2">
+                                                      RowHeight="36"
+                                                      AlternationCount="2"
+                                                      AlternatingRowBackground="#FBFCFD"
+                                                      Background="White"
+                                                      BorderThickness="1"
+                                                      BorderBrush="#F1F5F9"
+                                                      FontSize="12">
+                                                <DataGrid.ColumnHeaderStyle>
+                                                    <Style TargetType="DataGridColumnHeader">
+                                                        <Setter Property="Background" Value="#F8FAFC"/>
+                                                        <Setter Property="Foreground" Value="#475569"/>
+                                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                                        <Setter Property="FontSize" Value="11"/>
+                                                        <Setter Property="Padding" Value="12,9"/>
+                                                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                                        <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                                    </Style>
+                                                </DataGrid.ColumnHeaderStyle>
                                                 <DataGrid.Columns>
-                                                    <DataGridTextColumn Header="Bảng" Binding="{Binding TableName}" Width="1.4*" />
-                                                    <DataGridTextColumn Header="Tổng" Binding="{Binding TotalPretty}" Width="0.8*" />
-                                                    <DataGridTextColumn Header="Data" Binding="{Binding TablePretty}" Width="0.8*" />
-                                                    <DataGridTextColumn Header="Index/Toast" Binding="{Binding IndexToastPretty}" Width="0.9*" />
+                                                    <DataGridTextColumn Header="THỜI GIAN" Binding="{Binding TimeText}" Width="140" />
+                                                    <DataGridTemplateColumn Header="MÁY TRẠM" Width="120">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0">
+                                                                    <Border Width="16" Height="16" CornerRadius="3" Background="#EFF6FF" Margin="0,0,6,0">
+                                                                        <Path Data="M20 18c1.1 0 1.99-.9 1.99-2L22 5c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2H0c0 1.1.9 2 2 2h20c1.1 0 2-.9 2-2h-4zM4 5h16v11H4V5z"
+                                                                              Fill="#2563EB" Width="9" Height="9" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                    </Border>
+                                                                    <TextBlock Text="{Binding PcName}" FontWeight="Bold" Foreground="#0F172A"/>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                    <DataGridTemplateColumn Header="TÀI KHOẢN" Width="120">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <Border Background="#F1F5F9" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="6,0">
+                                                                    <TextBlock Text="{Binding AdminUser}" FontSize="11" FontWeight="SemiBold" Foreground="#334155"/>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
+                                                    <DataGridTextColumn Header="HÀNH ĐỘNG BẢO TRÌ" Binding="{Binding ActionText}" Width="*" />
+                                                    <DataGridTemplateColumn Header="TRẠNG THÁI" Width="130">
+                                                        <DataGridTemplateColumn.CellTemplate>
+                                                            <DataTemplate>
+                                                                <Border Background="{Binding StatusBg}" CornerRadius="4" Padding="8,3" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding StatusText}" FontSize="10" FontWeight="Bold" Foreground="{Binding StatusColor}"/>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </DataGridTemplateColumn.CellTemplate>
+                                                    </DataGridTemplateColumn>
                                                 </DataGrid.Columns>
                                             </DataGrid>
                                         </Grid>
                                     </Border>
 
-                                    <Border Grid.Column="2"
-                                            Background="White"
+                                    <!-- 3. Bottom Status Bar -->
+                                    <Border Grid.Row="3"
+                                            Background="#F8FAFC"
                                             BorderBrush="#E2E8F0"
                                             BorderThickness="1"
-                                            CornerRadius="10"
-                                            Padding="10">
+                                            CornerRadius="8"
+                                            Padding="14,10">
                                         <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="8" />
-                                                <RowDefinition Height="240" />
-                                            </Grid.RowDefinitions>
-                                            <TextBlock Text="Lịch sử dung lượng (14 ngày)" FontWeight="SemiBold" Foreground="#0F172A" />
-                                            <DataGrid x:Name="DbStorageHistoryDataGrid"
-                                                      Grid.Row="2"
-                                                      AutoGenerateColumns="False"
-                                                      IsReadOnly="True"
-                                                      CanUserAddRows="False"
-                                                      HeadersVisibility="Column"
-                                                      GridLinesVisibility="Horizontal"
-                                                      RowHeaderWidth="0"
-                                                      AlternationCount="2">
-                                                <DataGrid.Columns>
-                                                    <DataGridTextColumn Header="Ngày" Binding="{Binding Date}" Width="*" />
-                                                    <DataGridTextColumn Header="Dung lượng" Binding="{Binding SizePretty}" Width="*" />
-                                                </DataGrid.Columns>
-                                            </DataGrid>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Border Width="16" Height="16" CornerRadius="8" Background="#EFF6FF" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                    <Path Data="M11 17h2v-6h-2v6zm1-15C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM11 9h2V7h-2v2z"
+                                                          Fill="#2563EB" Width="10" Height="10" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <TextBlock x:Name="AdminCredentialStatusTextBlock"
+                                                           Text="Tất cả các máy trạm sẽ tự động nhận cấu hình bảo mật và quyền hạn khi khởi động hoặc đồng bộ."
+                                                           FontSize="12"
+                                                           Foreground="#475569"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
                                         </Grid>
                                     </Border>
                                 </Grid>
-                            </Grid>
-                        </TabItem>
-                        <TabItem Header="Client">
-                            <Grid Margin="12">
-                                <StackPanel>
-                                    <TextBlock FontSize="18" FontWeight="SemiBold" Text="Tài khoản đăng nhập Admin máy trạm" />
-                                    <TextBlock Margin="0,6,0,0"
-                                               Foreground="#666"
-                                               Text="Bấm nút bên dưới để mở popup đổi username/mật khẩu." />
-                                    <Button Margin="0,14,0,0"
-                                            Width="240"
-                                            Padding="12,6"
-                                            HorizontalAlignment="Left"
-                                            Content="Đổi tài khoản admin..."
-                                            Click="OpenAdminCredentialPopupButton_Click" />
-                                    <TextBlock x:Name="AdminCredentialStatusTextBlock"
-                                               Margin="0,10,0,0"
-                                               Foreground="#555"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
-                            </Grid>
+                            </ScrollViewer>
                         </TabItem>
                     </TabControl>
                 </TabItem>

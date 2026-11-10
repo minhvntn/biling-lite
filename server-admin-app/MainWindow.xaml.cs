@@ -148,6 +148,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         _httpClient.DefaultRequestHeaders.Add("X-API-KEY", "SmbSecureLANKey2026");
         Loaded += MainWindow_Loaded;
+        Closing += MainWindow_Closing;
         Closed += MainWindow_Closed;
         PreviewMouseLeftButtonDown += MainWindow_PreviewMouseLeftButtonDown;
     }
@@ -230,6 +231,10 @@ public partial class MainWindow : Window
             {
                 HideDisabledContextMenuItemsCheckBox.IsChecked = _settings.HideDisabledContextMenuItems;
             }
+            if (AutoBackupOnExitCheckBox is not null)
+            {
+                AutoBackupOnExitCheckBox.IsChecked = _settings.AutoBackupOnExit;
+            }
             _showOfflineMachines = _settings.ShowOfflineMachines;
             if (ShowOfflineMachinesIcon is not null)
             {
@@ -239,6 +244,15 @@ public partial class MainWindow : Window
             {
                 ShowOfflineMachinesMenuItem.FontWeight = _showOfflineMachines ? FontWeights.Bold : FontWeights.Normal;
             }
+            if (ShowOfflineMachinesIcon2 is not null)
+            {
+                ShowOfflineMachinesIcon2.Text = _showOfflineMachines ? "✔" : "";
+            }
+            if (ShowOfflineMachinesMenuItem2 is not null)
+            {
+                ShowOfflineMachinesMenuItem2.FontWeight = _showOfflineMachines ? FontWeights.Bold : FontWeights.Normal;
+            }
+            ApplyMachineColumnVisibilities();
             RevenueAnchorDatePicker.SelectedDate = DateTime.Today;
             WebsiteLogFromDatePicker.SelectedDate = DateTime.Today.AddDays(-1);
             WebsiteLogToDatePicker.SelectedDate = DateTime.Today;
@@ -287,6 +301,7 @@ public partial class MainWindow : Window
             {
                 _ = LoadServerUsersAsync();
                 _ = LoadDatabaseStorageStatsAsync();
+                _ = LoadClientManagementSettingsAsync();
             }
 
             _healthTimer.Interval = TimeSpan.FromSeconds(5);
@@ -380,6 +395,7 @@ public partial class MainWindow : Window
         _ = RefreshAllDataAsync();
         _ = LoadServerUsersAsync();
         _ = LoadDatabaseStorageStatsAsync();
+        _ = LoadClientManagementSettingsAsync();
     }
 
     private void ReportStartupProgress(string message, int progressPercent)
@@ -538,9 +554,7 @@ public partial class MainWindow : Window
             if (AdminTab != null) AdminTab.Visibility = Visibility.Collapsed;
 
             // Bản Lite: Ẩn 3 cột Ngày, IP, Nhóm bên tab Máy trạm
-            if (MachineDateColumn != null) MachineDateColumn.Visibility = Visibility.Collapsed;
-            if (MachineIpColumn != null) MachineIpColumn.Visibility = Visibility.Collapsed;
-            if (MachineGroupColumn != null) MachineGroupColumn.Visibility = Visibility.Collapsed;
+            ApplyMachineColumnVisibilities();
 
             // Bản Lite: Ẩn 3 block thống kê (Tổng số dư, Tổng giờ chơi, Tổng nạp) bên tab Hội viên
             if (StatTotalBalanceCardBorder != null) StatTotalBalanceCardBorder.Visibility = Visibility.Collapsed;
@@ -603,10 +617,8 @@ public partial class MainWindow : Window
             if (SettingsTab != null) SettingsTab.Visibility = Visibility.Visible;
             if (AdminTab != null) AdminTab.Visibility = Visibility.Visible;
 
-            // Bản Pro: Hiển thị lại 3 cột Ngày, IP, Nhóm bên tab Máy trạm
-            if (MachineDateColumn != null) MachineDateColumn.Visibility = Visibility.Visible;
-            if (MachineIpColumn != null) MachineIpColumn.Visibility = Visibility.Visible;
-            if (MachineGroupColumn != null) MachineGroupColumn.Visibility = Visibility.Visible;
+            // Bản Pro: Hiển thị lại các cột theo thiết lập người dùng
+            ApplyMachineColumnVisibilities();
 
             // Bản Pro: Hiển thị lại các block thống kê bên tab Hội viên
             if (StatTotalBalanceCardBorder != null) StatTotalBalanceCardBorder.Visibility = Visibility.Visible;
@@ -652,6 +664,78 @@ public partial class MainWindow : Window
         else if (WindowState == WindowState.Normal || WindowState == WindowState.Maximized)
         {
             _ = RefreshMachinesAsync();
+        }
+    }
+
+    private bool _isClosingWithBackup;
+
+    private async void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (_isClosingWithBackup)
+        {
+            return;
+        }
+
+        bool backupOnExit = _settings.AutoBackupOnExit;
+        if (AutoBackupOnExitCheckBox is not null && AutoBackupOnExitCheckBox.IsChecked.HasValue)
+        {
+            backupOnExit = AutoBackupOnExitCheckBox.IsChecked.Value;
+        }
+
+        if (!backupOnExit)
+        {
+            return;
+        }
+
+        // Tạm hoãn đóng cửa sổ để gọi API backup ngầm trước khi app tắt
+        e.Cancel = true;
+        _isClosingWithBackup = true;
+
+        try
+        {
+            Mouse.OverrideCursor = Cursors.Wait;
+            Title = $"{Title} - [Đang tự động sao lưu dữ liệu trước khi thoát...]";
+            await PerformExitBackupAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[ExitBackup] Exception on close: {ex.Message}");
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+            Close();
+        }
+    }
+
+    private async Task PerformExitBackupAsync()
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var payload = new
+            {
+                requestedBy = "admin.desktop.exit",
+                trigger = "exit"
+            };
+
+            using var response = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl("/settings/backup/run"),
+                payload,
+                cts.Token);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Debug.WriteLine("[ExitBackup] Tự động sao lưu khi tắt ứng dụng thành công.");
+            }
+            else
+            {
+                Debug.WriteLine($"[ExitBackup] Tự động sao lưu thất bại với mã: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[ExitBackup] Lỗi hoặc timeout sao lưu khi tắt app: {ex.Message}");
         }
     }
 
@@ -781,6 +865,7 @@ public partial class MainWindow : Window
             }
             else if (subTab == WebsiteLogsTabItem)
             {
+                await LoadWebsiteLogSettingsAsync();
                 await RefreshWebsiteLogsAsync();
             }
         }
@@ -943,6 +1028,11 @@ public partial class MainWindow : Window
     private bool IsTransactionLogsTabActive()
     {
         return IsLoaded && MainTabControl.SelectedItem == LogsTabItem && LogsTabControl.SelectedItem == TransactionLogsTabItem;
+    }
+
+    private bool IsWebsiteLogsTabActive()
+    {
+        return IsLoaded && MainTabControl.SelectedItem == LogsTabItem && LogsTabControl.SelectedItem == WebsiteLogsTabItem;
     }
 
     private static bool IsCacheValid(DateTime cachedAtUtc, int ttlSeconds)

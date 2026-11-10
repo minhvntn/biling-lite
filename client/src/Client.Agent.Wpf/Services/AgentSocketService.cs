@@ -38,6 +38,7 @@ public sealed class AgentSocketService : IAsyncDisposable
     public Action? SupportClearedHandler { get; set; }
     public Action<int, decimal?>? SessionBillingHandler { get; set; }
     public Func<Task>? ClientSettingsChangedHandler { get; set; }
+    public Action<AppBlockSettingsResponse?>? AppBlockSettingsChangedHandler { get; set; }
     public Action<string?, string?>? MachineInfoHandler { get; set; }
     public Action? WebsiteLogSettingsChangedHandler { get; set; }
     public Action? WebsiteLogsClearedHandler { get; set; }
@@ -489,6 +490,21 @@ public sealed class AgentSocketService : IAsyncDisposable
             catch (Exception ex)
             {
                 await _logger.ErrorAsync("Failed to parse web.filter.settings.changed payload", ex);
+            }
+        });
+
+        _socket.On("app.block.settings.changed", async response =>
+        {
+            try
+            {
+                var payload = response.GetValue<AppBlockSettingsResponse>();
+                await _logger.InfoAsync(
+                    $"Received app.block.settings.changed enabled={payload?.Enabled}, count={payload?.BlockedKeys?.Count ?? 0}");
+                AppBlockSettingsChangedHandler?.Invoke(payload);
+            }
+            catch (Exception ex)
+            {
+                await _logger.ErrorAsync("Failed to parse app.block.settings.changed payload", ex);
             }
         });
 

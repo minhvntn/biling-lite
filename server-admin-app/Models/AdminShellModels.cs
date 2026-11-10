@@ -44,6 +44,9 @@ public sealed class AdminShellSettings
 
     public bool IsLiteMode { get; set; } = false;
 
+    public Dictionary<string, bool> MachineColumnsVisibility { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
     public string ColorInUseBg { get; set; } = "#EFF6FF";
     public string ColorInUseFg { get; set; } = "#2563EB";
     public string ColorAdminBg { get; set; } = "#FEF9C3";
@@ -1332,6 +1335,17 @@ public class ServerUserRow
     public string Role { get; set; } = string.Empty;
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    public bool IsAdmin => string.Equals(Role, "ADMIN", StringComparison.OrdinalIgnoreCase);
+    public string RoleDisplay => IsAdmin ? "QUẢN TRỊ VIÊN (ADMIN)" : "NHÂN VIÊN (STAFF)";
+    public string RoleBadgeBg => IsAdmin ? "#FEF2F2" : "#EFF6FF";
+    public string RoleBadgeBorder => IsAdmin ? "#FECACA" : "#BFDBFE";
+    public string RoleBadgeFg => IsAdmin ? "#DC2626" : "#2563EB";
+    public string CreatedAtDisplay => CreatedAt.ToString("dd/MM/yyyy HH:mm");
+    public bool CanDelete => !IsAdmin;
+    public string AvatarBg => IsAdmin ? "#FEE2E2" : "#DBEAFE";
+    public string AvatarFg => IsAdmin ? "#DC2626" : "#1D4ED8";
+    public string PermissionsSummary => IsAdmin ? "Toàn quyền cấu hình & tài chính" : "Thu ngân, nạp tiền & máy trạm";
 }
 
 public sealed class DatabaseStorageStatsResponse
@@ -1355,6 +1369,12 @@ public sealed class DatabaseStorageTableRow
     public string TablePretty { get; set; } = string.Empty;
     public long IndexToastBytes { get; set; }
     public string IndexToastPretty { get; set; } = string.Empty;
+
+    public string DisplayTotal { get; set; } = string.Empty;
+    public string DisplayData { get; set; } = string.Empty;
+    public string DisplayIndex { get; set; } = string.Empty;
+    public double PercentOfTotal { get; set; }
+    public string PercentText => $"{PercentOfTotal:0.#}%";
 }
 
 public sealed class DatabaseStorageHistoryRow
@@ -1362,6 +1382,21 @@ public sealed class DatabaseStorageHistoryRow
     public string Date { get; set; } = string.Empty;
     public long SizeBytes { get; set; }
     public string SizePretty { get; set; } = string.Empty;
+    public string DisplayDate { get; set; } = string.Empty;
+    public string DeltaText { get; set; } = "-";
+    public string DeltaColor { get; set; } = "#64748B";
+    public double BarHeightPercent { get; set; } = 50;
+}
+
+public sealed class ClientAdminAuditRow
+{
+    public string TimeText { get; set; } = string.Empty;
+    public string PcName { get; set; } = string.Empty;
+    public string AdminUser { get; set; } = "admin";
+    public string ActionText { get; set; } = string.Empty;
+    public string StatusText { get; set; } = "Thành công";
+    public string StatusColor { get; set; } = "#059669";
+    public string StatusBg { get; set; } = "#ECFDF5";
 }
 
 public sealed class TopupPromoTierDto

@@ -127,6 +127,13 @@ public sealed class WebFilterSettingsResponse
     public string UpdatedBy { get; set; } = string.Empty;
 }
 
+public sealed class AppBlockSettingsResponse
+{
+    public bool Enabled { get; set; }
+
+    public List<string> BlockedKeys { get; set; } = new();
+}
+
 public sealed class WebsiteLogSettingsResponse
 {
     public bool Enabled { get; set; }

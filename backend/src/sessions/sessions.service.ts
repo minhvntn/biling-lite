@@ -227,7 +227,7 @@ export class SessionsService {
 
       await tx.pc.update({
         where: { id: fromPcId },
-        data: { status: 'LOCKED' },
+        data: { status: 'ONLINE' },
       });
       await tx.pc.update({
         where: { id: targetPcId },

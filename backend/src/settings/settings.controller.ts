@@ -15,6 +15,7 @@ import * as bcrypt from 'bcrypt';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { UpdateBackupSettingsDto } from './dto/update-backup-settings.dto';
 import { SettingsBackupService } from './settings-backup.service';
 
@@ -28,6 +29,7 @@ export class SettingsController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly backupService: SettingsBackupService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   @Get()
@@ -48,13 +50,56 @@ export class SettingsController {
     return result;
   }
 
+  @Get('app-block')
+  async getAppBlockSettings() {
+    const [enabledRecord, listRecord] = await Promise.all([
+      this.prisma.appSetting.findUnique({ where: { key: 'APP_BLOCK_ENABLED' } }),
+      this.prisma.appSetting.findUnique({ where: { key: 'APP_BLOCK_LIST' } }),
+    ]);
+    const enabled = enabledRecord?.value?.toLowerCase() === 'true';
+    let blockedKeys: string[] = [];
+    try {
+      if (listRecord?.value) {
+        blockedKeys = JSON.parse(listRecord.value);
+        if (!Array.isArray(blockedKeys)) blockedKeys = [];
+      }
+    } catch {
+      blockedKeys = [];
+    }
+    return { enabled, blockedKeys };
+  }
+
   @Post()
   async updateSetting(@Body() body: { key: string; value: string }) {
-    return this.prisma.appSetting.upsert({
+    const result = await this.prisma.appSetting.upsert({
       where: { key: body.key },
       update: { value: body.value },
       create: { key: body.key, value: body.value },
     });
+
+    if (body.key === 'APP_BLOCK_ENABLED' || body.key === 'APP_BLOCK_LIST') {
+      try {
+        const [enabledRec, listRec] = await Promise.all([
+          this.prisma.appSetting.findUnique({ where: { key: 'APP_BLOCK_ENABLED' } }),
+          this.prisma.appSetting.findUnique({ where: { key: 'APP_BLOCK_LIST' } }),
+        ]);
+        const enabled = enabledRec?.value?.toLowerCase() === 'true';
+        let blockedKeys: string[] = [];
+        try {
+          if (listRec?.value) {
+            blockedKeys = JSON.parse(listRec.value);
+            if (!Array.isArray(blockedKeys)) blockedKeys = [];
+          }
+        } catch {
+          blockedKeys = [];
+        }
+        this.realtime.emitToAll('app.block.settings.changed', { enabled, blockedKeys });
+      } catch {
+        // Best effort realtime broadcast
+      }
+    }
+
+    return result;
   }
 
   /**

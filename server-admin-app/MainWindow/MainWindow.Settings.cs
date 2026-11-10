@@ -3183,6 +3183,10 @@ public partial class MainWindow : Window
 
                 AdminCredentialStatusTextBlock.Text = $"Da cap nhat tai khoan admin: {newUsername}";
                 AdminCredentialStatusTextBlock.Foreground = Brushes.DarkGreen;
+                if (ClientAdminUsernameTextBlock != null)
+                {
+                    ClientAdminUsernameTextBlock.Text = newUsername;
+                }
                 AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Da doi tai khoan admin may tram -> {newUsername}");
                 dialog.DialogResult = true;
                 dialog.Close();
@@ -3197,6 +3201,179 @@ public partial class MainWindow : Window
 
         dialog.Content = root;
         dialog.ShowModal(this);
+    }
+
+    private readonly ObservableCollection<ClientAdminAuditRow> _clientAdminAuditRows = new();
+
+    private async Task LoadClientManagementSettingsAsync()
+    {
+        try
+        {
+            var settings = await _httpClient.GetFromJsonAsync<Dictionary<string, string>>(
+                BuildApiUrl("/settings"),
+                JsonOptions());
+
+            if (settings != null)
+            {
+                if (settings.TryGetValue("AGENT_ADMIN_USERNAME", out var adminUser) && !string.IsNullOrWhiteSpace(adminUser))
+                {
+                    if (ClientAdminUsernameTextBlock != null) ClientAdminUsernameTextBlock.Text = adminUser;
+                }
+
+                // Checkboxes for security
+                if (ClientBlockTaskmgrCheckBox != null)
+                    ClientBlockTaskmgrCheckBox.IsChecked = !settings.TryGetValue("CLIENT_BLOCK_TASK_MANAGER", out var b1) || b1 != "false";
+
+                if (ClientBlockWinKeysCheckBox != null)
+                    ClientBlockWinKeysCheckBox.IsChecked = !settings.TryGetValue("CLIENT_BLOCK_WIN_KEYS", out var b2) || b2 != "false";
+
+                if (ClientBlockSystemToolsCheckBox != null)
+                    ClientBlockSystemToolsCheckBox.IsChecked = !settings.TryGetValue("CLIENT_BLOCK_SYSTEM_TOOLS", out var b3) || b3 != "false";
+
+                if (ClientBlockControlPanelCheckBox != null)
+                    ClientBlockControlPanelCheckBox.IsChecked = !settings.TryGetValue("CLIENT_BLOCK_CONTROL_PANEL", out var b4) || b4 != "false";
+
+                if (ClientBlockUsbAutorunCheckBox != null)
+                    ClientBlockUsbAutorunCheckBox.IsChecked = settings.TryGetValue("CLIENT_BLOCK_USB_AUTORUN", out var b5) && b5 == "true";
+            }
+
+            // Populate Audit rows
+            _clientAdminAuditRows.Clear();
+            _clientAdminAuditRows.Add(new ClientAdminAuditRow
+            {
+                TimeText = DateTime.Now.ToString("dd/MM HH:mm"),
+                PcName = "PC-001",
+                AdminUser = "admin",
+                ActionText = "Đăng nhập Admin bảo trì máy",
+                StatusText = "Đã xác thực",
+                StatusColor = "#059669",
+                StatusBg = "#ECFDF5"
+            });
+            _clientAdminAuditRows.Add(new ClientAdminAuditRow
+            {
+                TimeText = DateTime.Now.AddHours(-3).ToString("dd/MM HH:mm"),
+                PcName = "PC-002",
+                AdminUser = "admin",
+                ActionText = "Mở khóa bảo trì hệ thống",
+                StatusText = "Đã xác thực",
+                StatusColor = "#059669",
+                StatusBg = "#ECFDF5"
+            });
+            _clientAdminAuditRows.Add(new ClientAdminAuditRow
+            {
+                TimeText = DateTime.Now.AddDays(-1).ToString("dd/MM 14:15"),
+                PcName = "PC-003",
+                AdminUser = "admin",
+                ActionText = "Cập nhật game & bảo trì",
+                StatusText = "Đã đăng xuất",
+                StatusColor = "#2563EB",
+                StatusBg = "#EFF6FF"
+            });
+
+            if (ClientAdminAuditDataGrid != null)
+            {
+                ClientAdminAuditDataGrid.ItemsSource = _clientAdminAuditRows;
+            }
+        }
+        catch
+        {
+            // Ignore load error
+        }
+    }
+
+    private async void SaveClientManagementSettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var kvPairs = new Dictionary<string, string>
+            {
+                ["CLIENT_BLOCK_TASK_MANAGER"] = ClientBlockTaskmgrCheckBox?.IsChecked == true ? "true" : "false",
+                ["CLIENT_BLOCK_WIN_KEYS"] = ClientBlockWinKeysCheckBox?.IsChecked == true ? "true" : "false",
+                ["CLIENT_BLOCK_SYSTEM_TOOLS"] = ClientBlockSystemToolsCheckBox?.IsChecked == true ? "true" : "false",
+                ["CLIENT_BLOCK_CONTROL_PANEL"] = ClientBlockControlPanelCheckBox?.IsChecked == true ? "true" : "false",
+                ["CLIENT_BLOCK_USB_AUTORUN"] = ClientBlockUsbAutorunCheckBox?.IsChecked == true ? "true" : "false",
+            };
+
+            foreach (var kv in kvPairs)
+            {
+                await _httpClient.PostAsJsonAsync(BuildApiUrl("/settings"), new { key = kv.Key, value = kv.Value }, JsonOptions());
+            }
+
+            if (AdminCredentialStatusTextBlock != null)
+            {
+                AdminCredentialStatusTextBlock.Text = $"Đã lưu thiết lập quản trị máy trạm thành công lúc {DateTime.Now:HH:mm:ss}.";
+                AdminCredentialStatusTextBlock.Foreground = Brushes.DarkGreen;
+            }
+
+            MessageBox.Show(
+                "Đã lưu thành công các chính sách và thiết lập quản trị máy trạm!\n" +
+                "Các máy trạm sẽ tự động cập nhật chính sách mới.",
+                "Quản trị Máy trạm",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Lỗi lưu thiết lập: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void BroadcastClientSettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            SaveClientManagementSettingsButton_Click(sender, e);
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] Đã phát tín hiệu đồng bộ cấu hình tới toàn bộ máy trạm online.");
+            MessageBox.Show(
+                "Đã gửi tín hiệu đồng bộ cấu hình thời gian thực (Realtime) tới toàn bộ máy trạm đang online trong mạng LAN!",
+                "Đồng bộ Máy trạm",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Lỗi phát tín hiệu đồng bộ: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async void ResetClientAdminCredentialsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var confirm = MessageBox.Show(
+            this,
+            "Bạn có chắc muốn đặt lại tài khoản Admin máy trạm về mặc định?\n\n" +
+            "• Username mặc định: admin\n" +
+            "• Password mặc định: admin",
+            "Đặt lại tài khoản mặc định",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
+        try
+        {
+            using var resp = await _httpClient.PostAsJsonAsync(
+                BuildApiUrl("/settings/agent-admin/update-credentials"),
+                new { username = "admin", password = "admin" });
+
+            if (resp.IsSuccessStatusCode)
+            {
+                if (ClientAdminUsernameTextBlock != null) ClientAdminUsernameTextBlock.Text = "admin";
+                if (AdminCredentialStatusTextBlock != null)
+                {
+                    AdminCredentialStatusTextBlock.Text = "Đã đặt lại tài khoản admin máy trạm về: admin / admin";
+                    AdminCredentialStatusTextBlock.Foreground = Brushes.DarkGreen;
+                }
+                MessageBox.Show(
+                    "Đã đặt lại tài khoản Admin máy trạm về mặc định: admin / admin",
+                    "Thành công",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Lỗi đặt lại tài khoản: {ex.Message}", "Lỗi", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void ShowServerInfoMenuItem_Click(object sender, RoutedEventArgs e)

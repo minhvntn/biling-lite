@@ -159,7 +159,7 @@ public partial class MainWindow : Window
         var statusText = item.Status switch
         {
             "IN_USE" => isAdminSession ? "Admin" : I18n.StatusInUse,
-            "LOCKED" => "Đang khóa",
+            "LOCKED" => I18n.StatusReady,
             "ONLINE" => I18n.StatusReady,
             "BOOTING" => "Đang khởi động",
             "OFFLINE" => isUnpaidGuestEligibleStatus ? "Mất kết nối" : I18n.StatusLocked,
@@ -169,7 +169,7 @@ public partial class MainWindow : Window
         var statusBrush = item.Status switch
         {
             "IN_USE" => Brushes.RoyalBlue,
-            "LOCKED" => Brushes.Orange,
+            "LOCKED" => Brushes.DarkSlateBlue,
             "ONLINE" => Brushes.DarkSlateBlue,
             "BOOTING" => Brushes.Goldenrod,
             "OFFLINE" => Brushes.White,
@@ -188,7 +188,7 @@ public partial class MainWindow : Window
         var statusIconPath = "/Assets/pc-default.svg";
         var statusIconToolTip = "Ngoại tuyến";
 
-        if (item.Status == "ONLINE")
+        if (item.Status == "ONLINE" || item.Status == "LOCKED")
         {
             statusIconBrush = Brushes.LimeGreen;
             statusIconPath = "/Assets/pc-available.svg";
@@ -215,12 +215,6 @@ public partial class MainWindow : Window
                 statusIconPath = "/Assets/pc-guest.svg";
                 statusIconToolTip = "Khách đang sử dụng";
             }
-        }
-        else if (item.Status == "LOCKED")
-        {
-            statusIconBrush = Brushes.Orange;
-            statusIconPath = "/Assets/pc-offline.svg";
-            statusIconToolTip = "Đang bị khóa";
         }
         else if (item.Status == "BOOTING")
         {
@@ -578,8 +572,8 @@ public partial class MainWindow : Window
         return _statusFilter switch
         {
             "\u0110ang s\u1eed d\u1ee5ng" => rows.Where(r => r.StatusCode == "IN_USE").ToList(),
-            "\u0110ang t\u1eaft" => rows.Where(r => r.StatusCode is "LOCKED" or "OFFLINE").ToList(),
-            "S\u1eb5n s\u00e0ng" => rows.Where(r => r.StatusCode == "ONLINE").ToList(),
+            "\u0110ang t\u1eaft" => rows.Where(r => r.StatusCode is "OFFLINE").ToList(),
+            "S\u1eb5n s\u00e0ng" => rows.Where(r => r.StatusCode is "ONLINE" or "LOCKED").ToList(),
             "Offline" => rows.Where(r => r.StatusCode is not "IN_USE" and not "LOCKED" and not "ONLINE").ToList(),
             _ => rows,
         };
@@ -1177,7 +1171,7 @@ public partial class MainWindow : Window
         {
             var isGuestAlreadyPrepaid = isGuestInUse && selectedMachine.ActiveGuestPrepaidAmount > 0;
             ContextSwitchGuestToPrepaidMenuItem.Header = isGuestAlreadyPrepaid
-                ? "Nạp tiền..."
+                ? "Nạp / Trừ tiền..."
                 : "Chuyển sang trả tiền trước...";
         }
 
@@ -1830,7 +1824,7 @@ public partial class MainWindow : Window
     private static bool IsReadyMachineStatus(MachineRow row)
     {
         var status = row.StatusCode?.Trim().ToUpperInvariant() ?? string.Empty;
-        return status is "ONLINE" or "AVAILABLE";
+        return status is "ONLINE" or "AVAILABLE" or "LOCKED";
     }
 
     private async Task OpenRemoteControlForSelectedMachineAsync()
@@ -3243,16 +3237,15 @@ public partial class MainWindow : Window
 
         var currentPrepaid = selected.ActiveGuestPrepaidAmount;
         var isAlreadyPrepaid = currentPrepaid > 0;
-        var actionLabel = isAlreadyPrepaid ? "Nạp tiền" : "Chuyển sang trả tiền trước";
         var currentPrepaidText = isAlreadyPrepaid
             ? $"Đã trả trước: {currentPrepaid:N0} VND"
             : $"Đang chơi trả sau (Tạm tính: {selected.MoneyText} VND)";
 
         var modalTitle = isAlreadyPrepaid
-            ? $"Nạp tiền - {selected.Name}"
+            ? $"Nạp / Trừ tiền - {selected.Name}"
             : $"Chuyển sang trả tiền trước - {selected.Name}";
         var memberPrompt = isAlreadyPrepaid
-            ? $"Máy trạm: {selected.Name} ({selected.UserName}) - nhập số tiền nạp thêm:"
+            ? $"Máy trạm: {selected.Name} ({selected.UserName}) - chọn Nạp tiền (+) hoặc Trừ tiền (-):"
             : $"Máy trạm: {selected.Name} ({selected.UserName}) - nhập số tiền khách trả trước:";
 
         var amount = await ShowTopupModalAsync(
@@ -3260,23 +3253,38 @@ public partial class MainWindow : Window
             title: modalTitle,
             memberPrompt: memberPrompt,
             currentBalanceText: $"Trạng thái hiện tại: {currentPrepaidText}",
-            allowDeduct: false,
+            allowDeduct: isAlreadyPrepaid,
             ratePerHour: selected.HourlyRate);
 
-        if (!amount.HasValue || amount.Value <= 0)
+        if (!amount.HasValue || amount.Value == 0)
         {
             return;
         }
 
-        if (amount.Value < 1000)
+        var isDeduct = amount.Value < 0;
+        var absAmount = Math.Abs(amount.Value);
+
+        if (absAmount < 1000)
         {
             MessageBox.Show(
-                "Số tiền trả trước tối thiểu là 1.000 VND.",
+                "Số tiền thao tác tối thiểu là 1.000 VND.",
                 "Server Admin",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
             return;
         }
+
+        if (isDeduct && absAmount > currentPrepaid)
+        {
+            MessageBox.Show(
+                $"Số tiền trừ ({absAmount:N0} VND) không được lớn hơn số tiền khách đã trả trước ({currentPrepaid:N0} VND).",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        var actionLabel = isDeduct ? "Trừ tiền" : (isAlreadyPrepaid ? "Nạp tiền" : "Chuyển sang trả tiền trước");
 
         try
         {
@@ -3301,7 +3309,7 @@ public partial class MainWindow : Window
                 return;
             }
 
-            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] {actionLabel} máy {selected.Name} ({amount.Value:N0} VND)");
+            AppendServiceLog($"[{DateTime.Now:HH:mm:ss}] {actionLabel} máy {selected.Name} ({absAmount:N0} VND)");
             await RefreshMachinesAsync();
             await RefreshTransactionLogsAsync();
         }
@@ -4684,11 +4692,15 @@ public partial class MainWindow
         {
             ShowOfflineMachinesIcon.Text = "✔";
             ShowOfflineMachinesMenuItem.FontWeight = FontWeights.Bold;
+            if (ShowOfflineMachinesIcon2 is not null) ShowOfflineMachinesIcon2.Text = "✔";
+            if (ShowOfflineMachinesMenuItem2 is not null) ShowOfflineMachinesMenuItem2.FontWeight = FontWeights.Bold;
         }
         else
         {
             ShowOfflineMachinesIcon.Text = "";
             ShowOfflineMachinesMenuItem.FontWeight = FontWeights.Normal;
+            if (ShowOfflineMachinesIcon2 is not null) ShowOfflineMachinesIcon2.Text = "";
+            if (ShowOfflineMachinesMenuItem2 is not null) ShowOfflineMachinesMenuItem2.FontWeight = FontWeights.Normal;
         }
         ApplyMachineFiltersToGrid(GetSelectedMachineIdsSnapshot());
     }
@@ -4776,10 +4788,14 @@ public partial class MainWindow
             ViewModeListMenuItem.Header = "Dạng danh sách";
             ViewModeListMenuItem.FontWeight = FontWeights.Normal;
             if (ViewModeListIcon is not null) ViewModeListIcon.Text = "";
+            if (ViewModeListMenuItem2 is not null) ViewModeListMenuItem2.FontWeight = FontWeights.Normal;
+            if (ViewModeListIcon2 is not null) ViewModeListIcon2.Text = "";
 
             ViewModeIconMenuItem.Header = "Dạng biểu tượng";
             ViewModeIconMenuItem.FontWeight = FontWeights.Bold;
             if (ViewModeIconIcon is not null) ViewModeIconIcon.Text = "✔";
+            if (ViewModeIconMenuItem2 is not null) ViewModeIconMenuItem2.FontWeight = FontWeights.Bold;
+            if (ViewModeIconIcon2 is not null) ViewModeIconIcon2.Text = "✔";
         }
         else
         {
@@ -4789,11 +4805,113 @@ public partial class MainWindow
             ViewModeListMenuItem.Header = "Dạng danh sách";
             ViewModeListMenuItem.FontWeight = FontWeights.Bold;
             if (ViewModeListIcon is not null) ViewModeListIcon.Text = "✔";
+            if (ViewModeListMenuItem2 is not null) ViewModeListMenuItem2.FontWeight = FontWeights.Bold;
+            if (ViewModeListIcon2 is not null) ViewModeListIcon2.Text = "✔";
 
             ViewModeIconMenuItem.Header = "Dạng biểu tượng";
             ViewModeIconMenuItem.FontWeight = FontWeights.Normal;
             if (ViewModeIconIcon is not null) ViewModeIconIcon.Text = "";
+            if (ViewModeIconMenuItem2 is not null) ViewModeIconMenuItem2.FontWeight = FontWeights.Normal;
+            if (ViewModeIconIcon2 is not null) ViewModeIconIcon2.Text = "";
         }
+    }
+
+    public void ApplyMachineColumnVisibilities()
+    {
+        ApplySingleColumnVisibility(MachineNameColumn, ToggleColNameIcon, ToggleColNameMenuItem, "Name");
+        ApplySingleColumnVisibility(MachineStatusColumn, ToggleColStatusIcon, ToggleColStatusMenuItem, "Status");
+        ApplySingleColumnVisibility(MachineUserColumn, ToggleColUserIcon, ToggleColUserMenuItem, "User");
+        ApplySingleColumnVisibility(MachineStartTimeColumn, ToggleColStartTimeIcon, ToggleColStartTimeMenuItem, "StartTime");
+        ApplySingleColumnVisibility(MachineUsedTimeColumn, ToggleColUsedTimeIcon, ToggleColUsedTimeMenuItem, "UsedTime");
+        ApplySingleColumnVisibility(MachineRemainingTimeColumn, ToggleColRemainingTimeIcon, ToggleColRemainingTimeMenuItem, "RemainingTime");
+        ApplySingleColumnVisibility(MachineFeeColumn, ToggleColFeeIcon, ToggleColFeeMenuItem, "Fee");
+        ApplySingleColumnVisibility(MachineServiceFeeColumn, ToggleColServiceFeeIcon, ToggleColServiceFeeMenuItem, "ServiceFee");
+        ApplySingleColumnVisibility(MachineDateColumn, ToggleColDateIcon, ToggleColDateMenuItem, "Date");
+        ApplySingleColumnVisibility(MachineIpColumn, ToggleColIpIcon, ToggleColIpMenuItem, "Ip");
+        ApplySingleColumnVisibility(MachineGroupColumn, ToggleColGroupIcon, ToggleColGroupMenuItem, "Group");
+    }
+
+    private bool IsMachineColumnVisible(string colKey)
+    {
+        if (_settings.MachineColumnsVisibility != null &&
+            _settings.MachineColumnsVisibility.TryGetValue(colKey, out var visible))
+        {
+            return visible;
+        }
+        return true;
+    }
+
+    private void ApplySingleColumnVisibility(DataGridColumn? column, TextBlock? icon, MenuItem? menuItem, string key)
+    {
+        bool isVisible = IsMachineColumnVisible(key);
+        if (_settings.IsLiteMode && (key == "Date" || key == "Ip" || key == "Group"))
+        {
+            isVisible = false;
+        }
+
+        if (column != null)
+        {
+            column.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        if (icon != null)
+        {
+            icon.Text = isVisible ? "✔" : "";
+        }
+
+        if (menuItem != null)
+        {
+            menuItem.FontWeight = isVisible ? FontWeights.Medium : FontWeights.Normal;
+        }
+    }
+
+    private void ToggleMachineColumn_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem menuItem && menuItem.Tag is string key)
+        {
+            bool current = IsMachineColumnVisible(key);
+            bool next = !current;
+            _settings.MachineColumnsVisibility ??= new(StringComparer.OrdinalIgnoreCase);
+            _settings.MachineColumnsVisibility[key] = next;
+            SaveSettings();
+            ApplyMachineColumnVisibilities();
+        }
+    }
+
+    private void ShowAllMachineColumns_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.MachineColumnsVisibility ??= new(StringComparer.OrdinalIgnoreCase);
+        foreach (var key in new[] { "Name", "Status", "User", "StartTime", "UsedTime", "RemainingTime", "Fee", "ServiceFee", "Date", "Ip", "Group" })
+        {
+            _settings.MachineColumnsVisibility[key] = true;
+        }
+        SaveSettings();
+        ApplyMachineColumnVisibilities();
+    }
+
+    private void SetCompactMachineColumns_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.MachineColumnsVisibility ??= new(StringComparer.OrdinalIgnoreCase);
+        _settings.MachineColumnsVisibility["Name"] = true;
+        _settings.MachineColumnsVisibility["Status"] = true;
+        _settings.MachineColumnsVisibility["User"] = true;
+        _settings.MachineColumnsVisibility["StartTime"] = true;
+        _settings.MachineColumnsVisibility["UsedTime"] = true;
+        _settings.MachineColumnsVisibility["RemainingTime"] = true;
+        _settings.MachineColumnsVisibility["Fee"] = true;
+        _settings.MachineColumnsVisibility["ServiceFee"] = false;
+        _settings.MachineColumnsVisibility["Date"] = false;
+        _settings.MachineColumnsVisibility["Ip"] = false;
+        _settings.MachineColumnsVisibility["Group"] = false;
+        SaveSettings();
+        ApplyMachineColumnVisibilities();
+    }
+
+    private void ResetMachineColumns_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.MachineColumnsVisibility?.Clear();
+        SaveSettings();
+        ApplyMachineColumnVisibilities();
     }
 
     private void MachineIconCard_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

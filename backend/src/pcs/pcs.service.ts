@@ -1652,7 +1652,7 @@ export class PcsService {
 
     await this.prisma.pc.update({
       where: { id: fromPcId },
-      data: { status: PcStatus.LOCKED },
+      data: { status: PcStatus.ONLINE },
     });
 
     // 7. Emit lock command and realtime events
@@ -1665,7 +1665,7 @@ export class PcsService {
       pcId: fromPcId,
       agentId: fromPc.agentId,
       previousStatus: fromPc.status,
-      status: PcStatus.LOCKED,
+      status: PcStatus.ONLINE,
     });
 
     this.realtime.emitToAll('session.closed', {

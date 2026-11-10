@@ -277,7 +277,7 @@ public partial class MainWindow : Window
         {
             "ONLINE" => "Sẵn sàng",
             "IN_USE" => "Đang sử dụng",
-            "LOCKED" => "Đang khóa",
+            "LOCKED" => "Sẵn sàng",
             "OFFLINE" => "Ngoại tuyến",
             _ => status
         };

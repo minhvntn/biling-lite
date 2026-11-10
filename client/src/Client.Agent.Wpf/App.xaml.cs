@@ -99,6 +99,9 @@ public partial class App : Application
     private bool _isMemberAutoLockInProgress;
     private DateTime _lastWebFilterFetchUtc = DateTime.MinValue;
     private string _lastWebFilterSignature = string.Empty;
+    private AppBlockService? _appBlockService;
+    private bool _isAppBlockSyncRunning;
+    private DateTime _lastAppBlockFetchUtc = DateTime.MinValue;
     private readonly DispatcherTimer _websiteLogSyncTimer = new();
     private readonly DispatcherTimer _appUsageTimer = new();
     private bool _isWebsiteLogSyncRunning;
@@ -181,6 +184,15 @@ public partial class App : Application
                 _ = _logger.ErrorAsync("Failed to register startup", ex);
             }
         }
+
+        _appBlockService = new AppBlockService(_logger);
+        _appBlockService.OnAppBlocked = appName =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                OnApplicationBlockedNotification(appName);
+            });
+        };
 
         _mainWindow = new MainWindow();
         _mainWindow.SetAgentId(_settings.AgentId);
@@ -276,6 +288,7 @@ public partial class App : Application
         _backgroundSyncTimer.Stop();
         _websiteLogSyncTimer.Stop();
         _appUsageTimer.Stop();
+        _appBlockService?.Dispose();
 
         try
         {
@@ -304,6 +317,9 @@ public partial class App : Application
 
         // Web filter is applied once on startup and then refreshed only by realtime update/reconnect.
         _ = RefreshAndApplyWebFilterAsync(true);
+
+        // App blocking is applied once on startup and refreshed by realtime socket/periodic sync.
+        _ = RefreshAndApplyAppBlockAsync(true);
 
         _websiteLogSyncTimer.Interval = WebsiteLogEnabledSyncInterval;
         _websiteLogSyncTimer.Tick += WebsiteLogSyncTimer_Tick;
@@ -415,6 +431,18 @@ public partial class App : Application
         _socketService.ClientSettingsChangedHandler = async () =>
         {
             await RefreshClientRuntimeSettingsAsync();
+        };
+        _socketService.AppBlockSettingsChangedHandler = payload =>
+        {
+            if (payload != null && _appBlockService != null)
+            {
+                _appBlockService.UpdateSettings(payload.Enabled, payload.BlockedKeys);
+                _mainWindow?.SetLastCommand($"APP BLOCK {(payload.Enabled ? "ON" : "OFF")} @ {DateTime.Now:HH:mm:ss}");
+            }
+            else
+            {
+                _ = RefreshAndApplyAppBlockAsync(force: true);
+            }
         };
         _socketService.MachineInfoHandler = (pcName, groupName) =>
         {
@@ -2540,6 +2568,7 @@ public async void OpenLoyaltyPanelFromClientUi()
         await RefreshClientRuntimeSettingsAsync();
         await RefreshLoyaltySettingsPeriodicAsync();
         await RefreshTopupPromotionsAsync();
+        await RefreshAndApplyAppBlockAsync(false);
     }
 
     private async Task RefreshLoyaltySettingsPeriodicAsync()
@@ -3078,6 +3107,80 @@ public async void OpenLoyaltyPanelFromClientUi()
         }
 
         return value;
+    }
+
+    private async Task RefreshAndApplyAppBlockAsync(bool force = false)
+    {
+        if (_isAppBlockSyncRunning)
+        {
+            return;
+        }
+
+        _isAppBlockSyncRunning = true;
+        try
+        {
+            var now = DateTime.UtcNow;
+            if (!force && (now - _lastAppBlockFetchUtc).TotalSeconds < 45)
+            {
+                return;
+            }
+
+            _lastAppBlockFetchUtc = now;
+
+            using var response = await _httpClient.GetAsync(BuildApiUrl("/settings/app-block"));
+            if (!response.IsSuccessStatusCode)
+            {
+                return;
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<AppBlockSettingsResponse>(
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                });
+
+            if (payload is null)
+            {
+                return;
+            }
+
+            _appBlockService?.UpdateSettings(payload.Enabled, payload.BlockedKeys);
+            _mainWindow?.SetLastCommand(
+                $"APP BLOCK {(payload.Enabled ? "ON" : "OFF")} ({payload.BlockedKeys?.Count ?? 0}) @ {DateTime.Now:HH:mm:ss}");
+        }
+        catch (Exception ex)
+        {
+            if (_logger is not null)
+            {
+                await _logger.ErrorAsync("Refresh app block settings failed", ex);
+            }
+        }
+        finally
+        {
+            _isAppBlockSyncRunning = false;
+        }
+    }
+
+    private void OnApplicationBlockedNotification(string appName)
+    {
+        try
+        {
+            var message = $"Ứng dụng \"{appName}\" đã bị quản trị viên chặn mở trên máy trạm.";
+            var title = "Cảnh báo bảo mật";
+
+            var notification = new NotificationWindow(message, title)
+            {
+                Owner = _mainWindow,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen
+            };
+            notification.Show();
+
+            _mainWindow?.SetLastCommand($"BLOCKED {appName} @ {DateTime.Now:HH:mm:ss}");
+        }
+        catch
+        {
+            // Resilient UI alert
+        }
     }
 
     private async void WebsiteLogSyncTimer_Tick(object? sender, EventArgs e)

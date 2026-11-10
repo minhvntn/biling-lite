@@ -534,13 +534,13 @@ public partial class MainWindow : Window
         switch (action.ToLowerInvariant())
         {
             case "lock":
-                selected.StatusCode = "LOCKED";
-                selected.StatusText = "Đang khóa";
+                selected.StatusCode = "ONLINE";
+                selected.StatusText = "Sẵn sàng";
                 selected.StatusSubText = string.Empty;
-                selected.StatusIconPath = "/Assets/pc-offline.svg";
-                selected.StatusIconBrush = Brushes.Orange;
-                selected.StatusBrush = Brushes.Orange;
-                selected.StatusIconToolTip = "Đang khóa";
+                selected.StatusIconPath = "/Assets/pc-available.svg";
+                selected.StatusIconBrush = Brushes.LimeGreen;
+                selected.StatusBrush = Brushes.DarkSlateBlue;
+                selected.StatusIconToolTip = "Sẵn sàng";
                 selected.UserName = "-";
                 selected.IsAdminSession = false;
                 selected.IsVipSession = false;
@@ -548,6 +548,10 @@ public partial class MainWindow : Window
                 selected.ActiveSessionId = null;
                 selected.ActiveSessionElapsedSeconds = 0;
                 selected.ActiveSessionEstimatedAmount = 0;
+                selected.ActiveGuestDisplayName = null;
+                selected.ActiveGuestPrepaidAmount = 0;
+                selected.ActiveMemberId = null;
+                selected.ActiveMemberUsername = null;
                 selected.ServiceAmountRaw = 0;
                 selected.ServiceAmountText = "-";
                 selected.StartedAtText = "-";
@@ -653,12 +657,12 @@ public partial class MainWindow : Window
     private void UpdateVirtualPcSummaryBadges()
     {
         var total = _virtualMachineRows.Count;
-        var onlineCount = _virtualMachineRows.Count(r => r.StatusCode == "ONLINE");
+        var onlineCount = _virtualMachineRows.Count(r => r.StatusCode == "ONLINE" || r.StatusCode == "LOCKED");
         var memberCount = _virtualMachineRows.Count(r => r.StatusCode == "IN_USE" && !r.IsAdminSession && !r.IsVipSession && !r.IsGuestSession);
         var vipCount = _virtualMachineRows.Count(r => r.IsVipSession);
         var guestCount = _virtualMachineRows.Count(r => r.IsGuestSession);
         var adminCount = _virtualMachineRows.Count(r => r.IsAdminSession);
-        var offlineCount = _virtualMachineRows.Count(r => r.StatusCode == "OFFLINE" || r.StatusCode == "LOCKED");
+        var offlineCount = _virtualMachineRows.Count(r => r.StatusCode == "OFFLINE");
 
         decimal totalHoursMoney = _virtualMachineRows.Sum(r => ParseMoney(r.MoneyText));
         decimal totalServicesMoney = _virtualMachineRows.Sum(r => r.ServiceAmountRaw);

@@ -196,6 +196,11 @@ export class CommandsService {
       : null;
     const currentPrepaid = parsedLatest ? Number(parsedLatest.prepaidAmount || 0) : 0;
     const totalPrepaid = currentPrepaid + normalizedAmount;
+    if (totalPrepaid < 0) {
+      throw new BadRequestException(
+        `Số tiền trừ (${Math.abs(normalizedAmount).toLocaleString('vi-VN')} VND) vượt quá số tiền trả trước hiện có (${currentPrepaid.toLocaleString('vi-VN')} VND)`,
+      );
+    }
 
     await this.logEvent(EventSource.ADMIN, 'guest.pc.presence', targetPc.id, {
       isActive: true,
@@ -205,7 +210,8 @@ export class CommandsService {
       at: new Date().toISOString(),
     });
 
-    await this.logEvent(EventSource.ADMIN, 'guest.prepaid.converted', targetPc.id, {
+    const eventName = normalizedAmount >= 0 ? 'guest.prepaid.converted' : 'guest.prepaid.deducted';
+    await this.logEvent(EventSource.ADMIN, eventName, targetPc.id, {
       pcName: targetPc.name,
       amount: normalizedAmount,
       totalPrepaid,
@@ -1086,10 +1092,10 @@ export class CommandsService {
           include: { pc: true },
         });
 
-        if (pc.status !== PcStatus.LOCKED) {
+        if (pc.status !== PcStatus.ONLINE) {
           await tx.pc.update({
             where: { id: pc.id },
-            data: { status: PcStatus.LOCKED },
+            data: { status: PcStatus.ONLINE },
           });
         }
 
@@ -1100,7 +1106,7 @@ export class CommandsService {
         pcId: pc.id,
         agentId: pc.agentId,
         previousStatus: pc.status,
-        status: PcStatus.LOCKED,
+        status: PcStatus.ONLINE,
         at: new Date().toISOString(),
         sourceEvent: 'command.lock.noop',
       });
@@ -1147,7 +1153,7 @@ export class CommandsService {
           true,
         );
 
-        if (!existingPc || existingPc.status === PcStatus.LOCKED) {
+        if (!existingPc || existingPc.status === PcStatus.ONLINE) {
           return {
             command,
             closedSession,
@@ -1159,7 +1165,7 @@ export class CommandsService {
 
         const updatedPc = await tx.pc.update({
           where: { id: existingPc.id },
-          data: { status: PcStatus.LOCKED },
+          data: { status: PcStatus.ONLINE },
         });
 
         return {

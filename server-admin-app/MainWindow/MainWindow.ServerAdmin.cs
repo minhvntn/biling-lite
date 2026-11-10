@@ -1,9 +1,10 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Input;
 
 namespace Server.Admin.App;
 
@@ -34,6 +35,11 @@ public partial class MainWindow
                 }
                 ServerUsersDataGrid.ItemsSource = _serverUserRows;
                 StaffActionStatusTextBlock.Text = $"Đã tải {_serverUserRows.Count} tài khoản.";
+                if (ServerTotalUsersTextBlock != null) ServerTotalUsersTextBlock.Text = $"{_serverUserRows.Count} Tài khoản";
+                var adminCount = _serverUserRows.Count(x => x.IsAdmin);
+                var staffCount = _serverUserRows.Count(x => !x.IsAdmin);
+                if (ServerAdminCountTextBlock != null) ServerAdminCountTextBlock.Text = $"{adminCount} Admin";
+                if (ServerStaffCountTextBlock != null) ServerStaffCountTextBlock.Text = $"{staffCount} Nhân viên";
                 StaffActionStatusTextBlock.Foreground = Brushes.DarkGreen;
             }
             else
@@ -53,10 +59,11 @@ public partial class MainWindow
     {
         try
         {
-            DbStorageSizeTextBlock.Text = "Tổng DB: đang tải...";
-            DbStorageUpdatedAtTextBlock.Text = "Cập nhật: đang tải...";
-            DbStorageDeltaTextBlock.Text = "Biến động hôm nay: -";
-            DbStorageDeltaTextBlock.Foreground = Brushes.DimGray;
+            DbStorageSizeTextBlock.Text = "...";
+            if (DbStorageDatabaseNameTextBlock != null) DbStorageDatabaseNameTextBlock.Text = "Database: đang tải...";
+            DbStorageUpdatedAtTextBlock.Text = "Đang tải dữ liệu...";
+            DbStorageDeltaTextBlock.Text = "-";
+            if (DbStorageTopTableTextBlock != null) DbStorageTopTableTextBlock.Text = "...";
 
             var response = await _httpClient.GetFromJsonAsync<DatabaseStorageStatsResponse>(
                 BuildApiUrl("/reports/database/storage?days=14"),
@@ -66,52 +73,149 @@ public partial class MainWindow
                 return;
             }
 
-            DbStorageSizeTextBlock.Text = $"{response.DatabaseName}: {response.SizePretty}";
-            DbStorageUpdatedAtTextBlock.Text = $"Cập nhật: {FormatDateTime(response.ServerTime)}";
+            // 1. Hero KPI Cards
+            DbStorageSizeTextBlock.Text = response.SizePretty;
+            if (DbStorageDatabaseNameTextBlock != null)
+            {
+                DbStorageDatabaseNameTextBlock.Text = $"Database: {response.DatabaseName}";
+            }
+            DbStorageUpdatedAtTextBlock.Text = FormatDateTime(response.ServerTime);
 
             var deltaPrefix = response.DayDeltaBytes > 0 ? "+" : string.Empty;
             DbStorageDeltaTextBlock.Text =
-                $"Biến động hôm nay: {deltaPrefix}{FormatBytes(response.DayDeltaBytes)} ({deltaPrefix}{response.DayDeltaPercent:0.##}%)";
+                $"{deltaPrefix}{FormatBytes(response.DayDeltaBytes)} ({deltaPrefix}{response.DayDeltaPercent:0.##}%)";
 
-            if (response.DayDeltaBytes > 0)
+            if (DbStorageDeltaPillBorder != null)
             {
-                DbStorageDeltaTextBlock.Foreground = new SolidColorBrush(Color.FromRgb(185, 28, 28));
-            }
-            else if (response.DayDeltaBytes < 0)
-            {
-                DbStorageDeltaTextBlock.Foreground = new SolidColorBrush(Color.FromRgb(5, 150, 105));
-            }
-            else
-            {
-                DbStorageDeltaTextBlock.Foreground = Brushes.DimGray;
+                if (response.DayDeltaBytes > 0)
+                {
+                    DbStorageDeltaPillBorder.Background = new SolidColorBrush(Color.FromRgb(254, 242, 242));
+                    DbStorageDeltaPillBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(254, 202, 202));
+                    DbStorageDeltaTextBlock.Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38));
+                }
+                else if (response.DayDeltaBytes < 0)
+                {
+                    DbStorageDeltaPillBorder.Background = new SolidColorBrush(Color.FromRgb(236, 253, 245));
+                    DbStorageDeltaPillBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(167, 243, 208));
+                    DbStorageDeltaTextBlock.Foreground = new SolidColorBrush(Color.FromRgb(5, 150, 105));
+                }
+                else
+                {
+                    DbStorageDeltaPillBorder.Background = new SolidColorBrush(Color.FromRgb(241, 245, 249));
+                    DbStorageDeltaPillBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(226, 232, 240));
+                    DbStorageDeltaTextBlock.Foreground = new SolidColorBrush(Color.FromRgb(100, 116, 139));
+                }
             }
 
+            // Top table & breakdown calculation
+            var topTable = response.TopTables.FirstOrDefault();
+            if (DbStorageTopTableTextBlock != null)
+            {
+                DbStorageTopTableTextBlock.Text = topTable != null
+                    ? $"{topTable.TableName} ({FormatBytes(topTable.TotalBytes)})"
+                    : "-";
+            }
+
+            long totalTableData = response.TopTables.Sum(x => x.TableBytes);
+            long totalIndexData = response.TopTables.Sum(x => x.IndexToastBytes);
+            long combinedTopData = totalTableData + totalIndexData;
+            double dataPercent = combinedTopData > 0 ? (double)totalTableData / combinedTopData * 100 : 0;
+            double indexPercent = combinedTopData > 0 ? (double)totalIndexData / combinedTopData * 100 : 0;
+
+            if (DbStorageDataProgressBar != null)
+            {
+                DbStorageDataProgressBar.Value = dataPercent;
+            }
+            if (DbStorageBreakdownTextBlock != null)
+            {
+                DbStorageBreakdownTextBlock.Text =
+                    $"Data: {FormatBytes(totalTableData)} ({dataPercent:0.#}%)  •  Index/Toast: {FormatBytes(totalIndexData)} ({indexPercent:0.#}%)";
+            }
+
+            // 2. Top Tables DataGrid Rows
             _dbStorageTableRows.Clear();
             foreach (var row in response.TopTables)
             {
+                row.DisplayTotal = FormatBytes(row.TotalBytes);
+                row.DisplayData = FormatBytes(row.TableBytes);
+                row.DisplayIndex = FormatBytes(row.IndexToastBytes);
+                row.PercentOfTotal = response.SizeBytes > 0 ? (double)row.TotalBytes / response.SizeBytes * 100 : 0;
                 _dbStorageTableRows.Add(row);
             }
             DbStorageTablesDataGrid.ItemsSource = _dbStorageTableRows;
 
+            // 3. History Rows & Delta
             _dbStorageHistoryRows.Clear();
-            foreach (var row in response.History.OrderByDescending(x => x.Date))
+            var chronological = response.History.OrderBy(x => x.Date).ToList();
+            var maxHistoryBytes = chronological.Count > 0 ? chronological.Max(x => x.SizeBytes) : 1;
+            var minHistoryBytes = chronological.Count > 0 ? chronological.Min(x => x.SizeBytes) : 0;
+
+            var historyItems = new List<DatabaseStorageHistoryRow>();
+            for (int i = 0; i < chronological.Count; i++)
             {
-                _dbStorageHistoryRows.Add(new DatabaseStorageHistoryRow
+                var cur = chronological[i];
+                var prev = i > 0 ? chronological[i - 1] : null;
+                long delta = prev != null ? cur.SizeBytes - prev.SizeBytes : 0;
+
+                string deltaText = "-";
+                string deltaColor = "#64748B";
+                if (prev != null)
                 {
-                    Date = row.Date,
-                    SizeBytes = row.SizeBytes,
-                    SizePretty = string.IsNullOrWhiteSpace(row.SizePretty) ? FormatBytes(row.SizeBytes) : row.SizePretty,
+                    if (delta > 0)
+                    {
+                        deltaText = $"+{FormatBytes(delta)}";
+                        deltaColor = "#DC2626";
+                    }
+                    else if (delta < 0)
+                    {
+                        deltaText = FormatBytes(delta);
+                        deltaColor = "#059669";
+                    }
+                    else
+                    {
+                        deltaText = "0 B";
+                        deltaColor = "#64748B";
+                    }
+                }
+
+                double heightPercent = maxHistoryBytes > 0
+                    ? Math.Max(25, (double)cur.SizeBytes / maxHistoryBytes * 100)
+                    : 50;
+
+                historyItems.Add(new DatabaseStorageHistoryRow
+                {
+                    Date = cur.Date,
+                    SizeBytes = cur.SizeBytes,
+                    SizePretty = string.IsNullOrWhiteSpace(cur.SizePretty) ? FormatBytes(cur.SizeBytes) : cur.SizePretty,
+                    DisplayDate = FormatDateOnly(cur.Date),
+                    DeltaText = deltaText,
+                    DeltaColor = deltaColor,
+                    BarHeightPercent = heightPercent
                 });
+            }
+
+            foreach (var row in historyItems.OrderByDescending(x => x.Date))
+            {
+                _dbStorageHistoryRows.Add(row);
             }
             DbStorageHistoryDataGrid.ItemsSource = _dbStorageHistoryRows;
         }
         catch (Exception ex)
         {
-            DbStorageSizeTextBlock.Text = "Tổng DB: không tải được";
-            DbStorageUpdatedAtTextBlock.Text = "Cập nhật: lỗi kết nối";
-            DbStorageDeltaTextBlock.Text = $"Biến động hôm nay: lỗi ({ex.Message})";
+            DbStorageSizeTextBlock.Text = "Lỗi kết nối";
+            DbStorageUpdatedAtTextBlock.Text = "Không tải được";
+            DbStorageDeltaTextBlock.Text = $"Lỗi: {ex.Message}";
             DbStorageDeltaTextBlock.Foreground = Brushes.Firebrick;
         }
+    }
+
+    private static string FormatDateOnly(string dateStr)
+    {
+        if (DateTime.TryParse(dateStr, out var d))
+        {
+            return d.ToString("dd/MM/yyyy");
+        }
+        return dateStr;
     }
 
     private async void CreateStaffButton_Click(object sender, RoutedEventArgs e)
@@ -215,9 +319,76 @@ public partial class MainWindow
         }
     }
 
+    private async void RefreshServerUsersButton_Click(object sender, RoutedEventArgs e)
+    {
+        await LoadServerUsersAsync();
+    }
+
     private async void RefreshDatabaseStorageButton_Click(object sender, RoutedEventArgs e)
     {
         await LoadDatabaseStorageStatsAsync();
+    }
+
+    private async void ClearSafeDatabaseLogsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var confirm = MessageBox.Show(
+            this,
+            "Bạn có chắc chắn muốn dọn dẹp các nhóm log rác an toàn?\n\n" +
+            "Hệ thống sẽ dọn sạch:\n" +
+            "• Ảnh chụp màn hình máy trạm (pc.screenshot.captured)\n" +
+            "• Lịch sử các lệnh điều khiển cũ đã hoàn tất\n" +
+            "• Nhật ký trạng thái kết nối socket cũ\n" +
+            "• Nhật ký mở game/ứng dụng cũ hơn 14 ngày\n\n" +
+            "CAM KẾT AN TOÀN 100%:\n" +
+            "✓ KHÔNG xóa tài khoản hay mật khẩu hội viên\n" +
+            "✓ KHÔNG xóa số dư tài khoản hay lịch sử nạp/trừ tiền\n" +
+            "✓ KHÔNG làm gián đoạn máy trạm đang chơi\n\n" +
+            "Tiến hành dọn dẹp ngay bây giờ?",
+            "Dọn dẹp log an toàn",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            using var response = await _httpClient.DeleteAsync(BuildApiUrl("/reports/events/system"));
+            if (!response.IsSuccessStatusCode)
+            {
+                MessageBox.Show(
+                    this,
+                    $"Dọn dẹp log thất bại ({(int)response.StatusCode}).",
+                    "Server Admin",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<ClearSystemEventsResponse>(JsonOptions());
+            var deletedCount = payload?.DeletedCount ?? 0;
+
+            MessageBox.Show(
+                this,
+                $"Đã dọn dẹp thành công {deletedCount:N0} bản ghi log rác.\n" +
+                "Database đã được giải phóng dung lượng và tối ưu hóa an toàn!",
+                "Dọn dẹp log hoàn tất",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            await LoadDatabaseStorageStatsAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                this,
+                $"Lỗi khi dọn dẹp log: {ex.Message}",
+                "Server Admin",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
     }
 
     private static string FormatBytes(long bytes)
@@ -247,5 +418,22 @@ public partial class MainWindow
         }
 
         return $"{value:0.##} {unit}";
+    }
+
+    private void AdminTabSubDataGrid_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is DependencyObject dep)
+        {
+            var scrollViewer = FindVisualParent<ScrollViewer>(dep);
+            if (scrollViewer != null && e.Delta != 0)
+            {
+                double scrollDelta = (e.Delta / 120.0) * 85.0;
+                double newOffset = scrollViewer.VerticalOffset - scrollDelta;
+                if (newOffset < 0) newOffset = 0;
+                if (newOffset > scrollViewer.ScrollableHeight) newOffset = scrollViewer.ScrollableHeight;
+                scrollViewer.ScrollToVerticalOffset(newOffset);
+                e.Handled = true;
+            }
+        }
     }
 }
