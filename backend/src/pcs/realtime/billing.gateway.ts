@@ -107,6 +107,23 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
       : null;
     const resumeGuestSession =
       !!activeSession && activePresenceKind === 'GUEST';
+
+    let guestInfo: {
+      displayName: string;
+      isPrepaid: boolean;
+      prepaidAmount: number;
+    } | null = null;
+
+    if (resumeGuestSession) {
+      const activeGuest = await this.pcsService.getActiveGuestForPc(transition.pc.id);
+      const prepaidAmount = activeGuest?.prepaidAmount ?? 0;
+      guestInfo = {
+        displayName: activeGuest?.displayName || 'Khách vãng lai',
+        isPrepaid: prepaidAmount > 0,
+        prepaidAmount: prepaidAmount,
+      };
+    }
+
     const billingInfo = await this.pcsService.getActiveSessionBillingForPc(transition.pc.id);
     const elapsedSeconds = billingInfo?.elapsedSeconds ?? (activeSession
       ? Math.max(
@@ -151,6 +168,7 @@ export class BillingGateway implements OnGatewayInit, OnGatewayDisconnect {
       hourlyRate: effectiveHourlyRate,
       isGuestLoginEnabled,
       resumeGuestSession,
+      guestInfo,
       resumeMemberSession,
       memberInfo,
       elapsedSeconds,

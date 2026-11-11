@@ -33,6 +33,7 @@ public sealed class AgentSocketService : IAsyncDisposable
     public Func<AdminKillProcessPayload, Task>? KillProcessHandler { get; set; }
     public Action<GuestPrepaidConfigurePayload>? GuestPrepaidConfigureHandler { get; set; }
     public Action<string, string, string, string?, string, int, decimal, string>? ResumeMemberSessionHandler { get; set; }
+    public Action<bool, bool, decimal, string>? ResumeGuestSessionDetailedHandler { get; set; }
     public Action<List<(string Name, decimal Discount)>>? PromotionChangedHandler { get; set; }
     public Action<string, string, string>? SupportReplyHandler { get; set; }
     public Action? SupportClearedHandler { get; set; }
@@ -255,9 +256,39 @@ public sealed class AgentSocketService : IAsyncDisposable
                 SessionBillingHandler?.Invoke(-1, estimatedAmount);
             }
 
-            if (element.TryGetProperty("resumeGuestSession", out var resumeGuest))
+            if (element.TryGetProperty("resumeGuestSession", out var resumeGuest) && resumeGuest.GetBoolean())
             {
-                _resumeGuestSessionHandler?.Invoke(resumeGuest.GetBoolean());
+                bool isPrepaid = false;
+                decimal prepaidAmount = 0m;
+                string displayName = "Khách vãng lai";
+
+                if (element.TryGetProperty("guestInfo", out var guestInfoProp) && guestInfoProp.ValueKind == JsonValueKind.Object)
+                {
+                    if (guestInfoProp.TryGetProperty("isPrepaid", out var isPrepaidProp))
+                    {
+                        isPrepaid = isPrepaidProp.GetBoolean();
+                    }
+                    if (guestInfoProp.TryGetProperty("prepaidAmount", out var prepaidAmountProp))
+                    {
+                        if (prepaidAmountProp.ValueKind == JsonValueKind.Number)
+                        {
+                            prepaidAmount = prepaidAmountProp.GetDecimal();
+                        }
+                    }
+                    if (guestInfoProp.TryGetProperty("displayName", out var dispNameProp))
+                    {
+                        displayName = dispNameProp.GetString() ?? "Khách vãng lai";
+                    }
+                }
+
+                if (ResumeGuestSessionDetailedHandler != null)
+                {
+                    ResumeGuestSessionDetailedHandler.Invoke(true, isPrepaid, prepaidAmount, displayName);
+                }
+                else
+                {
+                    _resumeGuestSessionHandler?.Invoke(true);
+                }
             }
 
             if (element.TryGetProperty("resumeMemberSession", out var resumeMember) && resumeMember.GetBoolean())

@@ -1001,6 +1001,26 @@ export class PcsService {
     };
   }
 
+  async getActiveGuestForPc(
+    pcId: string,
+  ): Promise<{ displayName: string; prepaidAmount: number } | null> {
+    const latestPresence = await this.prisma.eventLog.findFirst({
+      where: {
+        pcId,
+        eventType: 'guest.pc.presence',
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (!latestPresence) {
+      return null;
+    }
+
+    return this.parseGuestPresencePayload(latestPresence.payload);
+  }
+
   async getActiveSessionBillingForPc(pcId: string): Promise<{
     elapsedSeconds: number;
     billableMinutes: number;

@@ -1160,16 +1160,18 @@ public partial class MainWindow : Window
                 : "Thanh toán...";
         }
 
+        var isGuestAlreadyPrepaid = isGuestInUse && selectedMachine.ActiveGuestPrepaidAmount > 0;
+        var isPostpaidGuest = isGuestInUse && !isGuestAlreadyPrepaid;
+
         if (ContextLockMachineMenuItem is not null)
         {
-            ContextLockMachineMenuItem.Visibility = isGuestInUse
+            ContextLockMachineMenuItem.Visibility = isPostpaidGuest
                 ? Visibility.Collapsed
                 : Visibility.Visible;
         }
 
         if (ContextSwitchGuestToPrepaidMenuItem is not null)
         {
-            var isGuestAlreadyPrepaid = isGuestInUse && selectedMachine.ActiveGuestPrepaidAmount > 0;
             ContextSwitchGuestToPrepaidMenuItem.Header = isGuestAlreadyPrepaid
                 ? "Nạp / Trừ tiền..."
                 : "Chuyển sang trả tiền trước...";
@@ -1210,7 +1212,7 @@ public partial class MainWindow : Window
             openGuest: isReady,
             switchGuestToPrepaid: isGuestInUse,
             adminLogin: !isInUse && !isOffline,
-            lockMachine: !isLocked && !isGuestInUse && !selectedMachine.IsVipSession,
+            lockMachine: !isLocked && !isPostpaidGuest && !selectedMachine.IsVipSession,
             topupMember: isInUse && hasActiveMember && !selectedMachine.IsVipSession,
             restart: true,
             wakeRemote: isOffline,
@@ -1430,7 +1432,10 @@ public partial class MainWindow : Window
     {
         if (MachinesDataGrid.SelectedItem is MachineRow selected && IsGuestInUseMachine(selected))
         {
-            return;
+            if (selected.ActiveGuestPrepaidAmount <= 0)
+            {
+                return;
+            }
         }
 
         await SendCommandAsync("lock");

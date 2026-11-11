@@ -915,6 +915,7 @@ export class CommandsService {
     ) {
       await this.logEvent(EventSource.SERVER, 'guest.pc.presence', command.pcId, {
         isActive: false,
+        prepaidAmount: 0,
         at: new Date().toISOString(),
       });
       await this.logEvent(EventSource.SERVER, 'admin.pc.presence', command.pcId, {
@@ -1123,6 +1124,7 @@ export class CommandsService {
       );
       await this.logEvent(EventSource.SERVER, 'guest.pc.presence', targetPcId, {
         isActive: false,
+        prepaidAmount: 0,
         at: new Date().toISOString(),
       });
       await this.logEvent(EventSource.SERVER, 'admin.pc.presence', targetPcId, {
@@ -1220,6 +1222,7 @@ export class CommandsService {
 
       await this.logEvent(EventSource.SERVER, 'guest.pc.presence', targetPcId, {
         isActive: false,
+        prepaidAmount: 0,
         at: new Date().toISOString(),
       });
       await this.logEvent(EventSource.SERVER, 'admin.pc.presence', targetPcId, {
@@ -1788,6 +1791,32 @@ export class CommandsService {
       amount = Math.round(amount * 100) / 100;
     }
 
+    // Kiểm tra nếu là phiên khách vãng lai nạp tiền trước
+    const latestGuestPresence = await tx.eventLog.findFirst({
+      where: {
+        pcId,
+        eventType: 'guest.pc.presence',
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { payload: true },
+    });
+    const isGuestActive = this.isActivePresencePayload(latestGuestPresence?.payload);
+    let guestPrepaidAmount = 0;
+    if (
+      isGuestActive &&
+      latestGuestPresence?.payload &&
+      typeof latestGuestPresence.payload === 'object' &&
+      !Array.isArray(latestGuestPresence.payload)
+    ) {
+      const payloadObj = latestGuestPresence.payload as Record<string, unknown>;
+      guestPrepaidAmount = Number(payloadObj.prepaidAmount || 0);
+    }
+
+    if (closedReason === 'ADMIN_LOCK' && guestPrepaidAmount > 0) {
+      // Khi admin khóa máy khách vãng lai nạp tiền trước, trừ hết toàn bộ tiền trả trước vào doanh thu phiên
+      amount = Math.max(amount, guestPrepaidAmount);
+    }
+
     const closedSession = await tx.session.update({
       where: { id: activeSession.id },
       data: {
@@ -1900,11 +1929,28 @@ export class CommandsService {
       },
     });
 
-    if (!latestPresence || latestPresence.eventType !== 'guest.pc.presence') {
+    if (!latestPresence || !this.isActivePresencePayload(latestPresence.payload)) {
       return false;
     }
 
-    return this.isActivePresencePayload(latestPresence.payload);
+    // Bảo lưu phiên khi restart cho khách vãng lai (cả trả trước và trả sau)
+    if (latestPresence.eventType === 'guest.pc.presence') {
+      return true;
+    }
+
+    // Bảo lưu phiên khi restart cho hội viên VIP
+    if (latestPresence.eventType === 'member.pc.presence') {
+      const payload = latestPresence.payload as Record<string, unknown>;
+      const memberId = typeof payload.memberId === 'string' ? payload.memberId : null;
+      if (!memberId) return false;
+      const member = await tx.member.findUnique({
+        where: { id: memberId },
+        select: { memberType: true },
+      });
+      return member?.memberType === 'VIP';
+    }
+
+    return false;
   }
 
   private async isMemberUsingPromoPlayTimeForPcTx(

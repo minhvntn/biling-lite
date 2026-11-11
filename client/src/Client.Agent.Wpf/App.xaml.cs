@@ -257,10 +257,10 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        var shouldPreserveGuestSessionOnExit =
-            _isPostpaidGuestSession &&
-            _activeMemberSession is null &&
-            !_isAdminSession;
+        var isGuestSessionActive = _activeMemberSession is null && !_isAdminSession &&
+            (_isPostpaidGuestSession || (_guestPrepaidTotalMinutes != null && _guestPrepaidTotalMinutes > 0));
+
+        var shouldPreserveGuestSessionOnExit = isGuestSessionActive;
 
         var shouldPreserveVipSessionOnExit =
             _activeMemberSession is not null &&
@@ -403,6 +403,12 @@ public partial class App : Application
             OnMemberAccountChangedFromServer,
             OnServiceOrdersChangedFromServer,
             OnWebFilterSettingsChangedFromServer);
+
+        _socketService.ResumeGuestSessionDetailedHandler = (resume, isPrepaid, prepaidAmount, displayName) =>
+        {
+            if (!resume) return;
+            Dispatcher.Invoke(() => ResumeGuestSessionFromServer(isPrepaid, prepaidAmount, displayName));
+        };
 
         _socketService.ResumeMemberSessionHandler = (memberId, username, fullName, rank, memberType, elapsedSeconds, balance, referralCode) =>
         {
@@ -4756,23 +4762,44 @@ LIMIT $limit;";
         EnsureDesktopWallpaperApplied();
     }
 
-    private void ResumeGuestSessionFromServer()
+    private void ResumeGuestSessionFromServer(bool isPrepaid = false, decimal prepaidAmount = 0m, string? displayName = null)
     {
         if (_activeMemberSession is not null || _isAdminSession)
         {
             return;
         }
 
-        _isPostpaidGuestSession = true;
-        _suppressGuestPresenceForAutoResumedUnpaidSession = true;
-        _mainWindow?.ConfigureBilling(
-            _settings.TotalSessionMinutes,
-            _currentHourlyRate,
-            false,
-            isPostpaid: _isPostpaidGuestSession);
-        _mainWindow?.SetMemberInfo(null, null);
-        UnlockMachine();
-        _mainWindow?.SetLastCommand($"GUEST RESUME @ {DateTime.Now:HH:mm:ss}");
+        var rate = _currentHourlyRate > 0 ? _currentHourlyRate : (_settings.HourlyRate > 0 ? _settings.HourlyRate : 12000m);
+
+        if (isPrepaid && prepaidAmount > 0)
+        {
+            _isPostpaidGuestSession = false;
+            var totalMinutes = (int)Math.Floor((prepaidAmount / rate) * 60m);
+            _guestPrepaidTotalMinutes = totalMinutes;
+            _suppressGuestPresenceForAutoResumedUnpaidSession = false;
+            _mainWindow?.ConfigureBilling(
+                totalMinutes,
+                rate,
+                true,
+                isPostpaid: false);
+            _mainWindow?.SetMemberInfo(null, null);
+            UnlockMachine();
+            _mainWindow?.SetLastCommand($"GUEST PREPAID RESUME ({prepaidAmount:N0}đ) @ {DateTime.Now:HH:mm:ss}");
+        }
+        else
+        {
+            _isPostpaidGuestSession = true;
+            _guestPrepaidTotalMinutes = null;
+            _suppressGuestPresenceForAutoResumedUnpaidSession = true;
+            _mainWindow?.ConfigureBilling(
+                _settings.TotalSessionMinutes,
+                rate,
+                false,
+                isPostpaid: true);
+            _mainWindow?.SetMemberInfo(null, null);
+            UnlockMachine();
+            _mainWindow?.SetLastCommand($"GUEST POSTPAID RESUME @ {DateTime.Now:HH:mm:ss}");
+        }
     }
 
     private void ResumeMemberSessionFromServer(string memberId, string username, string fullName, string? rank, string memberType, int elapsedSeconds, decimal memberBalance, string? referralCode = null)
